@@ -1,3 +1,4 @@
+import AddOfferForm from '../components/add-offer-form'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/app/components/logout-button'
@@ -8,6 +9,15 @@ type Profile = {
   id: string
   email: string | null
   role: Role
+}
+
+type Offer = {
+  id: string
+  title: string | null
+  description: string | null
+  discount: string | null
+  starts_at: string | null
+  ends_at: string | null
 }
 
 function getRoleTheme(role: Role) {
@@ -90,28 +100,83 @@ function CustomerDashboard() {
   )
 }
 
-function BusinessDashboard() {
+async function BusinessDashboard() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const { data: offers } = await supabase
+    .from('offers')
+    .select('*')
+    .eq('business_id', user.id)
+    .order('created_at', { ascending: false })
+
   return (
-    <div className="mt-8 grid gap-4 md:grid-cols-3">
-      <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-green-700">My offers</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Your active fundraiser offers will appear here.
-        </p>
-      </div>
+    <div className="mt-8">
+      <AddOfferForm />
 
-      <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-green-700">Redemptions</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Track offer redemptions and customer activity.
-        </p>
-      </div>
+      <div className="mt-8">
+        <h2 className="mb-4 text-xl font-semibold text-green-700">
+          My Offers
+        </h2>
 
-      <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-green-700">Marketing tools</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Your AI marketing tools will live here.
-        </p>
+        {offers && offers.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            {offers.map((offer) => (
+              <div
+                key={offer.id}
+                className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+              >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-green-700">
+                  {offer.title}
+                </h3>
+
+                {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
+                  <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
+                    Expired
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
+                    Active
+                  </span>
+                )} 
+              </div>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  {offer.discount}
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  {offer.description}
+                </p>
+
+                <div className="mt-4 space-y-1 text-xs text-gray-500">
+                  <p>
+                    Starts:{' '}
+                    {offer.starts_at
+                      ? new Date(offer.starts_at).toLocaleDateString()
+                      : '—'}
+                  </p>
+                  <p>
+                    Ends:{' '}
+                    {offer.ends_at
+                      ? new Date(offer.ends_at).toLocaleDateString()
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">
+            No offers yet. Create your first one above.
+          </p>
+        )}
       </div>
     </div>
   )
