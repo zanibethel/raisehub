@@ -2,6 +2,7 @@ import AddOfferForm from '../components/add-offer-form'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/app/components/logout-button'
+import SaveOfferButton from '../components/save-offer-button'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -73,28 +74,153 @@ function getRoleTheme(role: Role) {
   }
 }
 
-function CustomerDashboard() {
+async function CustomerDashboard() {
+  const supabase = await createClient()
+  const now = new Date().toISOString()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const { data: offers } = await supabase
+    .from('offers')
+    .select('*')
+    .lte('starts_at', now)
+    .gte('ends_at', now)
+    .order('created_at', { ascending: false })
+
+  const { data: savedOffers } = await supabase
+    .from('saved_offers')
+    .select('id, offer_id')
+    .eq('user_id', user.id)
+
+  const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
+
   return (
-    <div className="mt-8 grid gap-4 md:grid-cols-3">
-      <div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-yellow-600">My passes</h2>
+    <div className="mt-8">
+<div className="rounded-3xl border border-green-100 bg-white/90 p-8 shadow-xl backdrop-blur">
+  <h2 className="text-2xl font-semibold text-green-700">
+    My Pass
+  </h2>
+  <p className="mt-2 text-sm text-gray-600">
+    Your saved offers ready to use.
+  </p>
+</div>
+
+<div className="mt-6">
+  {savedOffers && savedOffers.length > 0 ? (
+    <div className="grid gap-4 md:grid-cols-3">
+      {offers
+        ?.filter((offer) => savedOfferIds.has(offer.id))
+        .map((offer) => (
+          <div
+            key={offer.id}
+            className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+          >
+            <h3 className="text-lg font-semibold text-green-700">
+              {offer.title}
+            </h3>
+
+            <p className="mt-1 text-sm text-gray-500">
+              {offer.discount}
+            </p>
+
+            <p className="mt-2 text-sm text-gray-600">
+              {offer.description}
+            </p>
+
+            <div className="mt-4 space-y-1 text-xs text-gray-500">
+              <p>
+                Ends:{' '}
+                {offer.ends_at
+                  ? new Date(offer.ends_at).toLocaleDateString()
+                  : '—'}
+              </p>
+            </div>
+
+            <button className="mt-4 w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+              Use Offer
+            </button>
+          </div>
+        ))}
+    </div>
+  ) : (
+    <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+      <p className="text-sm text-gray-600">
+        You haven’t saved any offers yet.
+      </p>
+    </div>
+  )}
+</div>
+      <div className="rounded-3xl border border-yellow-100 bg-white/90 p-8 shadow-xl backdrop-blur">
+        <h2 className="text-2xl font-semibold text-yellow-600">
+          Available Offers
+        </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Your purchased fundraiser passes will appear here.
+          Browse active local offers available through RaiseHub.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-yellow-600">Savings</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Track how much you have saved across local offers.
-        </p>
-      </div>
+      <div className="mt-8">
+        {offers && offers.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            {offers.map((offer) => (
+              <div
+                key={offer.id}
+                className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-yellow-600">
+                    {offer.title}
+                  </h3>
 
-      <div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-yellow-600">Favorites</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Save your favorite participating businesses here.
-        </p>
+                  <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
+                    Active
+                  </span>
+                </div>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  {offer.discount}
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  {offer.description}
+                </p>
+
+                <div className="mt-4 space-y-1 text-xs text-gray-500">
+                  <p>
+                    Starts:{' '}
+                    {offer.starts_at
+                      ? new Date(offer.starts_at).toLocaleDateString()
+                      : '—'}
+                  </p>
+                  <p>
+                    Ends:{' '}
+                    {offer.ends_at
+                      ? new Date(offer.ends_at).toLocaleDateString()
+                      : '—'}
+                  </p>
+                </div>
+
+                {savedOfferIds.has(offer.id) ? (
+                  <div className="mt-4 rounded-lg bg-green-50 px-4 py-2 text-center text-sm font-medium text-green-700">
+                    Saved to your pass
+                  </div>
+                ) : (
+                  <SaveOfferButton offerId={offer.id} />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+            <p className="text-sm text-gray-600">
+              No active offers are available right now.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
