@@ -3,16 +3,18 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type SaveOfferButtonProps = {
+type RemoveSavedOfferButtonProps = {
   offerId: string
 }
 
-export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
+export default function RemoveSavedOfferButton({
+  offerId,
+}: RemoveSavedOfferButtonProps) {
   const supabase = createClient()
-  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
-  async function handleSave() {
+  async function handleRemove() {
     setLoading(true)
     setMessage('')
 
@@ -26,22 +28,19 @@ export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
       return
     }
 
-    const { error } = await supabase.from('saved_offers').insert({
-      user_id: user.id,
-      offer_id: offerId,
-    })
+    const { error } = await supabase
+      .from('saved_offers')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('offer_id', offerId)
 
     if (error) {
-      if (error.code === '23505') {
-        setMessage('Already saved.')
-      } else {
-        setMessage(error.message)
-      }
+      setMessage(error.message)
       setLoading(false)
       return
     }
 
-    setMessage('Saved to your pass!')
+    setMessage('Removed from your pass.')
     setLoading(false)
 
     window.location.reload()
@@ -50,11 +49,11 @@ export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
   return (
     <div className="mt-4">
       <button
-        onClick={handleSave}
+        onClick={handleRemove}
         disabled={loading}
-        className="w-full rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
+        className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
       >
-        {loading ? 'Saving...' : 'Save for Pass'}
+        {loading ? 'Removing...' : 'Remove from Pass'}
       </button>
 
       {message ? (
