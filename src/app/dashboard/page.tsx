@@ -5,6 +5,8 @@ import LogoutButton from '@/app/components/logout-button'
 import SaveOfferButton from '../components/save-offer-button'
 import RemoveSavedOfferButton from '../components/remove-saved-offer-button'
 import AvailableOffersSection from '../components/available-offers-section'
+import BusinessProfileForm from '../components/business-profile-form'
+import BusinessProfileCard from '../components/business-profile-card'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -12,10 +14,15 @@ type Profile = {
   id: string
   email: string | null
   role: Role
+  business_name: string | null
+  phone: string | null
+  address: string | null
+  google_maps_url: string | null
 }
 
 type Offer = {
   id: string
+  business_id: string
   title: string | null
   description: string | null
   discount: string | null
@@ -93,12 +100,20 @@ async function CustomerDashboard() {
     .gte('ends_at', now)
     .order('created_at', { ascending: false })
 
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, business_name')
+
   const { data: savedOffers } = await supabase
     .from('saved_offers')
     .select('id, offer_id')
     .eq('user_id', user.id)
 
   const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
+
+  const businessNameById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile.business_name || 'Local Business'])
+  )
 
   return (
     <div className="mt-8 space-y-8">
@@ -120,7 +135,11 @@ async function CustomerDashboard() {
                     key={offer.id}
                     className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
                   >
-                    <h3 className="text-lg font-semibold text-green-700">
+                    <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                      {businessNameById.get(offer.business_id) || 'Local Business'}
+                    </p>
+
+                    <h3 className="mt-2 text-lg font-semibold text-green-700">
                       {offer.title}
                     </h3>
 
@@ -156,9 +175,13 @@ async function CustomerDashboard() {
       </section>
 
       <AvailableOffersSection
-  offers={offers ?? []}
-  savedOfferIds={[...savedOfferIds]}
-/>
+        offers={(offers ?? []).map((offer) => ({
+          ...offer,
+          business_name:
+            businessNameById.get(offer.business_id) || 'Local Business',
+        }))}
+        savedOfferIds={[...savedOfferIds]}
+      />
     </div>
   )
 }
@@ -172,6 +195,12 @@ async function BusinessDashboard() {
 
   if (!user) return null
 
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('business_name, phone, address, google_maps_url')
+  .eq('id', user.id)
+  .single()
+
   const { data: offers } = await supabase
     .from('offers')
     .select('*')
@@ -179,10 +208,15 @@ async function BusinessDashboard() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="mt-8">
-      <AddOfferForm />
+    <div className="mt-8 space-y-8">
+      <BusinessProfileCard
+  businessName={profile?.business_name ?? ''}
+  phone={profile?.phone ?? ''}
+  address={profile?.address ?? ''}
+  googleMapsUrl={profile?.google_maps_url ?? ''}
+/>
 
-      <div className="mt-8">
+      <div>
         <h2 className="mb-4 text-xl font-semibold text-green-700">
           My Offers
         </h2>
@@ -194,25 +228,23 @@ async function BusinessDashboard() {
                 key={offer.id}
                 className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
               >
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-green-700">
-                  {offer.title}
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-green-700">
+                    {offer.title}
+                  </h3>
 
-                {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
-                  <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
-                    Expired
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
-                    Active
-                  </span>
-                )} 
-              </div>
+                  {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
+                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
+                      Expired
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
+                      Active
+                    </span>
+                  )}
+                </div>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  {offer.discount}
-                </p>
+                <p className="mt-1 text-sm text-gray-500">{offer.discount}</p>
 
                 <p className="mt-2 text-sm text-gray-600">
                   {offer.description}
@@ -241,6 +273,8 @@ async function BusinessDashboard() {
           </p>
         )}
       </div>
+
+      <AddOfferForm />
     </div>
   )
 }

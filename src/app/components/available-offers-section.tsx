@@ -10,6 +10,7 @@ type Offer = {
   discount: string | null
   starts_at: string | null
   ends_at: string | null
+  business_name?: string
 }
 
 type AvailableOffersSectionProps = {
@@ -62,9 +63,14 @@ export default function AvailableOffersSection({
                 className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur"
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-yellow-600">
-                    {offer.title}
-                  </h3>
+                  <div>
+  <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
+    {offer.business_name || 'Local Business'}
+  </p>
+  <h3 className="mt-2 text-lg font-semibold text-yellow-600">
+    {offer.title}
+  </h3>
+</div>
 
                   <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
                     Active
