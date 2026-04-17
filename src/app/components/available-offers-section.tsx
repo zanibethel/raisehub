@@ -11,6 +11,9 @@ type Offer = {
   starts_at: string | null
   ends_at: string | null
   business_name?: string
+  phone?: string
+  address?: string
+  google_maps_url?: string
 }
 
 type AvailableOffersSectionProps = {
@@ -62,15 +65,16 @@ export default function AvailableOffersSection({
                 key={offer.id}
                 className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-  <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
-    {offer.business_name || 'Local Business'}
-  </p>
-  <h3 className="mt-2 text-lg font-semibold text-yellow-600">
-    {offer.title}
-  </h3>
-</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
+                      {offer.business_name || 'Local Business'}
+                    </p>
+
+                    <h3 className="mt-2 text-lg font-semibold text-yellow-600">
+                      {offer.title}
+                    </h3>
+                  </div>
 
                   <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
                     Active
@@ -82,6 +86,21 @@ export default function AvailableOffersSection({
                 <p className="mt-2 text-sm text-gray-600">
                   {offer.description}
                 </p>
+
+                <div className="mt-3 space-y-1 text-xs text-gray-500">
+                  {offer.phone && <p>📞 {offer.phone}</p>}
+                  {offer.address && <p>📍 {offer.address}</p>}
+                  {offer.google_maps_url && (
+                    <a
+                      href={offer.google_maps_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-yellow-700 underline"
+                    >
+                      View Map
+                    </a>
+                  )}
+                </div>
 
                 <div className="mt-4 space-y-1 text-xs text-gray-500">
                   <p>

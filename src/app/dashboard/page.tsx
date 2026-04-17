@@ -5,8 +5,8 @@ import LogoutButton from '@/app/components/logout-button'
 import SaveOfferButton from '../components/save-offer-button'
 import RemoveSavedOfferButton from '../components/remove-saved-offer-button'
 import AvailableOffersSection from '../components/available-offers-section'
-import BusinessProfileForm from '../components/business-profile-form'
 import BusinessProfileCard from '../components/business-profile-card'
+import UseOfferButton from '../components/use-offer-button'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -102,18 +102,43 @@ async function CustomerDashboard() {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, business_name')
+    .select('id, business_name, phone, address, google_maps_url')
 
   const { data: savedOffers } = await supabase
     .from('saved_offers')
     .select('id, offer_id')
     .eq('user_id', user.id)
 
-  const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
+  const { data: redemptions } = await supabase
+  .from('redemptions')
+  .select('offer_id')
+  .eq('user_id', user.id)
 
-  const businessNameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.business_name || 'Local Business'])
+  const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
+  const redeemedOfferIds = new Set((redemptions ?? []).map((item) => item.offer_id))
+  const profileById = new Map(
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      {
+        name: profile.business_name || 'Local Business',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        map: profile.google_maps_url || '',
+      },
+    ])
   )
+
+  const enrichedOffers = (offers ?? []).map((offer) => {
+    const business = profileById.get(offer.business_id)
+
+    return {
+      ...offer,
+      business_name: business?.name || 'Local Business',
+      phone: business?.phone || '',
+      address: business?.address || '',
+      google_maps_url: business?.map || '',
+    }
+  })
 
   return (
     <div className="mt-8 space-y-8">
@@ -128,15 +153,15 @@ async function CustomerDashboard() {
         <div className="mt-6">
           {savedOffers && savedOffers.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-3">
-              {offers
-                ?.filter((offer) => savedOfferIds.has(offer.id))
+              {enrichedOffers
+                .filter((offer) => savedOfferIds.has(offer.id))
                 .map((offer) => (
                   <div
                     key={offer.id}
                     className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
                   >
                     <p className="text-xs font-medium uppercase tracking-wide text-green-700">
-                      {businessNameById.get(offer.business_id) || 'Local Business'}
+                      {offer.business_name}
                     </p>
 
                     <h3 className="mt-2 text-lg font-semibold text-green-700">
@@ -151,6 +176,21 @@ async function CustomerDashboard() {
                       {offer.description}
                     </p>
 
+                    <div className="mt-3 space-y-1 text-xs text-gray-500">
+                      {offer.phone && <p>📞 {offer.phone}</p>}
+                      {offer.address && <p>📍 {offer.address}</p>}
+                      {offer.google_maps_url && (
+                        <a
+                          href={offer.google_maps_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-green-700 underline"
+                        >
+                          View Map
+                        </a>
+                      )}
+                    </div>
+
                     <div className="mt-4 space-y-1 text-xs text-gray-500">
                       <p>
                         Ends:{' '}
@@ -160,7 +200,13 @@ async function CustomerDashboard() {
                       </p>
                     </div>
 
-                    <RemoveSavedOfferButton offerId={offer.id} />
+                    {redeemedOfferIds.has(offer.id) ? (
+  <div className="mt-4 rounded-lg bg-gray-100 px-4 py-2 text-center text-sm font-medium text-gray-600">
+    Offer already used
+  </div>
+) : (
+  <UseOfferButton offerId={offer.id} />
+)}
                   </div>
                 ))}
             </div>
@@ -175,11 +221,7 @@ async function CustomerDashboard() {
       </section>
 
       <AvailableOffersSection
-        offers={(offers ?? []).map((offer) => ({
-          ...offer,
-          business_name:
-            businessNameById.get(offer.business_id) || 'Local Business',
-        }))}
+        offers={enrichedOffers}
         savedOfferIds={[...savedOfferIds]}
       />
     </div>
@@ -195,11 +237,11 @@ async function BusinessDashboard() {
 
   if (!user) return null
 
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('business_name, phone, address, google_maps_url')
-  .eq('id', user.id)
-  .single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('business_name, phone, address, google_maps_url')
+    .eq('id', user.id)
+    .single()
 
   const { data: offers } = await supabase
     .from('offers')
@@ -207,14 +249,27 @@ const { data: profile } = await supabase
     .eq('business_id', user.id)
     .order('created_at', { ascending: false })
 
+  const { data: redemptions } = await supabase
+    .from('redemptions')
+    .select('offer_id')
+
+  const redemptionCountByOfferId = new Map<string, number>()
+
+  for (const redemption of redemptions ?? []) {
+    redemptionCountByOfferId.set(
+      redemption.offer_id,
+      (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
+    )
+  }
+
   return (
     <div className="mt-8 space-y-8">
       <BusinessProfileCard
-  businessName={profile?.business_name ?? ''}
-  phone={profile?.phone ?? ''}
-  address={profile?.address ?? ''}
-  googleMapsUrl={profile?.google_maps_url ?? ''}
-/>
+        businessName={profile?.business_name ?? ''}
+        phone={profile?.phone ?? ''}
+        address={profile?.address ?? ''}
+        googleMapsUrl={profile?.google_maps_url ?? ''}
+      />
 
       <div>
         <h2 className="mb-4 text-xl font-semibold text-green-700">
@@ -263,6 +318,11 @@ const { data: profile } = await supabase
                       ? new Date(offer.ends_at).toLocaleDateString()
                       : '—'}
                   </p>
+                </div>
+
+                {/* ✅ THIS is where it belongs */}
+                <div className="mt-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">
+                  Redemptions: {redemptionCountByOfferId.get(offer.id) ?? 0}
                 </div>
               </div>
             ))}
