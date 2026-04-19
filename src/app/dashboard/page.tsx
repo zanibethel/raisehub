@@ -269,62 +269,60 @@ async function BusinessDashboard() {
   const redeemedUserIds = [...new Set((redemptions ?? []).map((r) => r.user_id))]
 
   const { data: redeemedProfiles } =
-        redeemedUserIds.length > 0
-          ? await supabase
-            .from('profiles')
-            .select('id, email')
-            .in('id', redeemedUserIds)
-          : { data: [] }
+    redeemedUserIds.length > 0
+      ? await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', redeemedUserIds)
+      : { data: [] }
+
   const redemptionCountByOfferId = new Map<string, number>()
 
-// Total redemptions
-const totalRedemptions = (redemptions ?? []).length
-
-// Active offers (not expired)
-const activeOffers = (offers ?? []).filter(
-  (offer) =>
-    !offer.ends_at || new Date(offer.ends_at) >= new Date()
-)
-
-// Find top offer
-let topOfferId: string | null = null
-let topOfferCount = 0
-
-for (const [offerId, count] of redemptionCountByOfferId.entries()) {
-  if (count > topOfferCount) {
-    topOfferId = offerId
-    topOfferCount = count
+  for (const redemption of redemptions ?? []) {
+    redemptionCountByOfferId.set(
+      redemption.offer_id,
+      (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
+    )
   }
-}
 
-const topOffer = offers?.find((o) => o.id === topOfferId)
-for (const redemption of redemptions ?? []) {
-  redemptionCountByOfferId.set(
-    redemption.offer_id,
-    (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
+  const totalRedemptions = (redemptions ?? []).length
+
+  const activeOffers = (offers ?? []).filter(
+    (offer) => !offer.ends_at || new Date(offer.ends_at) >= new Date()
   )
-}
 
-const profileEmailById = Object.fromEntries(
-  (redeemedProfiles ?? []).map((profile) => [
-    profile.id,
-    profile.email || 'Unknown user',
-  ])
-)
+  let topOfferId: string | null = null
+  let topOfferCount = 0
 
-const redemptionsByOfferId = new Map<
-  string,
-  { user_id: string; created_at: string }[]
->()
+  for (const [offerId, count] of redemptionCountByOfferId.entries()) {
+    if (count > topOfferCount) {
+      topOfferId = offerId
+      topOfferCount = count
+    }
+  }
 
-for (const redemption of redemptions ?? []) {
-  const existing = redemptionsByOfferId.get(redemption.offer_id) ?? []
-  existing.push({
-    user_id: redemption.user_id,
-    created_at: redemption.created_at,
-  })
-  redemptionsByOfferId.set(redemption.offer_id, existing)
-}
+  const topOffer = (offers ?? []).find((offer) => offer.id === topOfferId)
+
+  const profileEmailById = Object.fromEntries(
+    (redeemedProfiles ?? []).map((profile) => [
+      profile.id,
+      profile.email || 'Unknown user',
+    ])
+  )
+
+  const redemptionsByOfferId = new Map<
+    string,
+    { user_id: string; created_at: string }[]
+  >()
+
+  for (const redemption of redemptions ?? []) {
+    const existing = redemptionsByOfferId.get(redemption.offer_id) ?? []
+    existing.push({
+      user_id: redemption.user_id,
+      created_at: redemption.created_at,
+    })
+    redemptionsByOfferId.set(redemption.offer_id, existing)
+  }
 
   return (
     <div className="mt-8 space-y-8">
@@ -334,34 +332,31 @@ for (const redemption of redemptions ?? []) {
         address={profile?.address ?? ''}
         googleMapsUrl={profile?.google_maps_url ?? ''}
       />
-<div className="grid gap-4 md:grid-cols-3">
-  {/* Total Redemptions */}
-  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-    <p className="text-sm text-gray-500">Total Redemptions</p>
-    <p className="mt-2 text-2xl font-bold text-green-700">
-      {totalRedemptions}
-    </p>
-  </div>
 
-  {/* Active Offers */}
-  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-    <p className="text-sm text-gray-500">Active Offers</p>
-    <p className="mt-2 text-2xl font-bold text-green-700">
-      {activeOffers.length}
-    </p>
-  </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <p className="text-sm text-gray-500">Total Redemptions</p>
+          <p className="mt-2 text-2xl font-bold text-green-700">
+            {totalRedemptions}
+          </p>
+        </div>
 
-  {/* Top Offer */}
-  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-    <p className="text-sm text-gray-500">Top Offer</p>
-    <p className="mt-2 text-lg font-semibold text-green-700">
-      {topOffer?.title || 'No data yet'}
-    </p>
-    <p className="text-sm text-gray-500">
-      {topOfferCount} uses
-    </p>
-  </div>
-</div>
+        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <p className="text-sm text-gray-500">Active Offers</p>
+          <p className="mt-2 text-2xl font-bold text-green-700">
+            {activeOffers.length}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <p className="text-sm text-gray-500">Top Offer</p>
+          <p className="mt-2 text-lg font-semibold text-green-700">
+            {topOffer?.title || 'No data yet'}
+          </p>
+          <p className="text-sm text-gray-500">{topOfferCount} uses</p>
+        </div>
+      </div>
+
       <div>
         <h2 className="mb-4 text-xl font-semibold text-green-700">
           My Offers
@@ -369,61 +364,64 @@ for (const redemption of redemptions ?? []) {
 
         {offers && offers.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-3">
-            {offers.sort((a, b) => {
-    const aCount = redemptionCountByOfferId.get(a.id) ?? 0
-    const bCount = redemptionCountByOfferId.get(b.id) ?? 0
-    return bCount - aCount
-  }).map((offer) => (
-              <div
-                key={offer.id}
-                className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-green-700">
-                    {offer.title}
-                  </h3>
+            {[...(offers ?? [])]
+              .sort((a, b) => {
+                const aCount = redemptionCountByOfferId.get(a.id) ?? 0
+                const bCount = redemptionCountByOfferId.get(b.id) ?? 0
+                return bCount - aCount
+              })
+              .map((offer) => (
+                <div
+                  key={offer.id}
+                  className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-green-700">
+                      {offer.title}
+                    </h3>
 
-                  {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
-                    <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
-                      Expired
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
-                      Active
-                    </span>
-                  )}
-                </div>
+                    {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
+                        Expired
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
+                        Active
+                      </span>
+                    )}
+                  </div>
 
-                <p className="mt-1 text-sm text-gray-500">{offer.discount}</p>
-
-                <p className="mt-2 text-sm text-gray-600">
-                  {offer.description}
-                </p>
-
-                <div className="mt-4 space-y-1 text-xs text-gray-500">
-                  <p>
-                    Starts:{' '}
-                    {offer.starts_at
-                      ? new Date(offer.starts_at).toLocaleDateString()
-                      : '—'}
+                  <p className="mt-1 text-sm text-gray-500">
+                    {offer.discount}
                   </p>
-                  <p>
-                    Ends:{' '}
-                    {offer.ends_at
-                      ? new Date(offer.ends_at).toLocaleDateString()
-                      : '—'}
-                  </p>
-                </div>
 
-                {/* ✅ THIS is where it belongs */}
-<RedemptionReport
-  offerId={offer.id}
-  redemptionCount={redemptionCountByOfferId.get(offer.id) ?? 0}
-  redemptions={redemptionsByOfferId.get(offer.id) ?? []}
-  profileEmailById={profileEmailById}
-/>
-              </div>
-            ))}
+                  <p className="mt-2 text-sm text-gray-600">
+                    {offer.description}
+                  </p>
+
+                  <div className="mt-4 space-y-1 text-xs text-gray-500">
+                    <p>
+                      Starts:{' '}
+                      {offer.starts_at
+                        ? new Date(offer.starts_at).toLocaleDateString()
+                        : '—'}
+                    </p>
+                    <p>
+                      Ends:{' '}
+                      {offer.ends_at
+                        ? new Date(offer.ends_at).toLocaleDateString()
+                        : '—'}
+                    </p>
+                  </div>
+
+                  <RedemptionReport
+                    offerId={offer.id}
+                    redemptionCount={redemptionCountByOfferId.get(offer.id) ?? 0}
+                    redemptions={redemptionsByOfferId.get(offer.id) ?? []}
+                    profileEmailById={profileEmailById}
+                  />
+                </div>
+              ))}
           </div>
         ) : (
           <p className="text-gray-500">
