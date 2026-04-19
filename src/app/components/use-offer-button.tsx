@@ -13,6 +13,12 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
   const [message, setMessage] = useState('')
 
   async function handleUseOffer() {
+    const confirmed = window.confirm(
+      'Are you sure you want to use this offer now?'
+    )
+
+    if (!confirmed) return
+
     setLoading(true)
     setMessage('')
 
@@ -43,7 +49,10 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
 
     setMessage('Offer used successfully!')
     setLoading(false)
-    window.location.reload()
+
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
   }
 
   return (

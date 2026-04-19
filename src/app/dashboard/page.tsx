@@ -112,11 +112,15 @@ async function CustomerDashboard() {
 
   const { data: redemptions } = await supabase
   .from('redemptions')
-  .select('offer_id')
+  .select('offer_id, created_at')
   .eq('user_id', user.id)
 
   const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
   const redeemedOfferIds = new Set((redemptions ?? []).map((item) => item.offer_id))
+
+const redemptionDateByOfferId = new Map(
+  (redemptions ?? []).map((item) => [item.offer_id, item.created_at])
+)
   const profileById = new Map(
     (profiles ?? []).map((profile) => [
       profile.id,
@@ -202,8 +206,16 @@ async function CustomerDashboard() {
                     </div>
 
                     {redeemedOfferIds.has(offer.id) ? (
-  <div className="mt-4 rounded-lg bg-gray-100 px-4 py-2 text-center text-sm font-medium text-gray-600">
-    Offer already used
+  <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-center">
+    <p className="text-sm font-medium text-gray-700">✅ Used</p>
+    <p className="mt-1 text-xs text-gray-500">
+      Used on:{' '}
+      {redemptionDateByOfferId.get(offer.id)
+        ? new Date(
+            redemptionDateByOfferId.get(offer.id) as string
+          ).toLocaleString()
+        : 'Unknown date'}
+    </p>
   </div>
 ) : (
   <UseOfferButton offerId={offer.id} />
@@ -357,7 +369,11 @@ for (const redemption of redemptions ?? []) {
 
         {offers && offers.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-3">
-            {offers.map((offer) => (
+            {offers.sort((a, b) => {
+    const aCount = redemptionCountByOfferId.get(a.id) ?? 0
+    const bCount = redemptionCountByOfferId.get(b.id) ?? 0
+    return bCount - aCount
+  }).map((offer) => (
               <div
                 key={offer.id}
                 className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
