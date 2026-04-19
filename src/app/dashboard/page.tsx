@@ -7,6 +7,7 @@ import RemoveSavedOfferButton from '../components/remove-saved-offer-button'
 import AvailableOffersSection from '../components/available-offers-section'
 import BusinessProfileCard from '../components/business-profile-card'
 import UseOfferButton from '../components/use-offer-button'
+import RedemptionReport from '../components/redemption-report'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -251,16 +252,67 @@ async function BusinessDashboard() {
 
   const { data: redemptions } = await supabase
     .from('redemptions')
-    .select('offer_id')
+    .select('offer_id, user_id, created_at')
 
+  const redeemedUserIds = [...new Set((redemptions ?? []).map((r) => r.user_id))]
+
+  const { data: redeemedProfiles } =
+        redeemedUserIds.length > 0
+          ? await supabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', redeemedUserIds)
+          : { data: [] }
   const redemptionCountByOfferId = new Map<string, number>()
 
-  for (const redemption of redemptions ?? []) {
-    redemptionCountByOfferId.set(
-      redemption.offer_id,
-      (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
-    )
+// Total redemptions
+const totalRedemptions = (redemptions ?? []).length
+
+// Active offers (not expired)
+const activeOffers = (offers ?? []).filter(
+  (offer) =>
+    !offer.ends_at || new Date(offer.ends_at) >= new Date()
+)
+
+// Find top offer
+let topOfferId: string | null = null
+let topOfferCount = 0
+
+for (const [offerId, count] of redemptionCountByOfferId.entries()) {
+  if (count > topOfferCount) {
+    topOfferId = offerId
+    topOfferCount = count
   }
+}
+
+const topOffer = offers?.find((o) => o.id === topOfferId)
+for (const redemption of redemptions ?? []) {
+  redemptionCountByOfferId.set(
+    redemption.offer_id,
+    (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
+  )
+}
+
+const profileEmailById = Object.fromEntries(
+  (redeemedProfiles ?? []).map((profile) => [
+    profile.id,
+    profile.email || 'Unknown user',
+  ])
+)
+
+const redemptionsByOfferId = new Map<
+  string,
+  { user_id: string; created_at: string }[]
+>()
+
+for (const redemption of redemptions ?? []) {
+  const existing = redemptionsByOfferId.get(redemption.offer_id) ?? []
+  existing.push({
+    user_id: redemption.user_id,
+    created_at: redemption.created_at,
+  })
+  redemptionsByOfferId.set(redemption.offer_id, existing)
+}
 
   return (
     <div className="mt-8 space-y-8">
@@ -270,7 +322,34 @@ async function BusinessDashboard() {
         address={profile?.address ?? ''}
         googleMapsUrl={profile?.google_maps_url ?? ''}
       />
+<div className="grid gap-4 md:grid-cols-3">
+  {/* Total Redemptions */}
+  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <p className="text-sm text-gray-500">Total Redemptions</p>
+    <p className="mt-2 text-2xl font-bold text-green-700">
+      {totalRedemptions}
+    </p>
+  </div>
 
+  {/* Active Offers */}
+  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <p className="text-sm text-gray-500">Active Offers</p>
+    <p className="mt-2 text-2xl font-bold text-green-700">
+      {activeOffers.length}
+    </p>
+  </div>
+
+  {/* Top Offer */}
+  <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <p className="text-sm text-gray-500">Top Offer</p>
+    <p className="mt-2 text-lg font-semibold text-green-700">
+      {topOffer?.title || 'No data yet'}
+    </p>
+    <p className="text-sm text-gray-500">
+      {topOfferCount} uses
+    </p>
+  </div>
+</div>
       <div>
         <h2 className="mb-4 text-xl font-semibold text-green-700">
           My Offers
@@ -321,9 +400,12 @@ async function BusinessDashboard() {
                 </div>
 
                 {/* ✅ THIS is where it belongs */}
-                <div className="mt-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">
-                  Redemptions: {redemptionCountByOfferId.get(offer.id) ?? 0}
-                </div>
+<RedemptionReport
+  offerId={offer.id}
+  redemptionCount={redemptionCountByOfferId.get(offer.id) ?? 0}
+  redemptions={redemptionsByOfferId.get(offer.id) ?? []}
+  profileEmailById={profileEmailById}
+/>
               </div>
             ))}
           </div>
