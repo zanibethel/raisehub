@@ -8,6 +8,7 @@ import AvailableOffersSection from '../components/available-offers-section'
 import BusinessProfileCard from '../components/business-profile-card'
 import UseOfferButton from '../components/use-offer-button'
 import RedemptionReport from '../components/redemption-report'
+import BusinessDashboardContent from '../components/business-dashboard-content'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -291,6 +292,9 @@ async function BusinessDashboard() {
     (offer) => !offer.ends_at || new Date(offer.ends_at) >= new Date()
   )
 
+  const ACTIVE_OFFER_LIMIT = 3
+  const hasReachedLimit = activeOffers.length >= ACTIVE_OFFER_LIMIT
+
   let topOfferId: string | null = null
   let topOfferCount = 0
 
@@ -325,113 +329,19 @@ async function BusinessDashboard() {
   }
 
   return (
-    <div className="mt-8 space-y-8">
-      <BusinessProfileCard
-        businessName={profile?.business_name ?? ''}
-        phone={profile?.phone ?? ''}
-        address={profile?.address ?? ''}
-        googleMapsUrl={profile?.google_maps_url ?? ''}
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <p className="text-sm text-gray-500">Total Redemptions</p>
-          <p className="mt-2 text-2xl font-bold text-green-700">
-            {totalRedemptions}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <p className="text-sm text-gray-500">Active Offers</p>
-          <p className="mt-2 text-2xl font-bold text-green-700">
-            {activeOffers.length}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <p className="text-sm text-gray-500">Top Offer</p>
-          <p className="mt-2 text-lg font-semibold text-green-700">
-            {topOffer?.title || 'No data yet'}
-          </p>
-          <p className="text-sm text-gray-500">{topOfferCount} uses</p>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-4 text-xl font-semibold text-green-700">
-          My Offers
-        </h2>
-
-        {offers && offers.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {[...(offers ?? [])]
-              .sort((a, b) => {
-                const aCount = redemptionCountByOfferId.get(a.id) ?? 0
-                const bCount = redemptionCountByOfferId.get(b.id) ?? 0
-                return bCount - aCount
-              })
-              .map((offer) => (
-                <div
-                  key={offer.id}
-                  className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-green-700">
-                      {offer.title}
-                    </h3>
-
-                    {offer.ends_at && new Date(offer.ends_at) < new Date() ? (
-                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
-                        Expired
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-600">
-                        Active
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    {offer.discount}
-                  </p>
-
-                  <p className="mt-2 text-sm text-gray-600">
-                    {offer.description}
-                  </p>
-
-                  <div className="mt-4 space-y-1 text-xs text-gray-500">
-                    <p>
-                      Starts:{' '}
-                      {offer.starts_at
-                        ? new Date(offer.starts_at).toLocaleDateString()
-                        : '—'}
-                    </p>
-                    <p>
-                      Ends:{' '}
-                      {offer.ends_at
-                        ? new Date(offer.ends_at).toLocaleDateString()
-                        : '—'}
-                    </p>
-                  </div>
-
-                  <RedemptionReport
-                    offerId={offer.id}
-                    redemptionCount={redemptionCountByOfferId.get(offer.id) ?? 0}
-                    redemptions={redemptionsByOfferId.get(offer.id) ?? []}
-                    profileEmailById={profileEmailById}
-                  />
-                </div>
-              ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">
-            No offers yet. Create your first one above.
-          </p>
-        )}
-      </div>
-
-      <AddOfferForm />
-    </div>
+    <BusinessDashboardContent
+      profile={profile}
+      offers={offers ?? []}
+      totalRedemptions={totalRedemptions}
+      activeOffersCount={activeOffers.length}
+      activeOfferLimit={ACTIVE_OFFER_LIMIT}
+      hasReachedLimit={hasReachedLimit}
+      topOfferTitle={topOffer?.title || ''}
+      topOfferCount={topOfferCount}
+      redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
+      redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
+      profileEmailById={profileEmailById}
+    />
   )
 }
 
