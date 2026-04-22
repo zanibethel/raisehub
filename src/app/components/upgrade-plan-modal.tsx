@@ -1,5 +1,7 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
+
 type UpgradePlanModalProps = {
   isOpen: boolean
   onClose: () => void
@@ -9,6 +11,8 @@ export default function UpgradePlanModal({
   isOpen,
   onClose,
 }: UpgradePlanModalProps) {
+  const router = useRouter()
+
   if (!isOpen) return null
 
   return (
@@ -32,28 +36,36 @@ export default function UpgradePlanModal({
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">Pro — $11.99/month</p>
+            <p className="font-medium text-gray-900">
+              Pro — $11.99/month
+            </p>
             <p className="text-sm text-gray-600">
-              More offers, stronger promotion, and better visibility
+              Unlimited offers, stronger promotion, and better visibility
             </p>
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">Pro Annual — $74.99/year</p>
+            <p className="font-medium text-gray-900">
+              Pro Annual — $74.99/year
+            </p>
             <p className="text-sm text-gray-600">
-              Lower yearly cost with the same upgraded access
+              Best value for growing businesses
             </p>
           </div>
         </div>
 
         <p className="mt-4 text-sm text-gray-600">
-          Founding-business launch promos can be added here later.
+          Founding-business launch promos coming soon.
         </p>
 
         <div className="mt-6 flex gap-3">
           <button
             type="button"
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            onClick={() => {
+              onClose()
+              router.push('/upgrade')
+            }}
+            className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
           >
             Upgrade Soon
           </button>
@@ -61,7 +73,7 @@ export default function UpgradePlanModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:border-gray-400"
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:border-gray-400"
           >
             Close
           </button>

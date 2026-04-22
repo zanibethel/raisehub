@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createOfferAction } from '@/app/dashboard/actions'
+import UpgradePlanModal from './upgrade-plan-modal'
 
 function getTodayLocalDate() {
   return new Date().toISOString().split('T')[0]
@@ -14,47 +15,48 @@ function getSixMonthsFromTodayLocalDate() {
 }
 
 export default function AddOfferForm() {
-  const supabase = createClient()
-
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [discount, setDiscount] = useState('')
   const [startsAt, setStartsAt] = useState(getTodayLocalDate())
   const [endsAt, setEndsAt] = useState(getSixMonthsFromTodayLocalDate())
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setLoading(true)
+    setMessage('')
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      setMessage('Not authenticated')
-      return
-    }
-
-    const { error } = await supabase.from('offers').insert({
-      business_id: user.id,
+    const result = await createOfferAction({
       title,
-      description,
       discount,
+      description,
       starts_at: startsAt,
       ends_at: endsAt,
     })
 
-    if (error) {
-      setMessage(error.message)
+    if (result.error) {
+      setLoading(false)
+
+      if (result.error.includes('free limit')) {
+        setShowUpgrade(true)
+        return
+      }
+
+      setMessage(result.error)
       return
     }
 
-    setMessage('Offer created!')
+    setMessage('Offer created successfully!')
     setTitle('')
-    setDescription('')
     setDiscount('')
+    setDescription('')
     setStartsAt(getTodayLocalDate())
     setEndsAt(getSixMonthsFromTodayLocalDate())
+    setLoading(false)
+    window.location.reload()
   }
 
   return (
@@ -110,14 +112,20 @@ export default function AddOfferForm() {
           </div>
         </div>
 
-        <button className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700">
-          Create Offer
+        <button
+          disabled={loading}
+          className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+        >
+          {loading ? 'Creating...' : 'Create Offer'}
         </button>
       </form>
 
-      {message && (
-        <p className="mt-2 text-sm text-gray-600">{message}</p>
-      )}
+      {message && <p className="mt-2 text-sm text-gray-600">{message}</p>}
+
+      <UpgradePlanModal
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+      />
     </div>
   )
 }
