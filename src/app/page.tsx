@@ -1,3 +1,6 @@
+import LogoCarousel from './components/logo-carousel'
+import FeaturedDealsCarousel from './components/featured-deals-carousel'
+
 export default function HomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-8 py-16 text-gray-900">
@@ -37,6 +40,9 @@ export default function HomePage() {
           </a>
         </div>
       </div>
+
+      <LogoCarousel />
+      <FeaturedDealsCarousel />
 
       <div className="mx-auto mt-16 grid max-w-5xl gap-6 md:grid-cols-3">
         <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">

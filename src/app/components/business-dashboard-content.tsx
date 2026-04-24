@@ -21,12 +21,15 @@ type Redemption = {
 }
 
 type BusinessDashboardContentProps = {
-  profile: {
-    business_name: string | null
-    phone: string | null
-    address: string | null
-    google_maps_url: string | null
-  } | null
+profile: {
+  business_name: string | null
+  phone: string | null
+  address: string | null
+  google_maps_url: string | null
+  logo_url?: string | null
+  website_url?: string | null
+  display_name?: string | null
+} | null
   offers: Offer[]
   totalRedemptions: number
   activeOffersCount: number
@@ -56,12 +59,15 @@ export default function BusinessDashboardContent({
 
   return (
     <div className="mt-8 space-y-8">
-      <BusinessProfileCard
-        businessName={profile?.business_name ?? ''}
-        phone={profile?.phone ?? ''}
-        address={profile?.address ?? ''}
-        googleMapsUrl={profile?.google_maps_url ?? ''}
-      />
+<BusinessProfileCard
+  businessName={profile?.business_name ?? ''}
+  phone={profile?.phone ?? ''}
+  address={profile?.address ?? ''}
+  googleMapsUrl={profile?.google_maps_url ?? ''}
+  logoUrl={profile?.logo_url ?? ''}
+  websiteUrl={profile?.website_url ?? ''}
+  displayName={profile?.display_name ?? ''}
+/>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">

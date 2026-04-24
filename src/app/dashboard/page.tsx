@@ -253,7 +253,7 @@ async function BusinessDashboard() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('business_name, phone, address, google_maps_url')
+    .select('business_name, phone, address, google_maps_url, logo_url, website_url, display_name')
     .eq('id', user.id)
     .single()
 
