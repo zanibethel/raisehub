@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
 type Offer = {
@@ -5,6 +6,7 @@ type Offer = {
   title: string | null
   discount: string | null
   description: string | null
+  starts_at: string | null
   ends_at: string | null
   business_id: string
 }
@@ -20,21 +22,15 @@ export default async function FeaturedDealsCarousel() {
   const supabase = await createClient()
   const now = new Date().toISOString()
 
- const { data: offers, error } = await supabase
-  .from('offers')
-  .select('id, title, discount, description, starts_at, ends_at, business_id')
-  .limit(12)
+  const { data: offers } = await supabase
+    .from('offers')
+    .select('id, title, discount, description, starts_at, ends_at, business_id')
+    .or(`starts_at.is.null,starts_at.lte.${now}`)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
+    .order('created_at', { ascending: false })
+    .limit(12)
 
-console.log('featured offers', offers)
-console.log('featured offers error', error)
-
-  if (!offers || offers.length === 0) {
-  return (
-    <div className="mx-auto mt-12 max-w-5xl rounded-3xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
-      Featured deals component loaded, but no offers were returned.
-    </div>
-  )
-}
+  if (!offers || offers.length === 0) return null
 
   const businessIds = [...new Set(offers.map((offer) => offer.business_id))]
 
@@ -47,7 +43,10 @@ console.log('featured offers error', error)
     (profiles ?? []).map((profile: Profile) => [profile.id, profile])
   )
 
-  const repeatedOffers = [...offers, ...offers]
+  const repeatedOffers = Array.from(
+    { length: 12 },
+    (_, index) => offers[index % offers.length]
+  )
 
   return (
     <section className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-3xl border border-yellow-100 bg-white/90 p-6 shadow-xl">
@@ -70,17 +69,18 @@ console.log('featured offers error', error)
               'Local Business'
 
             return (
-              <div
+              <Link
                 key={`${offer.id}-${index}`}
-                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm"
+                href="/dashboard"
+                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-yellow-200"
               >
                 <div>
                   <div className="flex items-center gap-3">
                     <img
-  src={profile?.logo_url || '/default-business-logo.png'}
-  alt={`${businessName} logo`}
-  className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
-/>
+                      src={profile?.logo_url || '/default-business-logo.png'}
+                      alt={`${businessName} logo`}
+                      className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
+                    />
 
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
@@ -107,7 +107,7 @@ console.log('featured offers error', error)
                     ? new Date(offer.ends_at).toLocaleDateString()
                     : '—'}
                 </p>
-              </div>
+              </Link>
             )
           })}
         </div>

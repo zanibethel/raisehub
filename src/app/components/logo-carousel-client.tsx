@@ -116,7 +116,11 @@ export default function LogoCarouselClient({
               <div className="flex flex-wrap gap-3 pt-2">
                 {selectedPartner.website_url ? (
                   <a
-                    href={selectedPartner.website_url}
+                    href={
+  selectedPartner.website_url?.startsWith('http')
+    ? selectedPartner.website_url
+    : `https://${selectedPartner.website_url}`
+}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
@@ -127,7 +131,11 @@ export default function LogoCarouselClient({
 
                 {selectedPartner.google_maps_url ? (
                   <a
-                    href={selectedPartner.google_maps_url}
+                    href={
+  selectedPartner.google_maps_url?.startsWith('http')
+    ? selectedPartner.google_maps_url
+    : `https://${selectedPartner.google_maps_url}`
+}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
