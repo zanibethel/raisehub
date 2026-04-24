@@ -27,7 +27,7 @@ export default async function LogoCarousel() {
   const repeatedLogos = Array.from({ length: 12 }, (_, index) => logos[index % logos.length])
 
   return (
-    <section className="mt-12 overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-6 shadow-xl">
+    <section className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-6 shadow-xl">
       <div className="mb-5 text-center">
         <h2 className="text-2xl font-semibold text-green-700">
           Local Partners
@@ -44,11 +44,11 @@ export default async function LogoCarousel() {
               partner.display_name || partner.business_name || 'Local Partner'
 
             const logo = (
-              <div className="flex h-24 w-40 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3 shadow-sm sm:h-24 sm:w-40 sm:p-4">
                 <img
                   src={partner.logo_url || '/default-business-logo.png'}
                   alt={`${name} logo`}
-                  className="max-h-16 max-w-32 object-contain"
+                  className="max-h-12 max-w-20 object-contain sm:max-h-16 sm:max-w-32"
                 />
               </div>
             )
