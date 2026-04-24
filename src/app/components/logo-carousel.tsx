@@ -24,7 +24,7 @@ export default async function LogoCarousel() {
     return null
   }
 
-  const repeatedLogos = [...logos, ...logos]
+  const repeatedLogos = Array.from({ length: 12 }, (_, index) => logos[index % logos.length])
 
   return (
     <section className="mt-12 overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-6 shadow-xl">
