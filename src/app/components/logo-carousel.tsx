@@ -24,7 +24,10 @@ export default async function LogoCarousel() {
     return null
   }
 
-  const repeatedLogos = Array.from({ length: 12 }, (_, index) => logos[index % logos.length])
+  const repeatedLogos = Array.from(
+  { length: 16 },
+  (_, index) => logos[index % logos.length]
+)
 
   return (
     <section className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-6 shadow-xl">
@@ -38,7 +41,7 @@ export default async function LogoCarousel() {
       </div>
 
       <div className="relative overflow-hidden">
-        <div className="flex w-max animate-[scroll_28s_linear_infinite] gap-6">
+        <div className="flex min-w-full animate-[scroll_40s_linear_infinite] gap-4 sm:w-max sm:gap-6">
           {repeatedLogos.map((partner, index) => {
             const name =
               partner.display_name || partner.business_name || 'Local Partner'
