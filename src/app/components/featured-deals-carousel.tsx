@@ -52,10 +52,10 @@ export default async function FeaturedDealsCarousel() {
     <section className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-3xl border border-yellow-100 bg-white/90 p-6 shadow-xl">
       <div className="mb-5 text-center">
         <h2 className="text-2xl font-semibold text-yellow-600">
-          Featured Local Deals
+          Exclusive Local Deals
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Active offers from participating local businesses.
+          Log in to unlock full deal details from participating businesses.
         </p>
       </div>
 
@@ -69,10 +69,9 @@ export default async function FeaturedDealsCarousel() {
               'Local Business'
 
             return (
-              <Link
+              <div
                 key={`${offer.id}-${index}`}
-                href="/dashboard"
-                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-yellow-200"
+                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm"
               >
                 <div>
                   <div className="flex items-center gap-3">
@@ -87,27 +86,45 @@ export default async function FeaturedDealsCarousel() {
                         {businessName}
                       </p>
                       <h3 className="mt-1 text-base font-semibold text-gray-900">
-                        {offer.title}
+                        Exclusive Local Deal
                       </h3>
                     </div>
                   </div>
 
-                  <p className="mt-4 text-sm font-medium text-yellow-700">
-                    {offer.discount}
-                  </p>
+                  <div className="relative mt-4 overflow-hidden rounded-xl border border-yellow-100 bg-yellow-50 p-4">
+                    <div className="blur-sm">
+                      <p className="text-sm font-medium text-yellow-700">
+                        {offer.discount || 'Special savings available'}
+                      </p>
+                      <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                        {offer.description || 'Exclusive customer offer'}
+                      </p>
+                    </div>
 
-                  <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                    {offer.description}
-                  </p>
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+                      <span className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-medium text-white">
+                        🔒 Members Only
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <p className="mt-4 text-xs text-gray-500">
-                  Valid until:{' '}
-                  {offer.ends_at
-                    ? new Date(offer.ends_at).toLocaleDateString()
-                    : '—'}
-                </p>
-              </Link>
+                <div className="mt-4">
+                  <p className="mb-3 text-xs text-gray-500">
+                    Valid until:{' '}
+                    {offer.ends_at
+                      ? new Date(offer.ends_at).toLocaleDateString()
+                      : '—'}
+                  </p>
+
+                  <Link
+                    href="/dashboard"
+                    className="block rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700"
+                  >
+                    View Deal
+                  </Link>
+                </div>
+              </div>
             )
           })}
         </div>

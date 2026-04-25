@@ -44,6 +44,50 @@ export default function HomePage() {
       <LogoCarousel />
       <FeaturedDealsCarousel />
 
+      <div className="mx-auto mt-16 max-w-5xl">
+  <div className="text-center">
+    <h2 className="text-3xl font-bold text-blue-700">How RaiseHub Works</h2>
+    <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+      RaiseHub connects supporters, local businesses, and organizations in one simple fundraising loop.
+    </p>
+  </div>
+
+  <div className="mt-8 grid gap-6 md:grid-cols-3">
+    <a
+      href="/how-it-works/supporters"
+      className="rounded-2xl border border-yellow-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
+    >
+      <h3 className="text-lg font-semibold text-yellow-600">For Supporters</h3>
+      <p className="mt-2 text-sm text-gray-600">
+        Save money locally while helping fund schools, teams, and organizations.
+      </p>
+      <p className="mt-4 text-sm font-medium text-yellow-700">Learn more →</p>
+    </a>
+
+    <a
+      href="/how-it-works/businesses"
+      className="rounded-2xl border border-green-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
+    >
+      <h3 className="text-lg font-semibold text-green-700">For Businesses</h3>
+      <p className="mt-2 text-sm text-gray-600">
+        Promote offers, gain visibility, and support local fundraising campaigns.
+      </p>
+      <p className="mt-4 text-sm font-medium text-green-700">Learn more →</p>
+    </a>
+
+    <a
+      href="/how-it-works/organizations"
+      className="rounded-2xl border border-blue-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
+    >
+      <h3 className="text-lg font-semibold text-blue-700">For Organizations</h3>
+      <p className="mt-2 text-sm text-gray-600">
+        Launch fundraising campaigns powered by local business deals.
+      </p>
+      <p className="mt-4 text-sm font-medium text-blue-700">Learn more →</p>
+    </a>
+  </div>
+</div>
+
       <div className="mx-auto mt-16 grid max-w-5xl gap-6 md:grid-cols-3">
         <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
           <h2 className="text-lg font-semibold text-blue-700">For schools</h2>
