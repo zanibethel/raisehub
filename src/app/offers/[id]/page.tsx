@@ -11,6 +11,18 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const { id } = await params
   const supabase = await createClient()
 
+  // =========================================
+  // 🔐 AUTH CHECK (used to unlock deal details)
+  // =========================================
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const isLoggedIn = !!user
+
+  // =========================================
+  // 📦 FETCH OFFER
+  // =========================================
   const { data: offer } = await supabase
     .from('offers')
     .select('id, title, discount, description, starts_at, ends_at, business_id')
@@ -30,9 +42,14 @@ export default async function OfferPage({ params }: OfferPageProps) {
     )
   }
 
+  // =========================================
+  // 🏪 FETCH BUSINESS PROFILE
+  // =========================================
   const { data: profile } = await supabase
     .from('profiles')
-    .select('business_name, display_name, logo_url, phone, address, website_url, google_maps_url')
+    .select(
+      'business_name, display_name, logo_url, phone, address, website_url, google_maps_url'
+    )
     .eq('id', offer.business_id)
     .single()
 
@@ -47,6 +64,9 @@ export default async function OfferPage({ params }: OfferPageProps) {
         </Link>
 
         <div className="mt-6 rounded-3xl border border-yellow-100 bg-white/90 p-8 shadow-xl">
+          {/* =========================================
+              🏷️ HEADER (logo + business name)
+          ========================================= */}
           <div className="flex items-center gap-4">
             <img
               src={profile?.logo_url || '/default-business-logo.png'}
@@ -64,23 +84,44 @@ export default async function OfferPage({ params }: OfferPageProps) {
             </div>
           </div>
 
-          <div className="relative mt-8 overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50 p-6">
-            <div className="blur-sm">
-              <p className="text-lg font-semibold text-yellow-700">
+          {/* =========================================
+              🔓 / 🔒 DEAL CONTENT BLOCK
+              - Shows FULL deal if logged in
+              - Shows BLURRED deal if logged out
+          ========================================= */}
+          {isLoggedIn ? (
+            // 🔓 FULL DEAL (LOGGED-IN USERS)
+            <div className="mt-8 rounded-2xl border border-green-100 bg-green-50 p-6">
+              <p className="text-lg font-semibold text-green-700">
                 {offer.discount || 'Special savings available'}
               </p>
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3 text-gray-700">
                 {offer.description || 'Exclusive customer offer'}
               </p>
             </div>
+          ) : (
+            // 🔒 BLURRED DEAL (PUBLIC USERS)
+            <div className="relative mt-8 overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50 p-6">
+              <div className="blur-sm">
+                <p className="text-lg font-semibold text-yellow-700">
+                  {offer.discount || 'Special savings available'}
+                </p>
+                <p className="mt-3 text-gray-600">
+                  {offer.description || 'Exclusive customer offer'}
+                </p>
+              </div>
 
-            <div className="absolute inset-0 flex items-center justify-center bg-white/65">
-              <span className="rounded-full bg-yellow-600 px-4 py-2 text-sm font-medium text-white">
-                🔒 Log in to unlock deal details
-              </span>
+              <div className="absolute inset-0 flex items-center justify-center bg-white/65">
+                <span className="rounded-full bg-yellow-600 px-4 py-2 text-sm font-medium text-white">
+                  🔒 Log in to unlock deal details
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
+          {/* =========================================
+              📅 META INFO (always visible)
+          ========================================= */}
           <div className="mt-6 space-y-2 text-sm text-gray-600">
             <p>
               Valid until:{' '}
@@ -93,22 +134,43 @@ export default async function OfferPage({ params }: OfferPageProps) {
             {profile?.phone ? <p>📞 {profile.phone}</p> : null}
           </div>
 
+          {/* =========================================
+              🔘 CTA BUTTON SECTION
+              - Logged out → Login + Signup
+              - Logged in → Dashboard
+          ========================================= */}
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <Link
-              href="/login"
-              className="rounded-xl bg-yellow-600 px-5 py-3 text-center font-medium text-white hover:bg-yellow-700"
-            >
-              Log In to View Deal
-            </Link>
+            {isLoggedIn ? (
+              // 🔓 LOGGED-IN CTA
+              <Link
+                href="/dashboard"
+                className="rounded-xl bg-green-600 px-5 py-3 text-center font-medium text-white hover:bg-green-700 sm:col-span-2"
+              >
+                Go to My Dashboard
+              </Link>
+            ) : (
+              // 🔒 LOGGED-OUT CTA
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-xl bg-yellow-600 px-5 py-3 text-center font-medium text-white hover:bg-yellow-700"
+                >
+                  Log In to View Deal
+                </Link>
 
-            <Link
-              href="/signup"
-              className="rounded-xl border border-yellow-200 bg-white px-5 py-3 text-center font-medium text-yellow-700 hover:bg-yellow-50"
-            >
-              Create Account
-            </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-xl border border-yellow-200 bg-white px-5 py-3 text-center font-medium text-yellow-700 hover:bg-yellow-50"
+                >
+                  Create Account
+                </Link>
+              </>
+            )}
           </div>
 
+          {/* =========================================
+              🔗 EXTERNAL LINKS (always visible)
+          ========================================= */}
           <div className="mt-5 flex flex-wrap gap-3">
             {profile?.website_url ? (
               <a
