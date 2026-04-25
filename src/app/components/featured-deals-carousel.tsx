@@ -69,10 +69,11 @@ export default async function FeaturedDealsCarousel() {
               'Local Business'
 
             return (
-              <div
-                key={`${offer.id}-${index}`}
-                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm"
-              >
+              <Link
+  key={`${offer.id}-${index}`}
+  href={`/offers/${offer.id}`}
+  className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-yellow-200"
+>
                 <div>
                   <div className="flex items-center gap-3">
                     <img
@@ -117,14 +118,11 @@ export default async function FeaturedDealsCarousel() {
                       : '—'}
                   </p>
 
-                  <Link
-                    href="/dashboard"
-                    className="block rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700"
-                  >
-                    View Deal
-                  </Link>
+                  <div className="block rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white">
+  View Deal
+</div>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>
