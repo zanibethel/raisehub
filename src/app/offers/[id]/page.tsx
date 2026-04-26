@@ -21,6 +21,14 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const isLoggedIn = !!user
 
   // =========================================
+// 👁️ TRACK OFFER VIEW
+// =========================================
+await supabase.from('offer_views').insert({
+  offer_id: id,
+  user_id: user?.id ?? null,
+})
+
+  // =========================================
   // 📦 FETCH OFFER
   // =========================================
   const { data: offer } = await supabase
