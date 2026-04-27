@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Offer = {
   id: string
@@ -30,10 +30,39 @@ export default function FeaturedDealsCarouselClient({
   profileById,
 }: FeaturedDealsCarouselClientProps) {
   const [isPaused, setIsPaused] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // =========================================
-  // ⏸️ PAUSE / RESUME CAROUSEL HELPERS
+  // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
+  // =========================================
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (!offers || offers.length === 0) return
+
+    let animationFrame: number
+
+    function scroll() {
+      if (!isPaused && el) {
+        el.scrollLeft += 0.5
+
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          el.scrollLeft = 0
+        }
+      }
+
+      animationFrame = requestAnimationFrame(scroll)
+    }
+
+    animationFrame = requestAnimationFrame(scroll)
+
+    return () => cancelAnimationFrame(animationFrame)
+  }, [isPaused, offers])
+
+  // =========================================
+  // ⏸️ PAUSE / RESUME HELPERS
   // =========================================
   function pauseCarousel() {
     if (resumeTimerRef.current) {
@@ -53,8 +82,10 @@ export default function FeaturedDealsCarouselClient({
     }, 2500)
   }
 
+  if (!offers || offers.length === 0) return null
+
   const repeatedOffers = Array.from(
-    { length: 12 },
+    { length: 24 },
     (_, index) => offers[index % offers.length]
   )
 
@@ -70,9 +101,7 @@ export default function FeaturedDealsCarouselClient({
   }) {
     const profile = profileById[offer.business_id]
     const businessName =
-      profile?.display_name ||
-      profile?.business_name ||
-      'Local Business'
+      profile?.display_name || profile?.business_name || 'Local Business'
 
     return (
       <Link
@@ -157,27 +186,26 @@ export default function FeaturedDealsCarouselClient({
       </div>
 
       {/* =========================================
-          🎠 AUTO-SCROLL + MANUAL SCROLL CAROUSEL
+          🎠 REAL SCROLL CAROUSEL
       ========================================= */}
-      <div className="relative overflow-hidden">
-        <div
-          onMouseEnter={pauseCarousel}
-          onMouseLeave={resumeCarouselWithDelay}
-          onTouchStart={pauseCarousel}
-          onTouchEnd={resumeCarouselWithDelay}
-          onScroll={pauseCarousel}
-          className={`flex w-max gap-6 overflow-x-auto scroll-smooth pb-2 ${
-            isPaused ? '' : 'animate-[scroll_32s_linear_infinite]'
-          }`}
-        >
-          {repeatedOffers.map((offer, index) => (
-            <DealCard
-              key={`${offer.id}-${index}`}
-              offer={offer}
-              index={index}
-            />
-          ))}
-        </div>
+      <div
+        ref={scrollRef}
+        onMouseEnter={pauseCarousel}
+        onMouseLeave={resumeCarouselWithDelay}
+        onTouchStart={pauseCarousel}
+        onTouchEnd={resumeCarouselWithDelay}
+        onPointerDown={pauseCarousel}
+        onPointerUp={resumeCarouselWithDelay}
+        onWheel={pauseCarousel}
+        className="flex gap-6 overflow-x-auto scroll-smooth pb-2"
+      >
+        {repeatedOffers.map((offer, index) => (
+          <DealCard
+            key={`${offer.id}-${index}`}
+            offer={offer}
+            index={index}
+          />
+        ))}
       </div>
     </section>
   )
