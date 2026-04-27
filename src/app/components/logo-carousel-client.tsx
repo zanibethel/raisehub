@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type PartnerProfile = {
   id: string
@@ -24,10 +24,39 @@ export default function LogoCarouselClient({
   const [selectedPartner, setSelectedPartner] =
     useState<PartnerProfile | null>(null)
   const [isPaused, setIsPaused] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // =========================================
-  // ⏸️ PAUSE / RESUME CAROUSEL HELPERS
+  // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
+  // =========================================
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (!partners || partners.length === 0) return
+
+    let animationFrame: number
+
+    function scroll() {
+      if (!isPaused && !selectedPartner && el) {
+        el.scrollLeft += 0.5
+
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          el.scrollLeft = 0
+        }
+      }
+
+      animationFrame = requestAnimationFrame(scroll)
+    }
+
+    animationFrame = requestAnimationFrame(scroll)
+
+    return () => cancelAnimationFrame(animationFrame)
+  }, [isPaused, selectedPartner, partners])
+
+  // =========================================
+  // ⏸️ PAUSE / RESUME HELPERS
   // =========================================
   function pauseCarousel() {
     if (resumeTimerRef.current) {
@@ -44,11 +73,13 @@ export default function LogoCarouselClient({
 
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 2500)
+    }, 1200)
   }
 
+  if (!partners || partners.length === 0) return null
+
   const repeatedPartners = Array.from(
-    { length: 18 },
+    { length: 24 },
     (_, index) => partners[index % partners.length]
   )
 
@@ -101,27 +132,26 @@ export default function LogoCarouselClient({
         </div>
 
         {/* =========================================
-            🎠 AUTO-SCROLL + MANUAL SCROLL CAROUSEL
+            🎠 REAL SCROLL CAROUSEL
         ========================================= */}
-        <div className="relative overflow-hidden">
-          <div
-            onMouseEnter={pauseCarousel}
-            onMouseLeave={resumeCarouselWithDelay}
-            onTouchStart={pauseCarousel}
-            onTouchEnd={resumeCarouselWithDelay}
-            onScroll={pauseCarousel}
-            className={`flex w-max gap-4 overflow-x-auto scroll-smooth pb-2 sm:gap-6 ${
-              isPaused ? '' : 'animate-[scroll_40s_linear_infinite]'
-            }`}
-          >
-            {repeatedPartners.map((partner, index) => (
-              <LogoCard
-                key={`${partner.id}-${index}`}
-                partner={partner}
-                index={index}
-              />
-            ))}
-          </div>
+        <div
+          ref={scrollRef}
+          onMouseEnter={pauseCarousel}
+          onMouseLeave={resumeCarouselWithDelay}
+          onTouchStart={pauseCarousel}
+          onTouchEnd={resumeCarouselWithDelay}
+          onPointerDown={pauseCarousel}
+          onPointerUp={resumeCarouselWithDelay}
+          onWheel={pauseCarousel}
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 sm:gap-6"
+        >
+          {repeatedPartners.map((partner, index) => (
+            <LogoCard
+              key={`${partner.id}-${index}`}
+              partner={partner}
+              index={index}
+            />
+          ))}
         </div>
       </section>
 
