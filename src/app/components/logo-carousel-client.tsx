@@ -73,7 +73,7 @@ export default function LogoCarouselClient({
 
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 1200)
+    }, 800)
   }
 
   if (!partners || partners.length === 0) return null
@@ -140,6 +140,7 @@ export default function LogoCarouselClient({
           onMouseLeave={resumeCarouselWithDelay}
           onTouchStart={pauseCarousel}
           onTouchEnd={resumeCarouselWithDelay}
+          onTouchCancel={resumeCarouselWithDelay}
           onPointerDown={pauseCarousel}
           onPointerUp={resumeCarouselWithDelay}
           onWheel={pauseCarousel}

@@ -79,7 +79,7 @@ export default function FeaturedDealsCarouselClient({
 
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 1200)
+    }, 800)
   }
 
   if (!offers || offers.length === 0) return null
@@ -194,6 +194,7 @@ export default function FeaturedDealsCarouselClient({
         onMouseLeave={resumeCarouselWithDelay}
         onTouchStart={pauseCarousel}
         onTouchEnd={resumeCarouselWithDelay}
+        onTouchCancel={resumeCarouselWithDelay}
         onPointerDown={pauseCarousel}
         onPointerUp={resumeCarouselWithDelay}
         onWheel={pauseCarousel}
