@@ -27,6 +27,9 @@ export default function LogoCarouselClient({
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
   // =========================================
   // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
@@ -74,6 +77,23 @@ export default function LogoCarouselClient({
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
     }, 800)
+  }
+
+  // =========================================
+  // 📱 MANUAL SCROLL RESUME HELPER
+  // Pauses while the user scrolls horizontally,
+  // then resumes after scrolling stops.
+  // =========================================
+  function handleManualScroll() {
+    setIsPaused(true)
+
+    if (scrollResumeTimerRef.current) {
+      clearTimeout(scrollResumeTimerRef.current)
+    }
+
+    scrollResumeTimerRef.current = setTimeout(() => {
+      setIsPaused(false)
+    }, 900)
   }
 
   if (!partners || partners.length === 0) return null
@@ -144,6 +164,7 @@ export default function LogoCarouselClient({
           onPointerDown={pauseCarousel}
           onPointerUp={resumeCarouselWithDelay}
           onWheel={pauseCarousel}
+          onScroll={handleManualScroll}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 sm:gap-6"
         >
           {repeatedPartners.map((partner, index) => (

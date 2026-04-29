@@ -33,6 +33,9 @@ export default function FeaturedDealsCarouselClient({
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
 
   // =========================================
   // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
@@ -80,6 +83,23 @@ export default function FeaturedDealsCarouselClient({
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
     }, 800)
+  }
+
+  // =========================================
+  // 📱 MANUAL SCROLL RESUME HELPER
+  // Pauses while the user scrolls horizontally,
+  // then resumes after scrolling stops.
+  // =========================================
+  function handleManualScroll() {
+    setIsPaused(true)
+
+    if (scrollResumeTimerRef.current) {
+      clearTimeout(scrollResumeTimerRef.current)
+    }
+
+    scrollResumeTimerRef.current = setTimeout(() => {
+      setIsPaused(false)
+    }, 900)
   }
 
   if (!offers || offers.length === 0) return null
@@ -198,6 +218,7 @@ export default function FeaturedDealsCarouselClient({
         onPointerDown={pauseCarousel}
         onPointerUp={resumeCarouselWithDelay}
         onWheel={pauseCarousel}
+        onScroll={handleManualScroll}
         className="flex gap-6 overflow-x-auto scroll-smooth pb-2"
       >
         {repeatedOffers.map((offer, index) => (
