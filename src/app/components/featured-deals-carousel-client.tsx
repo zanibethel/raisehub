@@ -82,7 +82,7 @@ export default function FeaturedDealsCarouselClient({
 
     resumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 800)
+    }, 2400)
   }
 
   // =========================================

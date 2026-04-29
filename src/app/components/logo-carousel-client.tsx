@@ -93,7 +93,7 @@ export default function LogoCarouselClient({
 
     scrollResumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 900)
+    }, 1200)
   }
 
   if (!partners || partners.length === 0) return null
