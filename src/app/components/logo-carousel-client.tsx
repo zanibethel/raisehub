@@ -43,7 +43,7 @@ export default function LogoCarouselClient({
 
     function scroll() {
       if (!isPaused && !selectedPartner && el) {
-        el.scrollLeft += 0.5
+        el.scrollLeft += 1.2
 
         if (el.scrollLeft >= el.scrollWidth / 2) {
           el.scrollLeft = 0
