@@ -52,7 +52,7 @@ export default function FeaturedDealsCarouselClient({
         el.scrollLeft += 2.5
 
         if (el.scrollLeft >= el.scrollWidth / 2) {
-          el.scrollLeft = 0
+          el.scrollLeft = 2
         }
       }
 
