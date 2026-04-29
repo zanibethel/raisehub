@@ -49,10 +49,10 @@ export default function FeaturedDealsCarouselClient({
 
     function scroll() {
       if (!isPaused && el) {
-        el.scrollLeft += 2.5
+        el.scrollLeft += 12
 
         if (el.scrollLeft >= el.scrollWidth / 2) {
-          el.scrollLeft = 2
+          el.scrollLeft = 0
         }
       }
 
