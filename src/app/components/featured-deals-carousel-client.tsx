@@ -33,64 +33,61 @@ export default function FeaturedDealsCarouselClient({
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
+  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isAutoScrollingRef = useRef(false)
 
   // =========================================
-  // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
+  // 🎠 AUTO SCROLL
   // =========================================
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    if (!offers || offers.length === 0) return
+    if (!scrollRef.current || !offers?.length) return
 
-    let animationFrame: number
+    let raf: number
 
-    function scroll() {
-      if (!isPaused && el) {
-        el.scrollLeft += 12
+    function loop() {
+      const currentEl = scrollRef.current
+      if (!currentEl) return
 
-        if (el.scrollLeft >= el.scrollWidth / 2) {
-          el.scrollLeft = 0
+      if (!isPaused) {
+        isAutoScrollingRef.current = true
+        currentEl.scrollLeft += 2.5
+
+        requestAnimationFrame(() => {
+          isAutoScrollingRef.current = false
+        })
+
+        if (currentEl.scrollLeft >= currentEl.scrollWidth / 2) {
+          currentEl.scrollLeft = 0
         }
       }
 
-      animationFrame = requestAnimationFrame(scroll)
+      raf = requestAnimationFrame(loop)
     }
 
-    animationFrame = requestAnimationFrame(scroll)
+    raf = requestAnimationFrame(loop)
 
-    return () => cancelAnimationFrame(animationFrame)
+    return () => cancelAnimationFrame(raf)
   }, [isPaused, offers])
 
   // =========================================
-  // ⏸️ PAUSE / RESUME HELPERS
+  // ⏸️ PAUSE / RESUME
   // =========================================
-  function pauseCarousel() {
-    if (resumeTimerRef.current) {
-      clearTimeout(resumeTimerRef.current)
-    }
-
+  function pause() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
     setIsPaused(true)
   }
 
-  function resumeCarouselWithDelay() {
-    if (resumeTimerRef.current) {
-      clearTimeout(resumeTimerRef.current)
-    }
-
-    resumeTimerRef.current = setTimeout(() => {
-      setIsPaused(false)
-    }, 2400)
+  function resume() {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    resumeTimerRef.current = setTimeout(() => setIsPaused(false), 700)
   }
 
   // =========================================
-  // 📱 MANUAL SCROLL RESUME HELPER
-  // Pauses while the user scrolls horizontally,
-  // then resumes after scrolling stops.
+  // 📱 MANUAL SCROLL RESUME
   // =========================================
-  function handleManualScroll() {
+  function handleScroll() {
+    if (isAutoScrollingRef.current) return
+
     setIsPaused(true)
 
     if (scrollResumeTimerRef.current) {
@@ -99,135 +96,61 @@ export default function FeaturedDealsCarouselClient({
 
     scrollResumeTimerRef.current = setTimeout(() => {
       setIsPaused(false)
-    }, 900)
+    }, 800)
   }
 
-  if (!offers || offers.length === 0) return null
+  if (!offers?.length) return null
 
-  const repeatedOffers = Array.from(
-    { length: 24 },
-    (_, index) => offers[index % offers.length]
+  // =========================================
+  // 🔁 LOOP DATA
+  // =========================================
+  const repeated = Array.from(
+    { length: Math.max(offers.length * 6, 24) },
+    (_, i) => offers[i % offers.length]
   )
 
-  // =========================================
-  // 🧱 DEAL CARD
-  // =========================================
-  function DealCard({
-    offer,
-    index,
-  }: {
-    offer: Offer
-    index: number
-  }) {
-    const profile = profileById[offer.business_id]
-    const businessName =
-      profile?.display_name || profile?.business_name || 'Local Business'
-
-    return (
-      <Link
-        key={`${offer.id}-${index}`}
-        href={`/offers/${offer.id}`}
-        onClick={pauseCarousel}
-        className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-yellow-200"
-      >
-        {/* =========================================
-            🏪 BUSINESS + DEAL HEADER
-        ========================================= */}
-        <div>
-          <div className="flex items-center gap-3">
-            <img
-              src={profile?.logo_url || '/default-business-logo.png'}
-              alt={`${businessName} logo`}
-              className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
-            />
-
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
-                {businessName}
-              </p>
-              <h3 className="mt-1 text-base font-semibold text-gray-900">
-                Exclusive Local Deal
-              </h3>
-            </div>
-          </div>
-
-          {/* =========================================
-              🔒 MASKED DEAL PREVIEW
-          ========================================= */}
-          <div className="relative mt-4 overflow-hidden rounded-xl border border-yellow-100 bg-yellow-50 p-4">
-            <div className="blur-sm">
-              <p className="text-sm font-medium text-yellow-700">
-                {offer.discount || 'Special savings available'}
-              </p>
-              <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                {offer.description || 'Exclusive customer offer'}
-              </p>
-            </div>
-
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-              <span className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-medium text-white">
-                🔒 Members Only
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* =========================================
-            📅 VALID DATE + CTA
-        ========================================= */}
-        <div className="mt-4">
-          <p className="mb-3 text-xs text-gray-500">
-            Valid until:{' '}
-            {offer.ends_at
-              ? new Date(offer.ends_at).toLocaleDateString()
-              : '—'}
-          </p>
-
-          <div className="block rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white">
-            View Deal
-          </div>
-        </div>
-      </Link>
-    )
-  }
-
   return (
-    <section className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-3xl border border-yellow-100 bg-white/90 p-6 shadow-xl">
-      {/* =========================================
-          🏷️ SECTION HEADER
-      ========================================= */}
-      <div className="mb-5 text-center">
-        <h2 className="text-2xl font-semibold text-yellow-600">
-          Exclusive Local Deals
-        </h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Log in to unlock full deal details from participating businesses.
-        </p>
-      </div>
+    <section className="mx-auto mt-12 max-w-5xl rounded-3xl border bg-white/90 p-6 shadow-xl">
+      <h2 className="text-center text-2xl font-semibold text-yellow-600">
+        Featured Deals
+      </h2>
 
       {/* =========================================
-          🎠 REAL SCROLL CAROUSEL
+          🎠 CAROUSEL
       ========================================= */}
       <div
         ref={scrollRef}
-        onMouseEnter={pauseCarousel}
-        onMouseLeave={resumeCarouselWithDelay}
-        onTouchStart={pauseCarousel}
-        onTouchEnd={resumeCarouselWithDelay}
-        onTouchCancel={resumeCarouselWithDelay}
-        onPointerDown={pauseCarousel}
-        onPointerUp={resumeCarouselWithDelay}
-        onWheel={pauseCarousel}
-        onScroll={handleManualScroll}
-        className="flex gap-6 overflow-x-auto scroll-smooth pb-2"
+        onMouseEnter={pause}
+        onMouseLeave={resume}
+        onTouchStart={pause}
+        onTouchEnd={resume}
+        onTouchCancel={resume}
+        onPointerDown={pause}
+        onPointerUp={resume}
+        onWheel={pause}
+        onScroll={handleScroll}
+        className="mt-6 flex gap-6 overflow-x-auto scroll-smooth pb-2"
       >
-        {repeatedOffers.map((offer, index) => (
-          <DealCard
-            key={`${offer.id}-${index}`}
-            offer={offer}
-            index={index}
-          />
-        ))}
+        {repeated.map((offer, i) => {
+          const profile = profileById[offer.business_id]
+          const businessName =
+            profile?.display_name || profile?.business_name || 'Local Business'
+
+          return (
+            <Link
+              key={`${offer.id}-${i}`}
+              href={`/offers/${offer.id}`}
+              className="w-72 shrink-0 rounded-xl border p-4"
+            >
+              <img
+                src={profile?.logo_url || '/default-business-logo.png'}
+                alt={`${businessName} logo`}
+                className="mb-2 h-10"
+              />
+              <p className="font-semibold">Exclusive Deal</p>
+            </Link>
+          )
+        })}
       </div>
     </section>
   )
