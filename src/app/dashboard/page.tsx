@@ -251,18 +251,56 @@ async function BusinessDashboard() {
 
   if (!user) return null
 
+  // =========================================
+  // 🏪 FETCH BUSINESS PROFILE
+  // =========================================
   const { data: profile } = await supabase
     .from('profiles')
-    .select('business_name, phone, address, google_maps_url, logo_url, website_url, display_name')
+    .select(
+      'business_name, phone, address, google_maps_url, logo_url, website_url, display_name'
+    )
     .eq('id', user.id)
     .single()
 
+  // =========================================
+  // 📦 FETCH OFFERS
+  // =========================================
   const { data: offers } = await supabase
     .from('offers')
     .select('*')
     .eq('business_id', user.id)
     .order('created_at', { ascending: false })
 
+  const offerIds = (offers ?? []).map((o) => o.id)
+
+  // =========================================
+  // 📊 ANALYTICS (NEW)
+  // =========================================
+
+  let viewCount = 0
+  let clickCount = 0
+
+  if (offerIds.length > 0) {
+    const { count: views } = await supabase
+      .from('offer_views')
+      .select('*', { count: 'exact', head: true })
+      .in('offer_id', offerIds)
+
+    const { count: clicks } = await supabase
+      .from('offer_clicks')
+      .select('*', { count: 'exact', head: true })
+      .in('offer_id', offerIds)
+
+    viewCount = views ?? 0
+    clickCount = clicks ?? 0
+  }
+
+  const conversionRate =
+    viewCount > 0 ? ((clickCount / viewCount) * 100).toFixed(1) : '0'
+
+  // =========================================
+  // 🎟️ FETCH REDEMPTIONS
+  // =========================================
   const { data: redemptions } = await supabase
     .from('redemptions')
     .select('offer_id, user_id, created_at')
@@ -329,19 +367,50 @@ async function BusinessDashboard() {
   }
 
   return (
-    <BusinessDashboardContent
-      profile={profile}
-      offers={offers ?? []}
-      totalRedemptions={totalRedemptions}
-      activeOffersCount={activeOffers.length}
-      activeOfferLimit={ACTIVE_OFFER_LIMIT}
-      hasReachedLimit={hasReachedLimit}
-      topOfferTitle={topOffer?.title || ''}
-      topOfferCount={topOfferCount}
-      redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
-      redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
-      profileEmailById={profileEmailById}
-    />
+    <>
+      {/* =========================================
+          📊 ANALYTICS SUMMARY (NEW UI BLOCK)
+      ========================================= */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 text-center">
+          <p className="text-sm text-blue-600">Total Views</p>
+          <p className="mt-1 text-2xl font-bold text-blue-800">
+            {viewCount}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-center">
+          <p className="text-sm text-green-600">Total Clicks</p>
+          <p className="mt-1 text-2xl font-bold text-green-800">
+            {clickCount}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-5 text-center">
+          <p className="text-sm text-yellow-600">Conversion Rate</p>
+          <p className="mt-1 text-2xl font-bold text-yellow-800">
+            {conversionRate}%
+          </p>
+        </div>
+      </div>
+
+      {/* =========================================
+          📦 EXISTING DASHBOARD CONTENT
+      ========================================= */}
+      <BusinessDashboardContent
+        profile={profile}
+        offers={offers ?? []}
+        totalRedemptions={totalRedemptions}
+        activeOffersCount={activeOffers.length}
+        activeOfferLimit={ACTIVE_OFFER_LIMIT}
+        hasReachedLimit={hasReachedLimit}
+        topOfferTitle={topOffer?.title || ''}
+        topOfferCount={topOfferCount}
+        redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
+        redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
+        profileEmailById={profileEmailById}
+      />
+    </>
   )
 }
 

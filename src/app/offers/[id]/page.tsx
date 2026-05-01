@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import TrackedOfferLink from '@/app/components/tracked-offer-link'
 
 type OfferPageProps = {
   params: Promise<{
@@ -12,7 +13,8 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const supabase = await createClient()
 
   // =========================================
-  // 🔐 AUTH CHECK (used to unlock deal details)
+  // 🔐 AUTH CHECK
+  // Used to decide whether deal details are locked or unlocked.
   // =========================================
   const {
     data: { user },
@@ -21,15 +23,17 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const isLoggedIn = !!user
 
   // =========================================
-// 👁️ TRACK OFFER VIEW
-// =========================================
-await supabase.from('offer_views').insert({
-  offer_id: id,
-  user_id: user?.id ?? null,
-})
+  // 👁️ TRACK OFFER VIEW
+  // Records each visit to this offer page.
+  // =========================================
+  await supabase.from('offer_views').insert({
+    offer_id: id,
+    user_id: user?.id ?? null,
+  })
 
   // =========================================
   // 📦 FETCH OFFER
+  // Loads the offer being viewed.
   // =========================================
   const { data: offer } = await supabase
     .from('offers')
@@ -42,6 +46,7 @@ await supabase.from('offer_views').insert({
       <main className="min-h-screen bg-slate-50 px-8 py-16">
         <div className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-xl">
           <h1 className="text-2xl font-bold text-gray-900">Offer not found</h1>
+
           <Link href="/" className="mt-6 inline-flex text-blue-600">
             ← Back home
           </Link>
@@ -52,6 +57,7 @@ await supabase.from('offer_views').insert({
 
   // =========================================
   // 🏪 FETCH BUSINESS PROFILE
+  // Loads business branding and public contact info.
   // =========================================
   const { data: profile } = await supabase
     .from('profiles')
@@ -73,7 +79,8 @@ await supabase.from('offer_views').insert({
 
         <div className="mt-6 rounded-3xl border border-yellow-100 bg-white/90 p-8 shadow-xl">
           {/* =========================================
-              🏷️ HEADER (logo + business name)
+              🏷️ HEADER
+              Logo + business name + page title.
           ========================================= */}
           <div className="flex items-center gap-4">
             <img
@@ -86,6 +93,7 @@ await supabase.from('offer_views').insert({
               <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
                 {businessName}
               </p>
+
               <h1 className="mt-1 text-3xl font-bold text-gray-900">
                 Exclusive Local Deal
               </h1>
@@ -94,26 +102,26 @@ await supabase.from('offer_views').insert({
 
           {/* =========================================
               🔓 / 🔒 DEAL CONTENT BLOCK
-              - Shows FULL deal if logged in
-              - Shows BLURRED deal if logged out
+              Logged in users see full details.
+              Logged out users see blurred details.
           ========================================= */}
           {isLoggedIn ? (
-            // 🔓 FULL DEAL (LOGGED-IN USERS)
             <div className="mt-8 rounded-2xl border border-green-100 bg-green-50 p-6">
               <p className="text-lg font-semibold text-green-700">
                 {offer.discount || 'Special savings available'}
               </p>
+
               <p className="mt-3 text-gray-700">
                 {offer.description || 'Exclusive customer offer'}
               </p>
             </div>
           ) : (
-            // 🔒 BLURRED DEAL (PUBLIC USERS)
             <div className="relative mt-8 overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50 p-6">
               <div className="blur-sm">
                 <p className="text-lg font-semibold text-yellow-700">
                   {offer.discount || 'Special savings available'}
                 </p>
+
                 <p className="mt-3 text-gray-600">
                   {offer.description || 'Exclusive customer offer'}
                 </p>
@@ -128,7 +136,8 @@ await supabase.from('offer_views').insert({
           )}
 
           {/* =========================================
-              📅 META INFO (always visible)
+              📅 META INFO
+              Always visible business/contact/validity info.
           ========================================= */}
           <div className="mt-6 space-y-2 text-sm text-gray-600">
             <p>
@@ -144,40 +153,44 @@ await supabase.from('offer_views').insert({
 
           {/* =========================================
               🔘 CTA BUTTON SECTION
-              - Logged out → Login + Signup
-              - Logged in → Dashboard
+              Tracked buttons for click analytics.
           ========================================= */}
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {isLoggedIn ? (
-              // 🔓 LOGGED-IN CTA
-              <Link
+              <TrackedOfferLink
+                offerId={offer.id}
+                clickType="dashboard_click"
                 href="/dashboard"
                 className="rounded-xl bg-green-600 px-5 py-3 text-center font-medium text-white hover:bg-green-700 sm:col-span-2"
               >
                 Go to My Dashboard
-              </Link>
+              </TrackedOfferLink>
             ) : (
-              // 🔒 LOGGED-OUT CTA
               <>
-                <Link
+                <TrackedOfferLink
+                  offerId={offer.id}
+                  clickType="login_click"
                   href="/login"
                   className="rounded-xl bg-yellow-600 px-5 py-3 text-center font-medium text-white hover:bg-yellow-700"
                 >
                   Log In to View Deal
-                </Link>
+                </TrackedOfferLink>
 
-                <Link
+                <TrackedOfferLink
+                  offerId={offer.id}
+                  clickType="signup_click"
                   href="/signup"
                   className="rounded-xl border border-yellow-200 bg-white px-5 py-3 text-center font-medium text-yellow-700 hover:bg-yellow-50"
                 >
                   Create Account
-                </Link>
+                </TrackedOfferLink>
               </>
             )}
           </div>
 
           {/* =========================================
-              🔗 EXTERNAL LINKS (always visible)
+              🔗 EXTERNAL LINKS
+              Website/map links stay visible for business discovery.
           ========================================= */}
           <div className="mt-5 flex flex-wrap gap-3">
             {profile?.website_url ? (
