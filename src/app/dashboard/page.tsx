@@ -9,6 +9,9 @@ import BusinessProfileCard from '../components/business-profile-card'
 import UseOfferButton from '../components/use-offer-button'
 import RedemptionReport from '../components/redemption-report'
 import BusinessDashboardContent from '../components/business-dashboard-content'
+import CreateCampaignForm from '../components/create-campaign-form'
+import BuyCampaignPassButton from '../components/buy-campaign-pass-button'
+import Link from 'next/link'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -414,28 +417,271 @@ async function BusinessDashboard() {
   )
 }
 
-function OrganizationDashboard() {
+async function OrganizationDashboard() {
+  const supabase = await createClient()
+
+  // =========================================
+  // 🔐 AUTH CHECK
+  // =========================================
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  // =========================================
+  // 📦 FETCH CAMPAIGNS
+  // =========================================
+  const { data: campaigns } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('organization_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const totalCampaigns = campaigns?.length ?? 0
+  const activeCampaigns =
+    campaigns?.filter((campaign) => campaign.status === 'active').length ?? 0
+
+  const totalGoal =
+    campaigns?.reduce(
+      (sum, campaign) => sum + Number(campaign.goal_amount ?? 0),
+      0
+    ) ?? 0
+
+  // =========================================
+  // 💰 FETCH PURCHASE ANALYTICS
+  // =========================================
+  const campaignIds = (campaigns ?? []).map((campaign) => campaign.id)
+
+  let purchases: {
+    campaign_id: string
+    amount_paid: number
+    platform_fee: number
+    organization_earnings: number
+  }[] = []
+
+  if (campaignIds.length > 0) {
+    const { data } = await supabase
+      .from('campaign_purchases')
+      .select('campaign_id, amount_paid, platform_fee, organization_earnings')
+      .in('campaign_id', campaignIds)
+
+    purchases = data ?? []
+  }
+
+  const totalPassesSold = purchases.length
+
+  const grossRevenue = purchases.reduce(
+    (sum, purchase) => sum + Number(purchase.amount_paid ?? 0),
+    0
+  )
+
+  const totalFees = purchases.reduce(
+    (sum, purchase) => sum + Number(purchase.platform_fee ?? 0),
+    0
+  )
+
+  const totalEarnings = purchases.reduce(
+    (sum, purchase) => sum + Number(purchase.organization_earnings ?? 0),
+    0
+  )
+
+  const metricsByCampaign = new Map<
+    string,
+    { sold: number; gross: number; fees: number; earnings: number }
+  >()
+
+  for (const purchase of purchases) {
+    const existing = metricsByCampaign.get(purchase.campaign_id) ?? {
+      sold: 0,
+      gross: 0,
+      fees: 0,
+      earnings: 0,
+    }
+
+    existing.sold += 1
+    existing.gross += Number(purchase.amount_paid ?? 0)
+    existing.fees += Number(purchase.platform_fee ?? 0)
+    existing.earnings += Number(purchase.organization_earnings ?? 0)
+
+    metricsByCampaign.set(purchase.campaign_id, existing)
+  }
+
   return (
-    <div className="mt-8 grid gap-4 md:grid-cols-3">
-      <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-blue-700">Fundraiser totals</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          See how much your campaign has raised.
-        </p>
+    <div className="mt-8 space-y-8">
+      {/* =========================================
+          📊 ORGANIZATION SUMMARY CARDS
+      ========================================= */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <h2 className="text-lg font-semibold text-blue-700">
+            Total Campaigns
+          </h2>
+          <p className="mt-3 text-3xl font-bold text-blue-700">
+            {totalCampaigns}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <h2 className="text-lg font-semibold text-blue-700">
+            Active Campaigns
+          </h2>
+          <p className="mt-3 text-3xl font-bold text-blue-700">
+            {activeCampaigns}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <h2 className="text-lg font-semibold text-blue-700">
+            Total Goals
+          </h2>
+          <p className="mt-3 text-3xl font-bold text-blue-700">
+            ${totalGoal.toLocaleString()}
+          </p>
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-blue-700">Supporters</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          View pass purchases and supporter participation.
-        </p>
+      {/* =========================================
+          💰 FUNDRAISING TOTALS
+      ========================================= */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-green-100 bg-green-50 p-6 shadow-xl">
+          <p className="text-sm text-green-600">Passes Sold</p>
+          <p className="mt-2 text-2xl font-bold text-green-800">
+            {totalPassesSold}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-6 shadow-xl">
+          <p className="text-sm text-blue-600">Gross Revenue</p>
+          <p className="mt-2 text-2xl font-bold text-blue-800">
+            ${grossRevenue.toLocaleString()}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-6 shadow-xl">
+          <p className="text-sm text-yellow-600">RaiseHub Fees</p>
+          <p className="mt-2 text-2xl font-bold text-yellow-800">
+            ${totalFees.toLocaleString()}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-purple-100 bg-purple-50 p-6 shadow-xl">
+          <p className="text-sm text-purple-600">Organization Earned</p>
+          <p className="mt-2 text-2xl font-bold text-purple-800">
+            ${totalEarnings.toLocaleString()}
+          </p>
+        </div>
       </div>
 
+      {/* =========================================
+          📝 CREATE CAMPAIGN FORM
+      ========================================= */}
+      <CreateCampaignForm />
+
+      {/* =========================================
+          📋 CAMPAIGN LIST
+      ========================================= */}
       <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <h2 className="text-lg font-semibold text-blue-700">Business partners</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Manage participating local businesses here.
-        </p>
+        <h2 className="text-lg font-semibold text-blue-700">My Campaigns</h2>
+
+        {campaigns && campaigns.length > 0 ? (
+          <div className="mt-4 grid gap-4">
+            {campaigns.map((campaign) => {
+              const metrics = metricsByCampaign.get(campaign.id) ?? {
+                sold: 0,
+                gross: 0,
+                fees: 0,
+                earnings: 0,
+              }
+
+              const goal = Number(campaign.goal_amount ?? 0)
+              const progress =
+                goal > 0 ? Math.min((metrics.earnings / goal) * 100, 100) : 0
+
+              return (
+                <div
+                  key={campaign.id}
+                  className="rounded-xl border border-blue-100 bg-blue-50 p-4"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">
+                        {campaign.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-gray-600">
+                        {campaign.description || 'No description yet.'}
+                      </p>
+
+                      <p className="mt-2 text-sm text-gray-600">
+                        Pass price: ${Number(campaign.pass_price ?? 0)}
+                      </p>
+
+                      <p className="text-sm text-gray-600">
+                        Goal: ${goal.toLocaleString()}
+                      </p>
+
+                      {/* =========================================
+                          📊 CAMPAIGN PERFORMANCE
+                      ========================================= */}
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm text-gray-700">
+                          Sold:{' '}
+                          <span className="font-semibold">{metrics.sold}</span>
+                        </p>
+
+                        <p className="text-sm text-gray-700">
+                          Earned:{' '}
+                          <span className="font-semibold">
+                            ${metrics.earnings.toLocaleString()}
+                          </span>
+                        </p>
+
+                        <div className="h-2 w-full rounded-full bg-gray-200">
+                          <div
+                            className="h-2 rounded-full bg-blue-600 transition-all"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+
+                        <p className="text-xs text-gray-500">
+                          {progress.toFixed(1)}% of ${goal.toLocaleString()} goal
+                        </p>
+                      </div>
+
+                      {/* =========================================
+    🔗 PUBLIC CAMPAIGN LINK + TEST BUY BUTTON
+========================================= */}
+<div className="mt-4 space-y-3">
+  <BuyCampaignPassButton
+    campaignId={campaign.id}
+    passPrice={Number(campaign.pass_price ?? 0)}
+  />
+
+  <Link
+    href={`/campaigns/${campaign.id}`}
+    className="inline-flex text-sm font-medium text-blue-700 underline"
+  >
+    View public campaign page
+  </Link>
+</div>
+                      
+                    </div>
+
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-medium capitalize text-white">
+                      {campaign.status}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-600">
+            No campaigns created yet.
+          </p>
+        )}
       </div>
     </div>
   )
