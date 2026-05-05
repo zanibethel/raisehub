@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import LogoCarousel from './components/logo-carousel'
 import FeaturedDealsCarousel from './components/featured-deals-carousel'
