@@ -54,7 +54,14 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
     organization?.display_name ||
     organization?.business_name ||
     'Local Organization'
-
+// =========================================
+// 🏫 FETCH ORGANIZATIONS FOR SUPPORT DROPDOWN
+// =========================================
+const { data: organizations } = await supabase
+  .from('profiles')
+  .select('id, business_name, display_name')
+  .eq('role', 'organization')
+  .order('business_name', { ascending: true })
   // =========================================
   // 💰 FETCH CAMPAIGN PURCHASE TOTALS
   // =========================================
