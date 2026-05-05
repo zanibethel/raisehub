@@ -12,6 +12,7 @@ import BusinessDashboardContent from '../components/business-dashboard-content'
 import CreateCampaignForm from '../components/create-campaign-form'
 import BuyCampaignPassButton from '../components/buy-campaign-pass-button'
 import Link from 'next/link'
+import OrganizationReportToggle from '../components/organization-report-toggle'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -509,70 +510,48 @@ async function OrganizationDashboard() {
 
   return (
     <div className="mt-8 space-y-8">
-      {/* =========================================
-          📊 ORGANIZATION SUMMARY CARDS
-      ========================================= */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-blue-700">
-            Total Campaigns
-          </h2>
-          <p className="mt-3 text-3xl font-bold text-blue-700">
-            {totalCampaigns}
-          </p>
-        </div>
+{/* =========================================
+    📊 ORGANIZATION MAIN SCOREBOARD
+========================================= */}
+<div className="grid gap-4 md:grid-cols-4">
+  <div className="rounded-2xl border border-green-100 bg-green-50 p-6 shadow-xl">
+    <p className="text-sm text-green-600">Passes Sold</p>
+    <p className="mt-2 text-3xl font-bold text-green-800">
+      {totalPassesSold}
+    </p>
+  </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-blue-700">
-            Active Campaigns
-          </h2>
-          <p className="mt-3 text-3xl font-bold text-blue-700">
-            {activeCampaigns}
-          </p>
-        </div>
+  <div className="rounded-2xl border border-purple-100 bg-purple-50 p-6 shadow-xl">
+    <p className="text-sm text-purple-600">Organization Earned</p>
+    <p className="mt-2 text-3xl font-bold text-purple-800">
+      ${totalEarnings.toLocaleString()}
+    </p>
+  </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-blue-700">
-            Total Goals
-          </h2>
-          <p className="mt-3 text-3xl font-bold text-blue-700">
-            ${totalGoal.toLocaleString()}
-          </p>
-        </div>
-      </div>
+  <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <p className="text-sm text-blue-600">Active Campaigns</p>
+    <p className="mt-2 text-3xl font-bold text-blue-700">
+      {activeCampaigns}
+    </p>
+  </div>
 
-      {/* =========================================
-          💰 FUNDRAISING TOTALS
-      ========================================= */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-green-100 bg-green-50 p-6 shadow-xl">
-          <p className="text-sm text-green-600">Passes Sold</p>
-          <p className="mt-2 text-2xl font-bold text-green-800">
-            {totalPassesSold}
-          </p>
-        </div>
+  <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <p className="text-sm text-blue-600">Total Goals</p>
+    <p className="mt-2 text-3xl font-bold text-blue-700">
+      ${totalGoal.toLocaleString()}
+    </p>
+  </div>
+</div>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-6 shadow-xl">
-          <p className="text-sm text-blue-600">Gross Revenue</p>
-          <p className="mt-2 text-2xl font-bold text-blue-800">
-            ${grossRevenue.toLocaleString()}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-6 shadow-xl">
-          <p className="text-sm text-yellow-600">RaiseHub Fees</p>
-          <p className="mt-2 text-2xl font-bold text-yellow-800">
-            ${totalFees.toLocaleString()}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-purple-100 bg-purple-50 p-6 shadow-xl">
-          <p className="text-sm text-purple-600">Organization Earned</p>
-          <p className="mt-2 text-2xl font-bold text-purple-800">
-            ${totalEarnings.toLocaleString()}
-          </p>
-        </div>
-      </div>
+{/* =========================================
+    📋 OPTIONAL DETAILS / REPORT
+========================================= */}
+<OrganizationReportToggle
+  grossRevenue={grossRevenue}
+  totalFees={totalFees}
+  totalEarnings={totalEarnings}
+  totalPassesSold={totalPassesSold}
+/>
 
       {/* =========================================
           📝 CREATE CAMPAIGN FORM
