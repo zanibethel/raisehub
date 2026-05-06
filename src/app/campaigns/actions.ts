@@ -10,6 +10,7 @@ type PurchaseCampaignInput = {
   pass_price: number
   selected_organization_id?: string
   donation_amount?: number
+  seller_name?: string
 }
 
 // =========================================
@@ -53,6 +54,7 @@ export async function purchaseCampaignPassAction(input: PurchaseCampaignInput) {
     organization_earnings: organizationEarnings,
     selected_organization_id: input.selected_organization_id ?? null,
     donation_amount: donationAmount,
+    seller_name: input.seller_name ?? null,
     payment_status: 'test_paid',
   })
 

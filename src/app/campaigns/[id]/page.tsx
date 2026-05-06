@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import BuyCampaignPassButton from '@/app/components/buy-campaign-pass-button'
 import Link from 'next/link'
+import ShareCampaignButton from '@/app/components/share-campaign-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,12 +9,18 @@ type CampaignPageProps = {
   params: Promise<{
     id: string
   }>
+  searchParams: Promise<{
+    seller?: string
+  }>
 }
 
-export default async function CampaignPage({ params }: CampaignPageProps) {
+export default async function CampaignPage({
+  params,
+  searchParams,
+}: CampaignPageProps) {
   const { id } = await params
+  const { seller } = await searchParams
   const supabase = await createClient()
-
   const { data: campaign } = await supabase
     .from('campaigns')
     .select('*')
@@ -113,14 +120,22 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
             supporting this campaign.
           </p>
 
-          <div className="mt-4">
-            <BuyCampaignPassButton
-              campaignId={campaign.id}
-              passPrice={Number(campaign.pass_price ?? 0)}
-              organizations={organizations ?? []}
-              defaultOrganizationId={campaign.organization_id}
-            />
-          </div>
+<div className="space-y-3">
+  <BuyCampaignPassButton
+    campaignId={campaign.id}
+    passPrice={Number(campaign.pass_price ?? 0)}
+    organizations={organizations ?? []}
+    defaultOrganizationId={campaign.organization_id}
+    sellerName={seller || ''}
+  />
+
+  <div className="flex justify-center">
+    <ShareCampaignButton
+      campaignId={campaign.id}
+      campaignName={campaign.name}
+    />
+  </div>
+</div>
 
           <p className="mt-3 text-xs text-gray-500">
             100% of donations go directly to the selected organization.

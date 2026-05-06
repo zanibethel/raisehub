@@ -15,6 +15,7 @@ type BuyCampaignPassButtonProps = {
   passPrice: number
   organizations?: OrganizationOption[]
   defaultOrganizationId?: string | null
+  sellerName?: string
 }
 
 export default function BuyCampaignPassButton({
@@ -22,7 +23,8 @@ export default function BuyCampaignPassButton({
   passPrice,
   organizations = [],
   defaultOrganizationId = null,
-}: BuyCampaignPassButtonProps) {
+  sellerName = '',
+}: BuyCampaignPassButtonProps){
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     defaultOrganizationId ?? organizations[0]?.id ?? ''
   )
@@ -56,12 +58,13 @@ export default function BuyCampaignPassButton({
     setLoading(true)
     setMessage('')
 
-    const result = await purchaseCampaignPassAction({
-      campaign_id: campaignId,
-      pass_price: passPrice,
-      selected_organization_id: selectedOrganizationId || undefined,
-      donation_amount: donationNumber,
-    })
+const result = await purchaseCampaignPassAction({
+  campaign_id: campaignId,
+  pass_price: passPrice,
+  selected_organization_id: selectedOrganizationId || undefined,
+  donation_amount: donationNumber,
+  seller_name: sellerName || undefined,
+})
 
     if (result.error) {
       setMessage('Something went wrong. Please try again.')
@@ -84,9 +87,10 @@ export default function BuyCampaignPassButton({
         </p>
 
         <p className="mt-2 text-sm text-green-700">
-          Your ${totalAmount.toFixed(2)} pass purchase has been recorded for{' '}
-          {selectedOrganizationName}.
-        </p>
+  Your ${totalAmount.toFixed(2)} pass purchase has been recorded for{' '}
+  {selectedOrganizationName}
+  {sellerName ? ` in support of ${sellerName}` : ''}!
+</p>
 
         {donationNumber > 0 ? (
           <p className="mt-2 text-sm text-green-700">

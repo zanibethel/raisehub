@@ -10,9 +10,9 @@ import UseOfferButton from '../components/use-offer-button'
 import RedemptionReport from '../components/redemption-report'
 import BusinessDashboardContent from '../components/business-dashboard-content'
 import CreateCampaignForm from '../components/create-campaign-form'
-import BuyCampaignPassButton from '../components/buy-campaign-pass-button'
 import Link from 'next/link'
 import OrganizationReportToggle from '../components/organization-report-toggle'
+import ShareCampaignButton from '../components/share-campaign-button'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -454,17 +454,18 @@ async function OrganizationDashboard() {
   // =========================================
   const campaignIds = (campaigns ?? []).map((campaign) => campaign.id)
 
-  let purchases: {
-    campaign_id: string
-    amount_paid: number
-    platform_fee: number
-    organization_earnings: number
-  }[] = []
+let purchases: {
+  campaign_id: string
+  amount_paid: number
+  platform_fee: number
+  organization_earnings: number
+  seller_name: string | null
+}[] = []
 
   if (campaignIds.length > 0) {
     const { data } = await supabase
       .from('campaign_purchases')
-      .select('campaign_id, amount_paid, platform_fee, organization_earnings')
+      .select('campaign_id, amount_paid, platform_fee, organization_earnings, seller_name')
       .in('campaign_id', campaignIds)
 
     purchases = data ?? []
@@ -491,7 +492,34 @@ async function OrganizationDashboard() {
     string,
     { sold: number; gross: number; fees: number; earnings: number }
   >()
+const sellerStats = new Map<
+  string,
+  { sold: number; earnings: number }
+>()
 
+for (const purchase of purchases) {
+  const seller = purchase.seller_name?.trim()
+
+  if (!seller) continue
+
+  const existing = sellerStats.get(seller) ?? {
+    sold: 0,
+    earnings: 0,
+  }
+
+  existing.sold += 1
+  existing.earnings += Number(purchase.organization_earnings ?? 0)
+
+  sellerStats.set(seller, existing)
+}
+
+const topSellers = [...sellerStats.entries()]
+  .map(([seller, stats]) => ({
+    seller,
+    sold: stats.sold,
+    earnings: stats.earnings,
+  }))
+  .sort((a, b) => b.sold - a.sold)
   for (const purchase of purchases) {
     const existing = metricsByCampaign.get(purchase.campaign_id) ?? {
       sold: 0,
@@ -552,7 +580,40 @@ async function OrganizationDashboard() {
   totalEarnings={totalEarnings}
   totalPassesSold={totalPassesSold}
 />
+{/* =========================================
+    🏆 TOP SELLERS
+========================================= */}
+<div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+  <h2 className="text-lg font-semibold text-yellow-700">Top Sellers</h2>
 
+  {topSellers.length > 0 ? (
+    <div className="mt-4 space-y-3">
+      {topSellers.slice(0, 5).map((seller, index) => (
+        <div
+          key={seller.seller}
+          className="flex items-center justify-between rounded-xl border border-yellow-100 bg-yellow-50 p-4"
+        >
+          <div>
+            <p className="font-semibold text-gray-900">
+              #{index + 1} {seller.seller}
+            </p>
+            <p className="text-sm text-gray-600">
+              {seller.sold} passes sold
+            </p>
+          </div>
+
+          <p className="font-semibold text-yellow-700">
+            ${seller.earnings.toLocaleString()} raised
+          </p>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p className="mt-3 text-sm text-gray-600">
+      No seller referrals tracked yet.
+    </p>
+  )}
+</div>
       {/* =========================================
           📝 CREATE CAMPAIGN FORM
       ========================================= */}
@@ -629,21 +690,21 @@ async function OrganizationDashboard() {
                         </p>
                       </div>
 
-                      {/* =========================================
-    🔗 PUBLIC CAMPAIGN LINK + TEST BUY BUTTON
+{/* =========================================
+    🔗 PUBLIC CAMPAIGN ACTIONS
 ========================================= */}
-<div className="mt-4 space-y-3">
-  <BuyCampaignPassButton
-    campaignId={campaign.id}
-    passPrice={Number(campaign.pass_price ?? 0)}
-  />
-
+<div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
   <Link
     href={`/campaigns/${campaign.id}`}
-    className="inline-flex text-sm font-medium text-blue-700 underline"
+    className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
   >
     View public campaign page
   </Link>
+
+  <ShareCampaignButton
+    campaignId={campaign.id}
+    campaignName={campaign.name}
+  />
 </div>
                       
                     </div>
