@@ -16,9 +16,10 @@ export default function ShareCampaignButton({
   // =========================================
   // 🔗 SHARE / COPY CAMPAIGN LINK
   // =========================================
-  async function handleShare() {
-    const url = `${window.location.origin}/campaigns/${campaignId}`
+async function handleShare() {
+  const url = `${window.location.origin}/campaigns/${campaignId}`
 
+  try {
     if (navigator.share) {
       await navigator.share({
         title: campaignName,
@@ -31,7 +32,16 @@ export default function ShareCampaignButton({
 
     await navigator.clipboard.writeText(url)
     setMessage('Campaign link copied!')
+  } catch (error) {
+    // User canceled native share sheet — no need to show an error.
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return
+    }
+
+    console.error('Share failed:', error)
+    setMessage('Could not share campaign. Please try again.')
   }
+}
 
   return (
     <div>

@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 type CreateOfferInput = {
@@ -64,6 +65,33 @@ export async function createOfferAction(input: CreateOfferInput) {
   if (insertError) {
     return { error: insertError.message }
   }
+
+  return { success: true }
+}
+// =========================================
+// 📴 DEACTIVATE OFFER
+// Hides an offer without deleting history.
+// =========================================
+export async function deactivateOfferAction(offerId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase
+    .from('offers')
+    .update({ is_active: false })
+    .eq('id', offerId)
+    .eq('business_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/')
+  revalidatePath('/offers')
 
   return { success: true }
 }

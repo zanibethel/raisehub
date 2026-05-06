@@ -16,6 +16,7 @@ type BuyCampaignPassButtonProps = {
   organizations?: OrganizationOption[]
   defaultOrganizationId?: string | null
   sellerName?: string
+  hasActivePass?: boolean
 }
 
 export default function BuyCampaignPassButton({
@@ -24,20 +25,23 @@ export default function BuyCampaignPassButton({
   organizations = [],
   defaultOrganizationId = null,
   sellerName = '',
-}: BuyCampaignPassButtonProps){
+  hasActivePass = false,
+}: BuyCampaignPassButtonProps) {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     defaultOrganizationId ?? organizations[0]?.id ?? ''
   )
-  const [donationAmount, setDonationAmount] = useState('0')
+  const [donationAmount, setDonationAmount] = useState(hasActivePass ? '10' : '0')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [purchaseComplete, setPurchaseComplete] = useState(false)
 
   // =========================================
   // 🧮 PURCHASE TOTALS
+  // If pass is already active, only donation is charged.
   // =========================================
   const donationNumber = Number(donationAmount) || 0
-  const totalAmount = passPrice + donationNumber
+  const effectivePassPrice = hasActivePass ? 0 : passPrice
+  const totalAmount = effectivePassPrice + donationNumber
 
   const selectedOrganization = organizations.find(
     (organization) => organization.id === selectedOrganizationId
@@ -49,25 +53,29 @@ export default function BuyCampaignPassButton({
     'this organization'
 
   // =========================================
-  // 💳 PURCHASE PASS
-  // Later this action can connect to Stripe Checkout.
+  // 💳 PURCHASE / DONATION ACTION
   // =========================================
   async function handleBuyPass() {
     if (loading || purchaseComplete) return
 
+    if (totalAmount <= 0) {
+      setMessage('Please choose a donation amount.')
+      return
+    }
+
     setLoading(true)
     setMessage('')
 
-const result = await purchaseCampaignPassAction({
-  campaign_id: campaignId,
-  pass_price: passPrice,
-  selected_organization_id: selectedOrganizationId || undefined,
-  donation_amount: donationNumber,
-  seller_name: sellerName || undefined,
-})
+    const result = await purchaseCampaignPassAction({
+      campaign_id: campaignId,
+      pass_price: effectivePassPrice,
+      selected_organization_id: selectedOrganizationId || undefined,
+      donation_amount: donationNumber,
+      seller_name: sellerName || undefined,
+    })
 
     if (result.error) {
-      setMessage('Something went wrong. Please try again.')
+      setMessage(result.error || 'Something went wrong. Please try again.')
       setLoading(false)
       return
     }
@@ -87,10 +95,11 @@ const result = await purchaseCampaignPassAction({
         </p>
 
         <p className="mt-2 text-sm text-green-700">
-  Your ${totalAmount.toFixed(2)} pass purchase has been recorded for{' '}
-  {selectedOrganizationName}
-  {sellerName ? ` in support of ${sellerName}` : ''}!
-</p>
+          Your ${totalAmount.toFixed(2)}{' '}
+          {hasActivePass ? 'donation' : 'pass purchase'} has been recorded for{' '}
+          {selectedOrganizationName}
+          {sellerName ? ` in support of ${sellerName}` : ''}.
+        </p>
 
         {donationNumber > 0 ? (
           <p className="mt-2 text-sm text-green-700">
@@ -119,6 +128,22 @@ const result = await purchaseCampaignPassAction({
 
   return (
     <div className="space-y-4">
+      {/* =========================================
+          ✅ ACTIVE PASS NOTICE
+      ========================================= */}
+      {hasActivePass ? (
+  <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
+    <p>✅ Pass already active. You can make an additional donation below.</p>
+
+    <Link
+      href="/dashboard"
+      className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+    >
+      View My Pass
+    </Link>
+  </div>
+) : null}
+
       {/* =========================================
           🏫 ORGANIZATION SUPPORT DROPDOWN
       ========================================= */}
@@ -154,32 +179,32 @@ const result = await purchaseCampaignPassAction({
       ========================================= */}
       <div>
         <label className="mb-2 block text-sm font-medium text-gray-700">
-          Optional donation add-on
+          {hasActivePass ? 'Additional donation' : 'Optional donation add-on'}
         </label>
 
         <div className="flex flex-wrap gap-2">
-          {['0', '10', '25'].map((amount) => (
-            <button
-              key={amount}
-              type="button"
-              onClick={() => setDonationAmount(amount)}
-              className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-                donationAmount === amount
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-              }`}
-            >
-              {amount === '0' ? 'No donation' : `$${amount}`}
-            </button>
-          ))}
+          {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map(
+            (amount) => (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => setDonationAmount(amount)}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                  donationAmount === amount
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                }`}
+              >
+                {amount === '0' ? 'No donation' : `$${amount}`}
+              </button>
+            )
+          )}
 
           <button
             type="button"
             onClick={() => setDonationAmount('')}
             className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-              donationAmount !== '0' &&
-              donationAmount !== '10' &&
-              donationAmount !== '25'
+              !['0', '5', '10', '25'].includes(donationAmount)
                 ? 'border-blue-600 bg-blue-600 text-white'
                 : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
             }`}
@@ -188,9 +213,7 @@ const result = await purchaseCampaignPassAction({
           </button>
         </div>
 
-        {donationAmount !== '0' &&
-        donationAmount !== '10' &&
-        donationAmount !== '25' ? (
+        {!['0', '5', '10', '25'].includes(donationAmount) ? (
           <input
             type="number"
             min="0"
@@ -211,13 +234,15 @@ const result = await purchaseCampaignPassAction({
           💵 TOTAL SUMMARY
       ========================================= */}
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        <div className="flex items-center justify-between text-sm text-blue-800">
-          <span>Pass price</span>
-          <span>${passPrice.toFixed(2)}</span>
-        </div>
+        {!hasActivePass ? (
+          <div className="flex items-center justify-between text-sm text-blue-800">
+            <span>Pass price</span>
+            <span>${passPrice.toFixed(2)}</span>
+          </div>
+        ) : null}
 
         <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
-          <span>Donation add-on</span>
+          <span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span>
           <span>${donationNumber.toFixed(2)}</span>
         </div>
 
@@ -228,7 +253,7 @@ const result = await purchaseCampaignPassAction({
       </div>
 
       {/* =========================================
-          💳 BUY BUTTON
+          💳 SUPPORT BUTTON
       ========================================= */}
       <button
         type="button"
@@ -236,7 +261,11 @@ const result = await purchaseCampaignPassAction({
         disabled={loading}
         className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {loading ? 'Processing...' : `Support Campaign - $${totalAmount}`}
+        {loading
+          ? 'Processing...'
+          : hasActivePass
+            ? `Donate Again - $${totalAmount.toFixed(2)}`
+            : `Support Campaign - $${totalAmount.toFixed(2)}`}
       </button>
 
       {message ? <p className="text-sm text-red-600">{message}</p> : null}

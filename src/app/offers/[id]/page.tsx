@@ -14,17 +14,32 @@ export default async function OfferPage({ params }: OfferPageProps) {
 
   // =========================================
   // 🔐 AUTH CHECK
-  // Used to decide whether deal details are locked or unlocked.
   // =========================================
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isLoggedIn = !!user
+  // =========================================
+  // 🎟️ PASS OWNERSHIP CHECK
+  // Deal details require a purchased fundraiser pass.
+  // =========================================
+  let hasPurchasedPass = false
+
+  if (user) {
+    const { data: purchasedPasses } = await supabase
+      .from('campaign_purchases')
+      .select('id')
+      .eq('user_id', user.id)
+      .neq('payment_status', 'failed')
+      .limit(1)
+
+    hasPurchasedPass = (purchasedPasses?.length ?? 0) > 0
+  }
+
+  const isUnlocked = !!user && hasPurchasedPass
 
   // =========================================
   // 👁️ TRACK OFFER VIEW
-  // Records each visit to this offer page.
   // =========================================
   await supabase.from('offer_views').insert({
     offer_id: id,
@@ -32,13 +47,13 @@ export default async function OfferPage({ params }: OfferPageProps) {
   })
 
   // =========================================
-  // 📦 FETCH OFFER
-  // Loads the offer being viewed.
+  // 📦 FETCH ACTIVE OFFER
   // =========================================
   const { data: offer } = await supabase
     .from('offers')
     .select('id, title, discount, description, starts_at, ends_at, business_id')
     .eq('id', id)
+    .eq('is_active', true)
     .single()
 
   if (!offer) {
@@ -57,7 +72,6 @@ export default async function OfferPage({ params }: OfferPageProps) {
 
   // =========================================
   // 🏪 FETCH BUSINESS PROFILE
-  // Loads business branding and public contact info.
   // =========================================
   const { data: profile } = await supabase
     .from('profiles')
@@ -80,7 +94,6 @@ export default async function OfferPage({ params }: OfferPageProps) {
         <div className="mt-6 rounded-3xl border border-yellow-100 bg-white/90 p-8 shadow-xl">
           {/* =========================================
               🏷️ HEADER
-              Logo + business name + page title.
           ========================================= */}
           <div className="flex items-center gap-4">
             <img
@@ -101,11 +114,9 @@ export default async function OfferPage({ params }: OfferPageProps) {
           </div>
 
           {/* =========================================
-              🔓 / 🔒 DEAL CONTENT BLOCK
-              Logged in users see full details.
-              Logged out users see blurred details.
+              🔓 / 🔒 DEAL CONTENT
           ========================================= */}
-          {isLoggedIn ? (
+          {isUnlocked ? (
             <div className="mt-8 rounded-2xl border border-green-100 bg-green-50 p-6">
               <p className="text-lg font-semibold text-green-700">
                 {offer.discount || 'Special savings available'}
@@ -127,9 +138,9 @@ export default async function OfferPage({ params }: OfferPageProps) {
                 </p>
               </div>
 
-              <div className="absolute inset-0 flex items-center justify-center bg-white/65">
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 px-4 text-center">
                 <span className="rounded-full bg-yellow-600 px-4 py-2 text-sm font-medium text-white">
-                  🔒 Log in to unlock deal details
+                  🔒 Buy a fundraiser pass to unlock deal details
                 </span>
               </div>
             </div>
@@ -137,7 +148,6 @@ export default async function OfferPage({ params }: OfferPageProps) {
 
           {/* =========================================
               📅 META INFO
-              Always visible business/contact/validity info.
           ========================================= */}
           <div className="mt-6 space-y-2 text-sm text-gray-600">
             <p>
@@ -153,44 +163,45 @@ export default async function OfferPage({ params }: OfferPageProps) {
 
           {/* =========================================
               🔘 CTA BUTTON SECTION
-              Tracked buttons for click analytics.
           ========================================= */}
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {isLoggedIn ? (
+          <div className="mt-8 flex flex-wrap gap-3">
+            {isUnlocked ? (
               <TrackedOfferLink
+                href="/dashboard"
                 offerId={offer.id}
                 clickType="dashboard_click"
-                href="/dashboard"
-                className="rounded-xl bg-green-600 px-5 py-3 text-center font-medium text-white hover:bg-green-700 sm:col-span-2"
+                className="inline-flex rounded-lg bg-green-600 px-5 py-3 text-sm font-medium text-white hover:bg-green-700"
               >
                 Go to My Dashboard
               </TrackedOfferLink>
+            ) : user ? (
+              <Link
+                href="/campaigns"
+                className="inline-flex rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Buy a Fundraiser Pass
+              </Link>
             ) : (
               <>
-                <TrackedOfferLink
-                  offerId={offer.id}
-                  clickType="login_click"
+                <Link
                   href="/login"
-                  className="rounded-xl bg-yellow-600 px-5 py-3 text-center font-medium text-white hover:bg-yellow-700"
+                  className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
                 >
-                  Log In to View Deal
-                </TrackedOfferLink>
+                  Log in
+                </Link>
 
-                <TrackedOfferLink
-                  offerId={offer.id}
-                  clickType="signup_click"
+                <Link
                   href="/signup"
-                  className="rounded-xl border border-yellow-200 bg-white px-5 py-3 text-center font-medium text-yellow-700 hover:bg-yellow-50"
+                  className="rounded-lg border border-blue-200 bg-white px-5 py-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
                 >
-                  Create Account
-                </TrackedOfferLink>
+                  Create account
+                </Link>
               </>
             )}
           </div>
 
           {/* =========================================
               🔗 EXTERNAL LINKS
-              Website/map links stay visible for business discovery.
           ========================================= */}
           <div className="mt-5 flex flex-wrap gap-3">
             {profile?.website_url ? (

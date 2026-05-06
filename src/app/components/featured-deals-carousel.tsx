@@ -22,6 +22,7 @@ export default async function FeaturedDealsCarousel() {
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
     .limit(12)
+    .eq('is_active', true)
 
   if (!offers || offers.length === 0) return null
 

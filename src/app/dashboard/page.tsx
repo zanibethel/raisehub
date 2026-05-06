@@ -13,6 +13,7 @@ import CreateCampaignForm from '../components/create-campaign-form'
 import Link from 'next/link'
 import OrganizationReportToggle from '../components/organization-report-toggle'
 import ShareCampaignButton from '../components/share-campaign-button'
+import ArchiveCampaignButton from '../components/archive-campaign-button'
 
 type Role = 'customer' | 'business' | 'organization' | 'admin'
 
@@ -99,11 +100,63 @@ async function CustomerDashboard() {
 
   if (!user) return null
 
+  // =========================================
+  // 🎟️ FETCH PURCHASED FUNDRAISER PASSES
+  // =========================================
+  const { data: purchasedPasses } = await supabase
+    .from('campaign_purchases')
+    .select(`
+      id,
+      campaign_id,
+      selected_organization_id,
+      created_at,
+      amount_paid,
+      donation_amount,
+      campaigns (
+        id,
+        name,
+        description,
+        pass_price
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const organizationIds = [
+    ...new Set(
+      (purchasedPasses ?? [])
+        .map((pass) => pass.selected_organization_id)
+        .filter(Boolean)
+    ),
+  ]
+
+  const { data: organizationProfiles } =
+    organizationIds.length > 0
+      ? await supabase
+          .from('profiles')
+          .select('id, business_name, display_name')
+          .in('id', organizationIds)
+      : { data: [] }
+
+  const organizationById = new Map(
+    (organizationProfiles ?? []).map((organization) => [
+      organization.id,
+      organization,
+    ])
+  )
+
+  const hasPurchasedPass = (purchasedPasses?.length ?? 0) > 0
+
+  // =========================================
+  // 🧾 FETCH AVAILABLE ACTIVE OFFERS
+  // These are the local deals unlocked by owning a pass.
+  // =========================================
   const { data: offers } = await supabase
     .from('offers')
     .select('*')
-    .lte('starts_at', now)
-    .gte('ends_at', now)
+    .eq('is_active', true)
+    .or(`starts_at.is.null,starts_at.lte.${now}`)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
 
   const { data: profiles } = await supabase
@@ -116,16 +169,22 @@ async function CustomerDashboard() {
     .eq('user_id', user.id)
 
   const { data: redemptions } = await supabase
-  .from('redemptions')
-  .select('offer_id, created_at')
-  .eq('user_id', user.id)
+    .from('redemptions')
+    .select('offer_id, created_at')
+    .eq('user_id', user.id)
 
-  const savedOfferIds = new Set((savedOffers ?? []).map((item) => item.offer_id))
-  const redeemedOfferIds = new Set((redemptions ?? []).map((item) => item.offer_id))
+  const savedOfferIds = new Set(
+    (savedOffers ?? []).map((item) => item.offer_id)
+  )
 
-const redemptionDateByOfferId = new Map(
-  (redemptions ?? []).map((item) => [item.offer_id, item.created_at])
-)
+  const redeemedOfferIds = new Set(
+    (redemptions ?? []).map((item) => item.offer_id)
+  )
+
+  const redemptionDateByOfferId = new Map(
+    (redemptions ?? []).map((item) => [item.offer_id, item.created_at])
+  )
+
   const profileById = new Map(
     (profiles ?? []).map((profile) => [
       profile.id,
@@ -152,11 +211,129 @@ const redemptionDateByOfferId = new Map(
 
   return (
     <div className="mt-8 space-y-8">
+      {/* =========================================
+          🎟️ MY FUNDRAISER PASSES
+      ========================================= */}
+      <section className="rounded-3xl border border-blue-100 bg-white/90 p-8 shadow-xl backdrop-blur">
+        <h2 className="text-2xl font-semibold text-blue-700">
+          My Fundraiser Passes
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Your purchased passes unlock participating local deals.
+        </p>
+
+        {purchasedPasses && purchasedPasses.length > 0 ? (
+          <div className="mt-6 grid gap-4">
+            {purchasedPasses.map((purchase: any) => {
+              const campaign = purchase.campaigns
+              const organization = organizationById.get(
+                purchase.selected_organization_id
+              )
+
+              const organizationName =
+                organization?.display_name ||
+                organization?.business_name ||
+                'Organization'
+
+              return (
+                <div
+                  key={purchase.id}
+                  className="rounded-2xl border border-blue-100 bg-blue-50 p-5"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                        Active Pass
+                      </p>
+
+                      <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                        {campaign?.name || 'Fundraiser Pass'}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-gray-600">
+                        Supporting {organizationName}
+                      </p>
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        Purchased{' '}
+                        {new Date(purchase.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="text-left sm:text-right">
+                      <p className="text-sm text-gray-500">Total Paid</p>
+
+                      <p className="text-2xl font-bold text-blue-700">
+                        ${Number(purchase.amount_paid ?? 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {campaign?.id ? (
+                      <Link
+                        href={`/campaigns/${campaign.id}`}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      >
+                        View Campaign
+                      </Link>
+                    ) : null}
+
+                    <a
+                      href="#available-deals"
+                      className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                    >
+                      View Available Deals
+                    </a>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+            <p className="text-sm text-blue-800">
+              You have not purchased any fundraiser passes yet.
+            </p>
+
+            <Link
+              href="/campaigns"
+              className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Browse Fundraisers
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* =========================================
+          🔓 UNLOCKED DEALS MESSAGE
+      ========================================= */}
+      {hasPurchasedPass ? (
+        <section
+          id="available-deals"
+          className="rounded-3xl border border-green-100 bg-white/90 p-8 shadow-xl backdrop-blur"
+        >
+          <h2 className="text-2xl font-semibold text-green-700">
+            Available Deals
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Your fundraiser pass gives you access to these participating local
+            offers.
+          </p>
+        </section>
+      ) : null}
+
+      {/* =========================================
+          💾 SAVED OFFERS / MY PASS
+      ========================================= */}
       <section>
         <div className="rounded-3xl border border-green-100 bg-white/90 p-8 shadow-xl backdrop-blur">
-          <h2 className="text-2xl font-semibold text-green-700">My Pass</h2>
+          <h2 className="text-2xl font-semibold text-green-700">My Saved Deals</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Your saved offers ready to use.
+            Offers you saved for quick access.
           </p>
         </div>
 
@@ -211,20 +388,24 @@ const redemptionDateByOfferId = new Map(
                     </div>
 
                     {redeemedOfferIds.has(offer.id) ? (
-  <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-center">
-    <p className="text-sm font-medium text-gray-700">✅ Used</p>
-    <p className="mt-1 text-xs text-gray-500">
-      Used on:{' '}
-      {redemptionDateByOfferId.get(offer.id)
-        ? new Date(
-            redemptionDateByOfferId.get(offer.id) as string
-          ).toLocaleString()
-        : 'Unknown date'}
-    </p>
-  </div>
-) : (
-  <UseOfferButton offerId={offer.id} />
-)}
+                      <div className="mt-4 rounded-lg bg-gray-100 px-4 py-3 text-center">
+                        <p className="text-sm font-medium text-gray-700">
+                          ✅ Used
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Used on:{' '}
+                          {redemptionDateByOfferId.get(offer.id)
+                            ? new Date(
+                                redemptionDateByOfferId.get(
+                                  offer.id
+                                ) as string
+                              ).toLocaleString()
+                            : 'Unknown date'}
+                        </p>
+                      </div>
+                    ) : (
+                      <UseOfferButton offerId={offer.id} />
+                    )}
                   </div>
                 ))}
             </div>
@@ -238,10 +419,28 @@ const redemptionDateByOfferId = new Map(
         </div>
       </section>
 
-      <AvailableOffersSection
-        offers={enrichedOffers}
-        savedOfferIds={[...savedOfferIds]}
-      />
+      {/* =========================================
+          🛍️ AVAILABLE OFFERS
+      ========================================= */}
+      {hasPurchasedPass ? (
+        <AvailableOffersSection
+          offers={enrichedOffers}
+          savedOfferIds={[...savedOfferIds]}
+        />
+      ) : (
+        <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-6 text-center">
+          <p className="text-sm font-medium text-yellow-800">
+            Buy a fundraiser pass to unlock local deals.
+          </p>
+
+          <Link
+            href="/campaigns"
+            className="mt-4 inline-flex rounded-lg bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700"
+          >
+            Browse Fundraisers
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
@@ -274,6 +473,7 @@ async function BusinessDashboard() {
     .select('*')
     .eq('business_id', user.id)
     .order('created_at', { ascending: false })
+    .eq('is_active', true)
 
   const offerIds = (offers ?? []).map((o) => o.id)
 
@@ -705,6 +905,11 @@ const topSellers = [...sellerStats.entries()]
     campaignId={campaign.id}
     campaignName={campaign.name}
   />
+
+  <ArchiveCampaignButton
+  campaignId={campaign.id}
+  campaignName={campaign.name}
+/>
 </div>
                       
                     </div>

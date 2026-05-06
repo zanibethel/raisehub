@@ -5,6 +5,7 @@ import AddOfferForm from './add-offer-form'
 import BusinessProfileCard from './business-profile-card'
 import RedemptionReport from './redemption-report'
 import UpgradePlanModal from './upgrade-plan-modal'
+import DeactivateOfferButton from './deactivate-offer-button'
 
 type Offer = {
   id: string
@@ -161,11 +162,21 @@ export default function BusinessDashboardContent({
                   </div>
 
                   <RedemptionReport
-                    offerId={offer.id}
-                    redemptionCount={redemptionCountByOfferId[offer.id] ?? 0}
-                    redemptions={redemptionsByOfferId[offer.id] ?? []}
-                    profileEmailById={profileEmailById}
-                  />
+  offerId={offer.id}
+  redemptionCount={redemptionCountByOfferId[offer.id] ?? 0}
+  redemptions={redemptionsByOfferId[offer.id] ?? []}
+  profileEmailById={profileEmailById}
+/>
+
+{/* =========================================
+    📴 DEACTIVATE OFFER BUTTON
+========================================= */}
+<div className="mt-4">
+  <DeactivateOfferButton
+    offerId={offer.id}
+    offerTitle={offer.title}
+  />
+</div>
                 </div>
               ))}
           </div>
