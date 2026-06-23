@@ -49,6 +49,21 @@ export default async function CampaignsPage() {
           ))}
         </div>
       </div>
+      <footer className="mx-auto mt-16 max-w-5xl border-t border-blue-100 pt-6 text-center text-sm text-gray-500">
+  <div className="flex flex-wrap justify-center gap-4">
+    <Link href="/terms" className="hover:text-blue-700">
+      Terms
+    </Link>
+    <Link href="/privacy" className="hover:text-blue-700">
+      Privacy
+    </Link>
+    <Link href="/refund-policy" className="hover:text-blue-700">
+      Refund Policy
+    </Link>
+  </div>
+
+  <p className="mt-4">© {new Date().getFullYear()} RaiseHub</p>
+</footer>
     </main>
   )
 }

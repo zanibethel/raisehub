@@ -167,6 +167,16 @@ export default function BusinessDashboardContent({
   redemptions={redemptionsByOfferId[offer.id] ?? []}
   profileEmailById={profileEmailById}
 />
+<div className="mt-3 flex flex-wrap gap-2">
+  <a
+    href={`/offers/${offer.id}`}
+    target="_blank"
+    rel="noreferrer"
+    className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+  >
+    View Public Offer
+  </a>
+</div>
 
 {/* =========================================
     📴 DEACTIVATE OFFER BUTTON

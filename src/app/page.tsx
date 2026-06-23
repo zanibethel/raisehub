@@ -1,21 +1,26 @@
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 import Link from 'next/link'
 import LogoCarousel from './components/logo-carousel'
 import FeaturedDealsCarousel from './components/featured-deals-carousel'
 import CampaignProgressCarousel from './components/campaign-progress-carousel'
+import { createClient } from '@/lib/supabase/server'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-8 py-16 text-gray-900">
-      {/* =========================================
-          🎨 BACKGROUND BLOBS
-      ========================================= */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-1/2 top-[-120px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
-        <div className="absolute left-[-80px] top-[280px] h-[260px] w-[260px] rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
-      </div>
+      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-8 py-16 text-gray-900">
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute left-1/2 top-[-120px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
+          <div className="absolute left-[-80px] top-[280px] h-[260px] w-[260px] rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
+        </div>
 
       {/* =========================================
           🏠 HERO SECTION
@@ -53,12 +58,14 @@ export default function HomePage() {
             Get Started
           </Link>
 
-          <Link
-            href="/dashboard"
-            className="rounded-xl border border-gray-300 bg-white/90 px-6 py-3 font-medium text-gray-700 shadow-sm backdrop-blur transition hover:border-blue-600 hover:text-blue-600"
-          >
-            View Dashboard
-          </Link>
+          {user ? (
+  <Link
+    href="/dashboard"
+    className="..."
+  >
+    View Dashboard
+  </Link>
+) : null}
         </div>
       </div>
 
@@ -195,6 +202,26 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+    {/* =========================================
+    ⚖️ FOOTER / LEGAL LINKS
+========================================= */}
+<footer className="mx-auto mt-16 max-w-5xl border-t border-blue-100 pt-6 text-center text-sm text-gray-500">
+  <div className="flex flex-wrap justify-center gap-4">
+    <Link href="/terms" className="hover:text-blue-700">
+      Terms
+    </Link>
+
+    <Link href="/privacy" className="hover:text-blue-700">
+      Privacy
+    </Link>
+
+    <Link href="/refund-policy" className="hover:text-blue-700">
+      Refund Policy
+    </Link>
+  </div>
+
+  <p className="mt-4">© {new Date().getFullYear()} RaiseHub</p>
+</footer>
     </main>
   )
 }
