@@ -1,12 +1,14 @@
 # RaiseHub Demo Data Strategy
 
-This document defines how RaiseHub handles demo, test, staging, and production data — written before building `demo.raisehub.com`, so the infrastructure work in Phase 2 has a clear data foundation to build against. It complements `DEMO_EXPERIENCE.md` (the demo *experience*), `TECHNICAL_AUDIT.md` (current known issues, including its addendum), and `HERMES_PLAYBOOK.md` (working agreement).
+This document defines how RaiseHub handles demo, test, staging, and production data — written before building out the demo showroom, so the infrastructure work in Phase 2 has a clear data foundation to build against. It complements `DEMO_EXPERIENCE.md` (the demo *experience*), `TECHNICAL_AUDIT.md` (current known issues, including its addendum), and `HERMES_PLAYBOOK.md` (working agreement).
+
+**Note on domains:** as of this writing, RaiseHub does not own or use `raisehub.com`. The current live URL is `https://raisehub.vercel.app/`. `demo.raisehub.com` and `raisehub.com`, referenced below, are **future custom-domain goals** — demo infrastructure today is built around the current Vercel app and the `NEXT_PUBLIC_APP_MODE` environment variable, not a custom domain.
 
 ---
 
 ## 1. Demo Philosophy
 
-- `demo.raisehub.com` is an **interactive showroom** — a place where visitors can explore the full RaiseHub experience (businesses, campaigns, offers, dashboards) before committing to anything.
+- `demo.raisehub.com` *(future custom-domain goal — not available today; current live URL is `https://raisehub.vercel.app/`)* is envisioned as an **interactive showroom** — a place where visitors can explore the full RaiseHub experience (businesses, campaigns, offers, dashboards) before committing to anything.
 - The goal is to let people **experience RaiseHub before buying** — see how a campaign looks, how a business offer works, how a customer's digital pass behaves — without any real signup, real money, or real commitment required.
 - The demo must **feel polished, realistic, and safe**: realistic enough that it genuinely represents the product, but safe enough that nothing a visitor does in the demo has any real-world consequence, and no real business or customer data is ever at risk of being confused with it.
 
@@ -18,7 +20,7 @@ RaiseHub's data falls into four categories. These are conceptual classifications
 
 | Classification | Definition |
 |---|---|
-| **Demo data** | Polished, intentionally-created content designed to be shown publicly on `demo.raisehub.com` — realistic fake businesses, campaigns, and offers meant to represent the product well. Demo data is *meant to be seen*. |
+| **Demo data** | Polished, intentionally-created content designed to be shown publicly under demo mode — realistic fake businesses, campaigns, and offers meant to represent the product well. Demo data is *meant to be seen*. |
 | **Test data** | Ad hoc content created while developing or manually testing a feature (e.g. clicking through a purchase flow to confirm it works). Test data is a byproduct of engineering work, not curated, and not meant to be shown to anyone. |
 | **Staging data** | Data that exists in an environment used to validate changes before they reach production — closer in spirit to production data (may resemble real usage patterns) but still not real/live. RaiseHub does not currently have a staging environment; this classification is defined here so the option exists once one is introduced. |
 | **Production data** | Real businesses, real organizations, real customers, real purchases, real money (once Stripe is integrated). This is the only classification that must never be treated as disposable. |
@@ -27,13 +29,13 @@ RaiseHub's data falls into four categories. These are conceptual classifications
 
 ## 3. Demo vs. Production
 
-| | `demo.raisehub.com` | `raisehub.com` |
+| | Demo mode (today: `raisehub.vercel.app` w/ `NEXT_PUBLIC_APP_MODE=demo`) → `demo.raisehub.com` (future goal) | Production (today: `https://raisehub.vercel.app/`) → `raisehub.com` (future goal) |
 |---|---|---|
 | **Purpose** | Interactive showroom — explore before buying | The real platform |
 | **Data shown** | Demo data only (curated, polished) | Production data only |
 | **Signup/purchase** | Simulated — no real accounts, no real money | Real — real accounts, real money (once Stripe is live) |
 | **Content lifecycle** | Reset/refreshed on a defined cadence (see Section 6) | Permanent, real, and protected |
-| **Primary CTA** | "Build My RaiseHub" → routes to real onboarding on `raisehub.com` | Actual signup/campaign creation/business onboarding flows |
+| **Primary CTA** | "Build My RaiseHub" → routes to real onboarding (today: `/signup` on `raisehub.vercel.app`; future: `raisehub.com`) | Actual signup/campaign creation/business onboarding flows |
 | **Visual indicator** | Persistent demo banner: *"Welcome to the RaiseHub Interactive Demo"* (see `DEMO_EXPERIENCE.md`) | No demo banner |
 | **Risk tolerance** | High — content can be reset, seeded, or broken without real-world consequence | Low — must be reliable, accurate, and protected per `AGENTS.md`'s Database Rules |
 
@@ -70,7 +72,7 @@ To make data classifications (Section 2) enforceable rather than just conceptual
 
 Currently, mobile proof-of-concept testing happens directly against the live production environment (confirmed: local and production share the same Supabase project, per `TECHNICAL_AUDIT.md`'s addendum). This is a reasonable *short-term* approach while the platform is pre-launch and no real businesses or customers exist yet — but it is not where mobile testing should live long-term.
 
-Once demo mode exists, **`demo.raisehub.com` should become the safer, permanent home for mobile testing**: a phone-in-hand walkthrough of the purchase flow, dashboard, or offer redemption can happen entirely inside the demo surface, using demo-tagged data, with zero risk of writing anything into real production records. This removes the current risk where a mobile QA session today could be silently creating real-looking rows in the same database real customers will eventually use.
+Once demo mode exists, **it should become the safer, permanent home for mobile testing** — whether accessed via a Vercel deployment with `NEXT_PUBLIC_APP_MODE=demo` today, or via `demo.raisehub.com` once that domain exists: a phone-in-hand walkthrough of the purchase flow, dashboard, or offer redemption can happen entirely inside the demo surface, using demo-tagged data, with zero risk of writing anything into real production records. This removes the current risk where a mobile QA session today could be silently creating real-looking rows in the same database real customers will eventually use.
 
 ---
 
@@ -108,7 +110,7 @@ Per `ROADMAP.md`'s "Phase 2 — Demo Infrastructure" section, implementation sho
 1. **`APP_MODE` strategy** — decide how the app determines whether it's running as `demo` or `production` (domain-based, environment-variable-based, or both), before writing any detection code.
 2. **Demo mode detection** — implement the actual runtime check based on the strategy above.
 3. **Demo banner** — render the *"Welcome to the RaiseHub Interactive Demo"* banner (per `DEMO_EXPERIENCE.md`) whenever demo mode is detected.
-4. **"Build My RaiseHub" CTA** — add the conversion CTA that routes demo visitors toward real onboarding on `raisehub.com`.
+4. **"Build My RaiseHub" CTA** — add the conversion CTA that routes demo visitors toward real onboarding (today: the relative `/signup` path, since demo and production currently share one Vercel deployment; update to `raisehub.com` once that domain exists).
 5. **No database changes until approved** — the tagging fields proposed in Section 4, any seed script (Section 6), and any RLS policy changes for hiding demo data are all schema/data changes and require explicit sign-off before implementation, per `HERMES_PLAYBOOK.md`.
 
 This ordering intentionally front-loads the parts of Phase 2 that are pure application code (detection, banner, CTA) before anything touches the database — keeping early Phase 2 work low-risk and reversible while the data strategy in this document is reviewed.

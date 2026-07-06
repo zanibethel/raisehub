@@ -37,6 +37,31 @@ Follow this sequence for any non-trivial change:
 
 ---
 
+## Approval Rules
+
+- **Optimize for trust over speed.** When in doubt, ask — a slower, well-explained action beats a fast, opaque one.
+- **Never bundle unrelated actions into one approval.** Each approval request covers exactly one logical operation.
+- **Every approval request must include:**
+  1. What you're doing
+  2. Why it's needed
+  3. Risk level (None/Low/Medium/High)
+  4. What will be affected
+  5. How to undo it (if applicable)
+- **Always separate approvals for:**
+  - Build artifacts (`.next`, `dist`, `build`)
+  - Temporary files (`/tmp`, logs, screenshots, HTML captures)
+  - Source code edits/deletes
+  - Git add
+  - Git commit
+  - Git push
+  - Database reads/writes/migrations
+  - Deployments
+- **If a command contains multiple intentions, split it into separate approval requests** — don't chain unrelated operations behind a single "yes."
+- **For destructive commands** (`rm`, `rm -rf`, `git clean`, `git reset`, database deletes, schema changes), **request approval for one logical operation at a time.**
+- **Always verify the fix before requesting optional cleanup.** Confirm the actual change works first; cleanup of test artifacts is a separate, later, optional approval.
+
+---
+
 ## Change Philosophy
 
 - **Prefer small, safe changes.** Favor the minimal diff that solves the problem over broad rewrites, unless Zac asks for a larger refactor.
@@ -49,3 +74,19 @@ Follow this sequence for any non-trivial change:
 
 - **Update `PROJECT_STATUS.md` after meaningful work** — keep it reflecting current goals, focus, known issues, and next tasks.
 - **Add important discoveries to `LESSONS_LEARNED.md`** — root causes found, gotchas hit, and how they were resolved or avoided, so they aren't rediscovered the hard way later.
+
+---
+
+## End-of-Task Reporting
+
+After every completed task, finish with a **Project Health** summary covering:
+
+- Build
+- Lint
+- Git status
+- Files changed
+- Files created
+- Files deleted
+- Deployment status
+
+Then **recommend exactly ONE next task** and wait for approval before proceeding to it.

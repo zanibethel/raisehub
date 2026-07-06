@@ -31,7 +31,7 @@
 - [ ] Add demo mode detection
 - [ ] Add demo banner
 - [ ] Add "Build My RaiseHub" CTA
-- [ ] Plan demo.raisehub.com routing/domain setup
+- [ ] Plan demo mode routing on the current Vercel app (`raisehub.vercel.app` + `APP_MODE`); treat `demo.raisehub.com` as a future custom-domain goal, not available today
 - [ ] Ensure production behavior is unchanged
 - [ ] Prepare for demo data tagging/hiding
 

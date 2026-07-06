@@ -30,7 +30,7 @@ Building an AI-assisted development workflow using Hermes.
 - Campaign progress discrepancy investigated and root-caused
 - Demo/staging data strategy scoped (tagging, hiding, UI labels, mobile preview approach)
 - `HERMES_PLAYBOOK.md` created — defines Hermes working agreement for RaiseHub and future projects
-- `DEMO_EXPERIENCE.md` created — defines demo.raisehub.com vision, banner copy, CTA copy, and demo data requirements
+- `DEMO_EXPERIENCE.md` created — defines demo vision, banner copy, CTA copy, and demo data requirements (domain plan corrected to reflect current `raisehub.vercel.app` deployment; `demo.raisehub.com`/`raisehub.com` are future custom-domain goals)
 - `ROADMAP.md` updated with new "Phase 2 — Demo Infrastructure" section
 - Renamed `LESSSON_LEARNED.md` → `LESSONS_LEARNED.md` (typo fix) and updated references
 
@@ -40,7 +40,7 @@ Building an AI-assisted development workflow using Hermes.
 
 1. Fix campaign progress bug (root-caused; remediation options scoped — awaiting approval to implement)
 2. Establish local/production Supabase environment separation (elevated priority — currently shared)
-3. Implement Phase 2 — Demo Infrastructure (`APP_MODE` strategy, demo mode detection, demo banner, "Build My RaiseHub" CTA, demo.raisehub.com routing plan)
+3. Implement Phase 2 — Demo Infrastructure (`APP_MODE` strategy ✅, demo mode detection ✅, demo banner ✅, "Build My RaiseHub" CTA ✅ — all built against the current `raisehub.vercel.app` deployment; domain routing plan (`demo.raisehub.com`) remains a future goal)
 4. Demo business/campaign/offer content migration
 5. Mobile QA
 6. Business & organization onboarding
