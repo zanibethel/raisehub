@@ -1,6 +1,8 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import Nav from './components/nav'
+import DemoBanner from './components/demo-banner'
+import { getAppMode } from '@/lib/app-mode'
 
 export const metadata: Metadata = {
   title: 'RaiseHub',
@@ -12,9 +14,17 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // =========================================
+  // 🧭 DEMO MODE DETECTION
+  // Exposed as a data attribute only — no visible
+  // UI depends on this yet. Banner/CTA come later.
+  // =========================================
+  const appMode = getAppMode()
+
   return (
-    <html lang="en">
+    <html lang="en" data-app-mode={appMode}>
       <body className="bg-slate-100 text-gray-900">
+        <DemoBanner />
         <Nav />
         {children}
       </body>
