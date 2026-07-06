@@ -37,6 +37,17 @@ Follow this sequence for any non-trivial change:
 
 ---
 
+## Supabase Safety Rules
+
+- **Hermes never uses the service role key.** Investigative/read access to Supabase must use a dedicated, low-privilege credential — never the service role key, which bypasses RLS and grants full read/write/admin access.
+- **Read-only access uses a dedicated Postgres role** (e.g. `hermes_readonly`), granted `SELECT` only on the `public` schema, with no access to the `auth` schema and no `bypassrls` attribute. This role is created explicitly for Hermes's use, separate from the app's own keys, and is independently revocable.
+- **No inserts, updates, deletes, or schema changes — ever — without explicit per-action approval.** Read access does not imply write access. Even with read-only credentials configured, any request that would insert, update, delete, or alter data or schema requires its own explicit approval at the time, per the Approval Rules above.
+- **Credentials are stored outside the app's own config.** Never in `.env.local` (reserved for the app's runtime credentials) and never committed to the repo. Stored in a separate, git-ignored location, read only when a Supabase read task is explicitly requested.
+- **Never print, log, or echo the credential itself** — connection strings, passwords, and keys are handled the same as any other secret under the "never expose secrets" rule above.
+- **Every Supabase read is reported, not silent.** When Hermes runs a read-only Supabase query, the approval request and the result should both be shown, so there's a clear record of what was checked and what was found.
+
+---
+
 ## Approval Rules
 
 - **Optimize for trust over speed.** When in doubt, ask — a slower, well-explained action beats a fast, opaque one.

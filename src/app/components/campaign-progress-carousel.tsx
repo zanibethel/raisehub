@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import CampaignProgressCarouselClient from './campaign-progress-carousel-client'
+import { isDemoMode } from '@/lib/app-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,40 @@ type Purchase = {
   organization_earnings: number | null
 }
 
+// =========================================
+// 🎭 DEMO SAMPLE CAMPAIGNS
+// Shown only when app mode is demo AND the real
+// Supabase query returns no active campaigns.
+// Production behavior is unaffected — this data is
+// never used unless isDemoMode() is true. Progress
+// values are pre-computed realistically (not maxed
+// out, not zero) to look like a genuine, in-progress
+// fundraiser.
+// =========================================
+const DEMO_SAMPLE_CAMPAIGNS = [
+  {
+    id: 'demo-campaign-1',
+    name: 'Lakeview Elementary Fall Fundraiser',
+    goal: 5000,
+    earnings: 3250,
+    progress: 65,
+  },
+  {
+    id: 'demo-campaign-2',
+    name: 'Lakeview Youth Soccer Club — New Uniforms',
+    goal: 3000,
+    earnings: 1140,
+    progress: 38,
+  },
+  {
+    id: 'demo-campaign-3',
+    name: 'Riverside Middle School Band Trip',
+    goal: 8000,
+    earnings: 7120,
+    progress: 89,
+  },
+]
+
 export default async function CampaignProgressCarousel() {
   const supabase = await createClient()
 
@@ -27,7 +62,17 @@ export default async function CampaignProgressCarousel() {
     .order('created_at', { ascending: false })
     .limit(10)
 
-  if (!campaigns || campaigns.length === 0) return null
+  const hasRealCampaigns = !!campaigns && campaigns.length > 0
+
+  // Demo fallback only applies when real data is empty AND
+  // the app is running in demo mode. In production (the
+  // default), this branch is never taken — behavior is
+  // identical to before this change.
+  if (!hasRealCampaigns && isDemoMode()) {
+    return <CampaignProgressCarouselClient campaigns={DEMO_SAMPLE_CAMPAIGNS} />
+  }
+
+  if (!hasRealCampaigns) return null
 
   const campaignIds = campaigns.map((campaign) => campaign.id)
 
