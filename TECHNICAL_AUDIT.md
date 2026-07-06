@@ -52,3 +52,41 @@ This is very likely the actual mechanism behind the known bug — not a data bug
 3. Fix the 1 lint error + dead-code warnings in `dashboard/page.tsx` (small, low-risk).
 4. Then proceed to Demo business migration with a stable, non-duplicated progress calculation in place.
 5. QA review last, once the above is settled.
+
+---
+
+## Addendum — Verified Findings (Post-Audit Investigation)
+
+The following corrects and extends Section 3 above based on deeper investigation conducted after this audit was written. Read this addendum together with Section 3, not as a replacement for it.
+
+### Correction: Progress is calculated in 2 places, not 3
+
+Section 3 above states progress is computed in three places. This was inaccurate — the homepage carousel *is* the `campaign-progress-carousel.tsx` component (the homepage simply renders it); they are not separate calculations. **The actual calculation sites are:**
+
+1. `src/app/components/campaign-progress-carousel.tsx` (rendered on the homepage)
+2. `src/app/campaigns/[id]/page.tsx` (campaign detail page)
+
+`src/app/campaigns/page.tsx` (the campaigns list page) does **not** calculate progress at all — it was incorrectly implicated in the original audit finding and is removed from consideration.
+
+### Confirmed: No `payment_status` filtering on either progress query
+
+Neither of the two real calculation sites filters by `payment_status`. Both sum `organization_earnings` across every row in `campaign_purchases` for the relevant campaign(s), regardless of status. This is currently **inert** (every existing purchase is inserted with a hardcoded `payment_status: 'test_paid'` in `src/app/campaigns/actions.ts` — there is no live payment gateway yet, so no row currently has any other status), but will become a live defect the moment real payment statuses (failed, pending, refunded) exist post-Stripe integration.
+
+### Confirmed: Local and production share the same Supabase project
+
+Verified directly via an authenticated comparison: production environment variables were pulled via the Vercel CLI and compared against local `.env.local`, using **hashed** project-reference identifiers only — no secret, URL, or key value was read, printed, or exposed at any point. The hashes matched.
+
+**This is the most significant and highest-confidence finding in this investigation.** It means:
+
+- Local development and production are not environment-isolated at all.
+- Any campaign, offer, business profile, or purchase created while developing/testing locally is a real row in the production database.
+- This is very likely the dominant driver of the original "campaign progress differs between local and live" symptom — not a caching or rendering-mode bug, but local test activity directly and visibly inflating (or otherwise altering) numbers that are also visible in production, and vice versa.
+- This elevates environment separation from a nice-to-have to a pre-onboarding blocker (see `DEMO_EXPERIENCE.md` and the demo/staging data strategy discussion for the proposed remediation: `is_demo`/`data_source` tagging, RLS-backed hiding, and eventually a genuinely separate Supabase project for local development).
+
+### Updated Ranked Root Cause (supersedes Section 3's ranking)
+
+1. **Confirmed primary cause:** Shared Supabase project between local and production, combined with no `payment_status` filtering — any local test purchase directly affects the numbers seen in production and vice versa.
+2. **Secondary, currently dormant:** Missing `payment_status` filter will become an active defect once real Stripe payment statuses exist.
+3. **Ruled out / not applicable:** The `campaigns/page.tsx` missing-`dynamic`-directive theory from Section 3 — that page doesn't calculate progress, so its caching behavior is irrelevant to this bug.
+
+No remediation has been implemented as a result of this addendum — this is a findings update only, per standing instruction not to fix without approval.
