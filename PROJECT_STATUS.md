@@ -44,3 +44,102 @@ Building an AI-assisted development workflow using Hermes.
 4. Demo business/campaign/offer content migration
 5. Mobile QA
 6. Business & organization onboarding
+
+---
+
+# July 2026 Progress Update
+
+## Completed
+
+✓ Multi-step Business Onboarding
+
+✓ AI-inspired Offer Wizard
+
+✓ Business-type-specific recommendations
+
+✓ RaiseHub Offer Score
+
+✓ Offer Economics
+
+✓ Offer lifecycle
+
+- Active
+- Pause
+- Resume
+- Expired
+
+✓ Business Dashboard improvements
+
+✓ Status badges
+
+✓ Dashboard metrics
+
+✓ Rule-based architecture planning
+
+✓ Documentation overhaul
+
+---
+
+## Current Focus
+
+Business Dashboard completion.
+
+Remaining work includes:
+
+- Archive offers
+- Duplicate offers
+- Extend offers
+- Attention Center
+- Offer Health
+- Notification Center
+
+---
+
+## Upcoming
+
+Customer Dashboard
+
+Organization Dashboard
+
+Admin Dashboard
+
+Owner Dashboard
+
+Stripe integration
+
+Native Mobile App
+
+---
+
+## Engineering Direction
+
+RaiseHub now prioritizes:
+
+Rule Engine
+
+↓
+
+Analytics
+
+↓
+
+AI
+
+AI is optional.
+
+Rule Engine is foundational.
+
+---
+
+## Documentation
+
+Project philosophy is now documented in:
+
+- Architecture Principles
+- Business Philosophy
+- Rule Engine
+- Product Decisions
+- Owner Vision
+- Idea Backlog
+
+Future development should reference these documents before introducing major features.
