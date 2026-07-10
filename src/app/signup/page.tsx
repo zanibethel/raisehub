@@ -1,14 +1,30 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const validRoles = ['customer', 'business', 'organization'] as const
+
+type Role = (typeof validRoles)[number]
+
+function getInitialRole(roleParam: string | null): Role {
+  if (roleParam && validRoles.includes(roleParam as Role)) {
+    return roleParam as Role
+  }
+
+  return 'customer'
+}
+
 export default function SignupPage() {
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('customer')
+  const [role, setRole] = useState<Role>(() =>
+    getInitialRole(searchParams.get('role'))
+  )
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,13 +33,14 @@ export default function SignupPage() {
     setLoading(true)
     setMessage('')
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          role, // 👈 THIS gets picked up by the trigger
+          role,
         },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
 
@@ -33,16 +50,32 @@ export default function SignupPage() {
       return
     }
 
-    setMessage('Account created. You can now log in.')
+    if (data.session) {
+      window.location.href = '/dashboard'
+      return
+    }
+
+    setMessage(
+      'Account created. Check your email to confirm your account before logging in.'
+    )
     setLoading(false)
   }
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] p-8">
-      <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-md">
-        <h1 className="text-2xl font-bold text-blue-600">
-          Create your account
+    <main className="min-h-screen bg-[#F0F6FF] p-5 sm:p-8">
+      <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-7 shadow-md sm:p-8">
+        <p className="text-sm font-semibold text-green-700">
+          Free to get started
+        </p>
+
+        <h1 className="mt-2 text-2xl font-bold text-blue-600">
+          Create your RaiseHub account
         </h1>
+
+        <p className="mt-3 text-sm leading-6 text-gray-600">
+          Businesses can create up to 3 exclusive offers for free and support
+          local organizations on every plan.
+        </p>
 
         <form onSubmit={handleSignup} className="mt-6 space-y-4">
           <input
@@ -60,30 +93,39 @@ export default function SignupPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
             required
           />
 
           <select
             className="w-full rounded-lg border border-gray-300 p-3 outline-none focus:border-blue-500"
             value={role}
-            onChange={(e) => setRole(e.target.value)}
+            onChange={(e) => setRole(e.target.value as Role)}
           >
-            <option value="customer">Customer</option>
+            <option value="customer">Customer / Supporter</option>
             <option value="business">Business</option>
             <option value="organization">Organization</option>
           </select>
 
           <button
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loading ? 'Creating account...' : 'Create Free Account'}
           </button>
         </form>
 
-        {message && (
-          <p className="mt-4 text-sm text-green-600">{message}</p>
-        )}
+        {message ? (
+          <p
+            className={`mt-4 text-sm ${
+              message.startsWith('Account created')
+                ? 'text-green-700'
+                : 'text-red-600'
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
       </div>
     </main>
   )
