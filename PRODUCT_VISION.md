@@ -94,3 +94,92 @@ Always prioritize:
 5. Great user experience
 
 Avoid unnecessary complexity.
+
+---
+
+# Product Evolution (July 2026)
+
+RaiseHub has evolved beyond a digital coupon fundraiser.
+
+The long-term vision is to become a community growth platform that helps:
+
+- Businesses grow revenue
+- Organizations raise more money
+- Customers save more money
+- Communities become stronger
+
+## Platform Philosophy
+
+RaiseHub should quietly monitor platform health and recommend meaningful actions.
+
+Businesses should manage offers because performance changed—not because a date changed.
+
+The platform should reduce work, not create work.
+
+## Intelligence Strategy
+
+RaiseHub follows a three-layer intelligence model.
+
+### Layer 1
+
+Rule Engine
+
+Deterministic platform logic.
+
+Examples:
+
+- Offer Health
+- Dashboard Alerts
+- Review Recommendations
+- Business Score
+- Platform Health
+
+### Layer 2
+
+Analytics
+
+Historical reporting and trends.
+
+Examples:
+
+- Conversion rates
+- Redemption rates
+- Growth
+- Marketplace trends
+
+### Layer 3
+
+AI
+
+Optional creative assistance.
+
+Examples:
+
+- Marketing copy
+- Offer rewrites
+- Business summaries
+- Promotion ideas
+
+AI should never replace deterministic business rules.
+
+## Dashboard Strategy
+
+Every dashboard should answer three questions.
+
+1. What happened?
+
+2. What needs attention?
+
+3. What should I do next?
+
+This philosophy applies to:
+
+- Customer Dashboard
+- Business Dashboard
+- Organization Dashboard
+- Admin Dashboard
+- Owner Dashboard
+
+## Long-Term Goal
+
+RaiseHub becomes the operating system for local community fundraising.
