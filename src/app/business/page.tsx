@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import OrganizationSelector from '@/app/components/organization-selector'
+import { demoOrganizations } from '@/demo/organizations'
 
 const freeFeatures = [
   'Business profile and community partner badge',
@@ -349,7 +351,14 @@ export default function BusinessPage() {
           </div>
         </div>
       </section>
-
+      {/* Customer cause-selection preview */}
+      <section className="mx-auto mt-20 max-w-6xl rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur sm:p-10">
+        <OrganizationSelector
+          organizations={demoOrganizations}
+          title="Show customers where their purchase can make an impact"
+          description="Customers arriving through your business can choose an eligible school, team, nonprofit, or community organization to support."
+        />
+      </section>
       {/* Final CTA */}
       <section className="mx-auto mt-20 max-w-5xl rounded-3xl bg-gradient-to-r from-green-600 to-blue-700 px-7 py-12 text-center text-white shadow-2xl sm:px-12">
         <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-100">
