@@ -65,11 +65,26 @@ function isOfferExpired(offer: Offer) {
   )
 }
 
+function isOfferExpiringSoon(offer: Offer) {
+  if (!offer.ends_at || isOfferExpired(offer)) {
+    return false
+  }
+
+  const today = new Date()
+  const end = new Date(offer.ends_at)
+
+  const diff =
+    (end.getTime() - today.getTime()) /
+    (1000 * 60 * 60 * 24)
+
+  return diff <= 14
+}
+
 function getOfferStatus(offer: Offer) {
   if (isOfferExpired(offer)) {
     return {
       label: 'Expired',
-      status: 'warning' as const,
+      status: 'expired' as const,
     }
   }
 
@@ -77,6 +92,13 @@ function getOfferStatus(offer: Offer) {
     return {
       label: 'Paused',
       status: 'paused' as const,
+    }
+  }
+
+  if (isOfferExpiringSoon(offer)) {
+    return {
+      label: 'Expiring Soon',
+      status: 'warning' as const,
     }
   }
 
@@ -322,9 +344,47 @@ export default function BusinessDashboardContent({
 
                 return (
                   <article
-                    key={offer.id}
-                    className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
-                  >
+  key={offer.id}
+  className={`rounded-2xl border p-6 shadow-sm ${
+    offerStatus.status === 'active'
+      ? 'border-green-200 bg-green-50'
+      : offerStatus.status === 'warning'
+        ? 'border-yellow-200 bg-yellow-50'
+        : offerStatus.status === 'expired'
+          ? 'border-red-200 bg-red-50'
+          : 'border-rose-200 bg-rose-50'
+  }`}
+>
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h3 className="text-lg font-bold text-gray-900">
+        {offer.title || 'Untitled offer'}
+      </h3>
+
+      <p className="mt-1 font-semibold text-green-700">
+        {offer.discount || 'Member benefit not entered'}
+      </p>
+    </div>
+
+    <StatusBadge
+      label={offerStatus.label}
+      status={offerStatus.status}
+    />
+  </div>
+
+  <p className="mt-3 text-sm font-medium text-gray-700">
+    {offerStatus.status === 'active'
+      ? 'This offer is currently available to RaiseHub members.'
+      : offerStatus.status === 'warning'
+        ? 'This offer expires soon. Consider extending or refreshing it.'
+        : offerStatus.status === 'paused'
+          ? 'This offer is hidden from members until you resume it.'
+          : 'This offer has expired and is no longer visible to members.'}
+  </p>
+
+  <p className="mt-4 text-sm leading-6 text-gray-600">
+    {offer.description || 'No description entered.'}
+  </p>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">

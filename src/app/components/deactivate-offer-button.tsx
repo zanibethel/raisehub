@@ -20,7 +20,7 @@ export default function DeactivateOfferButton({
   // =========================================
   async function handleDeactivate() {
     const confirmed = window.confirm(
-      `Deactivate "${offerTitle || 'this offer'}"? This will hide it from customers but keep history.`
+      `Pause "${offerTitle || 'this offer'}"? This will hide it from customers but keep history.`
     )
 
     if (!confirmed) return
@@ -48,7 +48,7 @@ export default function DeactivateOfferButton({
         disabled={loading}
         className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
       >
-        {loading ? 'Deactivating...' : 'Deactivate Offer'}
+        {loading ? 'Pausing...' : 'Pause Offer'}
       </button>
 
       {message ? <p className="mt-2 text-xs text-red-600">{message}</p> : null}
