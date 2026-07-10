@@ -1,4 +1,3 @@
-import AddOfferForm from '../components/add-offer-form'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LogoutButton from '@/app/components/logout-button'
@@ -530,9 +529,11 @@ async function BusinessDashboard() {
 
   const totalRedemptions = (redemptions ?? []).length
 
-  const activeOffers = (offers ?? []).filter(
-    (offer) => !offer.ends_at || new Date(offer.ends_at) >= new Date()
-  )
+const activeOffers = (offers ?? []).filter(
+  (offer) =>
+    offer.is_active !== false &&
+    (!offer.ends_at || new Date(offer.ends_at) >= new Date())
+)
 
   const ACTIVE_OFFER_LIMIT = 3
   const hasReachedLimit = activeOffers.length >= ACTIVE_OFFER_LIMIT
