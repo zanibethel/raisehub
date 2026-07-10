@@ -35,7 +35,7 @@ export default function DemoBanner({ actions = DEFAULT_ACTIONS }: DemoBannerProp
   }
 
   return (
-    <div className="fixed top-0 left-0 z-50 w-full bg-blue-600 px-3 py-2 text-center text-white shadow-sm sm:px-4">
+    <div className="relative z-50 w-full bg-blue-600 px-3 py-3 text-center text-white shadow-sm sm:px-4 sm:py-2">
       <div className="flex flex-col items-center gap-1 sm:flex-row sm:justify-center sm:gap-3">
         <div>
           <p className="text-xs font-medium sm:text-sm">
