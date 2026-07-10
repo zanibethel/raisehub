@@ -36,11 +36,12 @@ export async function createOfferAction(input: CreateOfferInput) {
   const ACTIVE_OFFER_LIMIT = 3
   const now = new Date().toISOString()
 
-  const { data: activeOffers, error: activeOffersError } = await supabase
-    .from('offers')
-    .select('id')
-    .eq('business_id', user.id)
-    .or(`ends_at.is.null,ends_at.gte.${now}`)
+const { data: activeOffers, error: activeOffersError } = await supabase
+  .from('offers')
+  .select('id')
+  .eq('business_id', user.id)
+  .eq('is_active', true)
+  .or(`ends_at.is.null,ends_at.gte.${now}`)
 
   if (activeOffersError) {
     return { error: 'Could not check your active offers.' }
