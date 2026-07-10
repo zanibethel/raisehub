@@ -12,6 +12,7 @@ import MetricCard from '@/components/dashboard/metric-card'
 import QuickActionCard from '@/components/dashboard/quick-action-card'
 import SectionHeader from '@/components/dashboard/section-header'
 import StatusBadge from '@/components/dashboard/status-badge'
+import ReactivateOfferButton from './reactivate-offer-button'
 
 // =============================================================================
 // Types
@@ -394,6 +395,12 @@ export default function BusinessDashboardContent({
 
                     <div className="mt-5 flex flex-wrap gap-2">
                       <Link
+  href={`/dashboard/offers/${offer.id}/edit`}
+  className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
+>
+  Edit Offer
+</Link>
+                      <Link
                         href={`/offers/${offer.id}`}
                         target="_blank"
                         className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
@@ -410,15 +417,23 @@ export default function BusinessDashboardContent({
                       </button>
                     </div>
 
-                    {offer.is_active !== false &&
-                    !isOfferExpired(offer) ? (
-                      <div className="mt-4">
-                        <DeactivateOfferButton
-                          offerId={offer.id}
-                          offerTitle={offer.title}
-                        />
-                      </div>
-                    ) : null}
+                    <div className="mt-4">
+  {offer.is_active !== false && !isOfferExpired(offer) ? (
+    <DeactivateOfferButton
+      offerId={offer.id}
+      offerTitle={offer.title}
+    />
+  ) : offer.is_active === false && !isOfferExpired(offer) ? (
+    <ReactivateOfferButton
+      offerId={offer.id}
+      offerTitle={offer.title}
+    />
+  ) : (
+    <p className="text-sm text-gray-500">
+      This offer has expired. Edit its dates before reactivating it.
+    </p>
+  )}
+</div>
                   </article>
                 )
               })}
