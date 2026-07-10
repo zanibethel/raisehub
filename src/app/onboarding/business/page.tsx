@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import OnboardingProgress from './components/onboarding-progress'
+import WelcomeStep from './components/welcome-step'
 
 const TOTAL_STEPS = 5
 
@@ -197,64 +199,16 @@ const { data: profile } = await supabase
     )
   }
 
-  const progress = (step / TOTAL_STEPS) * 100
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
       <section className="mx-auto max-w-3xl">
-        <div className="mb-6 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-lg backdrop-blur">
-          <div className="flex items-center justify-between gap-4 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">Business Setup</p>
-              <p className="mt-1 text-gray-500">
-                Step {step} of {TOTAL_STEPS}
-              </p>
-            </div>
-
-            <p className="text-right text-xs text-gray-500">
-              About {Math.max(TOTAL_STEPS - step + 1, 1)} minutes remaining
-            </p>
-          </div>
-
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full rounded-full bg-green-600 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+        <OnboardingProgress
+          currentStep={step}
+          totalSteps={TOTAL_STEPS}
+        />
 
         <div className="rounded-3xl border border-white/70 bg-white/95 p-6 shadow-xl sm:p-9">
-          {step === 1 ? (
-            <div className="text-center">
-              <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
-                Welcome, Community Partner
-              </p>
-
-              <h1 className="mt-4 text-3xl font-bold text-blue-700 sm:text-4xl">
-                Let’s build your RaiseHub profile
-              </h1>
-
-              <p className="mx-auto mt-5 max-w-xl leading-7 text-gray-600">
-                You’ll add your business information, select how customers
-                redeem offers, and tell us which checkout system you currently
-                use.
-              </p>
-
-              <div className="mx-auto mt-8 max-w-lg rounded-2xl bg-green-50 p-6 text-left">
-                <p className="font-semibold text-green-800">
-                  Your free Community Partner account includes:
-                </p>
-
-                <ul className="mt-4 space-y-3 text-sm text-gray-700">
-                  <li>✓ A public business profile</li>
-                  <li>✓ Up to 3 active exclusive offers</li>
-                  <li>✓ Support for local organizations</li>
-                  <li>✓ Basic redemption and impact tracking</li>
-                </ul>
-              </div>
-            </div>
-          ) : null}
+          {step === 1 ? <WelcomeStep /> : null}
 
           {step === 2 ? (
             <div>
