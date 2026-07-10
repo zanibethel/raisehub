@@ -472,7 +472,6 @@ async function BusinessDashboard() {
     .select('*')
     .eq('business_id', user.id)
     .order('created_at', { ascending: false })
-    .eq('is_active', true)
 
   const offerIds = (offers ?? []).map((o) => o.id)
 
