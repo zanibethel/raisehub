@@ -7,12 +7,14 @@ import RedemptionReport from './redemption-report'
 import UpgradePlanModal from './upgrade-plan-modal'
 import DeactivateOfferButton from './deactivate-offer-button'
 import ReactivateOfferButton from './reactivate-offer-button'
+import AttentionCenter from '@/components/dashboard/attention-center'
 import EmptyState from '@/components/dashboard/empty-state'
 import InsightCard from '@/components/dashboard/insight-card'
 import MetricCard from '@/components/dashboard/metric-card'
 import QuickActionCard from '@/components/dashboard/quick-action-card'
 import SectionHeader from '@/components/dashboard/section-header'
 import StatusBadge from '@/components/dashboard/status-badge'
+import { getDashboardAlerts } from '@/lib/rules/dashboard-alerts'
 import {
   getOfferStatus as getRuleOfferStatus,
   type OfferStatus,
@@ -135,6 +137,37 @@ export default function BusinessDashboardContent({
     0
   )
 
+  const offerStatuses = offers.map((offer) =>
+    getRuleOfferStatus({
+      startsAt: offer.starts_at,
+      endsAt: offer.ends_at,
+      isActive: offer.is_active,
+    })
+  )
+
+  const pausedOffersCount = offerStatuses.filter(
+    (offerStatus) => offerStatus.status === 'paused'
+  ).length
+
+  const expiringSoonCount = offerStatuses.filter(
+    (offerStatus) => offerStatus.status === 'expiring-soon'
+  ).length
+
+  const profileComplete = Boolean(
+    profile?.business_name &&
+      profile?.phone &&
+      profile?.address &&
+      profile?.logo_url
+  )
+
+  const dashboardAlerts = getDashboardAlerts({
+    activeOffers: activeOffersCount,
+    pausedOffers: pausedOffersCount,
+    expiringSoon: expiringSoonCount,
+    reviewRecommended: 0,
+    profileComplete,
+  })
+
   const sortedOffers = [...offers].sort((a, b) => {
     const aActive = a.is_active !== false && !isOfferExpired(a)
     const bActive = b.is_active !== false && !isOfferExpired(b)
@@ -164,6 +197,12 @@ export default function BusinessDashboardContent({
         websiteUrl={profile?.website_url ?? ''}
         displayName={profile?.display_name ?? ''}
       />
+
+      {/* =====================================================================
+          Attention center
+      ===================================================================== */}
+
+      <AttentionCenter alerts={dashboardAlerts} />
 
       {/* =====================================================================
           Snapshot
