@@ -37,6 +37,74 @@ Follow this sequence for any non-trivial change:
 
 ---
 
+# Platform Architecture
+
+RaiseHub now follows three architectural layers.
+
+## UI
+
+Routes
+
+↓
+
+Dashboards
+
+↓
+
+Content
+
+↓
+
+Sections
+
+↓
+
+Components
+
+## Logic
+
+Services
+
+Business rules only.
+
+No SQL.
+
+## Data
+
+Repositories
+
+Database access only.
+
+No business logic.
+
+Repositories may be replaced in the future by caching or search providers without changing UI components.
+
+---
+
+Owner Console
+
+The Owner Console is NOT considered a dashboard.
+
+It is RaiseHub's platform operating system.
+
+All owner functionality should build upon:
+
+Platform
+
+↓
+
+Workspace
+
+↓
+
+Support
+
+↓
+
+Audit
+
+Never by changing the authenticated user's role.
+
 ## Supabase Safety Rules
 
 - **Hermes never uses the service role key.** Investigative/read access to Supabase must use a dedicated, low-privilege credential — never the service role key, which bypasses RLS and grants full read/write/admin access.
