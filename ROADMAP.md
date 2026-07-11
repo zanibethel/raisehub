@@ -1,88 +1,211 @@
 # RaiseHub Roadmap
 
-## Phase 1
+**Last updated:** July 2026
 
-- [x] Authentication
-- [x] Business dashboard
-- [x] Customer dashboard
+This roadmap describes the planned progression from the current platform foundation to controlled onboarding, monetization, and public launch.
+
+The order may change when security, data integrity, or production stability requires earlier attention.
+
+---
+
+## Current Status
+
+RaiseHub currently has:
+
+- Authentication
+- Customer accounts
+- Business accounts
+- Organization accounts
+- Admin accounts
+- Permanent Owner accounts
+- Modular role-specific dashboards
+- Fundraising campaigns
+- Campaign purchases
+- Business offers
+- Saved offers
+- Offer redemptions
+- Business analytics foundation
+- Organization reporting foundation
+- Rule-based dashboard alerts
+- Demo-mode infrastructure
+- Owner Platform Console foundation
+- Workspace component foundation
+- GitHub Actions verification
+
+Current focus:
+
+> Build the Owner Workspace System and prepare RaiseHub for safe, controlled live onboarding.
+
+---
+
+# Phase 1 — Core Platform Foundation
+
+Status: **Complete foundation**
+
+## Authentication and Profiles
+
+- [x] Supabase authentication
+- [x] Customer profiles
+- [x] Business profiles
+- [x] Organization profiles
+- [x] Admin profiles
+- [x] Owner profiles
+- [x] Role-based dashboard routing
+- [ ] Centralized authorization review
+- [ ] Account suspension controls
+- [ ] Account deletion workflow
+- [ ] Email verification enforcement review
+
+## Fundraising Campaigns
+
+- [x] Campaign creation
+- [x] Campaign detail pages
+- [x] Campaign purchases
+- [x] Organization selection
+- [x] Campaign goals
+- [x] Campaign sharing
+- [x] Campaign archiving
+- [ ] Campaign editing
+- [ ] Campaign restore
+- [ ] Campaign duplication
+- [ ] Centralized campaign progress logic
+- [ ] Verified payment-status filtering
+- [ ] Refund-aware progress calculations
+
+## Business Offers
+
+- [x] Business offer creation
+- [x] Business onboarding foundation
+- [x] Offer listing
 - [x] Offer saving
 - [x] Offer removal
-- [x] Business offers
+- [x] Offer redemption
+- [x] Offer pause and resume
+- [x] Offer status badges
+- [x] Offer Health foundation
+- [x] Attention Center foundation
+- [x] Active-offer limits
+- [ ] Archive offer
+- [ ] Restore offer
+- [ ] Duplicate offer wizard
+- [ ] Extend offer
+- [ ] Offer scheduling polish
+- [ ] Offer moderation workflow
+
+---
+
+# Phase 2 — Dashboard Architecture
+
+Status: **Complete foundation**
+
+## Business Dashboard
+
+- [x] Modular loader
+- [x] Modular content component
+- [x] Profile section
+- [x] Snapshot section
+- [x] Quick actions
+- [x] Offer creation
+- [x] Offer list
+- [x] Redemption reporting
+- [x] Offer health
+- [x] Dashboard alerts
+- [x] Views and clicks
+- [x] Conversion rate
+- [ ] Restrict redemption analytics to the current business’s offers
+- [ ] Notification Center
+- [ ] Reports polish
+- [ ] Export tools
+
+## Customer Dashboard
+
+- [x] Modular loader
+- [x] Modular content component
+- [x] Purchased passes
+- [x] Saved deals
+- [x] Available deals
+- [x] Redemption state
+- [ ] Digital pass polish
+- [ ] Savings tracker
+- [ ] Nearby businesses
+- [ ] Redemption history improvements
+- [ ] Customer notifications
+- [ ] Favorites and recommendations
+
+## Organization Dashboard
+
+- [x] Modular loader
+- [x] Modular content component
+- [x] Campaign summary
+- [x] Campaign reporting
+- [x] Campaign metrics
+- [x] Seller tracking
+- [x] Campaign actions
 - [x] Campaign creation
+- [ ] Campaign editing
+- [ ] Seller-management tools
+- [ ] Notification Center
+- [ ] Exportable reports
+- [ ] Payout reporting
 
----
-# Phase 5 — Platform Console
+## Admin Dashboard
 
-Goal:
+- [x] Modular loader
+- [x] Modular content shell
+- [x] Admin overview
+- [ ] Business management
+- [ ] Organization management
+- [ ] Customer management
+- [ ] Offer moderation
+- [ ] Campaign moderation
+- [ ] Account suspension
+- [ ] Platform reports
+- [ ] Support permissions
 
-Create a single Owner experience capable of operating, supporting, and testing the entire RaiseHub platform.
+## Route Refactor
 
-Features:
-
-## Workspace System
-
-- Workspace selector
-- Business workspaces
-- Organization workspaces
-- Customer workspaces
-- Recent workspaces
-- Favorites
-
-## Support
-
-- Read-only support mode
-- Assisted editing
-- Audit logging
-- Support notes
-
-## Navigation
-
-- Global workspace search
-- Keyboard shortcut (⌘K / Ctrl+K)
-
-## Platform
-
-- Revenue
-- Health
-- Client management
-- Feature flags
-- Platform settings
-
-Result:
-
-One owner login can safely access every client experience without changing authentication identity.
-
-
-## Preparing for Launch
-
-- [ ] Technical audit
-- [ ] Demo businesses
-- [ ] Demo campaigns
-- [ ] Demo offers
-- [ ] Campaign progress bug
-- [ ] Mobile QA
-- [ ] Business onboarding
-- [ ] Organization onboarding
+- [x] Extract dashboard sections
+- [x] Extract dashboard content components
+- [x] Extract dashboard loaders
+- [x] Replace the legacy dashboard route
+- [x] Keep each migration commit independently buildable
+- [x] Verify changes with GitHub Actions
 
 ---
 
-## Phase 2 — Demo Infrastructure
+# Phase 3 — Demo and Environment Infrastructure
 
-- [ ] Define APP_MODE strategy for demo vs production
-- [ ] Add demo mode detection
-- [ ] Add demo banner
-- [ ] Add "Build My RaiseHub" CTA
-- [ ] Plan demo mode routing on the current Vercel app (`raisehub.vercel.app` + `APP_MODE`); treat `demo.raisehub.com` as a future custom-domain goal, not available today
-- [ ] Ensure production behavior is unchanged
-- [ ] Prepare for demo data tagging/hiding
+Status: **Partially complete**
 
----
+## Demo Experience
 
-## Future
+- [x] Define `APP_MODE` strategy
+- [x] Add demo-mode detection
+- [x] Add demo banner
+- [x] Add “Build My RaiseHub” CTA
+- [x] Preserve production behavior
+- [x] Document the demo experience
+- [ ] Add designated demo business
+- [ ] Add designated demo organization
+- [ ] Add designated demo customer
+- [ ] Add demo campaign content
+- [ ] Add demo offer content
+- [ ] Add demo workspace mappings
+- [ ] Tag demo records
+- [ ] Hide demo records from production users
+- [ ] Add resettable demo state
 
-- Stripe
-- QR redemption
-- Admin dashboard
-- Analytics
-- Email automation
-- Mobile apps
+## Environment Separation
+
+- [ ] Create a separate development Supabase project or branch
+- [ ] Stop local development from writing to production data
+- [ ] Track environment-specific configuration
+- [ ] Add documented database migration workflow
+- [ ] Add seed-data workflow
+- [ ] Add staging deployment
+- [ ] Add production data cleanup plan
+
+Current deployment:
+
+```text
+raisehub.vercel.app
