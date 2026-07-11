@@ -2,21 +2,29 @@ import Link from 'next/link'
 
 import AvailableOffersSection from '@/app/components/available-offers-section'
 
-type EnrichedOffer = {
+type Offer = {
   id: string
   business_name: string
   title: string
   discount: string
   description: string
-  phone: string
-  address: string
-  google_maps_url: string
+
+  phone: string | null
+  address: string | null
+  google_maps_url: string | null
+
+  starts_at: string | null
   ends_at: string | null
+
+  is_active: boolean
+
+  logo_url?: string | null
+  website_url?: string | null
 }
 
 type Props = {
   hasPurchasedPass: boolean
-  enrichedOffers: EnrichedOffer[]
+  enrichedOffers: Offer[]
   savedOfferIds: Set<string>
 }
 
