@@ -7,9 +7,11 @@ import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 // =============================================================================
 
 type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
+
 type SavedDealsProps = React.ComponentProps<
   typeof CustomerSavedDealsSection
 >
+
 type AvailableDealsProps = React.ComponentProps<
   typeof CustomerAvailableDealsSection
 >
@@ -22,7 +24,9 @@ type Props = {
   purchasedPasses: PassesProps['purchasedPasses']
   organizationById: PassesProps['organizationById']
 
-  enrichedOffers: SavedDealsProps['enrichedOffers']
+  // Use the richer Available Deals offer type.
+  enrichedOffers: AvailableDealsProps['enrichedOffers']
+
   savedOfferIds: SavedDealsProps['savedOfferIds']
   redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
   redemptionDateByOfferId:
@@ -38,13 +42,10 @@ type Props = {
 export default function CustomerDashboardContent({
   purchasedPasses,
   organizationById,
-
   enrichedOffers,
-
   savedOfferIds,
   redeemedOfferIds,
   redemptionDateByOfferId,
-
   hasPurchasedPass,
 }: Props) {
   return (
