@@ -61,6 +61,7 @@ export default function OrganizationDashboardContent(
 
       <OrganizationCampaignsSection
         campaigns={props.campaigns}
+        metricsByCampaign={props.metricsByCampaign}
       />
     </div>
   )
