@@ -5,13 +5,20 @@ import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
+import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
+import type { PreviewRole } from '@/components/dashboards/owner/owner-dashboard'
 import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type Role = 'customer' | 'business' | 'organization' | 'admin'
+type Role =
+  | 'customer'
+  | 'business'
+  | 'organization'
+  | 'admin'
+  | 'owner'
 
 type Profile = {
   id: string
@@ -19,11 +26,45 @@ type Profile = {
   role: Role
 }
 
+type DashboardPageProps = {
+  searchParams?: Promise<{
+    previewRole?: string | string[]
+  }>
+}
+
+type RoleTheme = {
+  title: string
+  badge: string
+  badgeClass: string
+  headingClass: string
+  panelClass: string
+  intro: string
+}
+
+// =============================================================================
+// Preview-role helpers
+// =============================================================================
+
+const VALID_PREVIEW_ROLES: PreviewRole[] = [
+  'customer',
+  'business',
+  'organization',
+  'admin',
+]
+
+function getPreviewRole(value?: string | string[]): PreviewRole {
+  const candidate = Array.isArray(value) ? value[0] : value
+
+  return VALID_PREVIEW_ROLES.includes(candidate as PreviewRole)
+    ? (candidate as PreviewRole)
+    : 'customer'
+}
+
 // =============================================================================
 // Role presentation
 // =============================================================================
 
-function getRoleTheme(role: Role) {
+function getRoleTheme(role: Role): RoleTheme {
   switch (role) {
     case 'business':
       return {
@@ -64,6 +105,19 @@ function getRoleTheme(role: Role) {
           'Manage platform activity, users, and campaigns.',
       }
 
+    case 'owner':
+      return {
+        title: 'RaiseHub Platform Console',
+        badge: 'Owner',
+        badgeClass:
+          'border border-slate-700 bg-slate-950 text-blue-200',
+        headingClass: 'text-slate-950',
+        panelClass:
+          'border border-slate-200 bg-white/95 shadow-xl backdrop-blur',
+        intro:
+          'Run the platform, test role experiences, and assist RaiseHub clients.',
+      }
+
     case 'customer':
     default:
       return {
@@ -84,8 +138,20 @@ function getRoleTheme(role: Role) {
 // Role dashboard selection
 // =============================================================================
 
-function renderDashboard(role: Role) {
+function renderDashboard(
+  role: Role,
+  previewRole: PreviewRole
+) {
   switch (role) {
+    case 'owner':
+      return (
+        <OwnerDashboard
+          searchParams={{
+            previewRole,
+          }}
+        />
+      )
+
     case 'business':
       return <BusinessDashboard />
 
@@ -105,7 +171,9 @@ function renderDashboard(role: Role) {
 // Route
 // =============================================================================
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: DashboardPageProps) {
   const supabase = await createClient()
 
   const {
@@ -123,12 +191,24 @@ export default async function DashboardPage() {
     .single<Profile>()
 
   const role: Role = profile?.role ?? 'customer'
+  const resolvedSearchParams = searchParams
+    ? await searchParams
+    : undefined
+
+  const previewRole = getPreviewRole(
+    resolvedSearchParams?.previewRole
+  )
+
   const theme = getRoleTheme(role)
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] p-8">
-      <div className="mx-auto max-w-5xl">
-        <header className={`rounded-3xl p-8 ${theme.panelClass}`}>
+    <main className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8">
+      <div
+        className={`mx-auto ${
+          role === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
+        }`}
+      >
+        <header className={`rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div
@@ -158,7 +238,7 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        {renderDashboard(role)}
+        {renderDashboard(role, previewRole)}
       </div>
     </main>
   )
