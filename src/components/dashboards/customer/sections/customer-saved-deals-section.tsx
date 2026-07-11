@@ -1,19 +1,8 @@
 import UseOfferButton from '@/app/components/use-offer-button'
-
-type EnrichedOffer = {
-  id: string
-  business_name: string
-  title: string
-  discount: string
-  description: string
-  phone: string
-  address: string
-  google_maps_url: string
-  ends_at: string | null
-}
+import type { CustomerDashboardOffer } from '@/types/customer-dashboard'
 
 type Props = {
-  enrichedOffers: EnrichedOffer[]
+  enrichedOffers: CustomerDashboardOffer[]
   savedOfferIds: Set<string>
   redeemedOfferIds: Set<string>
   redemptionDateByOfferId: Map<string, string>
@@ -35,7 +24,7 @@ export default function CustomerSavedDealsSection({
         </h2>
 
         <p className="mt-2 text-sm text-gray-600">
-          Offers you saved for quick access.
+          Offers you've saved for quick access.
         </p>
       </div>
 
@@ -50,7 +39,7 @@ export default function CustomerSavedDealsSection({
                   className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
                 >
                   <p className="text-xs font-medium uppercase tracking-wide text-green-700">
-                    {offer.business_name}
+                    {offer.business_name ?? 'Local Business'}
                   </p>
 
                   <h3 className="mt-2 text-lg font-semibold text-green-700">
@@ -96,14 +85,10 @@ export default function CustomerSavedDealsSection({
                       </p>
 
                       <p className="mt-1 text-xs text-gray-500">
-                        Used on:{' '}
-                        {redemptionDateByOfferId.get(offer.id)
-                          ? new Date(
-                              redemptionDateByOfferId.get(
-                                offer.id
-                              ) as string
-                            ).toLocaleString()
-                          : 'Unknown date'}
+                        Used on{' '}
+                        {new Date(
+                          redemptionDateByOfferId.get(offer.id) ?? ''
+                        ).toLocaleString()}
                       </p>
                     </div>
                   ) : (
@@ -115,7 +100,7 @@ export default function CustomerSavedDealsSection({
         ) : (
           <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
             <p className="text-sm text-gray-600">
-              You haven’t saved any offers yet.
+              You haven't saved any offers yet.
             </p>
           </div>
         )}
