@@ -1,5 +1,134 @@
 # RaiseHub Project Status
 
+# RaiseHub Project Status
+
+## Current Version
+
+### v0.8 — Platform Foundation
+
+**Goal**
+
+Complete every core dashboard and business workflow before introducing payments.
+
+---
+
+## Current Sprint
+
+### Business Dashboard Completion
+
+Remaining work
+
+- [ ] Archive Offer
+- [ ] Restore Offer
+- [ ] Duplicate Offer Wizard
+- [ ] Extend Offer
+- [ ] Attention Center integration
+- [ ] Offer Health integration
+- [ ] Notification Center
+- [ ] Business reports polish
+
+---
+
+## Next Sprint
+
+### Customer Dashboard
+
+Planned work
+
+- Customer home
+- Digital member pass
+- Saved offers
+- Nearby businesses
+- Redemption history
+- Savings tracker
+- Notification center
+
+---
+
+## Upcoming Sprint
+
+### Organization Dashboard
+
+Planned work
+
+- Campaign management
+- Coupon book progress
+- Fundraising analytics
+- Student seller tracking
+- Organization reports
+
+---
+
+## Future Sprint
+
+### Admin Dashboard
+
+Planned work
+
+- Business management
+- Organization management
+- User management
+- Offer moderation
+- Platform reports
+
+---
+
+## Future Sprint
+
+### Owner Dashboard
+
+Planned work
+
+- Marketplace analytics
+- Platform health
+- Executive reporting
+- Personal finance
+- Growth metrics
+- Business benchmarking
+
+---
+
+## v0.9 Goal
+
+Monetization
+
+- Stripe
+- Subscription plans
+- Billing
+- Revenue reporting
+
+---
+
+## v1.0 Goal
+
+Public Launch
+
+- Mobile app
+- Production onboarding
+- Live organizations
+- Live businesses
+- Marketing
+- Help center
+
+---
+
+## Current Blockers
+
+None
+
+---
+
+## Guiding Principles
+
+Before implementing new features, verify they align with:
+
+- ARCHITECTURE_PRINCIPLES.md
+- BUSINESS_PHILOSOPHY.md
+- RULE_ENGINE.md
+- PRODUCT_DECISIONS.md
+
+If a feature conflicts with these documents, revisit the decision before implementation.
+
 ## Current Goal
 
 Prepare RaiseHub for live business onboarding.
