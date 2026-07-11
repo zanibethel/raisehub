@@ -1,3 +1,4 @@
+import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 import OwnerRoleSwitcher, {
   type PreviewRole,
 } from './owner-role-switcher'
@@ -19,6 +20,8 @@ export default function OwnerDashboardContent({
 }: OwnerDashboardContentProps) {
   return (
     <div className="mt-8 space-y-8">
+      <OwnerPlatformOverviewSection />
+
       <OwnerRoleSwitcher activeRole={activeRole} />
 
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
