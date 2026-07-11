@@ -6,13 +6,17 @@ import BusinessProfileCard from './business-profile-card'
 import RedemptionReport from './redemption-report'
 import UpgradePlanModal from './upgrade-plan-modal'
 import DeactivateOfferButton from './deactivate-offer-button'
+import ReactivateOfferButton from './reactivate-offer-button'
 import EmptyState from '@/components/dashboard/empty-state'
 import InsightCard from '@/components/dashboard/insight-card'
 import MetricCard from '@/components/dashboard/metric-card'
 import QuickActionCard from '@/components/dashboard/quick-action-card'
 import SectionHeader from '@/components/dashboard/section-header'
 import StatusBadge from '@/components/dashboard/status-badge'
-import ReactivateOfferButton from './reactivate-offer-button'
+import {
+  getOfferStatus as getRuleOfferStatus,
+  type OfferStatus,
+} from '@/lib/rules/offer-status'
 
 // =============================================================================
 // Types
@@ -65,46 +69,45 @@ function isOfferExpired(offer: Offer) {
   )
 }
 
-function isOfferExpiringSoon(offer: Offer) {
-  if (!offer.ends_at || isOfferExpired(offer)) {
-    return false
+function getStatusBadgeStatus(status: OfferStatus) {
+  switch (status) {
+    case 'active':
+      return 'active' as const
+
+    case 'expiring-soon':
+      return 'warning' as const
+
+    case 'paused':
+      return 'paused' as const
+
+    case 'expired':
+      return 'expired' as const
+
+    case 'scheduled':
+    case 'archived':
+      return 'pending' as const
   }
-
-  const today = new Date()
-  const end = new Date(offer.ends_at)
-
-  const diff =
-    (end.getTime() - today.getTime()) /
-    (1000 * 60 * 60 * 24)
-
-  return diff <= 14
 }
 
-function getOfferStatus(offer: Offer) {
-  if (isOfferExpired(offer)) {
-    return {
-      label: 'Expired',
-      status: 'expired' as const,
-    }
-  }
+function getOfferCardClasses(status: OfferStatus) {
+  switch (status) {
+    case 'active':
+      return 'border-green-200 bg-green-50'
 
-  if (offer.is_active === false) {
-    return {
-      label: 'Paused',
-      status: 'paused' as const,
-    }
-  }
+    case 'expiring-soon':
+      return 'border-yellow-200 bg-yellow-50'
 
-  if (isOfferExpiringSoon(offer)) {
-    return {
-      label: 'Expiring Soon',
-      status: 'warning' as const,
-    }
-  }
+    case 'paused':
+      return 'border-rose-200 bg-rose-50'
 
-  return {
-    label: 'Active',
-    status: 'active' as const,
+    case 'expired':
+      return 'border-red-200 bg-red-50'
+
+    case 'scheduled':
+      return 'border-blue-200 bg-blue-50'
+
+    case 'archived':
+      return 'border-slate-200 bg-slate-50'
   }
 }
 
@@ -338,53 +341,22 @@ export default function BusinessDashboardContent({
           {sortedOffers.length > 0 ? (
             <div className="grid gap-5 lg:grid-cols-2">
               {sortedOffers.map((offer) => {
-                const offerStatus = getOfferStatus(offer)
+                const offerStatus = getRuleOfferStatus({
+                  startsAt: offer.starts_at,
+                  endsAt: offer.ends_at,
+                  isActive: offer.is_active,
+                })
+
                 const redemptionCount =
                   redemptionCountByOfferId[offer.id] ?? 0
 
                 return (
                   <article
-  key={offer.id}
-  className={`rounded-2xl border p-6 shadow-sm ${
-    offerStatus.status === 'active'
-      ? 'border-green-200 bg-green-50'
-      : offerStatus.status === 'warning'
-        ? 'border-yellow-200 bg-yellow-50'
-        : offerStatus.status === 'expired'
-          ? 'border-red-200 bg-red-50'
-          : 'border-rose-200 bg-rose-50'
-  }`}
->
-  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-    <div>
-      <h3 className="text-lg font-bold text-gray-900">
-        {offer.title || 'Untitled offer'}
-      </h3>
-
-      <p className="mt-1 font-semibold text-green-700">
-        {offer.discount || 'Member benefit not entered'}
-      </p>
-    </div>
-
-    <StatusBadge
-      label={offerStatus.label}
-      status={offerStatus.status}
-    />
-  </div>
-
-  <p className="mt-3 text-sm font-medium text-gray-700">
-    {offerStatus.status === 'active'
-      ? 'This offer is currently available to RaiseHub members.'
-      : offerStatus.status === 'warning'
-        ? 'This offer expires soon. Consider extending or refreshing it.'
-        : offerStatus.status === 'paused'
-          ? 'This offer is hidden from members until you resume it.'
-          : 'This offer has expired and is no longer visible to members.'}
-  </p>
-
-  <p className="mt-4 text-sm leading-6 text-gray-600">
-    {offer.description || 'No description entered.'}
-  </p>
+                    key={offer.id}
+                    className={`rounded-2xl border p-6 shadow-sm ${getOfferCardClasses(
+                      offerStatus.status
+                    )}`}
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
@@ -398,9 +370,13 @@ export default function BusinessDashboardContent({
 
                       <StatusBadge
                         label={offerStatus.label}
-                        status={offerStatus.status}
+                        status={getStatusBadgeStatus(offerStatus.status)}
                       />
                     </div>
+
+                    <p className="mt-3 text-sm font-medium text-gray-700">
+                      {offerStatus.description}
+                    </p>
 
                     <p className="mt-4 text-sm leading-6 text-gray-600">
                       {offer.description || 'No description entered.'}
@@ -455,11 +431,12 @@ export default function BusinessDashboardContent({
 
                     <div className="mt-5 flex flex-wrap gap-2">
                       <Link
-  href={`/dashboard/offers/${offer.id}/edit`}
-  className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
->
-  Edit Offer
-</Link>
+                        href={`/dashboard/offers/${offer.id}/edit`}
+                        className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
+                      >
+                        Edit Offer
+                      </Link>
+
                       <Link
                         href={`/offers/${offer.id}`}
                         target="_blank"
@@ -478,22 +455,25 @@ export default function BusinessDashboardContent({
                     </div>
 
                     <div className="mt-4">
-  {offer.is_active !== false && !isOfferExpired(offer) ? (
-    <DeactivateOfferButton
-      offerId={offer.id}
-      offerTitle={offer.title}
-    />
-  ) : offer.is_active === false && !isOfferExpired(offer) ? (
-    <ReactivateOfferButton
-      offerId={offer.id}
-      offerTitle={offer.title}
-    />
-  ) : (
-    <p className="text-sm text-gray-500">
-      This offer has expired. Edit its dates before reactivating it.
-    </p>
-  )}
-</div>
+                      {offer.is_active !== false &&
+                      !isOfferExpired(offer) ? (
+                        <DeactivateOfferButton
+                          offerId={offer.id}
+                          offerTitle={offer.title}
+                        />
+                      ) : offer.is_active === false &&
+                        !isOfferExpired(offer) ? (
+                        <ReactivateOfferButton
+                          offerId={offer.id}
+                          offerTitle={offer.title}
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          This offer has expired. Edit its dates before resuming
+                          it.
+                        </p>
+                      )}
+                    </div>
                   </article>
                 )
               })}
