@@ -2,29 +2,14 @@ import Link from 'next/link'
 
 import AvailableOffersSection from '@/app/components/available-offers-section'
 
-type Offer = {
-  id: string
-  business_name: string
-  title: string
-  discount: string
-  description: string
-
-  phone: string | null
-  address: string | null
-  google_maps_url: string | null
-
-  starts_at: string | null
-  ends_at: string | null
-
-  is_active: boolean
-
-  logo_url?: string | null
-  website_url?: string | null
-}
+// Reuse the exact prop type expected by AvailableOffersSection
+type AvailableOffersProps = React.ComponentProps<
+  typeof AvailableOffersSection
+>
 
 type Props = {
   hasPurchasedPass: boolean
-  enrichedOffers: Offer[]
+  enrichedOffers: AvailableOffersProps['offers']
   savedOfferIds: Set<string>
 }
 
