@@ -1,3 +1,45 @@
+# 🚀 Platform Console Initiative (July 2026)
+
+## Status
+
+IN PROGRESS
+
+RaiseHub now includes a permanent **Owner** role and the foundation for a Platform Console.
+
+Completed:
+
+- ✅ Modular dashboard architecture
+- ✅ Business dashboard extracted
+- ✅ Customer dashboard extracted
+- ✅ Organization dashboard extracted
+- ✅ Admin dashboard extracted
+- ✅ Dashboard route simplified
+- ✅ Owner dashboard introduced
+- ✅ Platform Console overview
+- ✅ Role preview framework
+- ✅ Workspace service
+- ✅ Workspace repository
+- ✅ Owner support data model
+- ✅ Audit log foundation
+
+Current focus:
+
+Build the Platform Console into the central operating system for RaiseHub.
+
+Immediate roadmap:
+
+- Live workspace selector
+- Recent workspaces
+- Favorite workspaces
+- Workspace support mode
+- Assisted editing
+- Support notes
+- Audit timeline
+- Global search
+
+Status:
+
+🟢 Stable
 # RaiseHub Project Status
 
 # RaiseHub Project Status
