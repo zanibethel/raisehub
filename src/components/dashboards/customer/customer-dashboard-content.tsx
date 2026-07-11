@@ -2,18 +2,38 @@ import CustomerAvailableDealsSection from './sections/customer-available-deals-s
 import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 
+// =============================================================================
+// Infer section prop types
+// =============================================================================
+
+type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
+type SavedDealsProps = React.ComponentProps<
+  typeof CustomerSavedDealsSection
+>
+type AvailableDealsProps = React.ComponentProps<
+  typeof CustomerAvailableDealsSection
+>
+
+// =============================================================================
+// Component Props
+// =============================================================================
+
 type Props = {
-  purchasedPasses: any[]
-  organizationById: Map<string, any>
+  purchasedPasses: PassesProps['purchasedPasses']
+  organizationById: PassesProps['organizationById']
 
-  enrichedOffers: any[]
+  enrichedOffers: SavedDealsProps['enrichedOffers']
+  savedOfferIds: SavedDealsProps['savedOfferIds']
+  redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
+  redemptionDateByOfferId:
+    SavedDealsProps['redemptionDateByOfferId']
 
-  savedOfferIds: Set<string>
-  redeemedOfferIds: Set<string>
-  redemptionDateByOfferId: Map<string, string>
-
-  hasPurchasedPass: boolean
+  hasPurchasedPass: AvailableDealsProps['hasPurchasedPass']
 }
+
+// =============================================================================
+// Component
+// =============================================================================
 
 export default function CustomerDashboardContent({
   purchasedPasses,
