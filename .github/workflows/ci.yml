@@ -36,10 +36,50 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Check TypeScript
-        run: npx tsc --noEmit
+        id: typecheck
+        run: |
+          set -o pipefail
+          npx tsc --noEmit 2>&1 | tee typecheck.log
 
       - name: Build application
-        run: npm run build
+        id: build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Create CI report
+        if: always()
+        run: |
+          {
+            echo "RaiseHub CI Report"
+            echo "=================="
+            echo ""
+            echo "Repository: $GITHUB_REPOSITORY"
+            echo "Branch: $GITHUB_REF_NAME"
+            echo "Commit: $GITHUB_SHA"
+            echo "Run ID: $GITHUB_RUN_ID"
+            echo "Run attempt: $GITHUB_RUN_ATTEMPT"
+            echo "Triggered by: $GITHUB_ACTOR"
+            echo "Event: $GITHUB_EVENT_NAME"
+            echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo ""
+            echo "Install result: ${{ steps.install.outcome }}"
+            echo "TypeScript result: ${{ steps.typecheck.outcome }}"
+            echo "Build result: ${{ steps.build.outcome }}"
+          } > ci-report.txt
+
+      - name: Upload CI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raisehub-ci-report-${{ github.run_id }}
+          path: |
+            ci-report.txt
+            typecheck.log
+            build.log
+          retention-days: 30
+          if-no-files-found: warn
