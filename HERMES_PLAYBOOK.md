@@ -438,10 +438,8 @@ Selected workspace URL matching confirms the requested ID and role match an avai
 
 Next steps:
 
-1. Inspect the real `profiles` schema.
-2. Correct `workspace-repository.ts`.
-3. Refactor `workspace-service.ts` to use the repository.
-4. Implement authorization service for owner access to role-specific records.
-5. Inspect and document the real `offers` schema and RLS policies before connecting the business-offer repository.
-6. Load read-only business offers into the Owner Platform with proper authorization.
-7. Design audit repository and service.
+1. Implement owner workspace read authorization service.
+2. Inspect and document the real `offers` schema and RLS policies.
+3. Build the read-only business-offer repository and service.
+4. Connect authorized read-only business offers.
+5. Design audit repository and service.

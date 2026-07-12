@@ -795,13 +795,13 @@ Before designing or connecting the business-offer repository, inspect and docume
 
 Current next direction:
 
-1. Inspect the real `profiles` schema and correct `workspace-repository.ts`.
-2. Implement authorization service for owner access to role-specific records.
-3. Inspect and document the real `offers` schema and RLS policies.
-4. Connect read-only business offers with proper owner authorization.
+1. Implement owner workspace read authorization service.
+2. Inspect and document the real `offers` schema and RLS policies.
+3. Build the read-only business-offer repository and service.
+4. Connect authorized read-only business offers.
 5. Add read-only organization campaign data.
 6. Add read-only customer pass and redemption data.
-7. Add audit repository and service.
+7. Design audit repository and service.
 8. Design assisted editing.
 9. Add support notes.
 10. Separate development and production environments.
