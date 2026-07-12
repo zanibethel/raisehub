@@ -1,4 +1,7 @@
 import type { WorkspaceCardData } from '@/components/platform/workspace-card'
+import SelectedWorkspacePanel, {
+  type WorkspaceSupportMode,
+} from '@/components/platform/selected-workspace-panel'
 import WorkspaceSelector from '@/components/platform/workspace-selector'
 
 import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
@@ -13,6 +16,8 @@ import OwnerRoleSwitcher, {
 type OwnerDashboardContentProps = {
   activeRole: PreviewRole
   workspaces?: WorkspaceCardData[]
+  selectedWorkspace?: WorkspaceCardData | null
+  workspaceMode?: WorkspaceSupportMode
 }
 
 // =============================================================================
@@ -22,10 +27,19 @@ type OwnerDashboardContentProps = {
 export default function OwnerDashboardContent({
   activeRole,
   workspaces,
+  selectedWorkspace,
+  workspaceMode = 'workspace',
 }: OwnerDashboardContentProps) {
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-8 min-w-0 space-y-8">
       <OwnerPlatformOverviewSection />
+
+      {selectedWorkspace ? (
+        <SelectedWorkspacePanel
+          workspace={selectedWorkspace}
+          mode={workspaceMode}
+        />
+      ) : null}
 
       {workspaces ? (
         <WorkspaceSelector workspaces={workspaces} />
@@ -33,12 +47,12 @@ export default function OwnerDashboardContent({
 
       <OwnerRoleSwitcher activeRole={activeRole} />
 
-      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
           Owner access
         </p>
 
-        <h2 className="mt-2 text-xl font-bold text-blue-950">
+        <h2 className="mt-2 break-words text-xl font-bold text-blue-950">
           Previewing the {activeRole} experience
         </h2>
 
@@ -49,13 +63,13 @@ export default function OwnerDashboardContent({
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="grid min-w-0 gap-4 md:grid-cols-3">
+        <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold text-slate-500">
             Demo preview
           </p>
 
-          <h3 className="mt-2 text-lg font-bold text-slate-900">
+          <h3 className="mt-2 break-words text-lg font-bold text-slate-900">
             Test every role
           </h3>
 
@@ -65,12 +79,12 @@ export default function OwnerDashboardContent({
           </p>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold text-slate-500">
             Client support
           </p>
 
-          <h3 className="mt-2 text-lg font-bold text-slate-900">
+          <h3 className="mt-2 break-words text-lg font-bold text-slate-900">
             View live accounts
           </h3>
 
@@ -80,12 +94,12 @@ export default function OwnerDashboardContent({
           </p>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <p className="text-sm font-semibold text-slate-500">
             Assisted editing
           </p>
 
-          <h3 className="mt-2 text-lg font-bold text-slate-900">
+          <h3 className="mt-2 break-words text-lg font-bold text-slate-900">
             Help clients safely
           </h3>
 
@@ -96,15 +110,15 @@ export default function OwnerDashboardContent({
         </article>
       </section>
 
-      <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-yellow-200 bg-yellow-50 p-4 sm:p-6">
         <h2 className="font-bold text-yellow-950">
           Live support editing is not enabled yet
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-yellow-900">
-          Workspace discovery is being connected first. Secure workspace
-          viewing, explicit edit mode, and audit logging will follow in separate
-          verified steps.
+          Workspace selection and read-only viewing are being connected first.
+          Explicit edit mode and audit logging will follow in separate verified
+          steps.
         </p>
       </section>
     </div>
