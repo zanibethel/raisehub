@@ -55,7 +55,7 @@ export async function authorizeOwnerWorkspaceRead(
   if (workspace.role !== workspaceRole) {
     return {
       authorized: false,
-      reason: `Workspace role mismatch. Expected ${workspaceRole}, found ${workspace.role}.`,
+      reason: 'Access denied. Workspace role does not match.',
     }
   }
 
