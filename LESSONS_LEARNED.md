@@ -1,301 +1,128 @@
-# RaiseHub Environment and Data Lessons
+# RaiseHub Lessons Learned
 
 **Last updated:** July 2026
 
-This document captures lessons related to environments, Supabase, database architecture, campaign calculations, financial integrity, and production safety.
+This document serves as the entry point for important engineering and architectural lessons learned while building RaiseHub.
+
+Rather than growing into a single massive document, lessons are grouped by subject.
 
 ---
 
-# Lesson 1 — Local and Production Shared the Same Database
+# Purpose
+
+Lessons Learned captures:
+
+- Root causes
+- Important engineering decisions
+- Production risks
+- Architectural improvements
+- Workflow improvements
+- Prevention rules
+
+Each lesson should answer:
+
+- What happened?
+- Why did it happen?
+- How was it resolved?
+- How do we avoid it again?
+
+---
+
+# Lesson Categories
+
+## Environment and Data
+
+Location:
+
+    docs/lessons/ENVIRONMENT_AND_DATA.md
+
+Topics include:
+
+- Environment separation
+- Supabase architecture
+- Schema verification
+- Financial calculations
+- Demo data
+- Production safety
+- Database integrity
+
+---
+
+## Dashboard Refactor
+
+Location:
+
+    docs/lessons/DASHBOARD_REFACTOR.md
+
+Topics include:
+
+- Dependency-first refactoring
+- Behavior-preserving refactors
+- Dashboard architecture
+- TypeScript lessons
+- GitHub Actions workflow
+- Documentation architecture
+- Large-file decomposition
+
+---
+
+# When to Add a Lesson
+
+Add a lesson when:
+
+- A bug root cause was not obvious.
+- A workflow mistake caused unnecessary work.
+- A production risk was discovered.
+- A significant architectural decision was made.
+- A permanent prevention rule should be established.
+
+Do not use this file as a progress log.
+
+---
+
+# Lesson Format
+
+Each lesson document should use the following structure:
 
 ## Problem
 
-Campaign progress appeared inconsistent between local development and production.
-
-Testing locally unexpectedly affected production data.
+What happened?
 
 ## Root Cause
 
-Local development and production were configured to use the same Supabase project.
-
-There was no environment isolation.
-
-As a result:
-
-- Local purchases became production purchases.
-- Demo data mixed with live data.
-- Campaign progress changed unexpectedly.
-- Local testing could affect real businesses.
+Why did it happen?
 
 ## Resolution
 
-The issue was verified and documented.
-
-Environment separation became a launch requirement rather than a future enhancement.
+How was it fixed?
 
 ## Prevention
 
-- Never assume environments are isolated.
-- Verify Supabase project IDs before testing.
-- Create separate Development, Staging, and Production projects.
-- Clearly identify demo records.
-- Treat every local write as production until environments are separated.
+How should RaiseHub avoid repeating it?
 
 ---
 
-# Lesson 2 — Shared Business Logic Should Live in Rules
+# Current Lesson Library
 
-## Problem
+| Document | Focus |
+|----------|-------|
+| `docs/lessons/ENVIRONMENT_AND_DATA.md` | Supabase, environments, production safety |
+| `docs/lessons/DASHBOARD_REFACTOR.md` | Dashboard architecture and refactoring |
 
-Campaign progress calculations existed in multiple locations.
+Additional lesson documents should be created when a subject grows beyond a few related lessons.
 
-Future changes could cause different pages to calculate different percentages.
-
-## Root Cause
-
-The calculation was copied instead of centralized.
-
-Payment status was also ignored.
-
-## Resolution
-
-Campaign progress was identified as a candidate for a shared rule under:
-
-    src/lib/rules/
-
-## Prevention
-
-Any calculation used in multiple places should exist only once.
-
-Shared business rules should define:
-
-- Valid payment statuses
-- Refund behavior
-- Goal calculations
-- Rounding
-- Edge cases
+Avoid turning this file back into a large collection of unrelated topics.
 
 ---
 
-# Lesson 3 — Verify Schema Before Writing Queries
+# Documentation Philosophy
 
-## Problem
+RaiseHub documentation follows the same architectural principles as the application:
 
-Repository code assumed profile columns that were never verified.
+- One responsibility per document.
+- Small, focused references.
+- One source of truth for each subject.
+- Clear cross-references.
+- Easy maintenance over time.
 
-TypeScript compiled successfully even though runtime queries might fail.
-
-## Root Cause
-
-The repository was built from assumptions instead of the actual schema.
-
-## Resolution
-
-Repository development now begins with schema inspection.
-
-## Prevention
-
-Before writing a repository:
-
-- Inspect the table.
-- Confirm column names.
-- Confirm nullability.
-- Review existing queries.
-- Review indexes.
-- Review RLS.
-
-Never guess database fields.
-
----
-
-# Lesson 4 — A Green Build Does Not Mean Runtime Success
-
-## Problem
-
-Several new files compiled successfully before they were connected to the application.
-
-This could give the impression that a feature was complete.
-
-## Root Cause
-
-Compilation only validates code.
-
-It does not verify:
-
-- Routing
-- Database queries
-- Authorization
-- Runtime behavior
-
-## Resolution
-
-RaiseHub now distinguishes:
-
-- Foundation Complete
-- Connected
-- Runtime Verified
-- Production Verified
-
-## Prevention
-
-Always document which implementation stage has actually been reached.
-
----
-
-# Lesson 5 — Database Foundations Are Not Finished Features
-
-## Problem
-
-Support tables and preview tables existed before the surrounding application logic.
-
-## Root Cause
-
-Schema completion was confused with feature completion.
-
-## Resolution
-
-Features are now considered complete only after:
-
-    Schema
-    ↓
-    RLS
-    ↓
-    Repository
-    ↓
-    Service
-    ↓
-    Authorization
-    ↓
-    UI
-    ↓
-    Audit
-    ↓
-    Testing
-
-## Prevention
-
-Do not describe a feature as complete because its tables exist.
-
----
-
-# Lesson 6 — Repositories and Services Have Different Jobs
-
-## Problem
-
-Some early services queried Supabase directly.
-
-This mixed business logic with database access.
-
-## Root Cause
-
-The repository layer had not yet been introduced.
-
-## Resolution
-
-RaiseHub adopted:
-
-    Loader
-    ↓
-    Service
-    ↓
-    Repository
-    ↓
-    Supabase
-
-## Prevention
-
-Repositories:
-
-- Query data
-- Insert data
-- Update data
-- Delete data
-
-Services:
-
-- Apply permissions
-- Combine data
-- Map models
-- Sort
-- Filter
-- Apply business rules
-
-Keep responsibilities separate.
-
----
-
-# Lesson 7 — Financial Rules Must Be Explicit
-
-## Problem
-
-Campaign progress counted purchase records without considering payment state.
-
-This would become inaccurate once Stripe supports:
-
-- Pending
-- Failed
-- Refunded
-- Partially refunded
-
-payments.
-
-## Root Cause
-
-Early development assumed every purchase represented completed revenue.
-
-## Resolution
-
-Financial calculations were identified for refactoring before production payments.
-
-## Prevention
-
-Every financial calculation should define:
-
-- Valid statuses
-- Refund behavior
-- Currency representation
-- Rounding
-- Gross
-- Net
-- Platform fee
-
----
-
-# Lesson 8 — Demo Data Must Never Be Confused with Live Data
-
-## Problem
-
-Demo accounts and production accounts can become difficult to distinguish.
-
-## Root Cause
-
-The initial data model did not clearly separate demo and live records.
-
-## Resolution
-
-RaiseHub now plans to support designated demo workspaces.
-
-## Prevention
-
-Demo records should include fields such as:
-
-    is_demo
-    demo_group
-    data_source
-
-The Owner Platform should always display whether a workspace is Demo or Live.
-
----
-
-# Permanent Rules
-
-- Separate environments.
-- Never guess schema fields.
-- Use repositories for data access.
-- Use services for business logic.
-- Centralize repeated calculations.
-- Keep RLS enabled.
-- Verify authorization server-side.
-- Treat financial data as high risk.
-- Distinguish demo from live data.
-- A feature is not complete until it is connected, tested, and verified.
+As the platform grows, this index should remain concise while detailed lessons live in focused documents.
