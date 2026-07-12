@@ -24,7 +24,7 @@ export default function CustomerSavedDealsSection({
         </h2>
 
         <p className="mt-2 text-sm text-gray-600">
-          Offers you've saved for quick access.
+          Offers you&apos;ve saved for quick access.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default function CustomerSavedDealsSection({
         ) : (
           <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
             <p className="text-sm text-gray-600">
-              You haven't saved any offers yet.
+              You haven&apos;t saved any offers yet.
             </p>
           </div>
         )}

@@ -173,6 +173,9 @@ export default async function OrganizationDashboard() {
     }))
     .sort((a, b) => b.sold - a.sold)
 
+  const totalCampaigns = organizationCampaigns.length
+  const activeSellerCount = sellerStats.size
+
   // ===========================================================================
   // Render
   // ===========================================================================
@@ -190,6 +193,8 @@ export default async function OrganizationDashboard() {
       metricsByCampaign={Object.fromEntries(
         metricsByCampaign
       )}
+      totalCampaigns={totalCampaigns}
+      activeSellerCount={activeSellerCount}
     />
   )
 }

@@ -6,10 +6,12 @@ import SelectedWorkspacePanel, {
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import WorkspaceSelector from '@/components/platform/workspace-selector'
+import type { PlatformMetrics } from '@/lib/repositories/platform-analytics-repository'
 
 import OwnerRoleSwitcher, {
   type PreviewRole,
 } from './owner-role-switcher'
+import OwnerAnalyticsSection from './sections/owner-analytics-section'
 import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 
 // =============================================================================
@@ -23,6 +25,7 @@ type OwnerDashboardContentProps = {
   workspaceMode?: WorkspaceSupportMode
   businessOffersResult?: OwnerBusinessOffersResult | null
   organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
+  platformMetrics?: PlatformMetrics | null
 }
 
 // =============================================================================
@@ -36,6 +39,7 @@ export default function OwnerDashboardContent({
   workspaceMode = 'workspace',
   businessOffersResult = null,
   organizationCampaignsResult = null,
+  platformMetrics = null,
 }: OwnerDashboardContentProps) {
   const isReadOnlySupport =
     Boolean(selectedWorkspace) &&
@@ -44,6 +48,8 @@ export default function OwnerDashboardContent({
   return (
     <div className="mt-8 min-w-0 space-y-8">
       <OwnerPlatformOverviewSection />
+
+      <OwnerAnalyticsSection metrics={platformMetrics} />
 
       {selectedWorkspace ? (
         <SelectedWorkspacePanel
