@@ -19,7 +19,7 @@ function getSellerDescription(activeSellerCount: number): string {
     return 'No sellers have recorded purchases yet'
   }
 
-  return `${activeSellerCount} seller${activeSellerCount === 1 ? '' : 's'} with at least one recorded purchase`
+  return `Distinct sellers with at least one recorded purchase`
 }
 
 // =============================================================================

@@ -42,7 +42,7 @@ export async function getOwnerPlatformAnalytics(): Promise<OwnerPlatformAnalytic
       .single<ActorProfile>()
 
   if (profileError || !profile) {
-    return { status: 'owner-role-required' }
+    return { status: 'metrics-lookup-failure' }
   }
 
   if (profile.role !== 'owner') {
