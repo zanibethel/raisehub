@@ -7,16 +7,27 @@ import { createClient } from '@/lib/supabase/server'
 /**
  * A single offer record as needed for read-only owner support.
  *
- * Schema notes (inspected from existing queries in business-dashboard.tsx,
- * featured-deals-carousel.tsx, offers/[id]/page.tsx, and dashboard/actions.ts):
+ * Schema verified directly against the RaiseHub Supabase project (public.offers):
  *
- * Confirmed columns: id, business_id, title, discount, description,
- *   is_active, starts_at, ends_at, created_at.
+ *   id          uuid        NOT NULL
+ *   business_id uuid        NOT NULL  — verified ownership field
+ *   title       text        NOT NULL
+ *   description text        NULL
+ *   usage_rule  text        NOT NULL
+ *   expires_at  date        NULL
+ *   is_active   boolean     NOT NULL
+ *   created_at  timestamptz NOT NULL
+ *   discount    text        NULL
+ *   starts_at   timestamptz NULL
+ *   ends_at     timestamptz NULL
  *
- * Not confirmed in any existing query: is_archived, image_url, terms.
- * The offer-health rule engine references hasTerms and hasImage as booleans
- * computed by the caller rather than direct column names. These fields are
- * excluded here until the actual schema is verified. Add them if confirmed.
+ * Confirmed absent: is_archived, image_url, terms — do not add.
+ *
+ * RLS (SELECT): authenticated users have broad SELECT access via a
+ * `qual: true` policy. The owner account can therefore read cross-account
+ * offers without bypassing RLS. Filtering by business_id in this repository
+ * remains required to scope results to a specific business.
+ * No schema or RLS changes are part of this repository.
  */
 export type BusinessOffer = {
   id: string
@@ -24,6 +35,8 @@ export type BusinessOffer = {
   title: string
   discount: string | null
   description: string | null
+  usage_rule: string
+  expires_at: string | null
   is_active: boolean
   starts_at: string | null
   ends_at: string | null
@@ -53,6 +66,8 @@ export async function getBusinessOffers(
         title,
         discount,
         description,
+        usage_rule,
+        expires_at,
         is_active,
         starts_at,
         ends_at,
