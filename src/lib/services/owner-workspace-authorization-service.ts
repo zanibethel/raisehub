@@ -31,6 +31,10 @@ export type OwnerWorkspaceAuthorizationResult =
       message: string
     }
 
+type ActorProfile = {
+  role: string
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -61,7 +65,7 @@ export async function authorizeOwnerWorkspaceRead(
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single<{ role: string }>()
+      .single<ActorProfile>()
 
   if (profileError || !profile) {
     return {
