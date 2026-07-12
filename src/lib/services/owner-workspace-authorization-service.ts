@@ -3,7 +3,7 @@ import type {
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
 import { createClient } from '@/lib/supabase/server'
-import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
+import { getOwnerWorkspacesResult } from '@/lib/services/workspace-service'
 
 // =============================================================================
 // Types
@@ -84,7 +84,16 @@ export async function authorizeOwnerWorkspaceRead(
   }
 
   // Step 3: Load workspaces and validate the requested workspace.
-  const workspaces = await getOwnerWorkspaces()
+  const { workspaces, error: workspacesError } =
+    await getOwnerWorkspacesResult()
+
+  if (workspacesError) {
+    return {
+      authorized: false,
+      reason: 'lookup-failure',
+      message: 'Unable to load workspaces.',
+    }
+  }
 
   const workspace = workspaces.find(
     (w) => w.id === workspaceId
