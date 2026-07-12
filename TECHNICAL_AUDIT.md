@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-**Verdict: Not yet ready for live onboarding — but no blockers found.** The codebase builds and lints cleanly overall. Issues found are fixable in isolation and don't require architectural change. Two items should be resolved before further feature work: the uncommitted debug code and the campaign-progress root cause.
+**Verdict: Not yet ready for live onboarding — but no blockers found.** The codebase builds and lints cleanly overall. Issues found are fixable in isolation and don't require architectural change. The campaign-progress root cause should be resolved before further feature work.
 
 ---
 
@@ -15,7 +15,6 @@
 | Severity | Area | File(s) | Description | Recommended Fix |
 |---|---|---|---|---|
 | **High** | Data integrity | `campaigns/page.tsx` vs `campaigns/[id]/page.tsx`, `page.tsx`, `campaign-progress-carousel.tsx` | Progress calc is duplicated in 3 places (client-side `.reduce`/`Math.min` math copy-pasted) with no shared caching directive on `/campaigns` list page (missing `export const dynamic = 'force-dynamic'`, unlike the other two). See root cause below. | Extract into one shared `lib/campaigns/progress.ts` helper; apply consistent caching directive across all 3 usages |
-| **Medium** | Repo hygiene / security | `src/lib/supabase/client.ts` (uncommitted diff) | Working tree currently has uncommitted `console.log` of `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` left in from debugging — logs secrets-adjacent config to browser console on every page load | Remove before commit (flagging only — not editing per standing rules) |
 | **Medium** | Type safety | `src/app/dashboard/page.tsx:228` | `eslint` error: `Unexpected any. Specify a different type` — 1 hard lint error, not just a warning | Replace `any` with a proper type |
 | **Low** | Code health | `src/app/dashboard/page.tsx` | 6 unused imports/vars (`AddOfferForm`, `SaveOfferButton`, `RemoveSavedOfferButton`, `BusinessProfileCard`, `RedemptionReport`, `Offer` type, `totalCampaigns`) — suggests dead/refactored-out code left behind | Clean up during dashboard work |
 | **Low** | Performance/UX | `business-profile-card.tsx`, `business-profile-form.tsx`, `featured-deals-carousel-client.tsx`, `logo-carousel-client.tsx` (x2), `offers/[id]/page.tsx` | 8 instances of native `<img>` instead of `next/image` — slower LCP, no automatic optimization | Migrate to `next/image` where feasible |
@@ -38,7 +37,7 @@ This is very likely the actual mechanism behind the known bug — not a data bug
 
 ## 4. Unrelated Issues (flagged, not fixed)
 
-- Uncommitted changes: `AGENTS.md` (expanded content) and `src/lib/supabase/client.ts` (debug logging) — not part of this audit's scope.
+- Uncommitted changes: `AGENTS.md` (expanded content) — not part of this audit's scope.
 - Untracked files: `LESSONS_LEARNED.md`, `PRODUCT_VISION.md`, `PROJECT_STATUS.md`, `ROADMAP.md` — new docs, not yet in git.
 - `src/app/raisehub` is a stray HTML text file sitting directly in `src/app/` (not a folder/route) — looks like an accidental artifact, doesn't match any route convention, worth investigating/removing separately.
 - `next.config.ts` is the default scaffold with no custom config — fine for now, just noting for completeness.
@@ -48,10 +47,9 @@ This is very likely the actual mechanism behind the known bug — not a data bug
 ## 5. Suggested Remediation Order
 
 1. Resolve the campaign-progress root cause: add explicit `dynamic`/`revalidate` directives to `campaigns/page.tsx` and centralize the progress-calc logic → this is the "Campaign progress fix" task, now scoped precisely.
-2. Decide on the uncommitted `client.ts` debug logs + `AGENTS.md` diff (commit or discard).
-3. Fix the 1 lint error + dead-code warnings in `dashboard/page.tsx` (small, low-risk).
-4. Then proceed to Demo business migration with a stable, non-duplicated progress calculation in place.
-5. QA review last, once the above is settled.
+2. Fix the 1 lint error + dead-code warnings in `dashboard/page.tsx` (small, low-risk).
+3. Then proceed to Demo business migration with a stable, non-duplicated progress calculation in place.
+4. QA review last, once the above is settled.
 
 ---
 

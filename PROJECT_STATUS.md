@@ -3,7 +3,7 @@
 **Last updated:** July 2026  
 **Current version:** v0.8 — Platform Foundation  
 **Overall status:** Stable development build  
-**Current initiative:** Owner Platform Console and Workspace System
+**Current initiative:** Owner Platform Console and Workspace System — read-only foundation connected
 
 ---
 
@@ -65,7 +65,58 @@ Completed:
 - Service and repository responsibilities separated
 - Platform components introduced under `src/components/platform/`
 
-Current direction:
+### Owner Platform — Workspace Browser and Read-Only Support Shell
+
+Status: **Connected foundations**
+
+The workspace browser and the read-only support shell are connected, meaning:
+
+- The Owner Platform Console loads live workspace results from the database.
+- A workspace can be selected and its URL state is set.
+- A read-only support view renders the selected workspace context.
+
+These are connected foundations. Explicit owner authorization for private role-specific records (offers, campaigns, purchases, redemptions) is not yet complete. Connecting those records requires a separate authorization step beyond workspace selection.
+
+**URL handling:**
+
+Selected workspace URL matching confirms the requested ID and role match an available workspace result. This does not replace explicit authenticated-owner authorization for private role-specific data.
+
+---
+
+### Environment Separation
+
+Status: **Incomplete — development and production share the same Supabase project**
+
+Environment separation is incomplete. This has the following impact:
+
+**Currently blocking:**
+
+- Assisted edits against live client accounts
+- Destructive testing
+- Financial feature testing
+- Broad live onboarding
+- Unrestricted testing of audit-producing writes
+
+**Not blocking:**
+
+- Read-only Owner Platform development
+- Authorization service implementation
+- Audit repository and service design
+- Read-only audit timeline work
+
+Continue read-only and foundational work. Do not unblock write features until environment separation is complete.
+
+---
+
+### Offers Schema — Required Before Business-Offer Repository
+
+Before designing or connecting the business-offer repository for the Owner Platform, the real `offers` table schema and RLS policies must be inspected and documented.
+
+Do not invent offer fields, statuses, health columns, or ownership fields. Read the actual table and policies first.
+
+---
+
+Current data access direction:
 
 ```text
 UI

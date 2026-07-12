@@ -261,6 +261,8 @@ Before writing repository queries:
 5. Review RLS.
 6. Review existing application queries.
 
+Before designing or connecting the business-offer repository for the Owner Platform, inspect and document the real `offers` table schema and RLS policies. Do not invent offer fields, statuses, health columns, or ownership fields.
+
 Use migrations for DDL.
 
 Keep RLS enabled.
@@ -430,9 +432,16 @@ Deterministic rules and reliable data come before AI.
 
 # 18. Current Next Task
 
-After the documentation refactor is complete:
+The workspace browser and read-only support shell are connected foundations.
+
+Selected workspace URL matching confirms the requested ID and role match an available workspace result. This does not replace explicit authenticated-owner authorization for private role-specific data.
+
+Next steps:
 
 1. Inspect the real `profiles` schema.
 2. Correct `workspace-repository.ts`.
 3. Refactor `workspace-service.ts` to use the repository.
-4. Load live workspaces into the Owner Platform Console.
+4. Implement authorization service for owner access to role-specific records.
+5. Inspect and document the real `offers` schema and RLS policies before connecting the business-offer repository.
+6. Load read-only business offers into the Owner Platform with proper authorization.
+7. Design audit repository and service.

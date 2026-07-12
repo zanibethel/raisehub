@@ -29,12 +29,15 @@ RaiseHub currently has:
 - Rule-based dashboard alerts
 - Demo-mode infrastructure
 - Owner Platform Console foundation
-- Workspace component foundation
+- Workspace browser — connected foundation
+- Read-only support shell — connected foundation
 - GitHub Actions verification
 
 Current focus:
 
 > Build the Owner Workspace System and prepare RaiseHub for safe, controlled live onboarding.
+
+**Note on environment separation:** Until a separate development Supabase project exists, the following are blocked: assisted edits against live client accounts, destructive testing, financial feature testing, broad live onboarding, and unrestricted testing of audit-producing writes. Read-only Owner Platform development, authorization service implementation, audit repository and service design, and read-only audit timeline work are not blocked.
 
 ---
 
@@ -85,6 +88,7 @@ Status: **Complete foundation**
 - [x] Offer Health foundation
 - [x] Attention Center foundation
 - [x] Active-offer limits
+- [ ] Inspect and document real `offers` schema and RLS policies before designing business-offer repository
 - [ ] Archive offer
 - [ ] Restore offer
 - [ ] Duplicate offer wizard
@@ -209,3 +213,4 @@ Current deployment:
 
 ```text
 raisehub.vercel.app
+```
