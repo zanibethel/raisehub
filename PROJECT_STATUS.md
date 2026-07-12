@@ -3,7 +3,7 @@
 **Last updated:** July 2026  
 **Current version:** v0.8 — Platform Foundation  
 **Overall status:** Stable development build  
-**Current initiative:** Owner Platform Console and Workspace System — owner-authorized business offers connected
+**Current initiative:** Owner Platform Console and Workspace System — owner-authorized business offers and organization campaigns connected
 
 ---
 
@@ -67,7 +67,7 @@ Completed:
 
 ### Owner Platform — Workspace Browser and Read-Only Support Shell
 
-Status: **Connected with owner-authorized business offers**
+Status: **Connected with owner-authorized business offers and organization campaigns**
 
 The workspace browser and the read-only support shell are connected, meaning:
 
@@ -75,15 +75,18 @@ The workspace browser and the read-only support shell are connected, meaning:
 - A workspace can be selected and its URL state is set.
 - A read-only support view renders the selected workspace context.
 
-These are now connected and owner-authorized for business offers:
+These are now connected and owner-authorized for business offers and organization campaigns:
 
 - Owner workspace read authorization service is complete.
 - Business-offer repository is complete and filtered by `business_id`.
 - Owner business-offer service is complete and validates workspace authorization before loading offers.
 - Read-only business-offer viewing is connected in Owner Platform support mode.
+- Organization-campaign repository is complete and filtered by `organization_id`.
+- Owner organization-campaign service is complete and validates workspace authorization before loading campaigns.
+- Read-only organization-campaign viewing is connected in Owner Platform support mode.
 
-Role-specific owner authorization remains in progress for other resources (organization campaigns, customer passes and redemptions).
-Next direction: owner-authorized read-only organization campaign viewing.
+Role-specific owner authorization remains in progress for other resources (customer passes and redemptions).
+Next direction: owner-authorized read-only customer pass and redemption viewing.
 
 **URL handling:**
 
@@ -123,6 +126,16 @@ Status: **Complete for read-only business offers**
 The `offers` schema and current RLS behavior were verified and applied to the repository and owner authorization flow.
 
 No schema or RLS changes were made. Repository filtering by `business_id` remains mandatory.
+
+---
+
+### Campaigns Schema and Repository
+
+Status: **Complete for read-only organization campaigns**
+
+The `campaigns` schema and existing RLS policy were verified and applied to the repository and owner authorization flow.
+
+No schema or RLS changes were made. Repository filtering by `organization_id` remains mandatory.
 
 ---
 

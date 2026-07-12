@@ -5,6 +5,8 @@ import type {
 import type { WorkspaceSupportMode } from '@/components/platform/selected-workspace-panel'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
+import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
+import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
 
 import OwnerDashboardContent from './owner-dashboard-content'
@@ -147,6 +149,24 @@ export default async function OwnerDashboard({
       )
   }
 
+  let organizationCampaignsResult: OwnerOrganizationCampaignsResult | null =
+    null
+
+  const shouldLoadOrganizationCampaigns =
+    selectedWorkspace?.role === 'organization' &&
+    workspaceMode === 'read-only'
+
+  if (
+    selectedWorkspace &&
+    shouldLoadOrganizationCampaigns
+  ) {
+    organizationCampaignsResult =
+      await getOwnerAuthorizedOrganizationCampaigns(
+        selectedWorkspace.id,
+        selectedWorkspace.role
+      )
+  }
+
   return (
     <OwnerDashboardContent
       activeRole={previewRole}
@@ -154,6 +174,7 @@ export default async function OwnerDashboard({
       selectedWorkspace={selectedWorkspace}
       workspaceMode={workspaceMode}
       businessOffersResult={businessOffersResult}
+      organizationCampaignsResult={organizationCampaignsResult}
     />
   )
 }

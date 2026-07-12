@@ -3,7 +3,9 @@ import type {
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
 import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
+import ReadOnlyOrganizationCampaignsSection from '@/components/platform/read-only-organization-campaigns-section'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
+import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 
 // =============================================================================
 // Types
@@ -12,6 +14,7 @@ import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-of
 type ReadOnlyWorkspaceViewProps = {
   workspace: WorkspaceCardData
   businessOffersResult?: OwnerBusinessOffersResult | null
+  organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
 }
 
 type WorkspaceArea = {
@@ -141,6 +144,7 @@ function getProgressWidth(percentage?: number | null): string {
 export default function ReadOnlyWorkspaceView({
   workspace,
   businessOffersResult = null,
+  organizationCampaignsResult = null,
 }: ReadOnlyWorkspaceViewProps) {
   const areas = getWorkspaceAreas(workspace.role)
   const missingItems = workspace.missingSetupItems ?? []
@@ -329,6 +333,12 @@ export default function ReadOnlyWorkspaceView({
       {workspace.role === 'business' ? (
         <ReadOnlyBusinessOffersSection
           offersResult={businessOffersResult}
+        />
+      ) : null}
+
+      {workspace.role === 'organization' ? (
+        <ReadOnlyOrganizationCampaignsSection
+          campaignsResult={organizationCampaignsResult}
         />
       ) : null}
     </section>

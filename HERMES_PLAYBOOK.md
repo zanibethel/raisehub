@@ -442,8 +442,14 @@ Owner-authorized read-only business-offer support is now connected end-to-end:
 4. Owner business-offer service is complete.
 5. Authorized read-only business-offer viewing is connected.
 
+Owner-authorized read-only organization-campaign support is now connected end-to-end:
+
+1. Real `campaigns` schema and RLS policy were verified.
+2. Organization-campaign repository is complete, filtered by `organization_id`.
+3. Owner organization-campaign service is complete.
+4. Authorized read-only organization-campaign viewing is connected.
+
 Next steps:
 
-1. Build owner-authorized read-only organization campaign viewing.
-2. Build owner-authorized read-only customer pass and redemption viewing.
-3. Design audit repository and service.
+1. Build owner-authorized read-only customer pass and redemption viewing.
+2. Design audit repository and service.

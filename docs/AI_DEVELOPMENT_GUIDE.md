@@ -779,7 +779,7 @@ Current foundation includes:
 - Workspace preview
 - Read-only support view
 
-**Workspace browser and read-only support shell status: Connected with owner-authorized business offers.**
+**Workspace browser and read-only support shell status: Connected with owner-authorized business offers and organization campaigns.**
 
 The workspace browser loads live workspace results. A workspace can be selected and its URL state is set. The read-only support shell renders the selected workspace context.
 
@@ -794,16 +794,21 @@ Owner-authorized business-offer support is now complete:
 - Owner business-offer service is complete.
 - Read-only business-offer viewing is connected in Owner Platform support mode.
 
-No schema or RLS changes were made for this connection.
+Owner-authorized organization-campaign support is now complete:
+
+- Organization-campaign repository is complete and filtered by `organization_id`.
+- Owner organization-campaign service is complete.
+- Read-only organization-campaign viewing is connected in Owner Platform support mode.
+
+No schema or RLS changes were made for either connection.
 
 Current next direction:
 
-1. Build owner-authorized read-only organization campaign data.
-2. Add owner-authorized read-only customer pass and redemption data.
-3. Design audit repository and service.
-4. Design assisted editing.
-5. Add support notes.
-6. Separate development and production environments.
+1. Add owner-authorized read-only customer pass and redemption data.
+2. Design audit repository and service.
+3. Design assisted editing.
+4. Add support notes.
+5. Separate development and production environments.
 
 Do not skip directly to unrestricted assisted editing.
 
