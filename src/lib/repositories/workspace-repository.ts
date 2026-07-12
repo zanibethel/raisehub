@@ -1,28 +1,70 @@
 import { createClient } from '@/lib/supabase/server'
 
-export async function getWorkspaceProfiles() {
+// =============================================================================
+// Types
+// =============================================================================
+
+export type WorkspaceProfileRole =
+  | 'business'
+  | 'organization'
+  | 'customer'
+
+export type WorkspaceProfile = {
+  id: string
+  email: string | null
+  role: WorkspaceProfileRole
+  full_name: string | null
+  business_name: string | null
+  display_name: string | null
+  subscription_tier: string
+  onboarding_completed: boolean
+}
+
+type WorkspaceProfilesResult = {
+  profiles: WorkspaceProfile[]
+  error: string | null
+}
+
+// =============================================================================
+// Repository
+// =============================================================================
+
+export async function getWorkspaceProfiles(): Promise<WorkspaceProfilesResult> {
   const supabase = await createClient()
 
-  const [businesses, organizations, customers] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id,business_name,is_active')
-      .eq('role', 'business'),
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(
+      [
+        'id',
+        'email',
+        'role',
+        'full_name',
+        'business_name',
+        'display_name',
+        'subscription_tier',
+        'onboarding_completed',
+      ].join(',')
+    )
+    .in('role', ['business', 'organization', 'customer'])
+    .order('created_at', { ascending: false })
 
-    supabase
-      .from('profiles')
-      .select('id,organization_name,is_active')
-      .eq('role', 'organization'),
+  if (error) {
+    return {
+      profiles: [],
+      error: error.message,
+    }
+  }
 
-    supabase
-      .from('profiles')
-      .select('id,full_name,is_active')
-      .eq('role', 'customer'),
-  ])
+  const profiles = (data ?? []).filter(
+    (profile): profile is WorkspaceProfile =>
+      profile.role === 'business' ||
+      profile.role === 'organization' ||
+      profile.role === 'customer'
+  )
 
   return {
-    businesses: businesses.data ?? [],
-    organizations: organizations.data ?? [],
-    customers: customers.data ?? [],
+    profiles,
+    error: null,
   }
 }
