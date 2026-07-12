@@ -136,7 +136,6 @@ export default async function OwnerDashboard({
     null
 
   const shouldLoadBusinessOffers =
-    Boolean(selectedWorkspace) &&
     selectedWorkspace?.role === 'business' &&
     workspaceMode === 'read-only'
 
