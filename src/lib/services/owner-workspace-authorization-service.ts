@@ -2,16 +2,23 @@ import type {
   WorkspaceCardData,
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
+import { createClient } from '@/lib/supabase/server'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type OwnerIdentity = {
-  userId: string
-  role: string
-}
+// Note: WorkspaceCardData is currently imported from a component file.
+// This is existing technical debt. A shared domain type is the correct
+// long-term location. Type migration is out of scope for this PR.
+
+export type OwnerWorkspaceAuthorizationFailureReason =
+  | 'unauthenticated'
+  | 'owner-role-required'
+  | 'workspace-not-found'
+  | 'workspace-role-mismatch'
+  | 'lookup-failure'
 
 export type OwnerWorkspaceAuthorizationResult =
   | {
@@ -20,7 +27,8 @@ export type OwnerWorkspaceAuthorizationResult =
     }
   | {
       authorized: false
-      reason: string
+      reason: OwnerWorkspaceAuthorizationFailureReason
+      message: string
     }
 
 // =============================================================================
@@ -28,17 +36,50 @@ export type OwnerWorkspaceAuthorizationResult =
 // =============================================================================
 
 export async function authorizeOwnerWorkspaceRead(
-  owner: OwnerIdentity,
   workspaceId: string,
   workspaceRole: WorkspaceRole
 ): Promise<OwnerWorkspaceAuthorizationResult> {
-  if (owner.role !== 'owner') {
+  const supabase = await createClient()
+
+  // Step 1: Verify an authenticated session exists.
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
     return {
       authorized: false,
-      reason: 'Access denied. Owner role required.',
+      reason: 'unauthenticated',
+      message: 'No authenticated session.',
     }
   }
 
+  // Step 2: Load the actor's stored profile and confirm the role is owner.
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single<{ role: string }>()
+
+  if (profileError || !profile) {
+    return {
+      authorized: false,
+      reason: 'lookup-failure',
+      message: 'Unable to load actor profile.',
+    }
+  }
+
+  if (profile.role !== 'owner') {
+    return {
+      authorized: false,
+      reason: 'owner-role-required',
+      message: 'Access denied.',
+    }
+  }
+
+  // Step 3: Load workspaces and validate the requested workspace.
   const workspaces = await getOwnerWorkspaces()
 
   const workspace = workspaces.find(
@@ -48,14 +89,16 @@ export async function authorizeOwnerWorkspaceRead(
   if (!workspace) {
     return {
       authorized: false,
-      reason: 'Workspace not found.',
+      reason: 'workspace-not-found',
+      message: 'Workspace not found.',
     }
   }
 
   if (workspace.role !== workspaceRole) {
     return {
       authorized: false,
-      reason: 'Access denied. Workspace role does not match.',
+      reason: 'workspace-role-mismatch',
+      message: 'Access denied.',
     }
   }
 
