@@ -2,6 +2,8 @@ import type {
   WorkspaceCardData,
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
+import ReadOnlyBusinessOffersSection from '@/components/dashboards/owner/sections/read-only-business-offers-section'
+import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 
 // =============================================================================
 // Types
@@ -9,6 +11,7 @@ import type {
 
 type ReadOnlyWorkspaceViewProps = {
   workspace: WorkspaceCardData
+  businessOffersResult?: OwnerBusinessOffersResult | null
 }
 
 type WorkspaceArea = {
@@ -48,7 +51,7 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
           title: 'Offers',
           description:
             'Review active, paused, scheduled, and expired business offers.',
-          status: 'coming',
+          status: 'available',
         },
         {
           title: 'Redemptions',
@@ -137,6 +140,7 @@ function getProgressWidth(percentage?: number | null): string {
 
 export default function ReadOnlyWorkspaceView({
   workspace,
+  businessOffersResult = null,
 }: ReadOnlyWorkspaceViewProps) {
   const areas = getWorkspaceAreas(workspace.role)
   const missingItems = workspace.missingSetupItems ?? []
@@ -321,6 +325,12 @@ export default function ReadOnlyWorkspaceView({
           </p>
         </div>
       </div>
+
+      {workspace.role === 'business' ? (
+        <ReadOnlyBusinessOffersSection
+          offersResult={businessOffersResult}
+        />
+      ) : null}
     </section>
   )
 }
