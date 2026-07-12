@@ -3,7 +3,7 @@
 **Last updated:** July 2026  
 **Current version:** v0.8 — Platform Foundation  
 **Overall status:** Stable development build  
-**Current initiative:** Owner Platform Console and Workspace System — read-only foundation connected
+**Current initiative:** Owner Platform Console and Workspace System — owner-authorized business offers connected
 
 ---
 
@@ -67,7 +67,7 @@ Completed:
 
 ### Owner Platform — Workspace Browser and Read-Only Support Shell
 
-Status: **Connected foundations**
+Status: **Connected with owner-authorized business offers**
 
 The workspace browser and the read-only support shell are connected, meaning:
 
@@ -75,7 +75,15 @@ The workspace browser and the read-only support shell are connected, meaning:
 - A workspace can be selected and its URL state is set.
 - A read-only support view renders the selected workspace context.
 
-These are connected foundations. Explicit owner authorization for private role-specific records (offers, campaigns, purchases, redemptions) is not yet complete. Connecting those records requires a separate authorization step beyond workspace selection.
+These are now connected and owner-authorized for business offers:
+
+- Owner workspace read authorization service is complete.
+- Business-offer repository is complete and filtered by `business_id`.
+- Owner business-offer service is complete and validates workspace authorization before loading offers.
+- Read-only business-offer viewing is connected in Owner Platform support mode.
+
+Role-specific owner authorization remains in progress for other resources (organization campaigns, customer passes and redemptions).
+Next direction: owner-authorized read-only organization campaign viewing.
 
 **URL handling:**
 
@@ -108,11 +116,13 @@ Continue read-only and foundational work. Do not unblock write features until en
 
 ---
 
-### Offers Schema — Required Before Business-Offer Repository
+### Offers Schema and Repository
 
-Before designing or connecting the business-offer repository for the Owner Platform, the real `offers` table schema and RLS policies must be inspected and documented.
+Status: **Complete for read-only business offers**
 
-Do not invent offer fields, statuses, health columns, or ownership fields. Read the actual table and policies first.
+The `offers` schema and current RLS behavior were verified and applied to the repository and owner authorization flow.
+
+No schema or RLS changes were made. Repository filtering by `business_id` remains mandatory.
 
 ---
 

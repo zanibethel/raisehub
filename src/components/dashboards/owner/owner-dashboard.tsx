@@ -3,6 +3,8 @@ import type {
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
 import type { WorkspaceSupportMode } from '@/components/platform/selected-workspace-panel'
+import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
+import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
 
 import OwnerDashboardContent from './owner-dashboard-content'
@@ -130,12 +132,28 @@ export default async function OwnerDashboard({
       )
     : 'workspace'
 
+  let businessOffersResult: OwnerBusinessOffersResult | null =
+    null
+
+  const shouldLoadBusinessOffers =
+    selectedWorkspace?.role === 'business' &&
+    workspaceMode === 'read-only'
+
+  if (selectedWorkspace && shouldLoadBusinessOffers) {
+    businessOffersResult =
+      await getOwnerAuthorizedBusinessOffers(
+        selectedWorkspace.id,
+        selectedWorkspace.role
+      )
+  }
+
   return (
     <OwnerDashboardContent
       activeRole={previewRole}
       workspaces={workspaces}
       selectedWorkspace={selectedWorkspace}
       workspaceMode={workspaceMode}
+      businessOffersResult={businessOffersResult}
     />
   )
 }
