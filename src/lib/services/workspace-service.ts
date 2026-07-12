@@ -1,62 +1,99 @@
-import { createClient } from '@/lib/supabase/server'
 import type { WorkspaceCardData } from '@/components/platform/workspace-card'
+import {
+  getWorkspaceProfiles,
+  type WorkspaceProfile,
+} from '@/lib/repositories/workspace-repository'
+
+// =============================================================================
+// Display helpers
+// =============================================================================
+
+function getWorkspaceName(profile: WorkspaceProfile): string {
+  const fallbackEmail = profile.email ?? 'Unnamed account'
+
+  switch (profile.role) {
+    case 'business':
+      return (
+        profile.business_name ??
+        profile.display_name ??
+        profile.full_name ??
+        fallbackEmail
+      )
+
+    case 'organization':
+      return (
+        profile.display_name ??
+        profile.full_name ??
+        profile.business_name ??
+        fallbackEmail
+      )
+
+    case 'customer':
+      return (
+        profile.display_name ??
+        profile.full_name ??
+        profile.email ??
+        'Unnamed Customer'
+      )
+  }
+}
+
+function getWorkspaceSubtitle(profile: WorkspaceProfile): string {
+  switch (profile.role) {
+    case 'business':
+      return `${
+        profile.subscription_tier === 'free'
+          ? 'Free'
+          : profile.subscription_tier
+      } business account`
+
+    case 'organization':
+      return 'Fundraising organization'
+
+    case 'customer':
+      return profile.email ?? 'Customer account'
+  }
+}
+
+function getWorkspaceStatus(profile: WorkspaceProfile): string {
+  return profile.onboarding_completed
+    ? 'Ready'
+    : 'Setup incomplete'
+}
+
+// =============================================================================
+// Mapping
+// =============================================================================
+
+function mapProfileToWorkspace(
+  profile: WorkspaceProfile
+): WorkspaceCardData {
+  return {
+    id: profile.id,
+    role: profile.role,
+    name: getWorkspaceName(profile),
+    subtitle: getWorkspaceSubtitle(profile),
+    status: getWorkspaceStatus(profile),
+  }
+}
+
+// =============================================================================
+// Service
+// =============================================================================
 
 export async function getOwnerWorkspaces(): Promise<
   WorkspaceCardData[]
 > {
-  const supabase = await createClient()
+  const { profiles, error } = await getWorkspaceProfiles()
 
-  const [
-    businessesResult,
-    organizationsResult,
-    customersResult,
-  ] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id,business_name,is_active')
-      .eq('role', 'business'),
+  if (error) {
+    console.error('Unable to load owner workspaces:', error)
+    return []
+  }
 
-    supabase
-      .from('profiles')
-      .select('id,organization_name,is_active')
-      .eq('role', 'organization'),
-
-    supabase
-      .from('profiles')
-      .select('id,full_name,is_active')
-      .eq('role', 'customer'),
-  ])
-
-  const businesses =
-    businessesResult.data?.map((profile) => ({
-      id: profile.id,
-      role: 'business' as const,
-      name: profile.business_name ?? 'Unnamed Business',
-      subtitle: 'Business Workspace',
-      status: profile.is_active ? 'Active' : 'Inactive',
-    })) ?? []
-
-  const organizations =
-    organizationsResult.data?.map((profile) => ({
-      id: profile.id,
-      role: 'organization' as const,
-      name: profile.organization_name ?? 'Unnamed Organization',
-      subtitle: 'Organization Workspace',
-      status: profile.is_active ? 'Active' : 'Inactive',
-    })) ?? []
-
-  const customers =
-    customersResult.data?.map((profile) => ({
-      id: profile.id,
-      role: 'customer' as const,
-      name: profile.full_name ?? 'Unnamed Customer',
-      subtitle: 'Customer Workspace',
-      status: profile.is_active ? 'Active' : 'Inactive',
-    })) ?? []
-
-  return [
-    ...businesses,
-    ...organizations,
-    ...customers,
-  ].sort((a, b) => a.name.localeCompare(b.name))
+  return profiles
+    .map(mapProfileToWorkspace)
+    .sort((firstWorkspace, secondWorkspace) =>
+      firstWorkspace.name.localeCompare(secondWorkspace.name)
+    )
 }
