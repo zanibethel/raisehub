@@ -16,6 +16,11 @@ export type WorkspaceProfile = {
   full_name: string | null
   business_name: string | null
   display_name: string | null
+  phone: string | null
+  address: string | null
+  website_url: string | null
+  logo_url: string | null
+  business_description: string | null
   subscription_tier: string
   onboarding_completed: boolean
 }
@@ -42,11 +47,17 @@ export async function getWorkspaceProfiles(): Promise<WorkspaceProfilesResult> {
         full_name,
         business_name,
         display_name,
+        phone,
+        address,
+        website_url,
+        logo_url,
+        business_description,
         subscription_tier,
         onboarding_completed
       `
     )
     .in('role', ['business', 'organization', 'customer'])
+    .order('created_at', { ascending: false })
 
   if (error) {
     return {
