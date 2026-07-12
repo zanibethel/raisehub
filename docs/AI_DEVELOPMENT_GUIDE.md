@@ -368,15 +368,26 @@ Local development and production currently share the same Supabase project.
 
 Until environment separation is complete:
 
-- Treat local writes as production writes.
-- Prefer read-only changes.
-- Avoid destructive testing.
-- Avoid financial-impact testing.
-- Use designated demo records when possible.
-- Clearly distinguish demo and live data.
-- Do not test unrestricted assisted editing against client accounts.
+**Currently blocking:**
 
-AI agents must call out any task that could alter production data.
+- Assisted edits against live client accounts
+- Destructive testing
+- Financial feature testing
+- Broad live onboarding
+- Unrestricted testing of audit-producing writes
+
+**Not blocking:**
+
+- Read-only Owner Platform development
+- Authorization service implementation
+- Audit repository and service design
+- Read-only audit timeline work
+
+Continue read-only and foundational work. AI agents must call out any task that could alter production data.
+
+Use designated demo records when possible.
+
+Clearly distinguish demo and live data.
 
 ---
 
@@ -768,17 +779,32 @@ Current foundation includes:
 - Workspace preview
 - Read-only support view
 
+**Workspace browser and read-only support shell status: Connected foundations.**
+
+The workspace browser loads live workspace results. A workspace can be selected and its URL state is set. The read-only support shell renders the selected workspace context.
+
+**URL handling:**
+
+Selected workspace URL matching confirms the requested ID and role match an available workspace result. This does not replace explicit authenticated-owner authorization for private role-specific data.
+
+Explicit owner authorization for role-specific records (offers, campaigns, purchases, redemptions) is not yet complete.
+
+**Offers schema inspection required:**
+
+Before designing or connecting the business-offer repository, inspect and document the real `offers` table schema and RLS policies. Do not invent offer fields, statuses, health columns, or ownership fields.
+
 Current next direction:
 
-1. Connect owner-authorized role-specific records.
-2. Start with read-only business offers.
-3. Add owner-only authorization checks.
-4. Add read-only organization campaign data.
-5. Add read-only customer pass and redemption data.
-6. Add audit repository and service.
-7. Design assisted editing.
-8. Add support notes.
-9. Separate development and production environments.
+1. Implement owner workspace read authorization service.
+2. Inspect and document the real `offers` schema and RLS policies.
+3. Build the read-only business-offer repository and service.
+4. Connect authorized read-only business offers.
+5. Add read-only organization campaign data.
+6. Add read-only customer pass and redemption data.
+7. Design audit repository and service.
+8. Design assisted editing.
+9. Add support notes.
+10. Separate development and production environments.
 
 Do not skip directly to unrestricted assisted editing.
 
