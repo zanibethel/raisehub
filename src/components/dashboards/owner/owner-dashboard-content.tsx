@@ -1,3 +1,6 @@
+import type { WorkspaceCardData } from '@/components/platform/workspace-card'
+import WorkspaceSelector from '@/components/platform/workspace-selector'
+
 import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 import OwnerRoleSwitcher, {
   type PreviewRole,
@@ -9,6 +12,7 @@ import OwnerRoleSwitcher, {
 
 type OwnerDashboardContentProps = {
   activeRole: PreviewRole
+  workspaces?: WorkspaceCardData[]
 }
 
 // =============================================================================
@@ -17,10 +21,15 @@ type OwnerDashboardContentProps = {
 
 export default function OwnerDashboardContent({
   activeRole,
+  workspaces,
 }: OwnerDashboardContentProps) {
   return (
     <div className="mt-8 space-y-8">
       <OwnerPlatformOverviewSection />
+
+      {workspaces ? (
+        <WorkspaceSelector workspaces={workspaces} />
+      ) : null}
 
       <OwnerRoleSwitcher activeRole={activeRole} />
 
@@ -66,8 +75,8 @@ export default function OwnerDashboardContent({
           </h3>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Search for a business or organization and inspect its dashboard in
-            read-only support mode.
+            Search for a business, organization, or customer and inspect its
+            workspace in read-only support mode.
           </p>
         </article>
 
@@ -93,9 +102,9 @@ export default function OwnerDashboardContent({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-yellow-900">
-          The database foundation and owner identity are ready. Account
-          selection, secure preview mapping, explicit edit mode, and audit
-          logging will be connected in the next steps.
+          Workspace discovery is being connected first. Secure workspace
+          viewing, explicit edit mode, and audit logging will follow in separate
+          verified steps.
         </p>
       </section>
     </div>
