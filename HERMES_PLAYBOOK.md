@@ -444,10 +444,12 @@ Owner-authorized read-only business-offer support is now connected end-to-end:
 
 Owner-authorized read-only organization-campaign support is now connected end-to-end:
 
-1. Real `campaigns` schema and RLS policy were verified.
+1. Real `campaigns` schema was verified. The owner-only campaign SELECT policy (`allow_owner_read_all_campaigns`) was added and verified as a database prerequisite before this application PR.
 2. Organization-campaign repository is complete, filtered by `organization_id`.
 3. Owner organization-campaign service is complete.
 4. Authorized read-only organization-campaign viewing is connected.
+
+This application PR introduces no additional schema or RLS changes.
 
 Next steps:
 

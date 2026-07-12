@@ -800,7 +800,7 @@ Owner-authorized organization-campaign support is now complete:
 - Owner organization-campaign service is complete.
 - Read-only organization-campaign viewing is connected in Owner Platform support mode.
 
-No schema or RLS changes were made for either connection.
+The owner-only campaign SELECT policy (`allow_owner_read_all_campaigns`) was added and verified as a database prerequisite before this application PR. This PR introduces no additional schema or RLS changes.
 
 Current next direction:
 

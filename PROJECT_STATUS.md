@@ -133,9 +133,9 @@ No schema or RLS changes were made. Repository filtering by `business_id` remain
 
 Status: **Complete for read-only organization campaigns**
 
-The `campaigns` schema and existing RLS policy were verified and applied to the repository and owner authorization flow.
+The `campaigns` schema was verified and applied to the repository and owner authorization flow.
 
-No schema or RLS changes were made. Repository filtering by `organization_id` remains mandatory.
+The owner-only campaign SELECT policy (`allow_owner_read_all_campaigns`) was added and verified as a database prerequisite before this application PR. This PR introduces no additional schema or RLS changes. Repository filtering by `organization_id` remains mandatory.
 
 ---
 
