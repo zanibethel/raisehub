@@ -4,6 +4,7 @@ import SelectedWorkspacePanel, {
   type WorkspaceSupportMode,
 } from '@/components/platform/selected-workspace-panel'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
+import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import WorkspaceSelector from '@/components/platform/workspace-selector'
 
 import OwnerRoleSwitcher, {
@@ -21,6 +22,7 @@ type OwnerDashboardContentProps = {
   selectedWorkspace?: WorkspaceCardData | null
   workspaceMode?: WorkspaceSupportMode
   businessOffersResult?: OwnerBusinessOffersResult | null
+  organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
 }
 
 // =============================================================================
@@ -33,6 +35,7 @@ export default function OwnerDashboardContent({
   selectedWorkspace,
   workspaceMode = 'workspace',
   businessOffersResult = null,
+  organizationCampaignsResult = null,
 }: OwnerDashboardContentProps) {
   const isReadOnlySupport =
     Boolean(selectedWorkspace) &&
@@ -53,6 +56,9 @@ export default function OwnerDashboardContent({
         <ReadOnlyWorkspaceView
           workspace={selectedWorkspace}
           businessOffersResult={businessOffersResult}
+          organizationCampaignsResult={
+            organizationCampaignsResult
+          }
         />
       ) : null}
 
