@@ -8,6 +8,7 @@ import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
+import { getOwnerPlatformAnalytics } from '@/lib/services/owner-platform-analytics-service'
 
 import OwnerDashboardContent from './owner-dashboard-content'
 
@@ -167,6 +168,14 @@ export default async function OwnerDashboard({
       )
   }
 
+  const platformAnalyticsResult =
+    await getOwnerPlatformAnalytics()
+
+  const platformMetrics =
+    platformAnalyticsResult.status === 'success'
+      ? platformAnalyticsResult.metrics
+      : null
+
   return (
     <OwnerDashboardContent
       activeRole={previewRole}
@@ -175,6 +184,7 @@ export default async function OwnerDashboard({
       workspaceMode={workspaceMode}
       businessOffersResult={businessOffersResult}
       organizationCampaignsResult={organizationCampaignsResult}
+      platformMetrics={platformMetrics}
     />
   )
 }

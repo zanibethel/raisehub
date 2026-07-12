@@ -1,3 +1,4 @@
+import OrganizationAnalyticsSection from './sections/organization-analytics-section'
 import OrganizationCampaignsSection from './sections/organization-campaigns-section'
 import OrganizationReportSection from './sections/organization-report-section'
 import OrganizationSummarySection from './sections/organization-summary-section'
@@ -23,6 +24,10 @@ type CampaignsProps = React.ComponentProps<
   typeof OrganizationCampaignsSection
 >
 
+type AnalyticsProps = React.ComponentProps<
+  typeof OrganizationAnalyticsSection
+>
+
 // =============================================================================
 // Component Props
 // =============================================================================
@@ -30,7 +35,8 @@ type CampaignsProps = React.ComponentProps<
 type Props = SummaryProps &
   ReportProps &
   TopSellersProps &
-  CampaignsProps
+  CampaignsProps &
+  AnalyticsProps
 
 // =============================================================================
 // Component
@@ -46,6 +52,11 @@ export default function OrganizationDashboardContent(
         totalEarnings={props.totalEarnings}
         activeCampaigns={props.activeCampaigns}
         totalGoal={props.totalGoal}
+      />
+
+      <OrganizationAnalyticsSection
+        totalCampaigns={props.totalCampaigns}
+        activeSellerCount={props.activeSellerCount}
       />
 
       <OrganizationReportSection
