@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/server'
  */
 export type BusinessOffer = {
   id: string
+  business_id: string
   title: string
   discount: string | null
   description: string | null
@@ -48,6 +49,7 @@ export async function getBusinessOffers(
     .select(
       `
         id,
+        business_id,
         title,
         discount,
         description,
