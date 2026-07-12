@@ -35,19 +35,18 @@ export async function getWorkspaceProfiles(): Promise<WorkspaceProfilesResult> {
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      [
-        'id',
-        'email',
-        'role',
-        'full_name',
-        'business_name',
-        'display_name',
-        'subscription_tier',
-        'onboarding_completed',
-      ].join(',')
+      `
+        id,
+        email,
+        role,
+        full_name,
+        business_name,
+        display_name,
+        subscription_tier,
+        onboarding_completed
+      `
     )
     .in('role', ['business', 'organization', 'customer'])
-    .order('created_at', { ascending: false })
 
   if (error) {
     return {
@@ -56,15 +55,8 @@ export async function getWorkspaceProfiles(): Promise<WorkspaceProfilesResult> {
     }
   }
 
-  const profiles = (data ?? []).filter(
-    (profile): profile is WorkspaceProfile =>
-      profile.role === 'business' ||
-      profile.role === 'organization' ||
-      profile.role === 'customer'
-  )
-
   return {
-    profiles,
+    profiles: (data ?? []) as WorkspaceProfile[],
     error: null,
   }
 }
