@@ -7,14 +7,7 @@ type ReadOnlyBusinessOffersSectionProps = {
   offersResult: OwnerBusinessOffersResult | null
 }
 
-function formatDate(
-  value: string | null,
-  {
-    includeTime = false,
-  }: {
-    includeTime?: boolean
-  } = {}
-): string {
+function formatTimestamp(value: string | null): string {
   if (!value) {
     return '—'
   }
@@ -25,9 +18,40 @@ function formatDate(
     return '—'
   }
 
-  return includeTime
-    ? parsedDate.toLocaleString()
-    : parsedDate.toLocaleDateString()
+  return parsedDate.toLocaleString()
+}
+
+function formatDateOnly(value: string | null): string {
+  if (!value) {
+    return '—'
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+
+  if (!match) {
+    return '—'
+  }
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const utcDate = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    Number.isNaN(utcDate.getTime()) ||
+    utcDate.getUTCFullYear() !== year ||
+    utcDate.getUTCMonth() !== month - 1 ||
+    utcDate.getUTCDate() !== day
+  ) {
+    return '—'
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(utcDate)
 }
 
 function OfferMetadataRow({
@@ -98,21 +122,17 @@ function OfferCard({
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         <OfferMetadataRow
           label="Starts"
-          value={formatDate(offer.startsAt, {
-            includeTime: true,
-          })}
+          value={formatTimestamp(offer.startsAt)}
         />
 
         <OfferMetadataRow
           label="Ends"
-          value={formatDate(offer.endsAt, {
-            includeTime: true,
-          })}
+          value={formatTimestamp(offer.endsAt)}
         />
 
         <OfferMetadataRow
           label="Expires"
-          value={formatDate(offer.expiresAt)}
+          value={formatDateOnly(offer.expiresAt)}
         />
       </div>
     </article>

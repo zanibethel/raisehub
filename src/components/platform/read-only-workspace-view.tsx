@@ -2,7 +2,7 @@ import type {
   WorkspaceCardData,
   WorkspaceRole,
 } from '@/components/platform/workspace-card'
-import ReadOnlyBusinessOffersSection from '@/components/dashboards/owner/sections/read-only-business-offers-section'
+import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 
 // =============================================================================
