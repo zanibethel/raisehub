@@ -16,10 +16,10 @@ type OrganizationAnalyticsSectionProps = {
 
 function getSellerDescription(activeSellerCount: number): string {
   if (activeSellerCount === 0) {
-    return 'No sellers have sold passes yet'
+    return 'No sellers have recorded purchases yet'
   }
 
-  return `${activeSellerCount} seller${activeSellerCount === 1 ? '' : 's'} with at least one pass sold`
+  return `${activeSellerCount} seller${activeSellerCount === 1 ? '' : 's'} with at least one recorded purchase`
 }
 
 // =============================================================================
@@ -46,7 +46,7 @@ export default function OrganizationAnalyticsSection({
         />
 
         <MetricCard
-          label="Active Sellers"
+          label="Sellers With Sales"
           value={activeSellerCount}
           description={getSellerDescription(activeSellerCount)}
           tone="green"
