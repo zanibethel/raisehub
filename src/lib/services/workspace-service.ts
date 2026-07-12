@@ -260,26 +260,46 @@ function mapProfileToWorkspace(
 // Service
 // =============================================================================
 
-export async function getOwnerWorkspaces(): Promise<
-  WorkspaceCardData[]
-> {
+type OwnerWorkspacesResult = {
+  workspaces: WorkspaceCardData[]
+  error: string | null
+}
+
+// Returns a typed result that preserves the repository error so callers can
+// distinguish a load failure from a legitimately empty workspace list.
+export async function getOwnerWorkspacesResult(): Promise<OwnerWorkspacesResult> {
   const { profiles, error } =
     await getWorkspaceProfiles()
 
   if (error) {
-    console.error(
-      'Unable to load owner workspaces:',
-      error
-    )
-
-    return []
+    return { workspaces: [], error }
   }
 
-  return profiles
+  const workspaces = profiles
     .map(mapProfileToWorkspace)
     .sort((firstWorkspace, secondWorkspace) =>
       firstWorkspace.name.localeCompare(
         secondWorkspace.name
       )
     )
+
+  return { workspaces, error: null }
+}
+
+// Convenience wrapper that logs errors and returns an empty array.
+// Preserved for existing callers that do not need to distinguish errors.
+export async function getOwnerWorkspaces(): Promise<
+  WorkspaceCardData[]
+> {
+  const { workspaces, error } =
+    await getOwnerWorkspacesResult()
+
+  if (error) {
+    console.error(
+      'Unable to load owner workspaces:',
+      error
+    )
+  }
+
+  return workspaces
 }
