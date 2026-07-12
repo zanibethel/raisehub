@@ -432,14 +432,18 @@ Deterministic rules and reliable data come before AI.
 
 # 18. Current Next Task
 
-The workspace browser and read-only support shell are connected foundations.
+The workspace browser and read-only support shell are connected.
 
-Selected workspace URL matching confirms the requested ID and role match an available workspace result. This does not replace explicit authenticated-owner authorization for private role-specific data.
+Owner-authorized read-only business-offer support is now connected end-to-end:
+
+1. Owner workspace read authorization service is complete.
+2. Real `offers` schema and RLS behavior were verified and documented.
+3. Business-offer repository is complete for read-only support.
+4. Owner business-offer service is complete.
+5. Authorized read-only business-offer viewing is connected.
 
 Next steps:
 
-1. Implement owner workspace read authorization service.
-2. Inspect and document the real `offers` schema and RLS policies.
-3. Build the read-only business-offer repository and service.
-4. Connect authorized read-only business offers.
-5. Design audit repository and service.
+1. Build owner-authorized read-only organization campaign viewing.
+2. Build owner-authorized read-only customer pass and redemption viewing.
+3. Design audit repository and service.

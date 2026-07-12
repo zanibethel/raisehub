@@ -779,7 +779,7 @@ Current foundation includes:
 - Workspace preview
 - Read-only support view
 
-**Workspace browser and read-only support shell status: Connected foundations.**
+**Workspace browser and read-only support shell status: Connected with owner-authorized business offers.**
 
 The workspace browser loads live workspace results. A workspace can be selected and its URL state is set. The read-only support shell renders the selected workspace context.
 
@@ -787,24 +787,23 @@ The workspace browser loads live workspace results. A workspace can be selected 
 
 Selected workspace URL matching confirms the requested ID and role match an available workspace result. This does not replace explicit authenticated-owner authorization for private role-specific data.
 
-Explicit owner authorization for role-specific records (offers, campaigns, purchases, redemptions) is not yet complete.
+Owner-authorized business-offer support is now complete:
 
-**Offers schema inspection required:**
+- Owner workspace read authorization service is complete.
+- Business-offer repository is complete and filtered by `business_id`.
+- Owner business-offer service is complete.
+- Read-only business-offer viewing is connected in Owner Platform support mode.
 
-Before designing or connecting the business-offer repository, inspect and document the real `offers` table schema and RLS policies. Do not invent offer fields, statuses, health columns, or ownership fields.
+No schema or RLS changes were made for this connection.
 
 Current next direction:
 
-1. Implement owner workspace read authorization service.
-2. Inspect and document the real `offers` schema and RLS policies.
-3. Build the read-only business-offer repository and service.
-4. Connect authorized read-only business offers.
-5. Add read-only organization campaign data.
-6. Add read-only customer pass and redemption data.
-7. Design audit repository and service.
-8. Design assisted editing.
-9. Add support notes.
-10. Separate development and production environments.
+1. Build owner-authorized read-only organization campaign data.
+2. Add owner-authorized read-only customer pass and redemption data.
+3. Design audit repository and service.
+4. Design assisted editing.
+5. Add support notes.
+6. Separate development and production environments.
 
 Do not skip directly to unrestricted assisted editing.
 
