@@ -1,13 +1,14 @@
+import ReadOnlyWorkspaceView from '@/components/platform/read-only-workspace-view'
 import type { WorkspaceCardData } from '@/components/platform/workspace-card'
 import SelectedWorkspacePanel, {
   type WorkspaceSupportMode,
 } from '@/components/platform/selected-workspace-panel'
 import WorkspaceSelector from '@/components/platform/workspace-selector'
 
-import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 import OwnerRoleSwitcher, {
   type PreviewRole,
 } from './owner-role-switcher'
+import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 
 // =============================================================================
 // Types
@@ -30,6 +31,10 @@ export default function OwnerDashboardContent({
   selectedWorkspace,
   workspaceMode = 'workspace',
 }: OwnerDashboardContentProps) {
+  const isReadOnlySupport =
+    Boolean(selectedWorkspace) &&
+    workspaceMode === 'read-only'
+
   return (
     <div className="mt-8 min-w-0 space-y-8">
       <OwnerPlatformOverviewSection />
@@ -38,6 +43,12 @@ export default function OwnerDashboardContent({
         <SelectedWorkspacePanel
           workspace={selectedWorkspace}
           mode={workspaceMode}
+        />
+      ) : null}
+
+      {selectedWorkspace && isReadOnlySupport ? (
+        <ReadOnlyWorkspaceView
+          workspace={selectedWorkspace}
         />
       ) : null}
 
@@ -116,9 +127,9 @@ export default function OwnerDashboardContent({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-yellow-900">
-          Workspace selection and read-only viewing are being connected first.
-          Explicit edit mode and audit logging will follow in separate verified
-          steps.
+          Read-only workspace viewing is now connected. Explicit assisted
+          editing, permission checks, and audit logging will follow in separate
+          verified steps.
         </p>
       </section>
     </div>
