@@ -58,6 +58,18 @@ Status: **Complete foundation**
 - [ ] Account suspension controls
 - [ ] Account deletion workflow
 - [ ] Email verification enforcement review
+- [ ] Workspace-independent Manage Profile experience
+- [ ] Personal full-name and display-name editing
+- [ ] Personal profile-image editing
+- [ ] Personal phone-number editing
+- [ ] Structured personal address editing
+- [ ] Verified email-change flow using Supabase Auth
+- [ ] Re-authentication requirements for sensitive account changes
+- [ ] Password and account-security management
+- [ ] Security notifications for sensitive account changes
+- [ ] Keep personal contact information separate from business and organization contact information
+
+**Profile-management architecture note:** Manage Profile belongs to the authenticated person, not to a selected business, organization, seller, or customer workspace. Personal changes must preserve all memberships and entitlements. Business and organization contact information remains entity-owned and is edited only from the relevant authorized workspace.
 
 ## Fundraising Campaigns
 
@@ -101,6 +113,15 @@ Status: **Complete foundation**
 # Phase 2 — Dashboard Architecture
 
 Status: **Complete foundation**
+
+## Shared Account Navigation
+
+- [ ] Add Manage Profile to the authenticated account menu
+- [ ] Keep Manage Profile available from every authorized workspace
+- [ ] Add Switch Experience when multi-role workspaces are connected
+- [ ] Display the verified account email clearly
+- [ ] Keep Sign out available and visually separated from profile actions
+- [ ] Provide clear success, verification-pending, and error states for sensitive profile changes
 
 ## Business Dashboard
 
