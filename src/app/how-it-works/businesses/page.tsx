@@ -32,7 +32,7 @@ export default function BusinessesHowItWorksPage() {
         </div>
 
         <Link
-          href="/signup"
+          href="/signup?role=business"
           className="mt-8 inline-flex rounded-xl bg-green-600 px-6 py-3 font-medium text-white hover:bg-green-700"
         >
           Join as a Business

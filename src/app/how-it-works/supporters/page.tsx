@@ -32,10 +32,10 @@ export default function SupportersHowItWorksPage() {
         </div>
 
         <Link
-          href="/signup"
+          href="/campaigns"
           className="mt-8 inline-flex rounded-xl bg-yellow-600 px-6 py-3 font-medium text-white hover:bg-yellow-700"
         >
-          Get Started
+          Browse Fundraisers
         </Link>
       </div>
     </main>

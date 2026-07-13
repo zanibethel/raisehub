@@ -34,8 +34,9 @@ export async function markNotificationReadAction(notificationId: string) {
 
 // =========================================
 // 🔔 MARK ALL NOTIFICATIONS AS READ
-// Sets read_at to now for all unread, non-dismissed
-// notifications belonging to the current user.
+// Sets read_at to now for all unread, non-dismissed, non-expired
+// notifications belonging to the current user — matching the
+// active-notification condition used by the bell count.
 // =========================================
 export async function markAllNotificationsReadAction() {
   const supabase = await createClient()
@@ -48,12 +49,15 @@ export async function markAllNotificationsReadAction() {
     return { error: 'Not authenticated.' }
   }
 
+  const now = new Date().toISOString()
+
   const { error } = await supabase
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ read_at: now })
     .eq('user_id', user.id)
     .is('read_at', null)
     .is('dismissed_at', null)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
 
   if (error) {
     return { error: error.message }

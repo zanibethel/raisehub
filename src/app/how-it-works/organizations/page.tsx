@@ -32,10 +32,10 @@ export default function OrganizationsHowItWorksPage() {
         </div>
 
         <Link
-          href="/signup"
+          href="/signup?role=organization"
           className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
         >
-          Start Fundraising
+          Start a Fundraiser
         </Link>
       </div>
     </main>
