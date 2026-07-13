@@ -3,7 +3,7 @@
 **Last updated:** July 2026  
 **Current version:** v0.8 — Platform Foundation  
 **Overall status:** Stable development build  
-**Current initiative:** Owner Platform Console and Workspace System — owner-authorized business offers and organization campaigns connected
+**Current initiative:** Owner Platform Console and Workspace System — all three read-only workspace roles now connected
 
 ---
 
@@ -67,7 +67,7 @@ Completed:
 
 ### Owner Platform — Workspace Browser and Read-Only Support Shell
 
-Status: **Connected with owner-authorized business offers and organization campaigns**
+Status: **All three workspace roles connected with owner-authorized read-only records**
 
 The workspace browser and the read-only support shell are connected, meaning:
 
@@ -75,7 +75,7 @@ The workspace browser and the read-only support shell are connected, meaning:
 - A workspace can be selected and its URL state is set.
 - A read-only support view renders the selected workspace context.
 
-These are now connected and owner-authorized for business offers and organization campaigns:
+These are now connected and owner-authorized for all three workspace roles:
 
 - Owner workspace read authorization service is complete.
 - Business-offer repository is complete and filtered by `business_id`.
@@ -84,9 +84,13 @@ These are now connected and owner-authorized for business offers and organizatio
 - Organization-campaign repository is complete and filtered by `organization_id`.
 - Owner organization-campaign service is complete and validates workspace authorization before loading campaigns.
 - Read-only organization-campaign viewing is connected in Owner Platform support mode.
+- Customer-purchase repository is complete and filtered by `user_id` (with campaign and organization name enrichment).
+- Customer-saved-offer repository is complete and filtered by `user_id` (with offer title and business name enrichment).
+- Customer-redemption repository is complete and filtered by `user_id` (with offer title and business name enrichment).
+- Owner customer-activity service is complete, validates workspace authorization, and loads all three repositories in parallel.
+- Read-only customer activity (purchased passes, saved offers, redemption history) is connected in Owner Platform support mode.
 
-Role-specific owner authorization remains in progress for other resources (customer passes and redemptions).
-Next direction: owner-authorized read-only customer pass and redemption viewing.
+Next direction: business redemption support in Owner Platform, audit infrastructure, environment separation before assisted editing.
 
 **URL handling:**
 
@@ -139,7 +143,15 @@ The owner-only campaign SELECT policy (`allow_owner_read_all_campaigns`) was add
 
 ---
 
-Current data access direction:
+### Customer Activity Schema and Repositories
+
+Status: **Complete for read-only owner-authorized customer activity**
+
+The `campaign_purchases`, `saved_offers`, and `redemptions` schemas were verified and applied to the repositories and owner authorization flow.
+
+The owner-only SELECT policies (`allow_owner_read_customer_activity`) were applied and verified as a database prerequisite before this application PR. This PR introduces no additional schema or RLS changes.
+
+Repository filtering by `user_id` remains mandatory for all three customer activity repositories.
 
 ```text
 UI

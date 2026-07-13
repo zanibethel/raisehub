@@ -5,6 +5,7 @@ import SelectedWorkspacePanel, {
 } from '@/components/platform/selected-workspace-panel'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
+import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
 import WorkspaceSelector from '@/components/platform/workspace-selector'
 import type { PlatformMetrics } from '@/lib/repositories/platform-analytics-repository'
 
@@ -25,6 +26,7 @@ type OwnerDashboardContentProps = {
   workspaceMode?: WorkspaceSupportMode
   businessOffersResult?: OwnerBusinessOffersResult | null
   organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
+  customerActivityResult?: OwnerCustomerActivityResult | null
   platformMetrics?: PlatformMetrics | null
 }
 
@@ -39,6 +41,7 @@ export default function OwnerDashboardContent({
   workspaceMode = 'workspace',
   businessOffersResult = null,
   organizationCampaignsResult = null,
+  customerActivityResult = null,
   platformMetrics = null,
 }: OwnerDashboardContentProps) {
   const isReadOnlySupport =
@@ -65,6 +68,7 @@ export default function OwnerDashboardContent({
           organizationCampaignsResult={
             organizationCampaignsResult
           }
+          customerActivityResult={customerActivityResult}
         />
       ) : null}
 

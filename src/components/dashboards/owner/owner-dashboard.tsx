@@ -7,6 +7,8 @@ import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-of
 import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
+import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
+import { getOwnerAuthorizedCustomerActivity } from '@/lib/services/owner-customer-activity-service'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
 import { getOwnerPlatformAnalytics } from '@/lib/services/owner-platform-analytics-service'
 
@@ -168,6 +170,21 @@ export default async function OwnerDashboard({
       )
   }
 
+  let customerActivityResult: OwnerCustomerActivityResult | null =
+    null
+
+  const shouldLoadCustomerActivity =
+    selectedWorkspace?.role === 'customer' &&
+    workspaceMode === 'read-only'
+
+  if (selectedWorkspace && shouldLoadCustomerActivity) {
+    customerActivityResult =
+      await getOwnerAuthorizedCustomerActivity(
+        selectedWorkspace.id,
+        selectedWorkspace.role
+      )
+  }
+
   const platformAnalyticsResult =
     await getOwnerPlatformAnalytics()
 
@@ -184,6 +201,7 @@ export default async function OwnerDashboard({
       workspaceMode={workspaceMode}
       businessOffersResult={businessOffersResult}
       organizationCampaignsResult={organizationCampaignsResult}
+      customerActivityResult={customerActivityResult}
       platformMetrics={platformMetrics}
     />
   )

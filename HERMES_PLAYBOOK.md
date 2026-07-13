@@ -434,24 +434,33 @@ Deterministic rules and reliable data come before AI.
 
 The workspace browser and read-only support shell are connected.
 
-Owner-authorized read-only business-offer support is now connected end-to-end:
+All three read-only workspace roles are now connected end-to-end with owner-authorized records:
 
+**Business workspace:**
 1. Owner workspace read authorization service is complete.
 2. Real `offers` schema and RLS behavior were verified and documented.
 3. Business-offer repository is complete for read-only support.
 4. Owner business-offer service is complete.
 5. Authorized read-only business-offer viewing is connected.
 
-Owner-authorized read-only organization-campaign support is now connected end-to-end:
-
+**Organization workspace:**
 1. Real `campaigns` schema was verified. The owner-only campaign SELECT policy (`allow_owner_read_all_campaigns`) was added and verified as a database prerequisite before this application PR.
 2. Organization-campaign repository is complete, filtered by `organization_id`.
 3. Owner organization-campaign service is complete.
 4. Authorized read-only organization-campaign viewing is connected.
 
+**Customer workspace:**
+1. Real `campaign_purchases`, `saved_offers`, and `redemptions` schemas were verified. Owner-only SELECT policies (`allow_owner_read_customer_activity`) were applied and verified as a database prerequisite.
+2. Customer-purchase repository is complete, filtered by `user_id`, with campaign and organization name enrichment.
+3. Customer-saved-offer repository is complete, filtered by `user_id`, with offer title and business name enrichment.
+4. Customer-redemption repository is complete, filtered by `user_id`, with offer title and business name enrichment.
+5. Owner customer-activity service is complete, authorizes workspace, loads all three repositories in parallel.
+6. Authorized read-only customer activity viewing (purchased passes, saved offers, redemption history) is connected.
+
 This application PR introduces no additional schema or RLS changes.
 
 Next steps:
 
-1. Build owner-authorized read-only customer pass and redemption viewing.
+1. Build owner-authorized business redemption support in Owner Platform.
 2. Design audit repository and service.
+3. Complete environment separation before enabling assisted editing.

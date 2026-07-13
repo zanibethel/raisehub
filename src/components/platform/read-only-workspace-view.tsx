@@ -4,8 +4,10 @@ import type {
 } from '@/components/platform/workspace-card'
 import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
 import ReadOnlyOrganizationCampaignsSection from '@/components/platform/read-only-organization-campaigns-section'
+import ReadOnlyCustomerActivitySection from '@/components/platform/read-only-customer-activity-section'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
+import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
 
 // =============================================================================
 // Types
@@ -15,6 +17,7 @@ type ReadOnlyWorkspaceViewProps = {
   workspace: WorkspaceCardData
   businessOffersResult?: OwnerBusinessOffersResult | null
   organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
+  customerActivityResult?: OwnerCustomerActivityResult | null
 }
 
 type WorkspaceArea = {
@@ -82,7 +85,7 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
           title: 'Campaigns',
           description:
             'Review draft, active, completed, and archived fundraising campaigns.',
-          status: 'coming',
+          status: 'available',
         },
         {
           title: 'Sellers',
@@ -110,19 +113,19 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
           title: 'Purchased passes',
           description:
             'Review fundraiser passes associated with this customer.',
-          status: 'coming',
+          status: 'available',
         },
         {
           title: 'Saved offers',
           description:
             'Review offers currently saved to the customer account.',
-          status: 'coming',
+          status: 'available',
         },
         {
           title: 'Redemptions',
           description:
             'Review the customer’s coupon redemption history.',
-          status: 'coming',
+          status: 'available',
         },
       ]
   }
@@ -145,6 +148,7 @@ export default function ReadOnlyWorkspaceView({
   workspace,
   businessOffersResult = null,
   organizationCampaignsResult = null,
+  customerActivityResult = null,
 }: ReadOnlyWorkspaceViewProps) {
   const areas = getWorkspaceAreas(workspace.role)
   const missingItems = workspace.missingSetupItems ?? []
@@ -339,6 +343,12 @@ export default function ReadOnlyWorkspaceView({
       {workspace.role === 'organization' ? (
         <ReadOnlyOrganizationCampaignsSection
           campaignsResult={organizationCampaignsResult}
+        />
+      ) : null}
+
+      {workspace.role === 'customer' ? (
+        <ReadOnlyCustomerActivitySection
+          activityResult={customerActivityResult}
         />
       ) : null}
     </section>
