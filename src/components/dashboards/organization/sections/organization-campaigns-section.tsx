@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import CampaignStatusActionButton from '@/app/components/campaign-status-action-button'
+import ShareCampaignButton from '@/app/components/share-campaign-button'
 import CreateCampaignForm from '@/app/components/create-campaign-form'
 import CampaignStatusBadge from '@/components/dashboard/campaign-status-badge'
 import EmptyState from '@/components/dashboard/empty-state'
@@ -80,7 +81,7 @@ export default function OrganizationCampaignsSection({
                     <th className="px-3 py-3">Campaign</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3">Goal</th>
-                    <th className="px-3 py-3">Raised</th>
+                    <th className="px-3 py-3">Recorded</th>
                     <th className="px-3 py-3">Sellers</th>
                     <th className="px-3 py-3">Created</th>
                     <th className="px-3 py-3">Actions</th>
@@ -189,7 +190,7 @@ export default function OrganizationCampaignsSection({
 
                         <div className="rounded-lg bg-white/70 p-3">
                           <dt className="text-xs uppercase tracking-wide text-gray-500">
-                            Raised
+                            Recorded
                           </dt>
                           <dd className="mt-1 font-semibold text-gray-800">
                             {formatCurrency(metrics.amountRaised)}
@@ -276,6 +277,11 @@ function CampaignActions({
       >
         View
       </Link>
+
+      <ShareCampaignButton
+        campaignId={campaignId}
+        campaignName={campaignName}
+      />
 
       {!isArchived && !isCompleted ? (
         <Link

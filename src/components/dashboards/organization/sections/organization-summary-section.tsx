@@ -31,23 +31,23 @@ export default function OrganizationSummarySection({
       />
 
       <MetricCard
-        label="Total Funds Raised"
+        label="Recorded Earnings"
         value={`$${totalFundsRaised.toLocaleString()}`}
-        description="Total organization earnings"
+        description="Organization earnings across recorded purchases"
         tone="green"
       />
 
       <MetricCard
-        label="Total Sellers"
+        label="Sellers With Recorded Sales"
         value={totalSellers}
-        description="Distinct sellers with campaign sales"
+        description="Distinct seller names on recorded purchases"
         tone="yellow"
       />
 
       <MetricCard
-        label="Total Supporters"
+        label="Supporters With Recorded Purchases"
         value={totalSupporters}
-        description="Supporters who purchased campaign passes"
+        description="Distinct buyers across recorded purchases"
       />
     </section>
   )

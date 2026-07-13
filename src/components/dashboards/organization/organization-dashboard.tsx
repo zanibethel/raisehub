@@ -82,6 +82,7 @@ export default async function OrganizationDashboard() {
   let purchases: CampaignPurchase[] = []
 
   if (campaignIds.length > 0) {
+    // Metrics currently include all recorded purchase statuses; add Stripe-paid status filtering once final payment statuses are defined.
     const { data } = await supabase
       .from('campaign_purchases')
       .select(

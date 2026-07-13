@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { updateCampaignStatusAction } from '@/app/organization/actions'
 
@@ -25,8 +26,13 @@ export default function CampaignStatusActionButton({
 }: CampaignStatusActionButtonProps) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const router = useRouter()
 
   async function handleAction() {
+    if (loading) {
+      return
+    }
+
     if (confirmMessage) {
       const safeCampaignName = campaignName
         .replace(/\r?\n/g, ' ')
@@ -59,6 +65,7 @@ export default function CampaignStatusActionButton({
     }
 
     setLoading(false)
+    router.refresh()
   }
 
   return (
