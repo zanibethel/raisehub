@@ -73,7 +73,7 @@ export async function getCustomerSavedOffers(
     }
   }
 
-  const rows = (rawData ?? []) as RawSavedOfferRow[]
+  const rows = (rawData ?? []) as unknown as RawSavedOfferRow[]
 
   // Collect unique business IDs for a secondary profiles lookup.
   const businessIds = [

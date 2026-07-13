@@ -92,7 +92,7 @@ export async function getCustomerPurchases(
     }
   }
 
-  const rows = (rawData ?? []) as RawPurchaseRow[]
+  const rows = (rawData ?? []) as unknown as RawPurchaseRow[]
 
   // Collect unique organization IDs for a secondary profiles lookup.
   const orgIds = [

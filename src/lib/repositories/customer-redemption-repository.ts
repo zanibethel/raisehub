@@ -78,7 +78,7 @@ export async function getCustomerRedemptions(
     }
   }
 
-  const rows = (rawData ?? []) as RawRedemptionRow[]
+  const rows = (rawData ?? []) as unknown as RawRedemptionRow[]
 
   // Collect unique business IDs for a secondary profiles lookup.
   const businessIds = [
