@@ -72,7 +72,7 @@ export function DemoLauncherModal({ onClose }: { onClose: () => void }) {
         const focusable: HTMLElement[] = []
         panelRef.current
           .querySelectorAll<HTMLElement>(
-            'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable], [tabindex]:not([tabindex="-1"])'
           )
           .forEach((el) => {
             if (el.offsetParent !== null) focusable.push(el)
