@@ -5,7 +5,17 @@ This document defines how AI agents should approach development within the Raise
 It is intended to reduce unnecessary planning, prevent architectural drift, improve implementation consistency, and minimize repeated context in future prompts.
 
 This guide complements—not replaces—the other project documentation.
+## Agent Environment Constraints
 
+AI implementation agents such as copilot operate against the repository.
+
+They should assume:
+
+- They do not have access to the live Supabase project.
+- They do not have access to production data.
+- They do not have access to production RLS policies unless committed to the repository.
+- They should inspect the repository and committed migrations only.
+- Live database inspection, migration execution, advisor review, and runtime verification are performed separately.
 ---
 
 # 1. Required Reading Order
