@@ -1,9 +1,10 @@
 # RaiseHub Identity and Access Model
 
+**Version:** 2.0  
 **Status:** Approved architecture direction  
 **Last updated:** July 2026
 
-This document defines how identity, memberships, entitlements, roles, workspaces, and access should work across RaiseHub.
+This document defines the long-term identity, authorization, membership, entitlement, workspace, and capability model for RaiseHub.
 
 It is the source of truth for multi-role account architecture.
 
@@ -13,6 +14,7 @@ This document complements:
 - `docs/ARCHITECTURE.md`
 - `docs/SUPABASE_STANDARDS.md`
 - `docs/OWNER_PLATFORM.md`
+- `docs/AI_DEVELOPMENT_GUIDE.md`
 
 It does not replace those documents.
 
@@ -24,29 +26,104 @@ RaiseHub uses:
 
 **One person → one authentication identity → many capabilities**
 
-A person should not need a second email address simply because they participate in RaiseHub in another way.
+A person should not need a second RaiseHub account or a second email address simply because they participate in RaiseHub in another way.
 
-One authenticated user may simultaneously be:
+One authenticated person may simultaneously be:
 
 - A customer with an active or expired pass
 - A seller for one or more organizations
 - An organization administrator
 - A business owner
-- A business staff member
-- A viewer or manager in another workspace
+- A business manager or staff member
+- A viewer in another business or organization
 - A platform owner
 
 Authentication answers:
 
 **Who is this person?**
 
-Memberships and entitlements answer:
+Authorization answers:
 
 **What may this person access or do?**
 
+Capabilities come from verified relationships and entitlements.
+
+They do not come from a single permanent profile role.
+
 ---
 
-# 2. Identity
+# 2. Terminology
+
+RaiseHub uses the following terms consistently.
+
+## Identity
+
+The authenticated person.
+
+The identity is represented by:
+
+- One Supabase Auth user
+- One matching personal profile
+
+## Entity
+
+A business, organization, campaign, or other platform resource that exists independently of a person.
+
+Examples:
+
+- A salon
+- A school
+- A football team
+- A fundraiser campaign
+
+## Membership
+
+A relationship between a person and an entity.
+
+Examples:
+
+- Business owner
+- Business manager
+- Organization admin
+- Organization seller
+
+## Entitlement
+
+A time-limited or rule-limited right to use a benefit.
+
+Examples:
+
+- Active customer pass
+- Trial
+- Complimentary access
+
+## Workspace
+
+The current context a person is viewing.
+
+Examples:
+
+- My Pass
+- My Fundraising
+- Roosevelt Football
+- Perez Auto Detail
+- Owner Platform
+
+## Capability
+
+A permission verified on the server.
+
+Examples:
+
+- View a business
+- Manage an organization
+- Sell for a campaign
+- Redeem an offer
+- Access Owner Platform
+
+---
+
+# 3. Identity
 
 Each person has one Supabase Auth user.
 
@@ -59,42 +136,64 @@ A profile may contain personal information such as:
 - Email
 - Avatar
 - Phone
-- Personal preferences
 - Accessibility preferences
+- Notification preferences
 - Last selected workspace
+- Personal account settings
 
-A profile must not be treated as the business, organization, customer pass, or seller assignment.
+A profile must not be treated as:
+
+- The business itself
+- The organization itself
+- A customer pass
+- A seller assignment
+- A campaign membership
 
 Those are separate records and relationships.
 
+One person must not need duplicate profiles merely to access multiple areas of RaiseHub.
+
 ---
 
-# 3. Existing Legacy Role
+# 4. Existing Legacy Role
 
 The existing `profiles.role` field is legacy application infrastructure.
 
-It currently supports existing routing and dashboard behavior.
+It currently supports:
+
+- Existing dashboard routing
+- Existing onboarding
+- Existing profile assumptions
+- Existing role-specific UI
+- Existing demo behavior
 
 During migration:
 
 - Do not remove it immediately
+- Do not rename it without coordinated application changes
 - Do not make it nullable without coordinated application changes
 - Do not use it as the foundation of new multi-role features
-- Preserve it as a compatibility field until all affected routes and actions have migrated
+- Preserve it as a compatibility field until affected routes and actions have migrated
 
-New authorization should use memberships, entitlements, and verified platform permissions.
+New authorization should use:
+
+- Memberships
+- Entitlements
+- Verified platform permissions
+- Capability checks
 
 The legacy role may later become:
 
 - A default experience hint
 - A migration compatibility field
-- A deprecated field removed after full verification
+- A deprecated field
+- A removable field after complete verification
 
 It must not remain the only source of authorization.
 
 ---
 
-# 4. Businesses Are Entities
+# 5. Businesses Are Entities
 
 A business is not an authentication user.
 
@@ -115,6 +214,9 @@ A business may have:
 - Subscription information
 - Analytics
 - Redemption settings
+- Contact details
+- Branding
+- Activity history
 
 Users access businesses through memberships.
 
@@ -133,21 +235,82 @@ A person may belong to multiple businesses.
 
 A business may have multiple users.
 
+Business ownership must not require the owner to create a second account.
+
 ---
 
-# 5. Organizations Are Entities
+# 6. Business Membership Capabilities
+
+Suggested capability expectations:
+
+## owner
+
+May:
+
+- View the business
+- Edit business details
+- Manage offers
+- View analytics
+- Manage staff
+- Manage subscription settings
+- Transfer ownership through an approved high-risk workflow
+
+## manager
+
+May:
+
+- View the business
+- Edit approved business details
+- Manage offers
+- View analytics
+- Manage selected staff actions
+
+May not:
+
+- Transfer ownership
+- Change protected billing or ownership settings unless explicitly allowed
+
+## staff
+
+May:
+
+- View assigned business areas
+- Perform approved operational tasks
+- Support redemptions or offer workflows
+
+May not:
+
+- Manage ownership
+- Manage billing
+- Manage high-risk settings
+
+## viewer
+
+May:
+
+- View approved business information
+- View approved reports
+
+May not perform writes.
+
+Exact capability rules should be implemented through reusable server-side checks rather than duplicated role comparisons throughout the UI.
+
+---
+
+# 7. Organizations Are Entities
 
 An organization is not an authentication user.
 
 Organizations may include:
 
 - Schools
-- Teams
-- Clubs
-- Churches
+- Sports teams
 - Booster clubs
+- Churches
 - Nonprofits
+- Clubs
 - Community groups
+- Fundraising teams
 
 Recommended entity:
 
@@ -172,7 +335,69 @@ An organization may have multiple administrators, managers, sellers, and viewers
 
 ---
 
-# 6. Sellers Are Organization Members
+# 8. Organization Membership Capabilities
+
+## admin
+
+May:
+
+- View the organization
+- Edit organization details
+- Create campaigns
+- Manage campaigns
+- Invite or remove members
+- Assign membership roles
+- View organization-wide progress
+- View seller performance
+- Manage approved fundraising settings
+
+## manager
+
+May:
+
+- View the organization
+- Manage approved campaigns
+- View organization-wide progress
+- View seller performance
+- Manage assigned members or campaign participation
+
+May not:
+
+- Transfer organization ownership
+- Perform protected financial changes unless explicitly allowed
+
+## seller
+
+May:
+
+- View organization progress
+- View assigned campaigns
+- View personal sales
+- View personal amount raised
+- Access personal referral links
+- Access personal QR codes
+- View personal goals and milestones
+
+May not:
+
+- Create organization campaigns
+- Edit organization settings
+- Manage other sellers
+- Change payout details
+- Change ownership
+
+## viewer
+
+May:
+
+- View approved organization information
+- View approved progress summaries
+
+May not perform management actions.
+
+---
+
+# 9. Sellers Are Organization Members
 
 Seller is not a permanent platform-wide identity role.
 
@@ -194,29 +419,23 @@ His seller access comes from an active organization membership.
 A seller may receive:
 
 - Personal fundraising dashboard
-- Personal sales link
+- Personal referral link
 - Personal QR code
 - Personal sales totals
 - Amount raised
 - Passes sold
 - Personal goal
 - Organization-wide progress
-- Seller ranking, when enabled
+- Seller ranking when enabled
 - Assigned campaigns
+- Personal milestones
+- Campaign announcements
 
-Seller access should not permit:
-
-- Creating organization campaigns
-- Editing organization settings
-- Managing other sellers
-- Changing payout information
-- Changing organization ownership
-
-Those actions require an organization admin or manager membership.
+Seller access must remain available even when customer access expires.
 
 ---
 
-# 7. Campaign Participation
+# 10. Campaign Participation
 
 Organization membership and campaign participation are related but distinct.
 
@@ -228,6 +447,7 @@ Recommended relationship:
 
 A campaign membership may contain:
 
+- id
 - campaign_id
 - organization_membership_id
 - referral_code
@@ -235,10 +455,17 @@ A campaign membership may contain:
 - status
 - joined_at
 - disabled_at
+- created_at
+- updated_at
 
 Purchases attributed to a seller should record a durable seller or campaign-membership reference.
 
-Do not rely only on browser cookies or temporary query parameters for permanent attribution.
+Do not rely only on:
+
+- Browser cookies
+- Temporary query parameters
+- Session-only state
+- Display names
 
 The system must support calculation of:
 
@@ -246,12 +473,14 @@ The system must support calculation of:
 - Campaign-wide progress
 - Individual seller progress
 - Passes sold by seller
-- Revenue attributed to seller
+- Revenue attributed to a seller
 - Revenue not attributed to a specific seller
+- Seller rankings when enabled
+- Historical seller attribution after membership changes
 
 ---
 
-# 8. Customer Access Is an Entitlement
+# 11. Customer Access Is an Entitlement
 
 Customer access is not a permanent identity role.
 
@@ -280,27 +509,71 @@ Recommended entitlement fields:
 - status
 - granted_by
 - created_at
+- updated_at
 - revoked_at
 
 Customer access is active only when the entitlement is valid according to deterministic rules.
 
-When a customer pass expires:
+When a customer entitlement expires:
 
 - The user can still log in
 - Business memberships remain accessible
 - Organization memberships remain accessible
 - Seller dashboards remain accessible
-- Account and purchase history remain accessible
-- Customer-only redemption benefits become unavailable
+- Account history remains accessible
+- Purchase history remains accessible
+- Customer-only benefits become unavailable
+- Customer-only redemptions become unavailable
 - Renewal options may be displayed
 
-Expiration removes an entitlement.
+An expired entitlement no longer grants active customer benefits.
 
-It does not remove the person’s identity or unrelated memberships.
+The entitlement record must remain preserved for:
+
+- Purchase history
+- Auditing
+- Customer support
+- Analytics
+- Renewal logic
+
+Expiration never removes:
+
+- The person's identity
+- Business memberships
+- Organization memberships
+- Seller participation
+- Historical activity
 
 ---
 
-# 9. Multiple Simultaneous Capabilities
+# 12. Entitlement Status
+
+Recommended entitlement statuses may include:
+
+- pending
+- active
+- expired
+- revoked
+- replaced
+- cancelled
+
+Status must not be trusted by itself when time rules also apply.
+
+Active benefit checks should evaluate:
+
+- Current status
+- Start time
+- Expiration time
+- Revocation state
+- Source purchase state when applicable
+
+The rule must be deterministic and reusable.
+
+Do not independently recreate entitlement logic in multiple UI components.
+
+---
+
+# 13. Multiple Simultaneous Capabilities
 
 A user may have several valid access paths at once.
 
@@ -326,9 +599,13 @@ Theo should still access:
 
 Theo should not access active customer benefits until a new entitlement is granted.
 
+This is the intended model.
+
+The user should never need to sign out and create another account to gain an additional capability.
+
 ---
 
-# 10. Workspace Context
+# 14. Workspace Context
 
 A workspace is the entity or experience currently being viewed.
 
@@ -355,6 +632,17 @@ Recommended navigation may include:
 
 A last-selected workspace may be saved as a preference.
 
+Recommended relationship:
+
+    user_preferences
+
+Possible fields:
+
+- user_id
+- active_context_type
+- active_context_id
+- updated_at
+
 Saved workspace context is convenience only.
 
 It is not authorization.
@@ -363,13 +651,53 @@ Every request must verify access again on the server.
 
 ---
 
-# 11. Authorization Rules
+# 15. Unified User Experience
+
+The user should not need to understand internal terms such as:
+
+- Entitlement
+- Membership record
+- Workspace authorization
+- Relationship table
+- Capability service
+
+The interface should use clear labels such as:
+
+- My Pass
+- My Fundraising
+- My Organizations
+- My Businesses
+- Switch Experience
+
+The system should avoid asking users to:
+
+- Register again
+- Use another email
+- Sign out to change roles
+- Re-enter the same personal information
+- Maintain duplicate profiles
+
+The platform should make multi-role access feel natural.
+
+---
+
+# 16. Authorization Rules
 
 Client-side visibility is not security.
 
 Hiding a button does not prevent an unauthorized action.
 
-Every protected loader, service, server action, route handler, and database query must verify the relevant relationship.
+Every protected:
+
+- Route
+- Loader
+- Service
+- Server action
+- Route handler
+- Repository method
+- Database query
+
+must verify the relevant relationship.
 
 Examples:
 
@@ -405,10 +733,25 @@ Authorization must not trust:
 - A route name
 - A query-string role
 - A selected dashboard context
+- A client-supplied actor user ID
 
 ---
 
-# 12. Capability-Based Helpers
+# 17. Authenticated Actor
+
+Capability helpers operate on a verified authenticated actor.
+
+The authenticated actor ID must always be resolved from the trusted server session at the request boundary.
+
+Clients must never choose the actor `userId` used for authorization.
+
+Repository and service helpers may accept a verified actor ID only after authentication has already occurred.
+
+This prevents privilege escalation through client-supplied identifiers.
+
+---
+
+# 18. Capability-Based Helpers
 
 Application code should move toward explicit capability checks.
 
@@ -439,10 +782,23 @@ Capability helpers should:
 - Be reusable across loaders, services, and actions
 - Distinguish view access from management access
 - Provide clear denial reasons where useful
+- Avoid trusting client-supplied actor IDs
+- Return typed results
+
+Recommended result shape:
+
+    {
+      allowed: boolean
+      reason?: string
+      capability?: string
+      workspaceId?: string
+    }
+
+The exact shape may evolve, but capability checks should remain predictable and reusable.
 
 ---
 
-# 13. Recommended Database Direction
+# 19. Recommended Database Direction
 
 The target model includes:
 
@@ -460,31 +816,42 @@ The target model includes:
 
     user_preferences
 
-Existing campaign, purchase, offer, pass, and redemption tables should be inspected before finalizing foreign keys.
+Existing campaign, purchase, offer, pass, and redemption tables must be inspected before finalizing foreign keys.
 
 Do not guess existing column names or relationships.
 
-All schema work must be based on the live schema and repository usage.
+All schema work must be based on:
+
+- The live schema
+- Existing repository usage
+- Current RLS
+- Current foreign keys
+- Current production data
+- Existing Supabase types
+
+If an equivalent table already exists, reuse or extend it rather than creating a duplicate.
 
 ---
 
-# 14. Migration Strategy
+# 20. Migration Strategy
 
 The migration must be additive and backward compatible.
 
 Preferred sequence:
 
-1. Add new entity and relationship tables.
-2. Add indexes, constraints, and RLS.
-3. Add repository and service helpers.
-4. Add capability checks.
-5. Backfill relationships from existing profiles.
-6. Migrate business dashboard reads.
-7. Migrate organization dashboard reads.
-8. Add seller dashboards and campaign attribution.
-9. Migrate customer access to entitlements.
-10. Add unified workspace navigation.
-11. Remove legacy role dependencies only after verification.
+1. Inspect the current schema and authorization model.
+2. Add new entity and relationship tables.
+3. Add indexes, constraints, and RLS.
+4. Generate updated Supabase types.
+5. Add repository modules.
+6. Add capability services.
+7. Backfill relationships from existing profiles.
+8. Migrate business dashboard reads.
+9. Migrate organization dashboard reads.
+10. Add seller dashboards and campaign attribution.
+11. Migrate customer access to entitlements.
+12. Add unified workspace navigation.
+13. Remove legacy role dependencies only after verification.
 
 Do not begin by deleting or renaming existing profile fields.
 
@@ -492,7 +859,36 @@ Do not perform a destructive cutover before new paths are connected and tested.
 
 ---
 
-# 15. Row Level Security
+# 21. Backfill Strategy
+
+Backfills must be deliberate.
+
+Before backfilling:
+
+- Inspect current profile data
+- Identify business profiles
+- Identify organization profiles
+- Identify customer profiles
+- Identify owner profiles
+- Identify duplicate or ambiguous records
+- Verify existing relationships
+- Define selection criteria
+
+Backfill work must document:
+
+- Selection criteria
+- Duplicate handling
+- Unmapped records
+- Recovery strategy
+- Verification counts
+- Affected users
+- Assumptions
+
+Do not hardcode generated user IDs into migrations.
+
+---
+
+# 22. Row Level Security
 
 RLS must remain enabled on all exposed tables.
 
@@ -508,9 +904,13 @@ An organization seller may view their assigned campaign participation and permit
 
 A customer may view their own entitlements.
 
-Users may not assign themselves elevated membership roles.
+Users may not:
 
-Users may not create their own active customer entitlements.
+- Assign themselves elevated membership roles
+- Create active entitlements for themselves
+- Modify unrelated memberships
+- Change protected ownership fields
+- Escalate roles through client requests
 
 Owner-only operations must verify platform owner authorization server-side.
 
@@ -520,7 +920,25 @@ Neither should be treated as a substitute for the other.
 
 ---
 
-# 16. Membership Lifecycle
+# 23. Table Privileges
+
+RLS policies do not replace Postgres table privileges.
+
+Every new table must grant only the privileges required by the intended role.
+
+Examples:
+
+- `authenticated` may need SELECT on membership tables
+- UPDATE should be granted only when the application requires direct client writes
+- INSERT should not be granted broadly for privileged relationships
+- DELETE should be avoided when soft removal is preferred
+- `anon` should not receive access to protected membership or entitlement tables
+
+Prefer server-side actions for privileged writes.
+
+---
+
+# 24. Membership Lifecycle
 
 Membership status should be explicit.
 
@@ -533,15 +951,28 @@ Recommended statuses:
 
 Removing or suspending a membership should not delete the user.
 
-Historical sales and activity should remain attributable after membership removal.
+Historical activity should remain attributable after membership removal.
 
 Role changes should be auditable.
 
 High-risk ownership changes should require stronger confirmation.
 
+A membership may include:
+
+- invited_by
+- invited_at
+- accepted_at
+- suspended_at
+- removed_at
+- removal_reason
+- created_at
+- updated_at
+
+Exact fields should be finalized after schema inspection.
+
 ---
 
-# 17. Invitations
+# 25. Invitations
 
 Membership invitations should eventually support:
 
@@ -554,14 +985,69 @@ Membership invitations should eventually support:
 - Accepted timestamp
 - Inviting user
 - Intended membership role
+- Intended business or organization
 
-Accepting an invitation should attach the membership to the existing authenticated identity whenever the email or verified invitation matches.
+Accepting an invitation should attach the membership to the existing authenticated identity whenever the verified invitation matches.
 
 It should not require creating a second account.
 
+Invitation acceptance must validate:
+
+- Invite validity
+- Expiration
+- Revocation state
+- Target entity
+- Intended role
+- Authenticated identity
+
 ---
 
-# 18. Demo Experiences
+# 26. Ownership Changes
+
+Ownership is high risk.
+
+Business and organization ownership changes should require:
+
+- Verified current owner authorization
+- Verified target user
+- Explicit confirmation
+- Audit logging
+- Protection against removing the final owner accidentally
+- Clear rollback or support path
+
+Ownership should not be changed by editing a generic membership field from the client.
+
+---
+
+# 27. Audit Requirements
+
+The following should be auditable:
+
+- Membership creation
+- Membership acceptance
+- Membership suspension
+- Membership removal
+- Membership role changes
+- Ownership transfer
+- Entitlement grants
+- Entitlement revocation
+- Owner-assisted changes
+- Demo baseline changes
+- Manual demo resets
+
+Audit records should distinguish:
+
+- Actor
+- Subject
+- Workspace
+- Resource
+- Action
+- Reason
+- Timestamp
+
+---
+
+# 28. Demo Experiences
 
 Demo launcher choices currently represent separate demo experiences.
 
@@ -587,18 +1073,66 @@ Demo behavior must not determine production authorization design.
 
 ---
 
-# 19. User Experience Requirements
+# 29. Owner-Managed Demo Baseline
+
+The Owner Dashboard should eventually manage the permanent demo baseline.
+
+The owner should be able to:
+
+- Add demo profiles
+- Remove demo profiles
+- Update demo profiles
+- Enable or disable demo experiences
+- Edit baseline profile information
+- Manage baseline offers
+- Manage baseline campaigns
+- Manage baseline notifications
+- Save the current state as the approved baseline
+- Reset one role
+- Reset all roles
+- Preview each demo experience
+
+Owner-approved baseline changes must persist.
+
+Ordinary demo-user changes must remain temporary.
+
+Reset behavior may include:
+
+- Nightly reset
+- Manual owner reset
+- Per-role reset
+- Safe logout-triggered reset when no active sessions remain
+
+Logout-triggered reset must not erase another visitor's active demo session.
+
+---
+
+# 30. Demo Data Safety
+
+Demo records must be explicitly identifiable.
+
+Reset operations must:
+
+- Scope only to demo identities and demo-owned records
+- Never affect real users
+- Never affect the owner account
+- Restore the latest owner-approved baseline
+- Remove temporary visitor-created records
+- Restore modified baseline records
+- Restore deleted baseline records
+- Restore unread notification states when required
+
+Reset operations must be server-side and protected.
+
+---
+
+# 31. User Experience Requirements
 
 The multi-role system should remain simple for ordinary users.
 
-Users should not need to understand internal terms such as:
+The platform should provide clear, human-friendly experiences.
 
-- Entitlement
-- Membership record
-- Workspace authorization
-- Relationship table
-
-The interface should use clear labels such as:
+Recommended labels:
 
 - My Pass
 - My Fundraising
@@ -606,17 +1140,56 @@ The interface should use clear labels such as:
 - My Businesses
 - Switch Experience
 
-The system should avoid asking users to:
+Avoid exposing internal authorization language in ordinary interfaces.
 
-- Register again
-- Use another email
-- Sign out to change roles
-- Re-enter the same personal information
-- Maintain duplicate profiles
+When a user lacks a capability, explain the next useful action.
+
+Examples:
+
+- Renew your pass
+- Ask an organization admin for access
+- Accept your invitation
+- Contact the business owner
+- Switch to an available workspace
 
 ---
 
-# 20. Non-Negotiables
+# 32. Accessibility and Usability
+
+Workspace switching should be:
+
+- Keyboard accessible
+- Screen-reader friendly
+- Mobile friendly
+- Clear about the active context
+- Clear about expired or unavailable access
+- Consistent across dashboards
+
+Users should always understand:
+
+- Which workspace they are viewing
+- What role they hold in that workspace
+- What actions are available
+- Why an action is unavailable
+
+---
+
+# 33. Security Non-Negotiables
+
+- Never trust the client for authorization.
+- Never expose service-role credentials to the browser.
+- Never use user-editable metadata as the source of authorization.
+- Never let users assign themselves privileged memberships.
+- Never let users create active entitlements for themselves.
+- Never treat a hidden button as authorization.
+- Never treat workspace selection as authorization.
+- Never bypass RLS merely to fix a permission error.
+- Never perform broad destructive migrations without explicit approval.
+- Never remove historical attribution when a membership changes.
+
+---
+
+# 34. Architecture Non-Negotiables
 
 - One person should use one authentication identity.
 - Businesses are entities, not users.
@@ -633,7 +1206,28 @@ The system should avoid asking users to:
 
 ---
 
-# 21. Decision Rule
+# 35. Future Roadmap Alignment
+
+The expected sequence is:
+
+1. Multi-role foundation
+2. Business entities and memberships
+3. Organization entities and memberships
+4. Seller and campaign participation
+5. Customer entitlements
+6. Unified workspace navigation
+7. Membership invitations
+8. Owner-managed demo profiles
+9. Demo reset automation
+10. Legacy role retirement
+
+Each phase should be implemented in focused pull requests.
+
+Avoid combining broad schema changes, dashboard redesign, invitations, demo resets, and entitlement cutovers in one PR.
+
+---
+
+# 36. Decision Rule
 
 When choosing between implementations, prefer the option that best supports:
 
@@ -644,5 +1238,25 @@ When choosing between implementations, prefer the option that best supports:
 5. Reusable capabilities
 6. Simple workspace switching
 7. Long-term scalability
+8. Auditability
+9. User friendliness
+10. Maintainability
 
 Do not optimize only for the fastest short-term implementation.
+
+---
+
+# 37. Final Principle
+
+RaiseHub should feel simple even when the underlying authorization model is sophisticated.
+
+Users should experience:
+
+- One login
+- Clear workspaces
+- Relevant actions
+- No duplicate accounts
+- No lost access to unrelated capabilities
+- Predictable, secure behavior
+
+The system should carry the complexity so the user does not have to.
