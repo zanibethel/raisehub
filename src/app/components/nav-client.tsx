@@ -75,7 +75,7 @@ function NotificationItem({
   notification: NotificationRow
   onRead: (id: string) => void
   onDismiss: (id: string) => void
-  onNavigate: (id: string, url: string) => Promise<{ error?: string }>
+  onNavigate: (id: string) => Promise<{ error?: string }>
 }) {
   const router = useRouter()
   const [actionPending, setActionPending] = useState(false)
@@ -89,7 +89,7 @@ function NotificationItem({
     setActionPending(true)
     setActionError(null)
 
-    const result = await onNavigate(notification.id, notification.action_url)
+    const result = await onNavigate(notification.id)
     if (result.error) {
       setActionError(result.error)
       setActionPending(false)
@@ -262,7 +262,7 @@ function NotificationPanel({
     })
   }
 
-  async function handleActionNavigate(id: string, _url: string): Promise<{ error?: string }> {
+  async function handleActionNavigate(id: string): Promise<{ error?: string }> {
     const notification = notifications.find((n) => n.id === id)
     if (!notification || notification.read_at) return {}
 
