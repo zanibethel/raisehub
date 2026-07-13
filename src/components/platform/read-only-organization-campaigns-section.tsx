@@ -2,6 +2,7 @@ import type {
   OwnerOrganizationCampaignsResult,
   ReadOnlyOrganizationCampaign,
 } from '@/lib/services/owner-organization-campaign-service'
+import CampaignStatusBadge from '@/components/dashboard/campaign-status-badge'
 
 type ReadOnlyOrganizationCampaignsSectionProps = {
   campaignsResult: OwnerOrganizationCampaignsResult | null
@@ -83,9 +84,7 @@ function CampaignCard({
           {campaign.name}
         </h4>
 
-        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-          {campaign.status}
-        </span>
+        <CampaignStatusBadge status={campaign.status} />
       </div>
 
       {campaign.description ? (

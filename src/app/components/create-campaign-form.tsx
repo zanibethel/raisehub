@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { createCampaignAction } from '@/app/organization/actions'
 
-export default function CreateCampaignForm() {
+type CreateCampaignFormProps = {
+  id?: string
+}
+
+export default function CreateCampaignForm({
+  id,
+}: CreateCampaignFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [goalAmount, setGoalAmount] = useState('1000')
@@ -65,7 +71,10 @@ const passesNeeded =
   }
 
   return (
-    <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+    <div
+      id={id}
+      className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+    >
       {/* =========================================
           🏷️ FORM HEADER
       ========================================= */}

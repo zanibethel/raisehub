@@ -6,7 +6,10 @@ import OrganizationDashboardContent from './organization-dashboard-content'
 // =============================================================================
 
 type CampaignPurchase = {
+  id: string
   campaign_id: string
+  user_id: string | null
+  buyer_email: string | null
   amount_paid: number
   platform_fee: number
   organization_earnings: number
@@ -14,10 +17,23 @@ type CampaignPurchase = {
 }
 
 type CampaignMetrics = {
-  sold: number
+  supporterCount: number
+  sellerCount: number
   gross: number
   fees: number
-  earnings: number
+  amountRaised: number
+}
+
+function generateSupporterKey(purchase: CampaignPurchase): string {
+  if (purchase.user_id) {
+    return `user:${purchase.user_id}`
+  }
+
+  if (purchase.buyer_email) {
+    return `email:${purchase.buyer_email.toLowerCase()}`
+  }
+
+  return `guest:${purchase.id}`
 }
 
 // =============================================================================
@@ -55,12 +71,6 @@ export default async function OrganizationDashboard() {
     (campaign) => campaign.status === 'active'
   ).length
 
-  const totalGoal = organizationCampaigns.reduce(
-    (sum, campaign) =>
-      sum + Number(campaign.goal_amount ?? 0),
-    0
-  )
-
   // ===========================================================================
   // Purchase analytics
   // ===========================================================================
@@ -72,10 +82,11 @@ export default async function OrganizationDashboard() {
   let purchases: CampaignPurchase[] = []
 
   if (campaignIds.length > 0) {
+    // Metrics currently include all recorded purchase statuses; add Stripe-paid status filtering once final payment statuses are defined.
     const { data } = await supabase
       .from('campaign_purchases')
       .select(
-        'campaign_id, amount_paid, platform_fee, organization_earnings, seller_name'
+        'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, seller_name'
       )
       .in('campaign_id', campaignIds)
 
@@ -111,21 +122,65 @@ export default async function OrganizationDashboard() {
     CampaignMetrics
   >()
 
+  const supportersByCampaign = new Map<
+    string,
+    Set<string>
+  >()
+
+  const sellersByCampaign = new Map<
+    string,
+    Set<string>
+  >()
+
+  const supporterKeys = new Set<string>()
+
   for (const purchase of purchases) {
     const existing =
       metricsByCampaign.get(purchase.campaign_id) ?? {
-        sold: 0,
+        supporterCount: 0,
+        sellerCount: 0,
         gross: 0,
         fees: 0,
-        earnings: 0,
+        amountRaised: 0,
       }
 
-    existing.sold += 1
     existing.gross += Number(purchase.amount_paid ?? 0)
     existing.fees += Number(purchase.platform_fee ?? 0)
-    existing.earnings += Number(
+    existing.amountRaised += Number(
       purchase.organization_earnings ?? 0
     )
+
+    const supporterKey = generateSupporterKey(purchase)
+
+    supporterKeys.add(supporterKey)
+
+    const campaignSupporters =
+      supportersByCampaign.get(purchase.campaign_id) ??
+      new Set<string>()
+
+    campaignSupporters.add(supporterKey)
+    existing.supporterCount = campaignSupporters.size
+
+    supportersByCampaign.set(
+      purchase.campaign_id,
+      campaignSupporters
+    )
+
+    const seller = purchase.seller_name?.trim()
+
+    if (seller) {
+      const campaignSellers =
+        sellersByCampaign.get(purchase.campaign_id) ??
+        new Set<string>()
+
+      campaignSellers.add(seller)
+      existing.sellerCount = campaignSellers.size
+
+      sellersByCampaign.set(
+        purchase.campaign_id,
+        campaignSellers
+      )
+    }
 
     metricsByCampaign.set(
       purchase.campaign_id,
@@ -175,6 +230,7 @@ export default async function OrganizationDashboard() {
 
   const totalCampaigns = organizationCampaigns.length
   const activeSellerCount = sellerStats.size
+  const totalSupporters = supporterKeys.size
 
   // ===========================================================================
   // Render
@@ -185,7 +241,9 @@ export default async function OrganizationDashboard() {
       totalPassesSold={totalPassesSold}
       totalEarnings={totalEarnings}
       activeCampaigns={activeCampaigns}
-      totalGoal={totalGoal}
+      totalFundsRaised={totalEarnings}
+      totalSellers={activeSellerCount}
+      totalSupporters={totalSupporters}
       grossRevenue={grossRevenue}
       totalFees={totalFees}
       sellers={topSellers}
