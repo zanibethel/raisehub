@@ -181,3 +181,21 @@ Future work should continue moving the platform toward:
 - Secure server-side validation
 
 The goal is to build RaiseHub into a platform that remains understandable, maintainable, secure, scalable, and enjoyable to develop for years to come.
+
+---
+
+# 8. Pull Request Philosophy
+
+RaiseHub favors small, focused pull requests.
+
+Each PR should:
+
+- Solve one primary problem.
+- Keep unrelated changes out of scope.
+- Preserve existing behavior unless intentionally changing it.
+- Include documentation updates when architecture changes.
+- Leave the repository in a working state after every commit.
+
+When future architectural work depends on foundations that do not yet exist, build those foundations first rather than partially implementing multiple future features in a single pull request.
+
+Prefer several well-defined PRs over one large rewrite.
