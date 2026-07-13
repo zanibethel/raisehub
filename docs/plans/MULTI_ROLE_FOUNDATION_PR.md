@@ -1,401 +1,229 @@
 # Multi-Role Foundation PR Plan
 
-**Status:** Planned  
-**Target:** Next RaiseHub pull request  
-**Scope type:** Additive foundation  
+**Status:** Planned\
+**Target:** Next RaiseHub pull request\
+**Scope type:** Additive foundation\
 **User-visible change:** None or minimal
 
-This document defines the approved scope for the first multi-role foundation pull request.
+## Executive Summary
 
-The purpose of this PR is to establish safe database and application foundations for one-user/multiple-capability architecture.
+This PR establishes the technical foundation for RaiseHub's long-term
+identity architecture while preserving the existing application.
 
-This PR must not attempt to complete every business, organization, seller, customer-entitlement, dashboard, invitation, or demo-management feature.
+The goal is **not** to deliver the full multi-role experience. The goal
+is to create the database, authorization, and application foundations
+that later PRs will build upon.
 
-Read `docs/IDENTITY_ACCESS_MODEL.md` before beginning.
+The current production experience must continue working throughout the
+migration.
 
----
+------------------------------------------------------------------------
 
-# 1. Goal
+# Goals
 
-Create the additive technical foundation needed for RaiseHub users to eventually access multiple experiences through one authentication identity.
+-   Preserve existing production behavior.
+-   Introduce additive schema changes.
+-   Prepare for one identity with many capabilities.
+-   Establish memberships and customer entitlements.
+-   Create reusable authorization services.
+-   Avoid destructive migrations.
+-   Keep the PR narrowly scoped.
 
-The PR should establish:
+------------------------------------------------------------------------
 
-- Entity tables where safely possible
-- Membership tables
-- Customer entitlement foundation
-- Constraints and indexes
-- RLS policies
-- Shared TypeScript types
-- Repository boundaries
-- Authorization or capability service foundations
-- Tests or verification queries
-- Documentation updates
+# Required Investigation
 
-The existing application must continue working through the legacy `profiles.role` behavior.
+Before implementation, inspect and document:
 
----
+-   Current profiles schema
+-   Existing role usage
+-   Existing dashboard routing
+-   Business ownership model
+-   Organization ownership model
+-   Campaign ownership
+-   Offer ownership
+-   Purchases and passes
+-   Existing RLS
+-   Existing migrations
+-   Existing generated Supabase types
+-   Existing repository/service architecture
 
-# 2. Required Investigation Before Implementation
+Do not guess schema or relationships.
 
-Before proposing SQL or code, inspect:
+------------------------------------------------------------------------
 
-- Current `profiles` schema
-- Current business-related profile fields
-- Current organization-related data
-- Campaign ownership fields
-- Purchase and pass tables
-- Redemption tables
-- Offer ownership fields
-- Existing RLS policies
-- Existing `is_owner()` or owner authorization behavior
-- Current signup and onboarding flow
-- Current dashboard role routing
-- Current Supabase generated types
-- Existing migration structure
-- Current repository and service conventions
+# Success Criteria
 
-Report findings before broad implementation.
+The PR is successful when:
 
-Do not guess table or column names.
+-   Existing authentication still works.
+-   Existing dashboards still work.
+-   Existing Customer, Business, Organization and Owner experiences
+    remain functional.
+-   New schema is additive.
+-   Capability services exist.
+-   Membership tables are secured with RLS.
+-   Supabase types regenerate successfully.
+-   Production build passes.
+-   Future PRs can implement seller dashboards and unified workspaces
+    without redesigning identity.
 
----
+------------------------------------------------------------------------
 
-# 3. Approved Target Model
+# Scope
 
-The target model should consider:
+This PR may include:
 
-- `businesses`
-- `business_memberships`
-- `organizations`
-- `organization_memberships`
-- `campaign_memberships`
-- `customer_entitlements`
-- `user_preferences`
+-   New membership tables
+-   Customer entitlement foundation
+-   Capability helpers
+-   Shared domain types
+-   Repository modules
+-   RLS policies
+-   Database migrations
+-   Documentation updates
 
-The final PR may implement only the tables that can be introduced safely after schema inspection.
+This PR must NOT include:
 
-If an equivalent entity table already exists, reuse or extend it rather than creating a duplicate.
+-   Dashboard redesign
+-   Workspace switcher
+-   Seller UI
+-   Invitation UI
+-   Demo reset system
+-   Demo management UI
+-   Full data migration
+-   Legacy role removal
 
----
+------------------------------------------------------------------------
 
-# 4. Compatibility Requirement
+# Database Principles
 
-The existing `profiles.role` field must remain functional.
+Use additive migrations only.
 
-This PR must not:
+Never remove or rename existing production columns in this PR.
 
-- Remove `profiles.role`
-- Rename `profiles.role`
-- Make it nullable
-- Replace current dashboard routing
-- Rewrite all onboarding
-- Delete business fields from profiles
-- Delete organization fields
-- Require existing users to re-register
-- Change demo login behavior
-- Break current Customer, Business, Organization, or Owner experiences
+Keep `profiles.role` operational until every dependent feature has
+migrated.
 
-New structures must be additive.
+Inspect the existing schema before creating new tables.
 
----
+Reuse existing entities whenever practical instead of creating
+duplicates.
 
-# 5. Proposed Membership Rules
+------------------------------------------------------------------------
 
-Business membership roles:
+# Authorization
 
-- owner
-- manager
-- staff
-- viewer
+Authorization must be capability based.
 
-Organization membership roles:
+Never trust:
 
-- admin
-- manager
-- seller
-- viewer
+-   client supplied user IDs
+-   query string roles
+-   selected workspace
+-   hidden UI
 
-Membership status values:
+Capability helpers should become the single source of authorization
+logic.
 
-- invited
-- active
-- suspended
-- removed
+------------------------------------------------------------------------
 
-Use constraints or enums only after considering migration flexibility and current Supabase conventions.
+# Recommended Capability Helpers
 
-Membership records should prevent accidental duplicate active relationships for the same user and entity.
+-   canAccessCustomerBenefits
+-   canViewBusiness
+-   canManageBusiness
+-   canViewOrganization
+-   canManageOrganization
+-   canSellForCampaign
+-   canViewSellerProgress
+-   canAccessOwnerPlatform
 
-Historical records should remain attributable.
+Helpers must execute on the server and use verified relationships.
 
----
+------------------------------------------------------------------------
 
-# 6. Customer Entitlement Rules
+# Migration Sequence
 
-Customer access should be designed around an entitlement rather than a permanent profile role.
+1.  Inspect schema.
+2.  Approve implementation plan.
+3.  Create additive migrations.
+4.  Apply RLS and grants.
+5.  Generate Supabase types.
+6.  Build repositories.
+7.  Build capability services.
+8.  Add tests.
+9.  Update documentation.
+10. Verify production behavior.
 
-The foundation should support:
+------------------------------------------------------------------------
 
-- Purchase-created entitlement
-- Owner-granted entitlement
-- Complimentary access
-- Trial access
-- Start time
-- Expiration time
-- Revocation
-- Status
-- Source purchase reference
+# Supabase Requirements
 
-Do not switch current customer authorization to entitlements in this PR unless explicitly approved after foundation verification.
+Every new exposed table must:
 
-This PR may introduce the table and capability logic without connecting every customer screen.
+-   Enable RLS.
+-   Use explicit policies.
+-   Grant only required privileges.
+-   Include supporting indexes.
+-   Prevent self-assignment of privileged roles.
+-   Prevent self-created entitlements.
 
----
+Run Supabase Security and Performance Advisors after schema changes.
 
-# 7. Capability Foundation
+------------------------------------------------------------------------
 
-Create or propose server-side capability helpers.
+# Testing Checklist
 
-Initial targets:
+Verify:
 
-    canAccessCustomerBenefits
+-   Existing login/logout
+-   Existing dashboards
+-   Owner access
+-   Customer access
+-   Business access
+-   Organization access
+-   RLS enforcement
+-   Capability helpers
+-   TypeScript
+-   Lint
+-   Production build
+-   Manual verification
 
-    canViewBusiness
+------------------------------------------------------------------------
 
-    canManageBusiness
+# Risks
 
-    canViewOrganization
+-   Breaking legacy role routing
+-   Duplicate ownership data
+-   Incorrect backfill assumptions
+-   Weak authorization boundaries
 
-    canManageOrganization
+Mitigate by preserving backwards compatibility and documenting every
+assumption.
 
-    canSellForCampaign
+------------------------------------------------------------------------
 
-    canAccessOwnerPlatform
+# Deliverables
 
-Capability helpers should:
+-   Committed migrations
+-   Updated Supabase types
+-   Repository modules
+-   Capability services
+-   Documentation
+-   Verification notes
 
-- Accept authenticated user identity
-- Validate target entity relationships
-- Distinguish viewing from management
-- Return predictable typed results
-- Avoid client-provided role trust
-- Avoid relying only on `profiles.role`
-- Be reusable by routes, loaders, services, and server actions
+------------------------------------------------------------------------
 
-A compatibility fallback to legacy role logic may be used only when clearly documented and necessary to preserve current behavior.
+# Completion Definition
 
----
+The PR is complete when:
 
-# 8. Architecture Requirements
+-   Existing production behavior remains intact.
+-   The multi-role foundation exists.
+-   Authorization is capability-based.
+-   Future PRs can add memberships, seller dashboards, unified
+    workspaces, and customer entitlements without redesigning identity.
 
-Follow the repository architecture:
-
-    Route
-    ↓
-    Loader
-    ↓
-    Service
-    ↓
-    Repository
-    ↓
-    Supabase
-
-Database queries belong in repositories.
-
-Authorization coordination belongs in services or dedicated authorization modules.
-
-Shared deterministic permission mapping should remain framework-independent where practical.
-
-UI components must not become the source of authorization decisions.
-
----
-
-# 9. Supabase Requirements
-
-All new exposed tables must:
-
-- Have RLS enabled
-- Have explicit policies
-- Use appropriate ownership or membership checks
-- Avoid broad authenticated access
-- Avoid `USING (true)` for protected writes
-- Use both `USING` and `WITH CHECK` where required for updates
-- Prevent self-assignment of privileged roles
-- Prevent users from granting themselves entitlements
-- Include required table privileges for intended roles
-- Include indexes for membership and entitlement lookup paths
-
-Do not expose service-role credentials to application clients.
-
-Do not use user-editable metadata for authorization.
-
-Run Supabase security and performance advisors after schema changes.
-
----
-
-# 10. Migration Requirements
-
-Create committed migration files.
-
-Migration work should be:
-
-- Additive
-- Idempotent where practical
-- Clearly named
-- Reviewed before execution
-- Safe against existing production data
-- Free of hardcoded generated user IDs
-- Free of destructive data removal
-
-Do not backfill relationships until the mapping from existing profiles is understood.
-
-If backfill is included, provide:
-
-- Selection criteria
-- Duplicate handling
-- Rollback or recovery plan
-- Verification counts
-- A clear explanation of affected users
-
----
-
-# 11. TypeScript Requirements
-
-Generate or update Supabase types after schema changes.
-
-Create shared domain types for:
-
-- Business membership
-- Organization membership
-- Campaign membership
-- Customer entitlement
-- Capability result
-- Workspace context
-
-Do not create competing duplicate definitions across components.
-
-Avoid `any`.
-
-Do not make required fields optional only to silence build errors.
-
----
-
-# 12. Testing and Verification
-
-At minimum, verify:
-
-- Existing role-based dashboards still load
-- Existing login and logout still work
-- Owner access still works
-- Existing offer and campaign reads are unaffected
-- New tables exist
-- RLS is enabled
-- Anonymous users cannot read protected membership records
-- Users cannot read unrelated protected memberships
-- Users cannot grant themselves privileged membership roles
-- Users cannot grant themselves customer entitlements
-- Valid authorized reads succeed
-- Capability helpers return expected results
-- TypeScript passes
-- Lint passes
-- Production build passes
-- Supabase security advisors are reviewed
-- Supabase performance advisors are reviewed
-
-Document anything not runtime-tested.
-
----
-
-# 13. Explicitly Out of Scope
-
-Do not include these unless separately approved:
-
-- Unified dashboard redesign
-- Workspace switcher UI
-- Full seller dashboard
-- Seller rankings
-- Invitation system
-- Organization member-management UI
-- Business team-management UI
-- Automatic customer entitlement activation
-- Pass-expiration UI
-- Full business data migration
-- Full organization data migration
-- Demo baseline management
-- Demo reset automation
-- Nightly demo reset
-- Logout-triggered demo reset
-- Payment changes
-- Payout changes
-- Broad owner assisted editing
-- Destructive removal of legacy fields
-
-These belong in later focused PRs.
-
----
-
-# 14. Expected Deliverables
-
-The agent should first provide:
-
-1. Existing schema findings
-2. Existing authorization findings
-3. Proposed final schema
-4. Migration sequence
-5. RLS policy design
-6. Code files to add or modify
-7. Compatibility risks
-8. Testing plan
-9. Explicit assumptions
-10. Any blockers requiring owner approval
-
-After approval, the implementation should provide:
-
-- Committed migrations
-- Generated or updated types
-- Repository modules
-- Authorization or capability modules
-- Focused tests or verification scripts
-- Documentation updates
-- Clear PR summary
-- Manual verification instructions
-
----
-
-# 15. Commit Strategy
-
-Prefer small, independently understandable commits.
-
-Suggested order:
-
-1. Documentation and shared types
-2. Database migrations
-3. Generated database types
-4. Repository modules
-5. Capability or authorization services
-6. Tests and verification
-7. Documentation and status updates
-
-Do not intentionally leave broken imports between commits.
-
-Do not mix unrelated visual changes into this PR.
-
----
-
-# 16. Completion Definition
-
-This PR is complete only when:
-
-- The additive foundation exists
-- Existing experiences still work
-- New access structures are secured
-- Capability helpers are available
-- Schema and application types agree
-- Verification is documented
-- No destructive cutover occurred
-- Future PRs can build on the foundation without redesigning identity again
-
-The PR does not need to deliver the final multi-role user interface to be considered complete.
-
-Its purpose is to make that interface safe and straightforward to build next.
+The purpose of this PR is to create a safe foundation---not to finish
+the complete feature set.
