@@ -85,7 +85,7 @@ function NotificationItem({
   const dotColor = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.info
 
   async function handleAction() {
-    if (!notification.action_url || actionPending) return
+    if (!notification.action_url?.trim() || actionPending) return
     setActionPending(true)
     setActionError(null)
 
@@ -262,7 +262,7 @@ function NotificationPanel({
     })
   }
 
-  async function handleActionNavigate(id: string): Promise<{ error?: string }> {
+  async function handleActionNavigate(id: string, _url: string): Promise<{ error?: string }> {
     const notification = notifications.find((n) => n.id === id)
     if (!notification || notification.read_at) return {}
 

@@ -184,6 +184,7 @@ export default function NotificationHistoryClient({
         const isUnread = !n.read_at && !n.dismissed_at
         const canDismiss = !n.dismissed_at
         const isExpired = Boolean(n.expires_at && new Date(n.expires_at) < new Date())
+        const actionUrl = n.action_url
 
         return (
           <div
@@ -227,10 +228,10 @@ export default function NotificationHistoryClient({
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {n.action_url ? (
+                  {actionUrl ? (
                     <button
                       type="button"
-                      onClick={() => handleActionNavigate(n.id, n.action_url!)}
+                      onClick={() => handleActionNavigate(n.id, actionUrl)}
                       disabled={pendingActionId === n.id}
                       className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
                     >
