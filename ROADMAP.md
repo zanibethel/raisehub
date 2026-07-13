@@ -237,3 +237,21 @@ Current deployment:
 ```text
 raisehub.vercel.app
 ```
+
+---
+
+# Next Major Initiative
+
+Following completion of the current documentation and architectural foundation, development will focus on the Multi-Role Foundation.
+
+Primary objectives include:
+
+- One authenticated identity per person
+- Membership-based authorization
+- Customer entitlements
+- Workspace switching
+- Capability-based authorization services
+- Owner-managed demo platform
+- Backward-compatible migration away from legacy profile roles
+
+This initiative forms the architectural bridge between the current dashboard-based platform and the long-term RaiseHub vision.
