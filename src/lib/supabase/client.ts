@@ -1,5 +1,18 @@
 import { createBrowserClient } from '@supabase/ssr'
 
+/**
+ * Returns the Supabase browser client.
+ *
+ * IMPORTANT: This client is only valid in browser environments.
+ * It must be called from event handlers or `useEffect` callbacks —
+ * never from the synchronous component render body — to avoid issues
+ * in environments where Supabase env vars are not configured.
+ *
+ * During server-side rendering (build time without env vars), the function
+ * returns null to prevent `createBrowserClient` from throwing. Any call
+ * to Supabase methods on the returned value during SSR is a bug in the
+ * calling component.
+ */
 export function createClient() {
   // createBrowserClient validates env vars on construction and must only run
   // in a browser environment. Guard against SSR so that client components

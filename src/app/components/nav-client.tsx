@@ -297,8 +297,6 @@ function NotificationPanel({
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
-  const supabase = createClient()
-
   useEffect(() => {
     loadNotifications()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,6 +306,7 @@ function NotificationPanel({
     setLoading(true)
     setError(null)
 
+    const supabase = createClient()
     const { data, error: fetchError } = await supabase
       .from('notifications')
       .select(
@@ -454,25 +453,26 @@ function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const supabase = createClient()
+
+  async function loadCount() {
+    const supabase = createClient()
+    const now = new Date().toISOString()
+
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null)
+      .is('dismissed_at', null)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+
+    setUnreadCount(count ?? 0)
+  }
 
   // Load unread count on mount
   useEffect(() => {
-    async function loadCount() {
-      const now = new Date().toISOString()
-
-      const { count } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .is('read_at', null)
-        .is('dismissed_at', null)
-        .or(`expires_at.is.null,expires_at.gt.${now}`)
-
-      setUnreadCount(count ?? 0)
-    }
-
     loadCount()
-  }, [supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Close on outside click
   useEffect(() => {
@@ -551,18 +551,7 @@ function NotificationBell() {
           <NotificationPanel
             onClose={() => {
               setOpen(false)
-              // Refresh unread count after interactions
-              async function refreshCount() {
-                const now = new Date().toISOString()
-                const { count } = await supabase
-                  .from('notifications')
-                  .select('id', { count: 'exact', head: true })
-                  .is('read_at', null)
-                  .is('dismissed_at', null)
-                  .or(`expires_at.is.null,expires_at.gt.${now}`)
-                setUnreadCount(count ?? 0)
-              }
-              refreshCount()
+              loadCount()
             }}
           />
         </div>

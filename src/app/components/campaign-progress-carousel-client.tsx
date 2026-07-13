@@ -215,7 +215,7 @@ export default function CampaignProgressCarouselClient({
                     className="h-2 rounded-full bg-blue-600 transition-all"
                     style={{ width: `${Math.min(campaign.progress, 100)}%` }}
                     role="progressbar"
-                    aria-valuenow={campaign.progress}
+                    aria-valuenow={Math.min(campaign.progress, 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label={`${campaign.progress.toFixed(0)}% funded`}
