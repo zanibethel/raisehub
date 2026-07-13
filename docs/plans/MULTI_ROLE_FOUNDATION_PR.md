@@ -1,6 +1,6 @@
 # Multi-Role Foundation PR Plan
 
-**Version:** 3.0  
+**Version:** 4.0  
 **Status:** Approved for implementation planning  
 **Target:** Next RaiseHub pull request  
 **Scope type:** Additive architectural foundation  
@@ -205,7 +205,7 @@ These belong in future focused PRs.
 
 # 7. Required Reading
 
-Before implementation, the agent must read:
+Before implementation planning, the repository agent must read:
 
 1. `PROJECT_STATUS.md`
 2. `PRODUCT_VISION.md`
@@ -221,84 +221,93 @@ Before implementation, the agent must read:
 12. `TECHNICAL_AUDIT.md`
 13. `LESSONS_LEARNED.md`
 
-The repository and live schema remain the source of implementation truth.
+Documentation defines the approved direction.
 
-Documentation describes approved direction.
+The repository defines the current implementation.
+
+Approved live Supabase findings supplied by the project owner or another authorized infrastructure reviewer define the verified state of infrastructure that the repository agent cannot inspect directly.
+
+If these sources differ, report the discrepancy rather than silently deciding which source is correct.
 
 ---
 
-# 8. Mandatory Investigation Before Coding
+# 8. Investigation Responsibilities Before Coding
 
-Before proposing SQL or code, inspect and report:
+Investigation is divided between the repository agent and the authorized infrastructure reviewer.
 
-## Identity and Profiles
+The repository agent must not spend tokens repeatedly attempting to access the live Supabase project after that limitation has been established.
 
-- Current `profiles` columns
+## 8.1 Repository Agent Investigation
+
+The repository agent must inspect and report only what is available through the repository.
+
+### Identity and Profiles
+
+- Current committed profile types
 - Current `profiles.role` usage
-- Current profile creation flow
+- Current profile creation code
 - Current signup behavior
 - Current onboarding behavior
-- Current owner authorization behavior
+- Current owner authorization code
 - Current demo account behavior
-- Current profile assumptions in routes and services
+- Current profile assumptions in routes, loaders, services, and components
 
-## Businesses
+### Businesses
 
-- Existing business fields in profiles
-- Existing business tables, if any
+- Existing business fields represented in code or generated types
+- Existing business tables represented in migrations or generated types
 - Current offer ownership model
 - Current business dashboard queries
 - Current subscription fields
-- Current logo and storage behavior
+- Current logo and storage integration
 - Current redemption ownership
 - Current analytics ownership
-- Existing location-related fields
+- Existing location-related code
 
-## Organizations
+### Organizations
 
-- Existing organization tables, if any
+- Existing organization tables represented in migrations or generated types
 - Current campaign ownership model
 - Current organization dashboard queries
 - Existing campaign relationships
-- Existing seller or fundraiser data
+- Existing seller or fundraiser code
 - Existing organization profile assumptions
-- Existing team or subgroup data, if any
+- Existing team or subgroup code
 
-## Customers and Passes
+### Customers and Passes
 
-- Current purchase tables
-- Current pass tables
-- Current redemption tables
+- Current purchase tables represented in migrations or generated types
+- Current pass-related code
+- Current redemption code
 - Current pass expiration logic
 - Current customer dashboard access logic
-- Current membership duration assumptions
-- Current purchase status values
-- Current refund behavior
+- Current membership-duration assumptions
+- Current purchase status handling
+- Current refund-related code
 
-## Authorization
+### Authorization
 
-- Current RLS policies
-- Current `is_owner()` implementation
-- Current security-definer functions
+- Committed RLS migrations and SQL
+- Committed `is_owner()` implementation
+- Committed security-definer functions
 - Current server-side authorization helpers
 - Current route guards
 - Current middleware behavior
 - Current direct Supabase client usage
-- Current service-role usage
+- Current service-role usage in the application
 
-## Database
+### Database Representation in the Repository
 
 - Existing migration structure
 - Existing generated Supabase types
-- Current foreign keys
-- Current indexes
-- Current grants
-- Current exposed schemas
-- Current linter findings
-- Current security advisor findings
-- Current performance advisor findings
+- Committed foreign keys
+- Committed indexes
+- Committed grants
+- Committed schemas
+- Known migration history
+- Any repository documentation describing advisor findings
 
-## Code Architecture
+### Code Architecture
 
 - Existing repositories
 - Existing services
@@ -309,36 +318,96 @@ Before proposing SQL or code, inspect and report:
 - Existing workspace or preview logic
 - Existing test structure
 
-The agent must provide findings before implementation begins.
+The repository agent must clearly label:
+
+- Verified repository facts
+- Assumptions
+- Unknowns
+- Items requiring live Supabase confirmation
+
+## 8.2 Authorized Live Supabase Investigation
+
+The project owner or another authorized infrastructure reviewer separately inspects and reports:
+
+- Actual public tables and columns
+- Actual foreign keys
+- Actual indexes
+- Actual grants
+- Actual RLS enablement and policies
+- Actual functions, triggers, and security-definer behavior
+- Actual exposed schemas
+- Representative production data shape
+- Schema drift between the live project and repository
+- Security Advisor findings
+- Performance Advisor findings
+- Current project health
+- Migration application results
+- Runtime database verification
+
+The repository agent must treat approved live Supabase findings as authoritative unless newer repository changes require revalidation.
+
+## 8.3 Current Approved Live Supabase Findings
+
+At the time this plan was updated, the authorized live review confirmed:
+
+- The RaiseHub project is active and healthy.
+- Existing public tables include `profiles`, `offers`, `campaigns`, `campaign_purchases`, `redemptions`, `saved_offers`, `notifications`, analytics tables, and owner support/preview tables.
+- No dedicated `businesses`, `organizations`, `business_memberships`, `organization_memberships`, `campaign_memberships`, or `customer_entitlements` tables currently exist.
+- The multi-role foundation is therefore additive rather than a replacement of existing entity tables.
+- Existing grants are broader than the intended long-term model on several tables.
+- `owner_action_logs` and `owner_preview_profiles` have RLS enabled but currently have no policies.
+- Some existing public insert policies use unrestricted `WITH CHECK (true)`.
+- Existing security-definer functions require review before reuse.
+- Several existing foreign keys lack covering indexes.
+- Several existing RLS policies have performance advisor findings.
+- Leaked-password protection is currently disabled.
+
+These findings are inputs to planning.
+
+They are not blanket approval to change unrelated existing security or performance behavior in this PR.
+
+Any change to existing policies, grants, functions, authentication settings, or legacy tables must be explicitly included in the approved scope.
 
 ---
 
-# 9. Required Planning Output
+# 9. Required Combined Planning Output
 
-Before writing migrations or application code, the agent must provide:
+Before writing migrations or application code, prepare one combined planning package using:
 
-1. Existing schema findings
-2. Existing authorization findings
-3. Existing code dependency findings
-4. Existing role dependency findings
-5. Proposed final schema
-6. Proposed foreign keys
-7. Proposed indexes
-8. Proposed RLS policies
-9. Proposed grants
-10. Proposed repository modules
-11. Proposed capability services
-12. Proposed generated and domain types
-13. Backward-compatibility plan
-14. Backfill plan, if any
-15. Testing plan
-16. Manual verification plan
-17. Known risks
-18. Explicit assumptions
-19. Open decisions
-20. Owner approvals required
+- Repository findings from the implementation agent
+- Approved live Supabase findings from the authorized reviewer
 
-Broad implementation must not begin until this plan is approved.
+The planning package must include:
+
+1. Verified repository implementation findings
+2. Verified live schema findings supplied by the authorized reviewer
+3. Repository-to-live-schema discrepancies
+4. Existing authorization findings visible in the repository
+5. Existing live authorization findings supplied by the authorized reviewer
+6. Existing code dependency findings
+7. Existing legacy-role dependency findings
+8. Proposed foundation schema
+9. Proposed foreign keys
+10. Proposed indexes
+11. Proposed RLS policies
+12. Proposed table grants
+13. Proposed repository modules
+14. Proposed capability services
+15. Proposed generated and domain types
+16. Backward-compatibility plan
+17. Backfill plan, if any
+18. Application testing plan
+19. Live migration verification plan
+20. Runtime verification plan
+21. Rollback and recovery plan
+22. Known risks
+23. Explicit assumptions
+24. Open decisions
+25. Owner approvals required
+
+Broad implementation must not begin until this combined plan is approved.
+
+The repository agent should not independently apply live migrations or claim live verification.
 
 ---
 
@@ -1207,9 +1276,9 @@ If a security-definer function is truly required:
 - Revoke broad execute privileges
 - Avoid exposed public functions when possible
 - Document why it is required
-- Run Supabase advisors afterward
+- Require the authorized infrastructure reviewer to run Supabase advisors afterward
 
-Existing functions such as `is_owner()` must be inspected before reuse.
+The repository agent must inspect the committed implementation of functions such as `is_owner()` before reuse. The authorized infrastructure reviewer must separately confirm the live function definition, grants, and runtime behavior.
 
 ---
 
@@ -1420,9 +1489,27 @@ The PR must include a testing plan covering:
 
 ---
 
-# 49. Minimum Runtime Verification
+# 49. Minimum Verification
 
-At minimum, verify:
+Verification is divided between the repository agent and the authorized infrastructure reviewer.
+
+## Repository Agent Verification
+
+The repository agent must verify:
+
+- TypeScript passes
+- Lint passes
+- Production build passes
+- Existing routes and imports remain intact
+- Existing role compatibility code remains intact
+- New repositories and capability services have focused tests
+- Migration files are committed
+- Generated types and domain types match the approved schema design
+- Documentation accurately states what has and has not been verified
+
+## Authorized Live Verification
+
+After approved migrations are applied, the authorized infrastructure reviewer must verify:
 
 - Existing customer login works
 - Existing business login works
@@ -1434,34 +1521,37 @@ At minimum, verify:
 - Existing notification reads and updates work
 - New tables exist
 - RLS is enabled
+- Required grants are present
+- Unnecessary grants are absent on new tables
 - Valid authorized reads succeed
 - Invalid cross-user reads fail
 - Invalid cross-entity reads fail
 - Users cannot self-assign privileged roles
 - Users cannot grant themselves entitlements
-- TypeScript passes
-- Lint passes
-- Production build passes
+- Advisor results are reviewed
 
+The PR must not be described as runtime verified until the authorized live verification is complete.
 ---
 
 # 50. Supabase Advisor Review
 
-After schema changes, run:
+The authorized infrastructure reviewerânot the repository-only implementation agentâmust run after live schema changes:
 
-- Security advisors
-- Performance advisors
+- Security Advisors
+- Performance Advisors
 
-Document:
+The reviewer must document:
 
-- New findings
+- New findings caused by the PR
 - Existing unrelated findings
-- Fixed findings
-- Deferred findings
+- Findings fixed by the PR
+- Findings intentionally deferred
 - Reasons for deferral
+- Whether additional focused security work is required
 
-Do not claim the schema is secure merely because migrations succeeded.
+The repository agent may update documentation using the approved advisor results.
 
+Do not claim the schema is secure merely because migrations succeeded or the application build passed.
 ---
 
 # 51. Performance Requirements
@@ -1606,24 +1696,27 @@ Unless separately approved, do not include:
 
 # 56. Deliverables Before Implementation
 
-The agent must first deliver:
+Before implementation begins, the combined planning package must include:
 
-1. Schema findings
-2. Authorization findings
-3. Code dependency findings
-4. Proposed schema
-5. Proposed policies
-6. Proposed grants
-7. Proposed indexes
-8. Proposed repositories
-9. Proposed services
-10. Proposed types
-11. Compatibility plan
-12. Testing plan
-13. Risk assessment
-14. Assumptions
-15. Owner approvals required
+1. Repository findings from the implementation agent
+2. Approved live Supabase findings from the authorized reviewer
+3. Repository-to-database drift findings
+4. Existing authorization findings
+5. Proposed schema
+6. Proposed policies
+7. Proposed grants
+8. Proposed indexes
+9. Proposed repositories
+10. Proposed services
+11. Proposed types
+12. Compatibility plan
+13. Application testing plan
+14. Live verification plan
+15. Risk assessment
+16. Assumptions
+17. Owner approvals required
 
+The repository agent is not required to rediscover live findings that have already been supplied.
 ---
 
 # 57. Implementation Deliverables
@@ -1639,7 +1732,7 @@ After approval, the PR should include:
 - Documentation updates
 - PR summary
 - Manual verification instructions
-- Advisor results
+- Approved advisor results supplied by the authorized infrastructure reviewer
 - Known limitations
 - Future migration notes
 
@@ -1682,7 +1775,7 @@ Reviewers should confirm:
 - Legacy compatibility is explicit
 - Types match schema
 - Tests cover denials
-- Advisors were reviewed
+- Authorized live advisor results were reviewed
 - Documentation was updated
 - Out-of-scope features were deferred
 
@@ -1715,13 +1808,13 @@ The PR is successful when:
 
 This PR is complete only when:
 
-- Investigation findings are documented
-- The approved additive schema exists
+- Repository and approved live infrastructure findings are documented
+- The approved additive schema is committed and applied
 - Existing production behavior remains functional
 - New tables are secured
 - Capability helpers are available
 - Repositories exist
-- Supabase types are current
+- Supabase types are current after the verified live schema change
 - Verification is documented
 - No destructive cutover occurred
 - No broad backfill occurred without approval
