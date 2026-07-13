@@ -94,7 +94,7 @@ The design should support growth without forcing premature implementation of eve
 
 RaiseHub uses:
 
-**One person â one authenticated identity â many capabilities**
+**One person → one authenticated identity → many capabilities**
 
 The platform should separate:
 
