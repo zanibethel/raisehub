@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import Nav from './components/nav'
 import DemoBanner from './components/demo-banner'
+import DemoBannerCTA from './components/demo-banner-cta'
 import { getAppMode } from '@/lib/app-mode'
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-app-mode={appMode}>
       <body className="bg-slate-100 text-gray-900">
-        <DemoBanner />
+        <DemoBanner cta={<DemoBannerCTA />} />
         <Nav />
         {children}
       </body>

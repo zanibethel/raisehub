@@ -18,25 +18,42 @@ type LogoCarouselClientProps = {
   partners: PartnerProfile[]
 }
 
+// Logos are small and glanceable; a moderate speed is fine.
+const SCROLL_PX_PER_FRAME = 3
+
 export default function LogoCarouselClient({
   partners,
 }: LogoCarouselClientProps) {
   const [selectedPartner, setSelectedPartner] =
     useState<PartnerProfile | null>(null)
   const [isPaused, setIsPaused] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
+  const scrollResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isAutoScrollingRef = useRef(false)
 
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    function onChange(e: MediaQueryListEvent) {
+      setReducedMotion(e.matches)
+      if (e.matches) setIsPaused(true)
+    }
+
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   // =========================================
-  // 🎠 AUTO-SCROLL USING REAL SCROLL POSITION
+  // 🎠 AUTO-SCROLL
   // =========================================
   useEffect(() => {
-    if (!scrollRef.current || !partners?.length) return
+    if (!scrollRef.current || !partners?.length || reducedMotion) return
 
     let raf: number
 
@@ -46,7 +63,7 @@ export default function LogoCarouselClient({
 
       if (!isPaused && !selectedPartner) {
         isAutoScrollingRef.current = true
-        currentEl.scrollLeft += 75.5
+        currentEl.scrollLeft += SCROLL_PX_PER_FRAME
 
         setTimeout(() => {
           isAutoScrollingRef.current = false
@@ -63,7 +80,7 @@ export default function LogoCarouselClient({
     raf = requestAnimationFrame(loop)
 
     return () => cancelAnimationFrame(raf)
-  }, [isPaused, selectedPartner, partners])
+  }, [isPaused, selectedPartner, partners, reducedMotion])
 
   // =========================================
   // ⏸️ PAUSE / RESUME HELPERS
@@ -71,46 +88,32 @@ export default function LogoCarouselClient({
   function pauseCarousel() {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
     if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current)
-
     setIsPaused(true)
   }
 
   function resumeCarouselWithDelay() {
+    if (reducedMotion) return
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
-
-    resumeTimerRef.current = setTimeout(() => {
-      setIsPaused(false)
-    }, 800)
+    resumeTimerRef.current = setTimeout(() => setIsPaused(false), 1500)
   }
 
-  // =========================================
-  // 📱 MANUAL SCROLL RESUME HELPER
-  // Ignores auto-scroll events, pauses true user scroll,
-  // then resumes after manual scrolling stops.
-  // =========================================
   function handleManualScroll() {
     if (isAutoScrollingRef.current) return
-
     setIsPaused(true)
-
-    if (scrollResumeTimerRef.current) {
-      clearTimeout(scrollResumeTimerRef.current)
-    }
-
+    if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current)
     scrollResumeTimerRef.current = setTimeout(() => {
-      setIsPaused(false)
-    }, 900)
+      if (!reducedMotion) setIsPaused(false)
+    }, 1500)
   }
 
   if (!partners?.length) return null
 
-  // =========================================
-  // 🔁 LOOP DATA
-  // =========================================
-  const repeatedPartners = Array.from(
-    { length: Math.max(partners.length * 6, 24) },
-    (_, index) => partners[index % partners.length]
-  )
+  const displayPartners = reducedMotion
+    ? partners
+    : Array.from(
+        { length: Math.max(partners.length * 6, 24) },
+        (_, index) => partners[index % partners.length]
+      )
 
   // =========================================
   // 🧱 LOGO CARD
@@ -133,8 +136,8 @@ export default function LogoCarouselClient({
           pauseCarousel()
           setSelectedPartner(partner)
         }}
-        className="flex h-20 w-32 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition hover:scale-105 hover:border-green-200 sm:h-24 sm:w-40 sm:p-4"
-        title={name}
+        className="flex h-20 w-32 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition hover:scale-105 hover:border-green-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:h-24 sm:w-40 sm:p-4"
+        aria-label={`View ${name} details`}
       >
         <img
           src={partner.logo_url || '/default-business-logo.png'}
@@ -147,7 +150,10 @@ export default function LogoCarouselClient({
 
   return (
     <>
-      <section className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-4 shadow-xl sm:p-6">
+      <section
+        className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-4 shadow-xl sm:p-6"
+        aria-label="Local Partners carousel"
+      >
         {/* =========================================
             🏷️ SECTION HEADER
         ========================================= */}
@@ -161,10 +167,12 @@ export default function LogoCarouselClient({
         </div>
 
         {/* =========================================
-            🎠 REAL SCROLL CAROUSEL
+            🎠 CAROUSEL
         ========================================= */}
         <div
           ref={scrollRef}
+          role="list"
+          aria-label="Partner logos"
           onMouseEnter={pauseCarousel}
           onMouseLeave={resumeCarouselWithDelay}
           onTouchStart={pauseCarousel}
@@ -174,14 +182,19 @@ export default function LogoCarouselClient({
           onPointerUp={resumeCarouselWithDelay}
           onWheel={pauseCarousel}
           onScroll={handleManualScroll}
+          onFocus={pauseCarousel}
+          onBlur={resumeCarouselWithDelay}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 sm:gap-6"
+          style={{ scrollSnapType: reducedMotion ? 'x mandatory' : undefined }}
         >
-          {repeatedPartners.map((partner, index) => (
-            <LogoCard
+          {displayPartners.map((partner, index) => (
+            <div
               key={`${partner.id}-${index}`}
-              partner={partner}
-              index={index}
-            />
+              role="listitem"
+              style={reducedMotion ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              <LogoCard partner={partner} index={index} />
+            </div>
           ))}
         </div>
       </section>
@@ -190,7 +203,18 @@ export default function LogoCarouselClient({
           🪪 PARTNER DETAILS MODAL
       ========================================= */}
       {selectedPartner ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selectedPartner.display_name || selectedPartner.business_name || 'Partner'} details`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedPartner(null)
+              resumeCarouselWithDelay()
+            }
+          }}
+        >
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start gap-4">
               <img
