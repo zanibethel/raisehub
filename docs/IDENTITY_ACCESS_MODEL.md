@@ -153,6 +153,141 @@ Those are separate records and relationships.
 
 One person must not need duplicate profiles merely to access multiple areas of RaiseHub.
 
+## Personal Profile Management
+
+Every authenticated person should have access to a workspace-independent **Manage Profile** experience.
+
+The account menu should eventually provide:
+
+- Dashboard
+- Manage Profile
+- Switch Experience, when multi-role workspaces are connected
+- Sign out
+
+The Manage Profile experience controls the person's own account information.
+
+It must remain separate from business, organization, campaign, and location settings.
+
+### Personal Information
+
+A person should be able to manage approved personal fields such as:
+
+- Full name
+- Display name
+- Profile image
+- Phone number
+- Address line 1
+- Address line 2
+- City
+- State
+- Postal code
+- Accessibility preferences
+- Notification preferences
+
+Personal address fields should be structured rather than stored only as one free-form string.
+
+The exact address model should be based on actual product requirements and current schema inspection.
+
+### Separation From Entity Information
+
+Changing a personal profile must not automatically change:
+
+- A business address
+- A business location
+- A business phone number
+- An organization address
+- An organization phone number
+- Campaign contact information
+- Public offer contact information
+
+Business and organization contact information belongs to those entities and should be managed from the relevant workspace by a user with the required capability.
+
+This separation prevents a person's home or mailing address from being treated as the public address of every business or organization they manage.
+
+### Email Changes
+
+Email changes affect authentication identity and require a protected flow.
+
+The intended flow is:
+
+1. The authenticated person requests a new email address.
+2. The server confirms the current authenticated identity.
+3. Re-authentication or another recent-login check is required when appropriate.
+4. Supabase Auth sends the required verification message.
+5. The account remains the same identity throughout the change.
+6. The new email becomes active only after the required verification succeeds.
+7. Any duplicated profile email field is synchronized only after the authentication email change is confirmed.
+
+Email changes must not:
+
+- Create a second profile
+- Create a second membership set
+- Create a second customer entitlement
+- Transfer ownership to another identity
+- Trust an unverified email supplied by the client
+- Leave `auth.users.email` and a duplicated profile email permanently out of sync
+
+If the requested email already belongs to another identity, the operation must stop and provide a clear recovery or support path.
+
+### Phone and Address Changes
+
+Phone and personal-address changes should:
+
+- Require an authenticated session
+- Validate and normalize input
+- Preserve unrelated memberships and entitlements
+- Avoid changing entity contact information
+- Record `updated_at`
+- Support stronger verification later if phone-based authentication or recovery is introduced
+
+### Password and Account Security
+
+Manage Profile should provide or link to approved account-security actions such as:
+
+- Change password
+- Reset password
+- Review verified email
+- Review authentication providers
+- Sign out other sessions, when supported
+- Account deletion or deactivation, when implemented
+
+High-risk authentication changes should use Supabase Auth-supported flows rather than custom password handling.
+
+Passwords must never be stored in `profiles` or application-managed tables.
+
+### Authorization
+
+A person may update only their own personal profile unless an explicitly approved owner-support workflow is used.
+
+The actor identity must be resolved from the verified server session.
+
+The client must not choose the profile owner by submitting a different `userId`.
+
+Entity managers may manage entity information but must not gain permission to edit another person's private profile merely because that person belongs to their business or organization.
+
+### Audit and Notifications
+
+High-risk personal-account changes should be auditable when appropriate.
+
+Examples include:
+
+- Email-change request
+- Confirmed email change
+- Password change
+- Recovery-method change
+- Account deletion request
+- Owner-assisted account correction
+
+The person should receive a clear confirmation or security notification after sensitive changes.
+
+### Scope and Sequencing
+
+Personal profile management is a planned account feature.
+
+It is not required to expand the first multi-role foundation PR unless current profile code must be adjusted to preserve compatibility.
+
+The multi-role foundation must avoid designs that make a later workspace-independent Manage Profile experience difficult to implement.
+
 ---
 
 # 4. Existing Legacy Role
