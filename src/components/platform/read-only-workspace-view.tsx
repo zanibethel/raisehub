@@ -84,7 +84,7 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
         {
           title: 'Campaigns',
           description:
-            'Review draft, active, completed, and archived fundraising campaigns.',
+            'Review draft, active, paused, completed, and archived fundraising campaigns.',
           status: 'available',
         },
         {

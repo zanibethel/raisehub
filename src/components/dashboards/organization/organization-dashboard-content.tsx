@@ -48,10 +48,10 @@ export default function OrganizationDashboardContent(
   return (
     <div className="mt-8 space-y-8">
       <OrganizationSummarySection
-        totalPassesSold={props.totalPassesSold}
-        totalEarnings={props.totalEarnings}
         activeCampaigns={props.activeCampaigns}
-        totalGoal={props.totalGoal}
+        totalFundsRaised={props.totalFundsRaised}
+        totalSellers={props.totalSellers}
+        totalSupporters={props.totalSupporters}
       />
 
       <OrganizationAnalyticsSection
