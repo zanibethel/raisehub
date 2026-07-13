@@ -199,6 +199,8 @@ Status: **Partially complete**
 - [ ] Hide demo records from production users
 - [ ] Add resettable demo state
 
+**Architecture note:** Demo launcher roles (Customer / Business / Organization) currently represent distinct demo experiences implemented as separate accounts. They do not reflect the final one-user/multiple-memberships authorization model. Multi-role memberships and customer entitlements will be implemented in a separate foundational PR.
+
 ## Environment Separation
 
 - [ ] Create a separate development Supabase project or branch
