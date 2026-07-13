@@ -24,15 +24,16 @@ Before proposing or changing RaiseHub code, read:
 1. `PROJECT_STATUS.md`
 2. `PRODUCT_VISION.md`
 3. `ROADMAP.md`
-4. `HERMES_PLAYBOOK.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/AI_DEVELOPMENT_GUIDE.md`
-7. `docs/DEVELOPMENT_WORKFLOW.md`
-8. `docs/SUPABASE_STANDARDS.md`
-9. `docs/OWNER_PLATFORM.md`
-10. `docs/DOCUMENTATION_STANDARDS.md`
-11. `TECHNICAL_AUDIT.md`
-12. `LESSONS_LEARNED.md`
+4. HERMES_PLAYBOOK.md
+5. docs/ARCHITECTURE.md
+6. docs/IDENTITY_ACCESS_MODEL.md
+7. docs/AI_DEVELOPMENT_GUIDE.md
+8. docs/DEVELOPMENT_WORKFLOW.md
+9. docs/SUPABASE_STANDARDS.md
+10. docs/OWNER_PLATFORM.md
+11. docs/DOCUMENTATION_STANDARDS.md
+12. TECHNICAL_AUDIT.md
+13. LESSONS_LEARNED.md
 
 Read additional domain documents when the requested work touches those areas.
 
