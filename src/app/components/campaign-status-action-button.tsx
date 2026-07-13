@@ -28,8 +28,15 @@ export default function CampaignStatusActionButton({
 
   async function handleAction() {
     if (confirmMessage) {
+      const safeCampaignName = campaignName
+        .replace(/\r?\n/g, ' ')
+        .replace(/"/g, '\\"')
+
       const confirmed = window.confirm(
-        confirmMessage.replace('{campaignName}', campaignName)
+        confirmMessage.replace(
+          '{campaignName}',
+          safeCampaignName
+        )
       )
 
       if (!confirmed) {

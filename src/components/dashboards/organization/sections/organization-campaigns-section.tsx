@@ -31,6 +31,28 @@ type OrganizationCampaignsSectionProps = {
   metricsByCampaign: Record<string, CampaignMetrics>
 }
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return '—'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+
+  return date.toLocaleDateString()
+}
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -39,28 +61,6 @@ export default function OrganizationCampaignsSection({
   campaigns,
   metricsByCampaign,
 }: OrganizationCampaignsSectionProps) {
-  function formatCurrency(value: number) {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(value)
-  }
-
-  function formatCreatedAt(value: string | null) {
-    if (!value) {
-      return '—'
-    }
-
-    const date = new Date(value)
-
-    if (Number.isNaN(date.getTime())) {
-      return '—'
-    }
-
-    return date.toLocaleDateString()
-  }
-
   return (
     <>
       <CreateCampaignForm id="create-campaign" />
@@ -131,7 +131,7 @@ export default function OrganizationCampaignsSection({
                         </td>
 
                         <td className="px-3 py-4 text-sm text-gray-600">
-                          {formatCreatedAt(campaign.created_at)}
+                          {formatDate(campaign.created_at)}
                         </td>
 
                         <td className="px-3 py-4">
@@ -210,7 +210,7 @@ export default function OrganizationCampaignsSection({
                             Created
                           </dt>
                           <dd className="mt-1 font-semibold text-gray-800">
-                            {formatCreatedAt(campaign.created_at)}
+                            {formatDate(campaign.created_at)}
                           </dd>
                         </div>
                       </dl>

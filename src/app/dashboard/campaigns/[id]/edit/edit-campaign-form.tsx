@@ -40,24 +40,41 @@ export default function EditCampaignForm({
     setLoading(true)
     setMessage('')
 
-    const result = await updateCampaignAction({
-      campaignId,
-      name,
-      description,
-      goal_amount: Number(goalAmount) || 0,
-      pass_price: Number(passPrice) || 0,
-      starts_at: startsAt,
-      ends_at: endsAt,
-    })
+    const goalValue = Number(goalAmount)
+    const passPriceValue = Number(passPrice)
 
-    if (result.error) {
-      setMessage(result.error)
+    if (
+      goalAmount.trim() === '' ||
+      passPrice.trim() === '' ||
+      !Number.isFinite(goalValue) ||
+      !Number.isFinite(passPriceValue)
+    ) {
+      setMessage('Enter valid values for goal amount and pass price.')
       setLoading(false)
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    try {
+      const result = await updateCampaignAction({
+        campaignId,
+        name,
+        description,
+        goal_amount: goalValue,
+        pass_price: passPriceValue,
+        starts_at: startsAt,
+        ends_at: endsAt,
+      })
+
+      if (result.error) {
+        setMessage(result.error)
+        return
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

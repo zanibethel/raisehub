@@ -24,6 +24,18 @@ type CampaignMetrics = {
   amountRaised: number
 }
 
+function generateSupporterKey(purchase: CampaignPurchase): string {
+  if (purchase.user_id) {
+    return `user:${purchase.user_id}`
+  }
+
+  if (purchase.buyer_email) {
+    return `email:${purchase.buyer_email.toLowerCase()}`
+  }
+
+  return `guest:${purchase.id}`
+}
+
 // =============================================================================
 // Organization dashboard loader
 // =============================================================================
@@ -137,11 +149,7 @@ export default async function OrganizationDashboard() {
       purchase.organization_earnings ?? 0
     )
 
-    const supporterKey = purchase.user_id
-      ? `user:${purchase.user_id}`
-      : purchase.buyer_email
-        ? `email:${purchase.buyer_email.toLowerCase()}`
-        : `guest:${purchase.id}`
+    const supporterKey = generateSupporterKey(purchase)
 
     supporterKeys.add(supporterKey)
 
