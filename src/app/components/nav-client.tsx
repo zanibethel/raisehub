@@ -307,6 +307,8 @@ function NotificationPanel({
     setError(null)
 
     const supabase = createClient()
+    // createClient() returns null during SSR (no browser env). These functions are
+    // called only from useEffect/event handlers so null should never occur at runtime.
     if (!supabase) { setLoading(false); return }
 
     const { data, error: fetchError } = await supabase

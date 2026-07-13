@@ -215,6 +215,9 @@ export default function CampaignProgressCarouselClient({
                     className="h-2 rounded-full bg-blue-600 transition-all"
                     style={{ width: `${Math.min(campaign.progress, 100)}%` }}
                     role="progressbar"
+                    // aria-valuenow is clamped to 100 because the visual bar cannot exceed full.
+                    // The unclamped percentage (e.g. "125% funded") is conveyed via aria-label
+                    // and the text above, so screen readers see the same figure sighted users do.
                     aria-valuenow={Math.min(campaign.progress, 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
