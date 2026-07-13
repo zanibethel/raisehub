@@ -307,6 +307,8 @@ function NotificationPanel({
     setError(null)
 
     const supabase = createClient()
+    if (!supabase) { setLoading(false); return }
+
     const { data, error: fetchError } = await supabase
       .from('notifications')
       .select(
@@ -456,6 +458,7 @@ function NotificationBell() {
 
   async function loadCount() {
     const supabase = createClient()
+    if (!supabase) return
     const now = new Date().toISOString()
 
     const { count } = await supabase
@@ -603,6 +606,7 @@ function AccountMenu({
 
     try {
       const supabase = createClient()
+      if (!supabase) throw new Error('Auth client unavailable.')
       const { error } = await supabase.auth.signOut()
 
       if (error) {
@@ -713,7 +717,7 @@ function MobileMenu({
   async function handleLogout() {
     setLoggingOut(true)
     const supabase = createClient()
-    await supabase.auth.signOut()
+    if (supabase) await supabase.auth.signOut()
     window.location.href = '/'
   }
 
