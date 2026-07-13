@@ -1,30 +1,17 @@
 import Link from 'next/link'
+import type {
+  WorkspaceCardData,
+  WorkspaceRole,
+} from '@/lib/types/identity-access'
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type WorkspaceRole =
-  | 'business'
-  | 'organization'
-  | 'customer'
-
-export type WorkspaceCardData = {
-  id: string
-  name: string
-  role: WorkspaceRole
-  subtitle?: string | null
-  status?: string | null
-
-  planLabel?: string | null
-  setupPercentage?: number | null
-  completedSetupItems?: number | null
-  totalSetupItems?: number | null
-  missingSetupItems?: string[]
-
-  email?: string | null
-  phone?: string | null
-}
+export type {
+  WorkspaceCardData,
+  WorkspaceRole,
+} from '@/lib/types/identity-access'
 
 // =============================================================================
 // Props

@@ -1,7 +1,7 @@
 import type {
   WorkspaceCardData,
   WorkspaceRole,
-} from '@/components/platform/workspace-card'
+} from '@/lib/types/identity-access'
 import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
 import ReadOnlyOrganizationCampaignsSection from '@/components/platform/read-only-organization-campaigns-section'
 import ReadOnlyCustomerActivitySection from '@/components/platform/read-only-customer-activity-section'

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type {
   WorkspaceCardData,
   WorkspaceRole,
-} from '@/components/platform/workspace-card'
+} from '@/lib/types/identity-access'
 
 // =============================================================================
 // Types

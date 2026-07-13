@@ -1,7 +1,7 @@
 import type {
   WorkspaceCardData,
   WorkspaceRole,
-} from '@/components/platform/workspace-card'
+} from '@/lib/types/identity-access'
 import type { WorkspaceSupportMode } from '@/components/platform/selected-workspace-panel'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
