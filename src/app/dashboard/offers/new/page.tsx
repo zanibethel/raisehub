@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -51,7 +53,6 @@ const emptyDraft: OfferDraft = {
 
 export default function NewOfferPage() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [checkingProfile, setCheckingProfile] = useState(true)
   const [publishing, setPublishing] = useState(false)
@@ -71,6 +72,7 @@ export default function NewOfferPage() {
 
   useEffect(() => {
     async function loadBusinessProfile() {
+      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -106,7 +108,7 @@ export default function NewOfferPage() {
     }
 
     loadBusinessProfile()
-  }, [router, supabase])
+  }, [router])
 
   function handleGoalSelect(goal: OfferGoal) {
     setSelectedGoal(goal)
@@ -147,6 +149,7 @@ export default function NewOfferPage() {
     setSavingCategory(true)
     setMessage('')
 
+    const supabase = createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -222,6 +225,7 @@ export default function NewOfferPage() {
   }
 
   async function publishOffer() {
+    if (publishing) return
     setPublishing(true)
     setMessage('')
 
@@ -235,22 +239,26 @@ export default function NewOfferPage() {
       .filter(Boolean)
       .join('\n\n')
 
-    const result = await createOfferAction({
-      title: offerDraft.title.trim(),
-      discount: offerDraft.memberBenefit.trim(),
-      description: completeDescription,
-      starts_at: offerDraft.startsAt || undefined,
-      ends_at: offerDraft.endsAt || undefined,
-    })
+    try {
+      const result = await createOfferAction({
+        title: offerDraft.title.trim(),
+        discount: offerDraft.memberBenefit.trim(),
+        description: completeDescription,
+        starts_at: offerDraft.startsAt || undefined,
+        ends_at: offerDraft.endsAt || undefined,
+      })
 
-    if (result.error) {
-      setMessage(result.error)
+      if (result.error) {
+        setMessage(result.error)
+        return
+      }
+
+      router.replace('/dashboard?offerCreated=true')
+    } catch {
+      setMessage('An unexpected error occurred. Please try again.')
+    } finally {
       setPublishing(false)
-      return
     }
-
-    router.push('/dashboard?offerCreated=true')
-    router.refresh()
   }
 
   if (checkingProfile) {

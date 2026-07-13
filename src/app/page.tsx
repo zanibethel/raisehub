@@ -61,7 +61,7 @@ export default async function HomePage() {
           {user ? (
   <Link
     href="/dashboard"
-    className="..."
+    className="rounded-xl border border-blue-300 bg-white/90 px-6 py-3 font-medium text-blue-700 shadow-lg transition hover:bg-white hover:shadow-xl"
   >
     View Dashboard
   </Link>
@@ -142,35 +142,62 @@ export default async function HomePage() {
       </div>
 
       {/* =========================================
-          🧱 ROLE VALUE CARDS
+          🧭 CHOOSE YOUR PATH SECTION
       ========================================= */}
-      <div className="mx-auto mt-16 grid max-w-5xl gap-6 md:grid-cols-3">
-        <div className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-blue-700">For schools</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Launch digital fundraising passes that supporters can buy online and
-            use for months.
+      <div className="mx-auto mt-16 max-w-5xl">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-blue-700">Choose Your Path</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+            RaiseHub works differently depending on your role. Find the path that fits you.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-green-700">
-            For businesses
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Promote local offers, attract new customers, and track redemption
-            performance in one place.
-          </p>
-        </div>
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          <div className="flex flex-col rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+            <h2 className="text-lg font-semibold text-blue-700">For schools &amp; organizations</h2>
+            <p className="mt-2 flex-1 text-sm text-gray-600">
+              Launch digital fundraising passes that supporters can buy online and
+              use for months.
+            </p>
+            <Link
+              href="/how-it-works/organizations"
+              className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Start a Fundraiser
+            </Link>
+          </div>
 
-        <div className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-          <h2 className="text-lg font-semibold text-yellow-600">
-            For supporters
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Buy a pass, save money at local businesses, and help fund programs
-            that matter.
-          </p>
+          <div className="flex flex-col rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+            <h2 className="text-lg font-semibold text-green-700">
+              For businesses
+            </h2>
+            <p className="mt-2 flex-1 text-sm text-gray-600">
+              Promote local offers, attract new customers, and track redemption
+              performance in one place.
+            </p>
+            <Link
+              href="/how-it-works/businesses"
+              className="mt-4 inline-block rounded-xl bg-green-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-green-700"
+            >
+              Join as a Business
+            </Link>
+          </div>
+
+          <div className="flex flex-col rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+            <h2 className="text-lg font-semibold text-yellow-600">
+              For supporters
+            </h2>
+            <p className="mt-2 flex-1 text-sm text-gray-600">
+              Buy a pass, save money at local businesses, and help fund programs
+              that matter.
+            </p>
+            <Link
+              href="/campaigns"
+              className="mt-4 inline-block rounded-xl bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700"
+            >
+              Browse Fundraisers
+            </Link>
+          </div>
         </div>
       </div>
 

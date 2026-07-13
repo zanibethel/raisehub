@@ -4,32 +4,19 @@
 // (NEXT_PUBLIC_APP_MODE=demo). Returns null otherwise,
 // so production renders nothing here at all.
 //
-// The action area (buttons like "Build My RaiseHub")
-// is optional and configurable via the `actions` prop,
-// so future actions (e.g. "Schedule a Demo", "Watch Tour")
-// can be added later without restructuring this component.
+// The `cta` slot accepts a React node for the primary
+// call-to-action area so interactive demo launchers
+// can be rendered as client components without
+// restructuring this server component.
 // =========================================
 
-import Link from 'next/link'
 import { isDemoMode } from '@/lib/app-mode'
 
-export type DemoBannerAction = {
-  label: string
-  href: string
-}
-
 type DemoBannerProps = {
-  actions?: DemoBannerAction[]
+  cta?: React.ReactNode
 }
 
-// Default action shown when no `actions` prop is provided.
-// Points at production onboarding for now — update this href
-// once demo.raisehub.com and raisehub.com are separate domains.
-const DEFAULT_ACTIONS: DemoBannerAction[] = [
-  { label: 'Build My RaiseHub', href: '/signup' },
-]
-
-export default function DemoBanner({ actions = DEFAULT_ACTIONS }: DemoBannerProps) {
+export default function DemoBanner({ cta }: DemoBannerProps) {
   if (!isDemoMode()) {
     return null
   }
@@ -46,19 +33,11 @@ export default function DemoBanner({ actions = DEFAULT_ACTIONS }: DemoBannerProp
           </p>
         </div>
 
-        {actions.length > 0 && (
+        {cta ? (
           <div className="mt-1 flex flex-wrap items-center justify-center gap-2 sm:mt-0">
-            {actions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 sm:text-xs"
-              >
-                {action.label}
-              </Link>
-            ))}
+            {cta}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
