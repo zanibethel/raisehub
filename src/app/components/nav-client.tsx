@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -69,14 +70,35 @@ function NotificationItem({
   notification,
   onRead,
   onDismiss,
+  onNavigate,
 }: {
   notification: NotificationRow
   onRead: (id: string) => void
   onDismiss: (id: string) => void
+  onNavigate: (id: string, url: string) => Promise<{ error?: string }>
 }) {
+  const router = useRouter()
+  const [actionPending, setActionPending] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const isUnread = !notification.read_at
   const severity = notification.severity ?? 'info'
   const dotColor = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.info
+
+  async function handleAction() {
+    if (!notification.action_url || actionPending) return
+    setActionPending(true)
+    setActionError(null)
+
+    const result = await onNavigate(notification.id, notification.action_url)
+    if (result.error) {
+      setActionError(result.error)
+      setActionPending(false)
+      return
+    }
+
+    router.push(notification.action_url)
+    setActionPending(false)
+  }
 
   return (
     <div
@@ -104,17 +126,20 @@ function NotificationItem({
             <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
           ) : null}
 
+          {actionError ? (
+            <p className="mt-2 text-xs text-red-600">{actionError}</p>
+          ) : null}
+
           <div className="mt-3 flex flex-wrap gap-2">
             {notification.action_url ? (
-              <a
-                href={notification.action_url}
-                onClick={() => {
-                  if (isUnread) onRead(notification.id)
-                }}
-                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+              <button
+                type="button"
+                onClick={handleAction}
+                disabled={actionPending}
+                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
               >
-                {notification.action_label ?? 'Open'}
-              </a>
+                {actionPending ? '…' : (notification.action_label ?? 'Open')}
+              </button>
             ) : null}
 
             {isUnread ? (
@@ -165,9 +190,6 @@ function NotificationPanel({
     setError(null)
 
     const supabase = createClient()
-    // createClient() returns null during SSR (no browser env). These functions are
-    // called only from useEffect/event handlers so null should never occur at runtime.
-    if (!supabase) { setLoading(false); return }
 
     const { data, error: fetchError } = await supabase
       .from('notifications')
@@ -240,6 +262,29 @@ function NotificationPanel({
     })
   }
 
+  async function handleActionNavigate(id: string): Promise<{ error?: string }> {
+    const notification = notifications.find((n) => n.id === id)
+    if (!notification || notification.read_at) return {}
+
+    // Optimistic update
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === id ? { ...n, read_at: new Date().toISOString() } : n
+      )
+    )
+
+    const result = await markNotificationReadAction(id)
+    if (result.error) {
+      // Revert optimistic update
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read_at: null } : n))
+      )
+      return result
+    }
+
+    return {}
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
@@ -287,6 +332,7 @@ function NotificationPanel({
                 notification={n}
                 onRead={handleRead}
                 onDismiss={handleDismiss}
+                onNavigate={handleActionNavigate}
               />
             ))}
           </div>
@@ -318,7 +364,6 @@ function NotificationBell() {
 
   async function loadCount() {
     const supabase = createClient()
-    if (!supabase) return
     const now = new Date().toISOString()
 
     const { count } = await supabase
@@ -466,7 +511,6 @@ function AccountMenu({
 
     try {
       const supabase = createClient()
-      if (!supabase) throw new Error('Auth client unavailable.')
       const { error } = await supabase.auth.signOut()
 
       if (error) {
@@ -577,7 +621,7 @@ function MobileMenu({
   async function handleLogout() {
     setLoggingOut(true)
     const supabase = createClient()
-    if (supabase) await supabase.auth.signOut()
+    await supabase.auth.signOut()
     window.location.href = '/'
   }
 

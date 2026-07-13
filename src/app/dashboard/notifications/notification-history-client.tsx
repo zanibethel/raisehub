@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import {
@@ -73,8 +74,10 @@ function getStatusLabel(n: NotificationRow): {
 export default function NotificationHistoryClient({
   initialNotifications,
 }: NotificationHistoryClientProps) {
+  const router = useRouter()
   const [notifications, setNotifications] = useState(initialNotifications)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   function handleRead(id: string) {
@@ -113,6 +116,38 @@ export default function NotificationHistoryClient({
         )
       }
     })
+  }
+
+  async function handleActionNavigate(id: string, url: string) {
+    if (pendingActionId) return
+    setPendingActionId(id)
+    setActionError(null)
+
+    const notification = notifications.find((n) => n.id === id)
+    const isUnread = notification && !notification.read_at && !notification.dismissed_at
+
+    if (isUnread) {
+      // Optimistic update
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, read_at: new Date().toISOString() } : n
+        )
+      )
+
+      const result = await markNotificationReadAction(id)
+      if (result.error) {
+        setActionError(result.error)
+        // Revert optimistic update
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read_at: null } : n))
+        )
+        setPendingActionId(null)
+        return
+      }
+    }
+
+    router.push(url)
+    setPendingActionId(null)
   }
 
   if (notifications.length === 0) {
@@ -193,15 +228,14 @@ export default function NotificationHistoryClient({
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {n.action_url ? (
-                    <a
-                      href={n.action_url}
-                      onClick={() => {
-                        if (isUnread) handleRead(n.id)
-                      }}
-                      className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                    <button
+                      type="button"
+                      onClick={() => handleActionNavigate(n.id, n.action_url!)}
+                      disabled={pendingActionId === n.id}
+                      className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
                     >
-                      {n.action_label ?? 'Open'}
-                    </a>
+                      {pendingActionId === n.id ? '…' : (n.action_label ?? 'Open')}
+                    </button>
                   ) : null}
 
                   {isUnread ? (
