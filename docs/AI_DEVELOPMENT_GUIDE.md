@@ -5,17 +5,7 @@ This document defines how AI agents should approach development within the Raise
 It is intended to reduce unnecessary planning, prevent architectural drift, improve implementation consistency, and minimize repeated context in future prompts.
 
 This guide complements—not replaces—the other project documentation.
-## Agent Environment Constraints
 
-AI implementation agents such as copilot operate against the repository.
-
-They should assume:
-
-- They do not have access to the live Supabase project.
-- They do not have access to production data.
-- They do not have access to production RLS policies unless committed to the repository.
-- They should inspect the repository and committed migrations only.
-- Live database inspection, migration execution, advisor review, and runtime verification are performed separately.
 ---
 
 # 1. Required Reading Order
@@ -43,7 +33,7 @@ Examples include:
 
 - Demo Experience
 - Owner Platform
-- Identity & Access
+- Identity and Access
 - Notifications
 - Campaigns
 - Fundraising
@@ -59,62 +49,194 @@ If two documents appear to conflict:
 
 ---
 
-# 2. Repository Is the Source of Truth
+# 2. Agent Environment Constraints
 
-Documentation defines architectural direction.
+AI implementation agents such as GitHub Copilot operate primarily against the repository.
 
-The repository defines implementation reality.
+Assume the following unless explicitly told otherwise:
 
-Before proposing implementation changes:
+- The agent does not have access to the live Supabase project.
+- The agent does not have access to production data.
+- The agent does not have access to live production RLS policies, grants, functions, indexes, or advisor results unless they are represented in committed repository files.
+- The agent should inspect the repository, committed migrations, generated types, and existing code to determine integration points.
+- Live database inspection, migration execution, advisor review, schema-drift review, and runtime verification are performed separately by the project owner or another authorized reviewer.
+- If approved findings from a live Supabase review are provided, treat those findings as authoritative unless newer repository changes require revalidation.
+- Do not repeatedly attempt to inspect restricted resources after those limitations have been established.
+- If repository code conflicts with approved live-infrastructure findings, report the discrepancy and wait for clarification before broad implementation.
+- Do not claim a database migration succeeded merely because SQL was committed.
+- Do not claim RLS, grants, indexes, or runtime behavior were verified unless an authorized reviewer confirms that verification.
 
-- Inspect the existing repository.
-- Inspect the current database schema.
-- Inspect existing services.
-- Inspect repositories.
-- Inspect current routing.
-- Inspect Row Level Security policies.
-- Verify assumptions before proposing schema changes.
+The standard implementation workflow is:
 
-Never assume:
+1. Read the required documentation.
+2. Inspect the repository.
+3. Review approved live-infrastructure findings when provided.
+4. Present repository findings and an implementation plan.
+5. Wait for approval.
+6. Implement only the approved scope.
+7. Create committed migrations when required.
+8. Allow the authorized reviewer to apply and verify live database changes separately.
+9. Update code and documentation to match verified results.
+10. Complete final repository and runtime review before merge.
 
-- tables exist
-- columns exist
-- services exist
-- relationships exist
-- authorization already works
+---
 
-simply because documentation describes the desired future architecture.
+# 3. Repository Is the Source of Truth
+
+Documentation defines the approved architectural direction.
+
+The repository defines the current implementation.
+
+Approved live-infrastructure findings define the verified state of systems that the repository-only agent cannot inspect directly.
+
+When these sources differ, report the difference rather than assuming one is incorrect.
+
+Before proposing implementation changes, inspect the repository for:
+
+- Existing files and exact paths
+- Current routes
+- Current loaders
+- Current services
+- Current repositories
+- Current rules
+- Existing domain types
+- Generated Supabase types
+- Committed migrations
+- Committed SQL functions and policies
+- Existing role and authorization checks
+- Downstream callers
+- Current tests
+- Current documentation references
+
+Do not attempt to replace live database inspection with assumptions based only on TypeScript types or migration history.
+
+Never assume the following exist or work simply because documentation describes the desired future architecture:
+
+- Tables
+- Columns
+- Foreign keys
+- Indexes
+- Grants
+- RLS policies
+- Services
+- Relationships
+- Authorization
+- Runtime integration
 
 If implementation differs from documentation:
 
 - Report the difference.
+- Explain whether the difference appears transitional, stale, or conflicting.
 - Recommend the preferred direction.
 - Do not silently overwrite existing architecture.
 
+If the repository differs from approved live Supabase findings:
+
+- Report the exact discrepancy.
+- Identify whether the repository or live database appears ahead.
+- Do not guess which side should be changed.
+- Wait for owner approval before broad implementation.
+
 ---
 
-# 3. Planning Before Coding
+# 4. Planning Before Coding
 
 Large architectural work should begin with investigation.
 
+The repository-only agent should inspect what it can access and clearly separate:
+
+- Verified repository facts
+- Approved live-infrastructure findings provided by the owner
+- Assumptions
+- Unknowns
+- Items requiring separate Supabase verification
+
 Before broad implementation, provide:
 
-1. Existing implementation findings
-2. Existing database findings
-3. Existing authorization findings
-4. Compatibility concerns
-5. Proposed implementation plan
-6. Expected affected files
-7. Required migrations
-8. Testing strategy
-9. Rollback considerations
-10. Questions requiring owner approval
+1. Existing repository implementation findings
+2. Existing migration and generated-type findings
+3. Existing authorization findings visible in the repository
+4. Approved live-database findings provided by the owner
+5. Known repository-to-database discrepancies
+6. Compatibility concerns
+7. Proposed implementation plan
+8. Expected affected files
+9. Required migration files
+10. Testing strategy
+11. Runtime verification requirements
+12. Rollback considerations
+13. Questions requiring owner approval
 
 Do not begin major implementation until the proposed plan has been reviewed.
 
+Do not spend implementation-agent tokens repeatedly attempting to access unavailable live infrastructure.
+
 ---
 
-# 4. Development Principles
+# 5. Division of Responsibilities
+
+## Repository Implementation Agent
+
+The implementation agent is responsible for:
+
+- Reading required documentation
+- Inspecting current repository code
+- Inspecting committed migrations
+- Inspecting generated types
+- Finding integration points
+- Reporting repository dependencies
+- Proposing code and migration changes
+- Implementing approved application code
+- Creating committed migration files
+- Updating tests
+- Updating documentation
+- Reporting what was and was not verified
+
+The implementation agent must not claim it has:
+
+- Inspected live production data
+- Applied a live migration
+- Verified live RLS
+- Verified live grants
+- Run live Supabase advisors
+- Confirmed live database runtime behavior
+
+unless that access was explicitly provided and actually used.
+
+## Project Owner or Authorized Infrastructure Reviewer
+
+The project owner or authorized reviewer is responsible for:
+
+- Inspecting the live Supabase schema
+- Inspecting live RLS policies
+- Inspecting grants
+- Inspecting indexes
+- Inspecting functions and triggers
+- Reviewing schema drift
+- Reviewing representative production data shape
+- Applying approved migrations
+- Verifying migration results
+- Running Supabase Security Advisors
+- Running Supabase Performance Advisors
+- Performing live runtime verification
+- Providing authoritative findings back to the implementation agent
+
+## Shared Responsibility
+
+Both sides must compare:
+
+- Repository migrations
+- Generated types
+- Application queries
+- Live schema findings
+- RLS expectations
+- Runtime behavior
+
+Neither side should silently assume the other is already synchronized.
+
+---
+
+# 6. Development Principles
 
 Every implementation should:
 
@@ -127,14 +249,41 @@ Every implementation should:
 - Keep business logic outside UI components.
 - Keep authorization server-side.
 - Respect Row Level Security.
-- Generate updated Supabase types after schema changes.
+- Generate updated Supabase types after verified schema changes.
 - Avoid duplicated business logic.
+- Avoid broad service-role bypasses.
+- Avoid trusting client-supplied identity or role information.
+- Avoid changing schema or policies outside committed migrations.
+- Clearly identify work that still requires live infrastructure verification.
 
 When uncertain, choose the solution that is easier to maintain, easier to test, and easier to extend.
 
 ---
 
-# 5. Documentation Responsibilities
+# 7. Supabase Change Workflow
+
+When a feature requires Supabase changes, use this workflow:
+
+1. The authorized reviewer inspects the live schema and provides findings.
+2. The repository agent inspects current migrations, generated types, and application usage.
+3. The repository agent proposes migration SQL and integration changes.
+4. The owner reviews and approves the plan.
+5. The repository agent commits the migration file.
+6. The authorized reviewer reviews the committed migration against the live database.
+7. The authorized reviewer applies the approved migration.
+8. The authorized reviewer verifies tables, columns, constraints, policies, grants, indexes, and advisor findings.
+9. The repository agent updates generated types and code as needed.
+10. Final runtime verification occurs before merge.
+
+A committed migration is not proof of a completed database change.
+
+A successful build is not proof that a Supabase query works at runtime.
+
+A passing migration is not proof that authorization is secure.
+
+---
+
+# 8. Documentation Responsibilities
 
 Documentation is considered part of the product.
 
@@ -144,16 +293,22 @@ When architecture changes:
 - Avoid creating duplicate documentation.
 - Prefer extending existing documents when the subject already exists.
 - Clearly identify whether a feature is Planned, In Progress, Foundation Complete, Connected, Runtime Verified, or Production Verified.
+- Record known infrastructure limitations.
+- Record whether live Supabase verification has occurred.
+- Record migration status separately from application-code status.
 
 If documentation changes are needed, include them in the same pull request whenever practical.
 
+Do not mark a database-backed feature Production Verified until the live database and runtime behavior have been checked.
+
 ---
 
-# 6. AI Expectations
+# 9. AI Expectations
 
 When responding:
 
 - Distinguish verified facts from assumptions.
+- Distinguish repository findings from live-infrastructure findings.
 - Explain architectural tradeoffs.
 - Prefer reusable abstractions over one-off implementations.
 - Keep implementations modular.
@@ -162,12 +317,80 @@ When responding:
 - Recommend phased implementation for broad requests.
 - Keep pull requests appropriately scoped.
 - Respect existing architectural decisions unless there is a compelling reason to propose a change.
+- State clearly when live Supabase verification is still pending.
+- Do not waste tokens repeatedly attempting inaccessible operations.
+- Do not redesign previously approved architecture without first explaining why the change is beneficial.
 
-Do not redesign previously approved architecture without first explaining why the change is beneficial.
+When approved live Supabase findings are provided, use them as authoritative input while still inspecting the repository for integration accuracy.
 
 ---
 
-# 7. Long-Term Direction
+# 10. Pull Request Philosophy
+
+RaiseHub favors small, focused pull requests.
+
+Each PR should:
+
+- Solve one primary problem.
+- Keep unrelated changes out of scope.
+- Preserve existing behavior unless intentionally changing it.
+- Include documentation updates when architecture changes.
+- Leave the repository in a working state after every commit.
+- Clearly list migrations created.
+- Clearly state whether migrations were applied.
+- Clearly state what was runtime verified.
+- Clearly state what remains pending.
+- Avoid combining broad schema work, UI redesign, data backfill, and unrelated cleanup.
+
+When future architectural work depends on foundations that do not yet exist, build those foundations first rather than partially implementing multiple future features in a single pull request.
+
+Prefer several well-defined PRs over one large rewrite.
+
+---
+
+# 11. Verification Language
+
+Use precise verification language.
+
+Preferred status labels include:
+
+- Planned
+- Repository inspected
+- Migration drafted
+- Migration committed
+- Migration applied
+- Schema verified
+- RLS verified
+- Grants verified
+- Types generated
+- Foundation complete
+- Connected
+- Runtime verified
+- Production verified
+- Blocked
+- Deferred
+
+Avoid vague claims such as:
+
+- Done
+- Fully working
+- Basically complete
+- Database ready
+- Secure
+- Production ready
+
+unless the relevant evidence exists.
+
+Examples:
+
+- “Migration committed; live application pending.”
+- “RLS design reviewed in repository; live policy verification pending.”
+- “Application build passes; runtime query not yet verified.”
+- “Live schema verified by authorized reviewer on July 2026.”
+
+---
+
+# 12. Long-Term Direction
 
 RaiseHub's long-term architecture is defined by:
 
@@ -189,23 +412,8 @@ Future work should continue moving the platform toward:
 - Deterministic authorization
 - Modular services
 - Secure server-side validation
+- Additive database evolution
+- Verifiable infrastructure changes
+- Clear separation between repository implementation and live infrastructure operations
 
 The goal is to build RaiseHub into a platform that remains understandable, maintainable, secure, scalable, and enjoyable to develop for years to come.
-
----
-
-# 8. Pull Request Philosophy
-
-RaiseHub favors small, focused pull requests.
-
-Each PR should:
-
-- Solve one primary problem.
-- Keep unrelated changes out of scope.
-- Preserve existing behavior unless intentionally changing it.
-- Include documentation updates when architecture changes.
-- Leave the repository in a working state after every commit.
-
-When future architectural work depends on foundations that do not yet exist, build those foundations first rather than partially implementing multiple future features in a single pull request.
-
-Prefer several well-defined PRs over one large rewrite.
