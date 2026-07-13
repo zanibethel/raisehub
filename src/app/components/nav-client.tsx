@@ -172,13 +172,23 @@ function NotificationItem({
 
 function NotificationPanel({
   onClose,
+  onUnreadCountChange,
 }: {
   onClose: () => void
+  onUnreadCountChange: (count: number) => void
 }) {
   const [notifications, setNotifications] = useState<NotificationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+
+  // Propagate unread count to the bell badge whenever the list changes.
+  useEffect(() => {
+    const count = notifications.filter((n) => !n.read_at).length
+    onUnreadCountChange(count)
+  // onUnreadCountChange is stable (setState reference) so it's safe to omit.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications])
 
   useEffect(() => {
     loadNotifications()
@@ -190,6 +200,7 @@ function NotificationPanel({
     setError(null)
 
     const supabase = createClient()
+    const now = new Date().toISOString()
 
     const { data, error: fetchError } = await supabase
       .from('notifications')
@@ -197,7 +208,7 @@ function NotificationPanel({
         'id, type, severity, title, message, action_url, action_label, created_at, read_at, dismissed_at, expires_at'
       )
       .is('dismissed_at', null)
-      .or('expires_at.is.null,expires_at.gt.now()')
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
       .order('created_at', { ascending: false })
       .limit(20)
 
@@ -457,10 +468,8 @@ function NotificationBell() {
           "
         >
           <NotificationPanel
-            onClose={() => {
-              setOpen(false)
-              loadCount()
-            }}
+            onClose={() => setOpen(false)}
+            onUnreadCountChange={setUnreadCount}
           />
         </div>
       ) : null}
