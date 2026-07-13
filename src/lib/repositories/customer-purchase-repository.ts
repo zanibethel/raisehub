@@ -106,10 +106,17 @@ export async function getCustomerPurchases(
   const orgNameById = new Map<string, string>()
 
   if (orgIds.length > 0) {
-    const { data: orgProfiles } = await supabase
+    const { data: orgProfiles, error: orgProfilesError } = await supabase
       .from('profiles')
       .select('id, display_name, business_name')
       .in('id', orgIds)
+
+    if (orgProfilesError) {
+      return {
+        purchases: [],
+        error: orgProfilesError.message,
+      }
+    }
 
     for (const profile of orgProfiles ?? []) {
       const name =

@@ -87,10 +87,17 @@ export async function getCustomerSavedOffers(
   const businessNameById = new Map<string, string>()
 
   if (businessIds.length > 0) {
-    const { data: businessProfiles } = await supabase
+    const { data: businessProfiles, error: businessProfilesError } = await supabase
       .from('profiles')
       .select('id, business_name')
       .in('id', businessIds)
+
+    if (businessProfilesError) {
+      return {
+        savedOffers: [],
+        error: businessProfilesError.message,
+      }
+    }
 
     for (const profile of businessProfiles ?? []) {
       if (profile.business_name) {
