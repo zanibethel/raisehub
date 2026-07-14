@@ -329,7 +329,7 @@ export default async function DashboardPage({
         }`}
       >
         <header
-          className={`rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
+          className={`relative z-50 rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -368,11 +368,13 @@ export default async function DashboardPage({
           </div>
         </header>
 
-        {renderDashboard(
-          experienceRole,
-          previewRole,
-          selectedWorkspace
-        )}
+        <div className="relative z-0">
+          {renderDashboard(
+            experienceRole,
+            previewRole,
+            selectedWorkspace
+          )}
+        </div>
       </div>
     </main>
   )
