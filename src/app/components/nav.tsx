@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
 import { isDemoMode } from '@/lib/app-mode'
+import { createClient } from '@/lib/supabase/server'
 import NavClient from './nav-client'
 
 export default async function Nav() {
@@ -10,28 +10,36 @@ export default async function Nav() {
   } = await supabase.auth.getUser()
 
   // Determine whether the signed-in user is a public demo account.
-  // Only three roles are public (customer, business, organization).
-  // Owner is excluded intentionally.
+  // Only customer, business, and organization accounts are public demos.
+  // Owner remains excluded intentionally.
   const demoMode = isDemoMode()
   let isPublicDemoUser = false
 
   if (demoMode && user?.email) {
     const email = user.email.toLowerCase()
+
     const publicDemoEmails = [
       process.env.DEMO_CUSTOMER_EMAIL?.toLowerCase(),
       process.env.DEMO_BUSINESS_EMAIL?.toLowerCase(),
       process.env.DEMO_ORGANIZATION_EMAIL?.toLowerCase(),
-    ].filter((e): e is string => Boolean(e))
+    ].filter(
+      (value): value is string =>
+        Boolean(value)
+    )
 
-    isPublicDemoUser = publicDemoEmails.includes(email)
+    isPublicDemoUser =
+      publicDemoEmails.includes(email)
   }
 
   const navUser = user
-    ? { id: user.id, email: user.email ?? null }
+    ? {
+        id: user.id,
+        email: user.email ?? null,
+      }
     : null
 
   return (
-    <nav className="relative border-b border-gray-200 bg-white">
+    <nav className="relative z-[100] border-b border-gray-200 bg-white">
       <div className="mx-auto max-w-5xl">
         <NavClient
           user={navUser}
@@ -41,4 +49,4 @@ export default async function Nav() {
       </div>
     </nav>
   )
-}
+} 
