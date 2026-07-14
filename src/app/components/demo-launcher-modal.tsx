@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
-// =========================================
-// Demo Role Definitions
-// =========================================
+// =============================================================================
+// Demo roles
+// =============================================================================
 
 export type DemoRole =
   | 'customer'
@@ -55,9 +56,9 @@ export const DEMO_ROLES: {
   },
 ]
 
-// =========================================
-// Shared DemoLauncherModal
-// =========================================
+// =============================================================================
+// Modal
+// =============================================================================
 
 export function DemoLauncherModal({
   onClose,
@@ -65,6 +66,9 @@ export function DemoLauncherModal({
   onClose: () => void
 }) {
   const router = useRouter()
+
+  const [mounted, setMounted] =
+    useState(false)
 
   const [launching, setLaunching] =
     useState<DemoRole | null>(null)
@@ -81,8 +85,33 @@ export function DemoLauncherModal({
   const previousFocusRef =
     useRef<HTMLElement | null>(null)
 
-  // Save current focus and restore it on unmount.
+  // ===========================================================================
+  // Mount and page-scroll control
+  // ===========================================================================
+
   useEffect(() => {
+    setMounted(true)
+
+    const previousOverflow =
+      document.body.style.overflow
+
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow
+    }
+  }, [])
+
+  // ===========================================================================
+  // Focus management
+  // ===========================================================================
+
+  useEffect(() => {
+    if (!mounted) {
+      return
+    }
+
     previousFocusRef.current =
       document.activeElement as HTMLElement
 
@@ -91,11 +120,16 @@ export function DemoLauncherModal({
     return () => {
       previousFocusRef.current?.focus()
     }
-  }, [])
+  }, [mounted])
 
-  // Escape to close and trap focus inside the modal.
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    if (!mounted) {
+      return
+    }
+
+    function handleKeyDown(
+      event: KeyboardEvent
+    ) {
       if (event.key === 'Escape') {
         onClose()
         return
@@ -125,9 +159,8 @@ export function DemoLauncherModal({
       }
 
       const first = focusable[0]
-      const last = focusable[
-        focusable.length - 1
-      ]
+      const last =
+        focusable[focusable.length - 1]
 
       if (event.shiftKey) {
         if (
@@ -140,7 +173,9 @@ export function DemoLauncherModal({
         return
       }
 
-      if (document.activeElement === last) {
+      if (
+        document.activeElement === last
+      ) {
         event.preventDefault()
         first.focus()
       }
@@ -157,7 +192,11 @@ export function DemoLauncherModal({
         handleKeyDown
       )
     }
-  }, [onClose])
+  }, [mounted, onClose])
+
+  // ===========================================================================
+  // Experience launch
+  // ===========================================================================
 
   async function handleLaunch(
     role: DemoRole
@@ -207,12 +246,20 @@ export function DemoLauncherModal({
     }
   }
 
-  return (
+  // ===========================================================================
+  // Render through document body
+  // ===========================================================================
+
+  if (!mounted) {
+    return null
+  }
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Explore demo experiences"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
+      className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-8"
       onClick={(event) => {
         if (
           event.target === event.currentTarget
@@ -223,7 +270,7 @@ export function DemoLauncherModal({
     >
       <div
         ref={panelRef}
-        className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+        className="my-auto w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
       >
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold text-blue-700">
@@ -256,14 +303,14 @@ export function DemoLauncherModal({
                 className={`flex items-start gap-4 rounded-2xl border-2 bg-white p-5 text-left transition disabled:opacity-60 ${color}`}
               >
                 <span
-                  className="text-3xl"
+                  className="shrink-0 text-3xl"
                   aria-hidden="true"
                 >
                   {icon}
                 </span>
 
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-gray-900">
                     {title}
 
                     {launching === role ? (
@@ -271,15 +318,15 @@ export function DemoLauncherModal({
                         Launching…
                       </span>
                     ) : null}
-                  </p>
+                  </span>
 
-                  <p className="mt-1 text-sm text-gray-600">
+                  <span className="mt-1 block text-sm text-gray-600">
                     {description}
-                  </p>
-                </div>
+                  </span>
+                </span>
 
                 <span
-                  className="mt-1 text-gray-400"
+                  className="mt-1 shrink-0 text-gray-400"
                   aria-hidden="true"
                 >
                   →
@@ -305,6 +352,7 @@ export function DemoLauncherModal({
           Close
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
