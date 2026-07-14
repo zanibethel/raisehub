@@ -3,17 +3,19 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { createClient } from '@/lib/supabase/client'
+
 import {
-  markNotificationReadAction,
-  markAllNotificationsReadAction,
   dismissNotificationAction,
+  markAllNotificationsReadAction,
+  markNotificationReadAction,
 } from '@/app/dashboard/notification-actions'
+import { createClient } from '@/lib/supabase/client'
+
 import { DemoLauncherModal } from './demo-launcher-modal'
 
-// =========================================
+// =============================================================================
 // Types
-// =========================================
+// =============================================================================
 
 type User = {
   id: string
@@ -40,18 +42,36 @@ type NavClientProps = {
   isPublicDemoUser: boolean
 }
 
-// =========================================
+type ActiveNavOverlay =
+  | 'notifications'
+  | 'account'
+  | 'mobile'
+  | 'demo'
+  | null
+
+type ControlledOverlayProps = {
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
+}
+
+// =============================================================================
 // Helpers
-// =========================================
+// =============================================================================
 
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const minutes = Math.floor(diff / 60_000)
+
   if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes}m ago`
+
   const hours = Math.floor(minutes / 60)
+
   if (hours < 24) return `${hours}h ago`
+
   const days = Math.floor(hours / 24)
+
   return `${days}d ago`
 }
 
@@ -62,9 +82,9 @@ const SEVERITY_COLORS: Record<string, string> = {
   error: 'bg-red-500',
 }
 
-// =========================================
-// Notification Item
-// =========================================
+// =============================================================================
+// Notification item
+// =============================================================================
 
 function NotificationItem({
   notification,
@@ -80,16 +100,21 @@ function NotificationItem({
   const router = useRouter()
   const [actionPending, setActionPending] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+
   const isUnread = !notification.read_at
   const severity = notification.severity ?? 'info'
   const dotColor = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.info
 
   async function handleAction() {
-    if (!notification.action_url?.trim() || actionPending) return
+    if (!notification.action_url?.trim() || actionPending) {
+      return
+    }
+
     setActionPending(true)
     setActionError(null)
 
     const result = await onNavigate(notification.id)
+
     if (result.error) {
       setActionError(result.error)
       setActionPending(false)
@@ -113,17 +138,22 @@ function NotificationItem({
           className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`}
           aria-hidden="true"
         />
+
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-gray-900">
               {notification.title}
             </p>
+
             <span className="shrink-0 text-xs text-gray-400">
               {formatRelativeTime(notification.created_at)}
             </span>
           </div>
+
           {notification.message ? (
-            <p className="mt-1 text-sm text-gray-600">{notification.message}</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {notification.message}
+            </p>
           ) : null}
 
           {actionError ? (
@@ -138,7 +168,9 @@ function NotificationItem({
                 disabled={actionPending}
                 className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-60"
               >
-                {actionPending ? '…' : (notification.action_label ?? 'Open')}
+                {actionPending
+                  ? '…'
+                  : notification.action_label ?? 'Open'}
               </button>
             ) : null}
 
@@ -166,9 +198,9 @@ function NotificationItem({
   )
 }
 
-// =========================================
-// Notification Panel
-// =========================================
+// =============================================================================
+// Notification panel
+// =============================================================================
 
 function NotificationPanel({
   onClose,
@@ -182,12 +214,14 @@ function NotificationPanel({
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
-  // Propagate unread count to the bell badge whenever the list changes.
   useEffect(() => {
-    const count = notifications.filter((n) => !n.read_at).length
+    const count = notifications.filter(
+      (notification) => !notification.read_at
+    ).length
+
     onUnreadCountChange(count)
-  // onUnreadCountChange is stable (setState reference) so it's safe to omit.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // onUnreadCountChange is a stable setState function.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications])
 
   useEffect(() => {
@@ -221,51 +255,68 @@ function NotificationPanel({
     setLoading(false)
   }
 
-  const unreadNotifications = notifications.filter((n) => !n.read_at)
+  const unreadNotifications = notifications.filter(
+    (notification) => !notification.read_at
+  )
 
   function handleRead(id: string) {
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, read_at: new Date().toISOString() } : n
+    setNotifications((previous) =>
+      previous.map((notification) =>
+        notification.id === id
+          ? {
+              ...notification,
+              read_at: new Date().toISOString(),
+            }
+          : notification
       )
     )
 
     startTransition(async () => {
       const result = await markNotificationReadAction(id)
+
       if (result.error) {
         setError(result.error)
-        // Revert optimistic update
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read_at: null } : n))
+
+        setNotifications((previous) =>
+          previous.map((notification) =>
+            notification.id === id
+              ? { ...notification, read_at: null }
+              : notification
+          )
         )
       }
     })
   }
 
   function handleDismiss(id: string) {
-    // Optimistic update - remove from list
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    setNotifications((previous) =>
+      previous.filter((notification) => notification.id !== id)
+    )
 
     startTransition(async () => {
       const result = await dismissNotificationAction(id)
+
       if (result.error) {
         setError(result.error)
-        // Reload to restore
         loadNotifications()
       }
     })
   }
 
   function handleMarkAllRead() {
-    // Optimistic update
     const now = new Date().toISOString()
-    setNotifications((prev) =>
-      prev.map((n) => (n.read_at ? n : { ...n, read_at: now }))
+
+    setNotifications((previous) =>
+      previous.map((notification) =>
+        notification.read_at
+          ? notification
+          : { ...notification, read_at: now }
+      )
     )
 
     startTransition(async () => {
       const result = await markAllNotificationsReadAction()
+
       if (result.error) {
         setError(result.error)
         loadNotifications()
@@ -273,23 +324,39 @@ function NotificationPanel({
     })
   }
 
-  async function handleActionNavigate(id: string): Promise<{ error?: string }> {
-    const notification = notifications.find((n) => n.id === id)
-    if (!notification || notification.read_at) return {}
+  async function handleActionNavigate(
+    id: string
+  ): Promise<{ error?: string }> {
+    const notification = notifications.find(
+      (candidate) => candidate.id === id
+    )
 
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, read_at: new Date().toISOString() } : n
+    if (!notification || notification.read_at) {
+      return {}
+    }
+
+    setNotifications((previous) =>
+      previous.map((candidate) =>
+        candidate.id === id
+          ? {
+              ...candidate,
+              read_at: new Date().toISOString(),
+            }
+          : candidate
       )
     )
 
     const result = await markNotificationReadAction(id)
+
     if (result.error) {
-      // Revert optimistic update
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read_at: null } : n))
+      setNotifications((previous) =>
+        previous.map((candidate) =>
+          candidate.id === id
+            ? { ...candidate, read_at: null }
+            : candidate
+        )
       )
+
       return result
     }
 
@@ -299,7 +366,10 @@ function NotificationPanel({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
+        <h2 className="text-sm font-semibold text-gray-900">
+          Notifications
+        </h2>
+
         <div className="flex items-center gap-2">
           {unreadNotifications.length > 0 ? (
             <button
@@ -310,6 +380,7 @@ function NotificationPanel({
               Mark all read
             </button>
           ) : null}
+
           <button
             type="button"
             onClick={onClose}
@@ -333,14 +404,16 @@ function NotificationPanel({
         ) : notifications.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-2xl">🔔</p>
-            <p className="mt-2 text-sm text-gray-500">No active notifications</p>
+            <p className="mt-2 text-sm text-gray-500">
+              No active notifications
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n) => (
+            {notifications.map((notification) => (
               <NotificationItem
-                key={n.id}
-                notification={n}
+                key={notification.id}
+                notification={notification}
                 onRead={handleRead}
                 onDismiss={handleDismiss}
                 onNavigate={handleActionNavigate}
@@ -363,12 +436,15 @@ function NotificationPanel({
   )
 }
 
-// =========================================
-// Notification Bell
-// =========================================
+// =============================================================================
+// Notification bell
+// =============================================================================
 
-function NotificationBell() {
-  const [open, setOpen] = useState(false)
+function NotificationBell({
+  open,
+  onToggle,
+  onClose,
+}: ControlledOverlayProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
@@ -387,40 +463,47 @@ function NotificationBell() {
     setUnreadCount(count ?? 0)
   }
 
-  // Load unread count on mount
   useEffect(() => {
     loadCount()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Close on outside click
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
 
-    function handleClick(e: MouseEvent) {
+    function handleClick(event: MouseEvent) {
       if (
         panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
+        !panelRef.current.contains(event.target as Node) &&
         buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
+        !buttonRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        onClose()
       }
     }
 
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open, onClose])
 
   const countLabel =
-    unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null
+    unreadCount > 99
+      ? '99+'
+      : unreadCount > 0
+        ? String(unreadCount)
+        : null
 
   return (
     <div className="relative">
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={onToggle}
         aria-label={
           unreadCount > 0
             ? `Notifications — ${unreadCount} unread`
@@ -454,7 +537,6 @@ function NotificationBell() {
         ) : null}
       </button>
 
-      {/* Desktop popover / Mobile full-width panel */}
       {open ? (
         <div
           ref={panelRef}
@@ -464,11 +546,11 @@ function NotificationBell() {
             fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col overflow-hidden
             rounded-t-3xl border border-gray-200 bg-white shadow-2xl
             sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:bottom-auto
-            sm:w-96 sm:max-h-[32rem] sm:rounded-2xl sm:rounded-t-2xl
+            sm:max-h-[32rem] sm:w-96 sm:rounded-2xl sm:rounded-t-2xl
           "
         >
           <NotificationPanel
-            onClose={() => setOpen(false)}
+            onClose={onClose}
             onUnreadCountChange={setUnreadCount}
           />
         </div>
@@ -477,44 +559,55 @@ function NotificationBell() {
   )
 }
 
-// =========================================
-// Account Menu
-// =========================================
+// =============================================================================
+// Desktop account menu
+// =============================================================================
 
 function AccountMenu({
   user,
   isPublicDemoUser,
+  open,
+  onToggle,
+  onClose,
   onOpenDemoLauncher,
 }: {
   user: User
   isPublicDemoUser: boolean
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
   onOpenDemoLauncher: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
 
-    function handleClick(e: MouseEvent) {
+    function handleClick(event: MouseEvent) {
       if (
         menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
+        !menuRef.current.contains(event.target as Node) &&
         buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
+        !buttonRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        onClose()
       }
     }
 
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open, onClose])
 
   async function handleLogout() {
+    onClose()
     setLoggingOut(true)
     setLogoutError(null)
 
@@ -542,7 +635,7 @@ function AccountMenu({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={onToggle}
         aria-expanded={open}
         aria-label="Account menu"
         disabled={loggingOut}
@@ -557,18 +650,16 @@ function AccountMenu({
           role="menu"
           className="absolute right-0 top-11 z-50 w-64 rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl"
         >
-          {/* User info */}
           <div className="border-b border-gray-100 px-3 py-3">
-            <p className="text-xs font-semibold text-gray-900 truncate">
+            <p className="truncate text-xs font-semibold text-gray-900">
               {user.email}
             </p>
           </div>
 
-          {/* Links */}
           <div className="mt-1 space-y-0.5">
             <Link
               href="/dashboard"
-              onClick={() => setOpen(false)}
+              onClick={onClose}
               role="menuitem"
               className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
@@ -580,7 +671,7 @@ function AccountMenu({
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  setOpen(false)
+                  onClose()
                   onOpenDemoLauncher()
                 }}
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"
@@ -611,26 +702,35 @@ function AccountMenu({
   )
 }
 
-// =========================================
-// Mobile Menu
-// =========================================
+// =============================================================================
+// Mobile menu
+// =============================================================================
 
 function MobileMenu({
   user,
   isPublicDemoUser,
+  open,
+  onToggle,
+  onClose,
   onOpenDemoLauncher,
 }: {
   user: User | null
   isPublicDemoUser: boolean
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
   onOpenDemoLauncher: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
+    onClose()
     setLoggingOut(true)
+
     const supabase = createClient()
+
     await supabase.auth.signOut()
+
     window.location.href = '/'
   }
 
@@ -638,18 +738,40 @@ function MobileMenu({
     <div className="sm:hidden">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={onToggle}
         aria-expanded={open}
         aria-label={open ? 'Close menu' : 'Open menu'}
         className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
       >
         {open ? (
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         ) : (
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           </svg>
         )}
       </button>
@@ -658,29 +780,32 @@ function MobileMenu({
         <div className="absolute inset-x-0 top-full z-50 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
           {user ? (
             <>
-              <p className="border-b border-gray-100 pb-2 text-xs text-gray-500 truncate">
+              <p className="truncate border-b border-gray-100 pb-2 text-xs text-gray-500">
                 {user.email}
               </p>
+
               <nav className="mt-2 space-y-1">
                 <Link
                   href="/dashboard"
-                  onClick={() => setOpen(false)}
+                  onClick={onClose}
                   className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   Dashboard
                 </Link>
+
                 <Link
                   href="/dashboard/notifications"
-                  onClick={() => setOpen(false)}
+                  onClick={onClose}
                   className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   Notifications
                 </Link>
+
                 {isPublicDemoUser ? (
                   <button
                     type="button"
                     onClick={() => {
-                      setOpen(false)
+                      onClose()
                       onOpenDemoLauncher()
                     }}
                     className="block w-full rounded-xl px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50"
@@ -688,6 +813,7 @@ function MobileMenu({
                     Switch Demo Experience
                   </button>
                 ) : null}
+
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -702,14 +828,15 @@ function MobileMenu({
             <nav className="space-y-1">
               <Link
                 href="/login"
-                onClick={() => setOpen(false)}
+                onClick={onClose}
                 className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Login
               </Link>
+
               <Link
                 href="/signup"
-                onClick={() => setOpen(false)}
+                onClick={onClose}
                 className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Sign Up
@@ -722,52 +849,102 @@ function MobileMenu({
   )
 }
 
-// =========================================
-// NavClient — main export
-// =========================================
+// =============================================================================
+// Main navigation coordinator
+// =============================================================================
 
 export default function NavClient({
   user,
   isDemoMode,
   isPublicDemoUser,
 }: NavClientProps) {
-  const [showDemoLauncher, setShowDemoLauncher] = useState(false)
+  const [activeOverlay, setActiveOverlay] =
+    useState<ActiveNavOverlay>(null)
+
+  function toggleOverlay(
+    overlay: Exclude<ActiveNavOverlay, null>
+  ) {
+    setActiveOverlay((current) =>
+      current === overlay ? null : overlay
+    )
+  }
+
+  function closeOverlay() {
+    setActiveOverlay(null)
+  }
+
+  function openDemoLauncher() {
+    setActiveOverlay('demo')
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.key === 'Escape' &&
+        activeOverlay !== null &&
+        activeOverlay !== 'demo'
+      ) {
+        closeOverlay()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeOverlay])
 
   return (
     <>
       <div className="relative flex h-14 items-center justify-between px-4">
-        {/* Logo */}
-        <Link href="/" className="text-xl font-bold text-blue-600">
+        <Link
+          href="/"
+          onClick={closeOverlay}
+          className="text-xl font-bold text-blue-600"
+        >
           RaiseHub
         </Link>
 
-        {/* Desktop right-side nav */}
         <div className="hidden items-center gap-3 sm:flex">
           {user ? (
             <>
               <Link
                 href="/dashboard"
+                onClick={closeOverlay}
                 className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
               >
                 Dashboard
               </Link>
-              <NotificationBell />
+
+              <NotificationBell
+                open={activeOverlay === 'notifications'}
+                onToggle={() => toggleOverlay('notifications')}
+                onClose={closeOverlay}
+              />
+
               <AccountMenu
                 user={user}
                 isPublicDemoUser={isPublicDemoUser}
-                onOpenDemoLauncher={() => setShowDemoLauncher(true)}
+                open={activeOverlay === 'account'}
+                onToggle={() => toggleOverlay('account')}
+                onClose={closeOverlay}
+                onOpenDemoLauncher={openDemoLauncher}
               />
             </>
           ) : (
             <>
               <Link
                 href="/login"
+                onClick={closeOverlay}
                 className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
               >
                 Login
               </Link>
+
               <Link
                 href="/signup"
+                onClick={closeOverlay}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
                 Sign Up
@@ -776,19 +953,28 @@ export default function NavClient({
           )}
         </div>
 
-        {/* Mobile: show bell + hamburger */}
         <div className="flex items-center gap-2 sm:hidden">
-          {user ? <NotificationBell /> : null}
+          {user ? (
+            <NotificationBell
+              open={activeOverlay === 'notifications'}
+              onToggle={() => toggleOverlay('notifications')}
+              onClose={closeOverlay}
+            />
+          ) : null}
+
           <MobileMenu
             user={user}
             isPublicDemoUser={isPublicDemoUser}
-            onOpenDemoLauncher={() => setShowDemoLauncher(true)}
+            open={activeOverlay === 'mobile'}
+            onToggle={() => toggleOverlay('mobile')}
+            onClose={closeOverlay}
+            onOpenDemoLauncher={openDemoLauncher}
           />
         </div>
       </div>
 
-      {isDemoMode && showDemoLauncher ? (
-        <DemoLauncherModal onClose={() => setShowDemoLauncher(false)} />
+      {isDemoMode && activeOverlay === 'demo' ? (
+        <DemoLauncherModal onClose={closeOverlay} />
       ) : null}
     </>
   )
