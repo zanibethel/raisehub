@@ -16,7 +16,6 @@ import type {
   ActorCapabilitySummary,
   AuthenticatedActor,
   BusinessAccessRecord,
-  BusinessMembershipRow,
   BusinessRow,
   CampaignAccessRecord,
   CampaignMembershipRow,

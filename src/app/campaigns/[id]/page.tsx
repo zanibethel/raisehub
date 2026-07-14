@@ -65,9 +65,7 @@ function buildCampaignHref(input: {
 }
 
 function getCampaignNotice(
-  notice: CampaignPageProps['searchParams'] extends Promise<infer T>
-    ? T['notice']
-    : never
+  notice: 'campaign-unavailable' | 'campaign-replaced' | undefined
 ) {
   if (!notice) {
     return null
@@ -84,7 +82,6 @@ export default async function CampaignPage({
   const {
     seller,
     notice,
-    replaced,
     donation,
     organization,
   } = await searchParams
