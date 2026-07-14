@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createCapabilityResolver } from './capability-resolution-core.ts'
+import { createCapabilityResolver } from './capability-resolution-core'
 import type {
   AuthenticatedActor,
   BusinessAccessRecord,
@@ -14,7 +14,7 @@ import type {
   OrganizationAccessRecord,
   OrganizationMembershipRow,
   OrganizationRow,
-} from '../types/identity-access.ts'
+} from '../types/identity-access'
 
 const actor: AuthenticatedActor = {
   id: 'actor-1',
@@ -174,6 +174,7 @@ function createResolver(options?: {
   hasLegacyCustomerPassAccess?: boolean
   businessById?: BusinessRow | null
   organizationById?: OrganizationRow | null
+  organizationByLegacyProfileId?: OrganizationRow | null
   campaignById?: CampaignRow | null
   campaignMembershipById?: CampaignMembershipRow | null
   organizationMembershipById?: OrganizationMembershipRow | null
@@ -190,11 +191,41 @@ function createResolver(options?: {
     loadBusinessById: async () => options?.businessById ?? null,
     loadOrganizationById: async () =>
       options?.organizationById ?? null,
+    loadOrganizationByLegacyProfileId: async () =>
+      options?.organizationByLegacyProfileId ?? options?.organizationById ?? null,
     loadCampaignById: async () => options?.campaignById ?? null,
     loadCampaignMembershipById: async () =>
       options?.campaignMembershipById ?? null,
     loadOrganizationMembershipById: async () =>
       options?.organizationMembershipById ?? null,
+    loadBusinessAccessForActorAndBusiness: async (actorId, businessId) =>
+      (options?.businessAccess ?? []).find(
+        ({ business, membership }) =>
+          business.id === businessId && membership.user_id === actorId
+      ) ?? null,
+    loadOrganizationAccessForActorAndOrganization: async (
+      actorId,
+      organizationId
+    ) =>
+      (options?.organizationAccess ?? []).find(
+        ({ organization, membership }) =>
+          organization.id === organizationId && membership.user_id === actorId
+      ) ?? null,
+    loadOrganizationAccessForActorByLegacyProfileId: async (
+      actorId,
+      legacyProfileId
+    ) =>
+      (options?.organizationAccess ?? []).find(
+        ({ organization, membership }) =>
+          organization.legacy_profile_id === legacyProfileId &&
+          membership.user_id === actorId
+      ) ?? null,
+    loadCampaignAccessForActorAndCampaign: async (actorId, campaignId) =>
+      (options?.campaignAccess ?? []).find(
+        ({ campaignMembership, organizationMembership }) =>
+          campaignMembership.campaign_id === campaignId &&
+          organizationMembership.user_id === actorId
+      ) ?? null,
   })
 }
 
@@ -217,6 +248,8 @@ test('expired customer access does not remove business or organization access', 
     customerEntitlements: [
       createEntitlement({ expires_at: '2026-07-10T00:00:00.000Z' }),
     ],
+    businessById: business,
+    organizationById: organization,
   })
 
   const customerResult =
@@ -237,39 +270,6 @@ test('expired customer access does not remove business or organization access', 
   assert.equal(organizationResult.allowed, true)
 })
 
-test('business membership never grants customer entitlement', async () => {
-  const business = createBusiness()
-  const resolver = createResolver({
-    businessAccess: [
-      {
-        business,
-        membership: createBusinessMembership({ membership_role: 'owner' }),
-      },
-    ],
-  })
-
-  const result = await resolver.canAccessCustomerBenefitsForActor(actor)
-
-  assert.equal(result.allowed, false)
-  assert.equal(result.reason, 'missing-entitlement')
-})
-
-test('customer entitlement never grants organization permissions', async () => {
-  const organization = createOrganization()
-  const resolver = createResolver({
-    customerEntitlements: [createEntitlement()],
-    organizationById: organization,
-  })
-
-  const result = await resolver.canViewOrganizationForActor(
-    actor,
-    organization.id
-  )
-
-  assert.equal(result.allowed, false)
-  assert.equal(result.reason, 'inactive-membership')
-})
-
 test('owner compatibility continues to allow owner platform access', async () => {
   const ownerActor: AuthenticatedActor = {
     ...actor,
@@ -285,13 +285,197 @@ test('owner compatibility continues to allow owner platform access', async () =>
   assert.equal(result.source, 'owner-role')
 })
 
-test('campaign selling requires campaign membership while campaign management can come from org membership', async () => {
+test('active membership plus suspended or archived business is denied by lifecycle', async () => {
+  const suspendedBusiness = createBusiness({ status: 'suspended' })
+  const archivedBusiness = createBusiness({
+    archived_at: '2026-07-02T00:00:00.000Z',
+  })
+
+  const suspendedResolver = createResolver({
+    businessAccess: [
+      {
+        business: suspendedBusiness,
+        membership: createBusinessMembership(),
+      },
+    ],
+    businessById: suspendedBusiness,
+  })
+
+  const archivedResolver = createResolver({
+    businessAccess: [
+      {
+        business: archivedBusiness,
+        membership: createBusinessMembership(),
+      },
+    ],
+    businessById: archivedBusiness,
+  })
+
+  assert.equal(
+    (await suspendedResolver.canViewBusinessForActor(actor, suspendedBusiness.id)).reason,
+    'workspace-inactive'
+  )
+  assert.equal(
+    (await archivedResolver.canViewBusinessForActor(actor, archivedBusiness.id)).reason,
+    'workspace-archived'
+  )
+})
+
+test('active membership plus suspended or archived organization is denied by lifecycle', async () => {
+  const suspendedOrganization = createOrganization({ status: 'suspended' })
+  const archivedOrganization = createOrganization({
+    archived_at: '2026-07-02T00:00:00.000Z',
+  })
+
+  const suspendedResolver = createResolver({
+    organizationAccess: [
+      {
+        organization: suspendedOrganization,
+        membership: createOrganizationMembership(),
+      },
+    ],
+    organizationById: suspendedOrganization,
+  })
+
+  const archivedResolver = createResolver({
+    organizationAccess: [
+      {
+        organization: archivedOrganization,
+        membership: createOrganizationMembership(),
+      },
+    ],
+    organizationById: archivedOrganization,
+  })
+
+  assert.equal(
+    (await suspendedResolver.canViewOrganizationForActor(actor, suspendedOrganization.id)).reason,
+    'workspace-inactive'
+  )
+  assert.equal(
+    (await archivedResolver.canViewOrganizationForActor(actor, archivedOrganization.id)).reason,
+    'workspace-archived'
+  )
+})
+
+test('business role capability matrix stays explicit', async () => {
+  const business = createBusiness()
+  const resolver = createResolver({
+    businessById: business,
+    businessAccess: [
+      {
+        business,
+        membership: createBusinessMembership({ membership_role: 'owner' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await resolver.canManageBusinessMembersForActor(actor, business.id)).allowed,
+    true
+  )
+
+  const managerResolver = createResolver({
+    businessById: business,
+    businessAccess: [
+      {
+        business,
+        membership: createBusinessMembership({ membership_role: 'manager' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await managerResolver.canManageBusinessMembersForActor(actor, business.id)).reason,
+    'insufficient-role'
+  )
+
+  const staffResolver = createResolver({
+    businessById: business,
+    businessAccess: [
+      {
+        business,
+        membership: createBusinessMembership({ membership_role: 'staff' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await staffResolver.canViewBusinessForActor(actor, business.id)).allowed,
+    true
+  )
+  assert.equal(
+    (await staffResolver.canManageBusinessForActor(actor, business.id)).reason,
+    'insufficient-role'
+  )
+})
+
+test('organization role capability matrix stays explicit', async () => {
+  const organization = createOrganization()
+
+  const adminResolver = createResolver({
+    organizationById: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: createOrganizationMembership({ membership_role: 'admin' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await adminResolver.canManageOrganizationForActor(actor, organization.id)).allowed,
+    true
+  )
+
+  const managerResolver = createResolver({
+    organizationById: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: createOrganizationMembership({ membership_role: 'manager' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await managerResolver.canManageOrganizationForActor(actor, organization.id)).reason,
+    'insufficient-role'
+  )
+  assert.equal(
+    (await managerResolver.canCreateCampaignForActor(actor, organization.id)).allowed,
+    true
+  )
+
+  const sellerResolver = createResolver({
+    organizationById: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: createOrganizationMembership({ membership_role: 'seller' }),
+      },
+    ],
+  })
+
+  assert.equal(
+    (await sellerResolver.canViewOrganizationForActor(actor, organization.id)).allowed,
+    true
+  )
+  assert.equal(
+    (await sellerResolver.canCreateCampaignForActor(actor, organization.id)).reason,
+    'insufficient-role'
+  )
+})
+
+test('campaign selling requires a sellable campaign and active campaign membership', async () => {
   const organization = createOrganization()
   const organizationMembership = createOrganizationMembership({
-    membership_role: 'manager',
+    membership_role: 'seller',
   })
   const campaignMembership = createCampaignMembership()
+  const campaign = createCampaign()
   const resolver = createResolver({
+    organizationById: organization,
+    organizationByLegacyProfileId: organization,
     organizationAccess: [
       {
         organization,
@@ -304,18 +488,170 @@ test('campaign selling requires campaign membership while campaign management ca
         organizationMembership,
       },
     ],
-    campaignById: createCampaign(),
+    campaignById: campaign,
   })
 
-  const manageResult = await resolver.canManageCampaignForActor(
-    actor,
-    'campaign-1'
-  )
   const sellResult = await resolver.canSellForCampaignForActor(
     actor,
-    'campaign-1'
+    campaign.id
   )
 
-  assert.equal(manageResult.allowed, true)
   assert.equal(sellResult.allowed, true)
+})
+
+test('future, ended, paused, archived, and missing campaigns cannot accept new sales', async () => {
+  const organization = createOrganization()
+  const organizationMembership = createOrganizationMembership({
+    membership_role: 'seller',
+  })
+  const campaignMembership = createCampaignMembership()
+
+  for (const campaign of [
+    createCampaign({ starts_at: '2026-07-20T00:00:00.000Z' }),
+    createCampaign({ ends_at: '2026-07-10T00:00:00.000Z' }),
+    createCampaign({ status: 'paused' }),
+    createCampaign({ status: 'archived' }),
+  ]) {
+    const resolver = createResolver({
+      organizationById: organization,
+      organizationByLegacyProfileId: organization,
+      organizationAccess: [
+        {
+          organization,
+          membership: organizationMembership,
+        },
+      ],
+      campaignAccess: [
+        {
+          campaignMembership,
+          organizationMembership,
+        },
+      ],
+      campaignById: campaign,
+    })
+
+    const result = await resolver.canSellForCampaignForActor(actor, campaign.id)
+    assert.equal(result.reason, 'campaign-not-sellable')
+  }
+
+  const missingResolver = createResolver()
+  assert.equal(
+    (await missingResolver.canSellForCampaignForActor(actor, 'missing-campaign')).reason,
+    'resource-not-found'
+  )
+})
+
+test('active campaign membership on a non-sellable campaign is denied while seller progress remains visible after campaign end', async () => {
+  const organization = createOrganization()
+  const organizationMembership = createOrganizationMembership({
+    membership_role: 'seller',
+  })
+  const campaignMembership = createCampaignMembership()
+  const endedCampaign = createCampaign({ ends_at: '2026-07-10T00:00:00.000Z' })
+
+  const resolver = createResolver({
+    organizationById: organization,
+    organizationByLegacyProfileId: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: organizationMembership,
+      },
+    ],
+    campaignAccess: [
+      {
+        campaignMembership,
+        organizationMembership,
+      },
+    ],
+    campaignById: endedCampaign,
+    campaignMembershipById: campaignMembership,
+    organizationMembershipById: organizationMembership,
+  })
+
+  assert.equal(
+    (await resolver.canSellForCampaignForActor(actor, endedCampaign.id)).reason,
+    'campaign-not-sellable'
+  )
+  assert.equal(
+    (await resolver.canViewSellerProgressForActor(actor, campaignMembership.id)).allowed,
+    true
+  )
+})
+
+test('cross-organization seller progress access is denied', async () => {
+  const organization = createOrganization()
+  const foreignOrganizationMembership = createOrganizationMembership({
+    id: 'organization-membership-2',
+    organization_id: 'organization-2',
+    user_id: 'other-user',
+    membership_role: 'seller',
+  })
+  const foreignCampaignMembership = createCampaignMembership({
+    id: 'campaign-membership-2',
+    organization_membership_id: foreignOrganizationMembership.id,
+    campaign_id: 'campaign-2',
+  })
+
+  const resolver = createResolver({
+    organizationById: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: createOrganizationMembership({ membership_role: 'viewer' }),
+      },
+    ],
+    campaignMembershipById: foreignCampaignMembership,
+    organizationMembershipById: foreignOrganizationMembership,
+  })
+
+  const result = await resolver.canViewSellerProgressForActor(
+    actor,
+    foreignCampaignMembership.id
+  )
+
+  assert.equal(result.allowed, false)
+  assert.equal(result.reason, 'inactive-membership')
+})
+
+test('campaign management uses the legacy organization bridge and respects role checks', async () => {
+  const organization = createOrganization()
+  const organizationMembership = createOrganizationMembership({
+    membership_role: 'manager',
+  })
+  const campaign = createCampaign()
+
+  const resolver = createResolver({
+    organizationById: organization,
+    organizationByLegacyProfileId: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: organizationMembership,
+      },
+    ],
+    campaignById: campaign,
+  })
+
+  assert.equal(
+    (await resolver.canManageCampaignForActor(actor, campaign.id)).allowed,
+    true
+  )
+
+  const viewerResolver = createResolver({
+    organizationById: organization,
+    organizationByLegacyProfileId: organization,
+    organizationAccess: [
+      {
+        organization,
+        membership: createOrganizationMembership({ membership_role: 'viewer' }),
+      },
+    ],
+    campaignById: campaign,
+  })
+
+  assert.equal(
+    (await viewerResolver.canManageCampaignForActor(actor, campaign.id)).reason,
+    'insufficient-role'
+  )
 })

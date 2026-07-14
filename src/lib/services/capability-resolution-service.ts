@@ -1,19 +1,30 @@
 import { getBusinessById, getBusinessesByIds } from '../repositories/business-repository'
 import {
+  getBusinessMembershipForUserAndBusiness,
   getBusinessMembershipsForUser,
 } from '../repositories/business-membership-repository'
-import { getCampaignById } from '../repositories/campaign-repository'
+import {
+  getCampaignById,
+} from '../repositories/campaign-repository'
 import {
   getCampaignMembershipById,
   getCampaignMembershipsByOrganizationMembershipIds,
 } from '../repositories/campaign-membership-repository'
 import { getCustomerEntitlementsForUser } from '../repositories/customer-entitlement-repository'
-import { getOrganizationById, getOrganizationsByIds } from '../repositories/organization-repository'
+import {
+  getOrganizationById,
+  getOrganizationByLegacyProfileId,
+  getOrganizationsByIds,
+} from '../repositories/organization-repository'
 import {
   getOrganizationMembershipById,
+  getOrganizationMembershipForUserAndOrganization,
   getOrganizationMembershipsForUser,
 } from '../repositories/organization-membership-repository'
-import { getAuthenticatedActor, type AuthenticatedActorResult } from './authenticated-actor-service'
+import {
+  getAuthenticatedActor,
+  type AuthenticatedActorResult,
+} from './authenticated-actor-service'
 import {
   createCapabilityResolver,
   type CapabilityResolverDependencies,
@@ -158,6 +169,138 @@ async function loadCustomerEntitlements(
   return entitlements
 }
 
+async function loadBusinessAccessForActorAndBusiness(
+  actorId: string,
+  businessId: string
+): Promise<BusinessAccessRecord | null> {
+  const [{ membership, error: membershipError }, { business, error: businessError }] =
+    await Promise.all([
+      getBusinessMembershipForUserAndBusiness(actorId, businessId, {
+        status: 'active',
+      }),
+      getBusinessById(businessId),
+    ])
+
+  if (membershipError) {
+    throw createLookupError(membershipError)
+  }
+
+  if (businessError) {
+    throw createLookupError(businessError)
+  }
+
+  if (!membership || !business) {
+    return null
+  }
+
+  return { business, membership }
+}
+
+async function loadOrganizationAccessForActorAndOrganization(
+  actorId: string,
+  organizationId: string
+): Promise<OrganizationAccessRecord | null> {
+  const [
+    { membership, error: membershipError },
+    { organization, error: organizationError },
+  ] = await Promise.all([
+    getOrganizationMembershipForUserAndOrganization(
+      actorId,
+      organizationId,
+      {
+        status: 'active',
+      }
+    ),
+    getOrganizationById(organizationId),
+  ])
+
+  if (membershipError) {
+    throw createLookupError(membershipError)
+  }
+
+  if (organizationError) {
+    throw createLookupError(organizationError)
+  }
+
+  if (!membership || !organization) {
+    return null
+  }
+
+  return { organization, membership }
+}
+
+async function loadOrganizationAccessForActorByLegacyProfileId(
+  actorId: string,
+  legacyProfileId: string
+): Promise<OrganizationAccessRecord | null> {
+  const { organization, error: organizationError } =
+    await getOrganizationByLegacyProfileId(legacyProfileId)
+
+  if (organizationError) {
+    throw createLookupError(organizationError)
+  }
+
+  if (!organization) {
+    return null
+  }
+
+  return loadOrganizationAccessForActorAndOrganization(
+    actorId,
+    organization.id
+  )
+}
+
+async function loadCampaignAccessForActorAndCampaign(
+  actorId: string,
+  campaignId: string
+): Promise<CampaignAccessRecord | null> {
+  const { memberships: organizationMemberships, error: organizationError } =
+    await getOrganizationMembershipsForUser(actorId, {
+      status: 'active',
+    })
+
+  if (organizationError) {
+    throw createLookupError(organizationError)
+  }
+
+  const organizationMembershipById = new Map(
+    organizationMemberships.map((membership) => [membership.id, membership])
+  )
+
+  const { memberships: campaignMemberships, error: campaignError } =
+    await getCampaignMembershipsByOrganizationMembershipIds(
+      organizationMemberships.map((membership) => membership.id),
+      {
+        status: 'active',
+      }
+    )
+
+  if (campaignError) {
+    throw createLookupError(campaignError)
+  }
+
+  const campaignMembership = campaignMemberships.find(
+    (membership) => membership.campaign_id === campaignId
+  )
+
+  if (!campaignMembership) {
+    return null
+  }
+
+  const organizationMembership = organizationMembershipById.get(
+    campaignMembership.organization_membership_id
+  )
+
+  if (!organizationMembership) {
+    return null
+  }
+
+  return {
+    campaignMembership,
+    organizationMembership,
+  }
+}
+
 function createDefaultDependencies(): CapabilityResolverDependencies {
   return {
     loadBusinessAccess,
@@ -177,6 +320,17 @@ function createDefaultDependencies(): CapabilityResolverDependencies {
     async loadOrganizationById(organizationId) {
       const { organization, error } = await getOrganizationById(
         organizationId
+      )
+
+      if (error) {
+        throw createLookupError(error)
+      }
+
+      return organization
+    },
+    async loadOrganizationByLegacyProfileId(legacyProfileId) {
+      const { organization, error } = await getOrganizationByLegacyProfileId(
+        legacyProfileId
       )
 
       if (error) {
@@ -216,6 +370,10 @@ function createDefaultDependencies(): CapabilityResolverDependencies {
 
       return membership
     },
+    loadBusinessAccessForActorAndBusiness,
+    loadOrganizationAccessForActorAndOrganization,
+    loadOrganizationAccessForActorByLegacyProfileId,
+    loadCampaignAccessForActorAndCampaign,
   }
 }
 
@@ -227,7 +385,7 @@ function buildUnauthenticatedCapabilityResult(
   return {
     allowed: false,
     capability,
-    reason: actorResult.message,
+    reason: actorResult.reason,
     workspaceType: context?.workspaceType,
     workspaceId: context?.workspaceId,
     membershipId: context?.membershipId,
@@ -272,12 +430,11 @@ export async function resolveActorCapabilitySummary(): Promise<
           actorResult.actor
         ),
     }
-  } catch (error) {
+  } catch {
     return {
       success: false,
       reason: 'lookup-failure',
-      message:
-        error instanceof Error ? error.message : 'Lookup failed.',
+      message: 'Unable to load capability summary.',
     }
   }
 }
@@ -301,12 +458,11 @@ export async function canAccessCustomerBenefits(): Promise<CapabilityResult> {
     }
 
     return result
-  } catch (error) {
+  } catch {
     return {
       allowed: false,
       capability: 'canAccessCustomerBenefits',
-      reason:
-        error instanceof Error ? error.message : 'Lookup failed.',
+      reason: 'lookup-failure',
       workspaceType: 'customer',
     }
   }
@@ -331,12 +487,11 @@ export async function canAccessOwnerPlatform(): Promise<CapabilityResult> {
     }
 
     return result
-  } catch (error) {
+  } catch {
     return {
       allowed: false,
       capability: 'canAccessOwnerPlatform',
-      reason:
-        error instanceof Error ? error.message : 'Lookup failed.',
+      reason: 'lookup-failure',
       workspaceType: 'owner',
     }
   }
@@ -355,7 +510,10 @@ async function runActorCapabilityCheck(
     | 'canManageCampaign'
     | 'canSellForCampaign'
     | 'canViewSellerProgress',
-  callback: (resolver: ReturnType<typeof createCapabilityResolver>, actor: AuthenticatedActor) => Promise<CapabilityResult>,
+  callback: (
+    resolver: ReturnType<typeof createCapabilityResolver>,
+    actor: AuthenticatedActor
+  ) => Promise<CapabilityResult>,
   context: Partial<CapabilityResult>
 ): Promise<CapabilityResult> {
   try {
@@ -376,12 +534,11 @@ async function runActorCapabilityCheck(
     }
 
     return result
-  } catch (error) {
+  } catch {
     return {
       allowed: false,
       capability,
-      reason:
-        error instanceof Error ? error.message : 'Lookup failed.',
+      reason: 'lookup-failure',
       workspaceType: context.workspaceType,
       workspaceId: context.workspaceId,
       membershipId: context.membershipId,

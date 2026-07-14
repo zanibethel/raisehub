@@ -1,7 +1,7 @@
 # Multi-Role Foundation PR Plan
 
-**Version:** 4.1  
-**Status:** Repository foundation implemented; live runtime verification pending  
+**Version:** 4.2  
+**Status:** Repository authorization and campaign recovery implemented; live runtime verification pending  
 **Target:** Multi-role foundation pull request  
 **Scope type:** Additive architectural foundation  
 **User-visible change:** None or minimal  
@@ -24,14 +24,16 @@ Repository status:
 - Membership repositories: implemented
 - Customer entitlement repository: implemented
 - Capability resolution service: implemented
+- Workspace lifecycle and campaign sellability rules: implemented
+- Campaign recovery flow and sellable campaign selection: implemented
 - Legacy compatibility helpers: implemented
 - Focused repository-side unit tests: implemented
 
 Still pending outside the repository-only agent scope:
 
-- Authorized live verification of application reads against the verified foundation
-- Runtime connection of future workspace switching and invitation workflows
-- Any write-path enablement for privileged memberships or entitlements
+- Authorized live verification of application reads and purchase flows against the verified foundation
+- Runtime connection of future workspace switching and invitation workflows beyond campaign recovery
+- Any write-path enablement for privileged memberships or entitlements outside the campaign purchase flow
 
 ---
 

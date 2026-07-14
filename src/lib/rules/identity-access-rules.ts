@@ -1,5 +1,7 @@
 import type {
   BusinessMembershipRole,
+  BusinessRow,
+  CampaignRow,
   CapabilityName,
   CustomerEntitlementRecord,
   CustomerEntitlementStatus,
@@ -7,8 +9,9 @@ import type {
   LegacyProfileRole,
   MembershipStatus,
   OrganizationMembershipRole,
+  OrganizationRow,
   WorkspaceRole,
-} from '../types/identity-access.ts'
+} from '../types/identity-access'
 
 const LEGACY_PROFILE_ROLES: LegacyProfileRole[] = [
   'customer',
@@ -115,6 +118,83 @@ const ORGANIZATION_CAPABILITIES: Record<
   ],
   seller: ['canViewOrganization', 'canViewSellerProgress'],
   viewer: ['canViewOrganization'],
+}
+
+export type WorkspaceLifecycleDenialReason =
+  | 'workspace-inactive'
+  | 'workspace-archived'
+
+function hasArchivedAt(
+  value: Pick<BusinessRow, 'archived_at'> | Pick<OrganizationRow, 'archived_at'>
+): boolean {
+  return Boolean(value.archived_at)
+}
+
+export function getBusinessLifecycleDenialReason(
+  business: Pick<BusinessRow, 'status' | 'archived_at'>
+): WorkspaceLifecycleDenialReason | null {
+  if (hasArchivedAt(business)) {
+    return 'workspace-archived'
+  }
+
+  if (business.status !== 'active') {
+    return 'workspace-inactive'
+  }
+
+  return null
+}
+
+export function isBusinessOperational(
+  business: Pick<BusinessRow, 'status' | 'archived_at'>
+): boolean {
+  return getBusinessLifecycleDenialReason(business) === null
+}
+
+export function getOrganizationLifecycleDenialReason(
+  organization: Pick<OrganizationRow, 'status' | 'archived_at'>
+): WorkspaceLifecycleDenialReason | null {
+  if (hasArchivedAt(organization)) {
+    return 'workspace-archived'
+  }
+
+  if (organization.status !== 'active') {
+    return 'workspace-inactive'
+  }
+
+  return null
+}
+
+export function isOrganizationOperational(
+  organization: Pick<OrganizationRow, 'status' | 'archived_at'>
+): boolean {
+  return getOrganizationLifecycleDenialReason(organization) === null
+}
+
+export function isCampaignCurrentlySellable(
+  campaign: Pick<CampaignRow, 'status' | 'starts_at' | 'ends_at'>,
+  now = new Date()
+): boolean {
+  if (campaign.status !== 'active') {
+    return false
+  }
+
+  if (campaign.starts_at) {
+    const startsAt = new Date(campaign.starts_at)
+
+    if (Number.isNaN(startsAt.getTime()) || startsAt > now) {
+      return false
+    }
+  }
+
+  if (campaign.ends_at) {
+    const endsAt = new Date(campaign.ends_at)
+
+    if (Number.isNaN(endsAt.getTime()) || endsAt <= now) {
+      return false
+    }
+  }
+
+  return true
 }
 
 export function isLegacyProfileRole(

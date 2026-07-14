@@ -68,12 +68,13 @@ Completed:
 - Multi-role repositories introduced for businesses, memberships, organizations, campaign participation, customer entitlements, campaigns, and actor profiles
 - Deterministic multi-role authorization rules introduced under `src/lib/rules/`
 - Capability resolution and legacy compatibility services introduced for future workspace-aware authorization without changing current dashboard routing
-- Focused repository-side multi-role unit tests added for rules and capability resolution
+- Workspace lifecycle, campaign sellability, and campaign recovery safeguards now align application behavior with the hardened live RLS campaign rules
+- Focused repository-side multi-role unit tests added for rules, capability resolution, campaign progress, and recovery flows
 
 Pending:
 
-- Connect multi-role capabilities into future workspace selection and invitation workflows
-- Perform authorized live runtime verification against the verified database foundation
+- Extend the same multi-role capability model into broader workspace selection and invitation workflows
+- Perform authorized live runtime verification against the verified database foundation and authenticated campaign accounts
 
 ### Owner Platform — Workspace Browser and Read-Only Support Shell
 

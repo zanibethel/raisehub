@@ -48,10 +48,21 @@ export async function getCustomerEntitlementsForUser(
 
   return {
     entitlements: rows.map((row) => ({
-      ...row,
+      id: row.id,
+      user_id: row.user_id,
+      purchase_id: row.purchase_id,
+      entitlement_type: row.entitlement_type,
+      status: row.status,
+      starts_at: row.starts_at,
+      expires_at: row.expires_at,
+      granted_by: row.granted_by,
+      revoked_at: row.revoked_at,
+      replacement_entitlement_id: row.replacement_entitlement_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
       purchase_payment_status:
         row.campaign_purchases?.payment_status ?? null,
-    })) as CustomerEntitlementRecord[],
+    })),
     error: null,
   }
 }

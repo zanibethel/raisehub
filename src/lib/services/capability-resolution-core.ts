@@ -1,18 +1,22 @@
 import {
+  getBusinessLifecycleDenialReason,
   getLegacyWorkspaceRole,
+  getOrganizationLifecycleDenialReason,
   hasBusinessCapability,
   hasOrganizationCapability,
+  isCampaignCurrentlySellable,
   isCustomerEntitlementActive,
-} from '../rules/identity-access-rules.ts'
+} from '../rules/identity-access-rules'
 import {
   isLegacyBusinessEntityOwner,
   isLegacyCampaignOwner,
   isLegacyOrganizationEntityAdmin,
-} from './legacy-compatibility-service.ts'
+} from './legacy-compatibility-service'
 import type {
   ActorCapabilitySummary,
   AuthenticatedActor,
   BusinessAccessRecord,
+  BusinessMembershipRow,
   BusinessRow,
   CampaignAccessRecord,
   CampaignMembershipRow,
@@ -21,7 +25,8 @@ import type {
   CustomerEntitlementRecord,
   OrganizationAccessRecord,
   OrganizationMembershipRow,
-} from '../types/identity-access.ts'
+  OrganizationRow,
+} from '../types/identity-access'
 
 export type CapabilityResolverDependencies = {
   now?: () => Date
@@ -35,7 +40,10 @@ export type CapabilityResolverDependencies = {
   loadBusinessById(businessId: string): Promise<BusinessRow | null>
   loadOrganizationById(
     organizationId: string
-  ): Promise<OrganizationAccessRecord['organization'] | null>
+  ): Promise<OrganizationRow | null>
+  loadOrganizationByLegacyProfileId(
+    legacyProfileId: string
+  ): Promise<OrganizationRow | null>
   loadCampaignById(campaignId: string): Promise<CampaignRow | null>
   loadCampaignMembershipById(
     campaignMembershipId: string
@@ -43,6 +51,22 @@ export type CapabilityResolverDependencies = {
   loadOrganizationMembershipById(
     organizationMembershipId: string
   ): Promise<OrganizationMembershipRow | null>
+  loadBusinessAccessForActorAndBusiness(
+    actorId: string,
+    businessId: string
+  ): Promise<BusinessAccessRecord | null>
+  loadOrganizationAccessForActorAndOrganization(
+    actorId: string,
+    organizationId: string
+  ): Promise<OrganizationAccessRecord | null>
+  loadOrganizationAccessForActorByLegacyProfileId(
+    actorId: string,
+    legacyProfileId: string
+  ): Promise<OrganizationAccessRecord | null>
+  loadCampaignAccessForActorAndCampaign(
+    actorId: string,
+    campaignId: string
+  ): Promise<CampaignAccessRecord | null>
 }
 
 function buildDeniedResult(
@@ -71,6 +95,48 @@ function buildAllowedResult(
     actorId: actor.id,
     ...context,
   }
+}
+
+function filterOperationalBusinessAccess(
+  businessAccess: BusinessAccessRecord[]
+): BusinessAccessRecord[] {
+  return businessAccess.filter(
+    ({ business }) => getBusinessLifecycleDenialReason(business) === null
+  )
+}
+
+function filterOperationalOrganizationAccess(
+  organizationAccess: OrganizationAccessRecord[]
+): OrganizationAccessRecord[] {
+  return organizationAccess.filter(
+    ({ organization }) =>
+      getOrganizationLifecycleDenialReason(organization) === null
+  )
+}
+
+function isSelfActiveCampaignMembership(
+  actor: AuthenticatedActor,
+  campaignMembership: CampaignMembershipRow,
+  organizationMembership: OrganizationMembershipRow
+): boolean {
+  return (
+    organizationMembership.user_id === actor.id &&
+    organizationMembership.status === 'active' &&
+    campaignMembership.status === 'active'
+  )
+}
+
+function buildMembershipDeniedReason<T extends { membership: { membership_role: string } }>(
+  access: T | null,
+  capabilityCheck: (role: string) => boolean
+): 'inactive-membership' | 'insufficient-role' {
+  if (!access) {
+    return 'inactive-membership'
+  }
+
+  return capabilityCheck(access.membership.membership_role)
+    ? 'inactive-membership'
+    : 'insufficient-role'
 }
 
 export function createCapabilityResolver(
@@ -103,8 +169,9 @@ export function createCapabilityResolver(
     return {
       actor,
       legacyWorkspaceRole: getLegacyWorkspaceRole(actor.legacyRole),
-      businessAccess,
-      organizationAccess,
+      businessAccess: filterOperationalBusinessAccess(businessAccess),
+      organizationAccess:
+        filterOperationalOrganizationAccess(organizationAccess),
       campaignAccess,
       customerEntitlements,
       activeCustomerEntitlement,
@@ -171,23 +238,6 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     businessId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
-
-    const access = summary.businessAccess.find(
-      ({ business }) => business.id === businessId
-    )
-
-    if (access) {
-      return buildAllowedResult(actor, 'canViewBusiness', {
-        source: 'business-membership',
-        workspaceType: 'business',
-        workspaceId: businessId,
-        membershipId: access.membership.id,
-        legacyProfileId: access.business.legacy_profile_id,
-      })
-    }
-
     const business = await dependencies.loadBusinessById(businessId)
 
     if (!business) {
@@ -200,6 +250,38 @@ export function createCapabilityResolver(
           workspaceId: businessId,
         }
       )
+    }
+
+    const lifecycleDenialReason =
+      getBusinessLifecycleDenialReason(business)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canViewBusiness',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+          legacyProfileId: business.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadBusinessAccessForActorAndBusiness(
+        actor.id,
+        businessId
+      )
+
+    if (access) {
+      return buildAllowedResult(actor, 'canViewBusiness', {
+        source: 'business-membership',
+        workspaceType: 'business',
+        workspaceId: businessId,
+        membershipId: access.membership.id,
+        legacyProfileId: business.legacy_profile_id,
+      })
     }
 
     if (isLegacyBusinessEntityOwner(actor, business)) {
@@ -227,12 +309,41 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     businessId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const business = await dependencies.loadBusinessById(businessId)
 
-    const access = summary.businessAccess.find(
-      ({ business }) => business.id === businessId
-    )
+    if (!business) {
+      return buildDeniedResult(
+        actor,
+        'canManageBusiness',
+        'resource-not-found',
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getBusinessLifecycleDenialReason(business)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canManageBusiness',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+          legacyProfileId: business.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadBusinessAccessForActorAndBusiness(
+        actor.id,
+        businessId
+      )
 
     if (
       access &&
@@ -246,13 +357,11 @@ export function createCapabilityResolver(
         workspaceType: 'business',
         workspaceId: businessId,
         membershipId: access.membership.id,
-        legacyProfileId: access.business.legacy_profile_id,
+        legacyProfileId: business.legacy_profile_id,
       })
     }
 
-    const business = await dependencies.loadBusinessById(businessId)
-
-    if (business && isLegacyBusinessEntityOwner(actor, business)) {
+    if (isLegacyBusinessEntityOwner(actor, business)) {
       return buildAllowedResult(actor, 'canManageBusiness', {
         source: 'legacy-profile',
         workspaceType: 'business',
@@ -264,12 +373,15 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canManageBusiness',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) => hasBusinessCapability(role, 'canManageBusiness')
+      ),
       {
         workspaceType: 'business',
         workspaceId: businessId,
         membershipId: access?.membership.id,
-        legacyProfileId: access?.business.legacy_profile_id ?? business?.legacy_profile_id ?? null,
+        legacyProfileId: business.legacy_profile_id,
       }
     )
   }
@@ -278,12 +390,41 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     businessId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const business = await dependencies.loadBusinessById(businessId)
 
-    const access = summary.businessAccess.find(
-      ({ business }) => business.id === businessId
-    )
+    if (!business) {
+      return buildDeniedResult(
+        actor,
+        'canManageBusinessMembers',
+        'resource-not-found',
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getBusinessLifecycleDenialReason(business)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canManageBusinessMembers',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+          legacyProfileId: business.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadBusinessAccessForActorAndBusiness(
+        actor.id,
+        businessId
+      )
 
     if (
       access &&
@@ -300,14 +441,12 @@ export function createCapabilityResolver(
           workspaceType: 'business',
           workspaceId: businessId,
           membershipId: access.membership.id,
-          legacyProfileId: access.business.legacy_profile_id,
+          legacyProfileId: business.legacy_profile_id,
         }
       )
     }
 
-    const business = await dependencies.loadBusinessById(businessId)
-
-    if (business && isLegacyBusinessEntityOwner(actor, business)) {
+    if (isLegacyBusinessEntityOwner(actor, business)) {
       return buildAllowedResult(
         actor,
         'canManageBusinessMembers',
@@ -323,12 +462,16 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canManageBusinessMembers',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) =>
+          hasBusinessCapability(role, 'canManageBusinessMembers')
+      ),
       {
         workspaceType: 'business',
         workspaceId: businessId,
         membershipId: access?.membership.id,
-        legacyProfileId: access?.business.legacy_profile_id ?? business?.legacy_profile_id ?? null,
+        legacyProfileId: business.legacy_profile_id,
       }
     )
   }
@@ -337,12 +480,41 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     businessId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const business = await dependencies.loadBusinessById(businessId)
 
-    const access = summary.businessAccess.find(
-      ({ business }) => business.id === businessId
-    )
+    if (!business) {
+      return buildDeniedResult(
+        actor,
+        'canViewBusinessAnalytics',
+        'resource-not-found',
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getBusinessLifecycleDenialReason(business)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canViewBusinessAnalytics',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'business',
+          workspaceId: businessId,
+          legacyProfileId: business.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadBusinessAccessForActorAndBusiness(
+        actor.id,
+        businessId
+      )
 
     if (
       access &&
@@ -359,14 +531,12 @@ export function createCapabilityResolver(
           workspaceType: 'business',
           workspaceId: businessId,
           membershipId: access.membership.id,
-          legacyProfileId: access.business.legacy_profile_id,
+          legacyProfileId: business.legacy_profile_id,
         }
       )
     }
 
-    const business = await dependencies.loadBusinessById(businessId)
-
-    if (business && isLegacyBusinessEntityOwner(actor, business)) {
+    if (isLegacyBusinessEntityOwner(actor, business)) {
       return buildAllowedResult(
         actor,
         'canViewBusinessAnalytics',
@@ -382,12 +552,16 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canViewBusinessAnalytics',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) =>
+          hasBusinessCapability(role, 'canViewBusinessAnalytics')
+      ),
       {
         workspaceType: 'business',
         workspaceId: businessId,
         membershipId: access?.membership.id,
-        legacyProfileId: access?.business.legacy_profile_id ?? business?.legacy_profile_id ?? null,
+        legacyProfileId: business.legacy_profile_id,
       }
     )
   }
@@ -396,23 +570,6 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     organizationId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
-
-    const access = summary.organizationAccess.find(
-      ({ organization }) => organization.id === organizationId
-    )
-
-    if (access) {
-      return buildAllowedResult(actor, 'canViewOrganization', {
-        source: 'organization-membership',
-        workspaceType: 'organization',
-        workspaceId: organizationId,
-        membershipId: access.membership.id,
-        legacyProfileId: access.organization.legacy_profile_id,
-      })
-    }
-
     const organization =
       await dependencies.loadOrganizationById(organizationId)
 
@@ -426,6 +583,38 @@ export function createCapabilityResolver(
           workspaceId: organizationId,
         }
       )
+    }
+
+    const lifecycleDenialReason =
+      getOrganizationLifecycleDenialReason(organization)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canViewOrganization',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+          legacyProfileId: organization.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadOrganizationAccessForActorAndOrganization(
+        actor.id,
+        organizationId
+      )
+
+    if (access) {
+      return buildAllowedResult(actor, 'canViewOrganization', {
+        source: 'organization-membership',
+        workspaceType: 'organization',
+        workspaceId: organizationId,
+        membershipId: access.membership.id,
+        legacyProfileId: organization.legacy_profile_id,
+      })
     }
 
     if (isLegacyOrganizationEntityAdmin(actor, organization)) {
@@ -453,12 +642,42 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     organizationId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const organization =
+      await dependencies.loadOrganizationById(organizationId)
 
-    const access = summary.organizationAccess.find(
-      ({ organization }) => organization.id === organizationId
-    )
+    if (!organization) {
+      return buildDeniedResult(
+        actor,
+        'canManageOrganization',
+        'resource-not-found',
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getOrganizationLifecycleDenialReason(organization)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canManageOrganization',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+          legacyProfileId: organization.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadOrganizationAccessForActorAndOrganization(
+        actor.id,
+        organizationId
+      )
 
     if (
       access &&
@@ -472,17 +691,11 @@ export function createCapabilityResolver(
         workspaceType: 'organization',
         workspaceId: organizationId,
         membershipId: access.membership.id,
-        legacyProfileId: access.organization.legacy_profile_id,
+        legacyProfileId: organization.legacy_profile_id,
       })
     }
 
-    const organization =
-      await dependencies.loadOrganizationById(organizationId)
-
-    if (
-      organization &&
-      isLegacyOrganizationEntityAdmin(actor, organization)
-    ) {
+    if (isLegacyOrganizationEntityAdmin(actor, organization)) {
       return buildAllowedResult(actor, 'canManageOrganization', {
         source: 'legacy-profile',
         workspaceType: 'organization',
@@ -494,15 +707,16 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canManageOrganization',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) =>
+          hasOrganizationCapability(role, 'canManageOrganization')
+      ),
       {
         workspaceType: 'organization',
         workspaceId: organizationId,
         membershipId: access?.membership.id,
-        legacyProfileId:
-          access?.organization.legacy_profile_id ??
-          organization?.legacy_profile_id ??
-          null,
+        legacyProfileId: organization.legacy_profile_id,
       }
     )
   }
@@ -511,12 +725,42 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     organizationId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const organization =
+      await dependencies.loadOrganizationById(organizationId)
 
-    const access = summary.organizationAccess.find(
-      ({ organization }) => organization.id === organizationId
-    )
+    if (!organization) {
+      return buildDeniedResult(
+        actor,
+        'canManageOrganizationMembers',
+        'resource-not-found',
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getOrganizationLifecycleDenialReason(organization)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canManageOrganizationMembers',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+          legacyProfileId: organization.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadOrganizationAccessForActorAndOrganization(
+        actor.id,
+        organizationId
+      )
 
     if (
       access &&
@@ -533,18 +777,12 @@ export function createCapabilityResolver(
           workspaceType: 'organization',
           workspaceId: organizationId,
           membershipId: access.membership.id,
-          legacyProfileId: access.organization.legacy_profile_id,
+          legacyProfileId: organization.legacy_profile_id,
         }
       )
     }
 
-    const organization =
-      await dependencies.loadOrganizationById(organizationId)
-
-    if (
-      organization &&
-      isLegacyOrganizationEntityAdmin(actor, organization)
-    ) {
+    if (isLegacyOrganizationEntityAdmin(actor, organization)) {
       return buildAllowedResult(
         actor,
         'canManageOrganizationMembers',
@@ -560,15 +798,19 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canManageOrganizationMembers',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) =>
+          hasOrganizationCapability(
+            role,
+            'canManageOrganizationMembers'
+          )
+      ),
       {
         workspaceType: 'organization',
         workspaceId: organizationId,
         membershipId: access?.membership.id,
-        legacyProfileId:
-          access?.organization.legacy_profile_id ??
-          organization?.legacy_profile_id ??
-          null,
+        legacyProfileId: organization.legacy_profile_id,
       }
     )
   }
@@ -577,12 +819,42 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     organizationId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const organization =
+      await dependencies.loadOrganizationById(organizationId)
 
-    const access = summary.organizationAccess.find(
-      ({ organization }) => organization.id === organizationId
-    )
+    if (!organization) {
+      return buildDeniedResult(
+        actor,
+        'canCreateCampaign',
+        'resource-not-found',
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+        }
+      )
+    }
+
+    const lifecycleDenialReason =
+      getOrganizationLifecycleDenialReason(organization)
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canCreateCampaign',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'organization',
+          workspaceId: organizationId,
+          legacyProfileId: organization.legacy_profile_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadOrganizationAccessForActorAndOrganization(
+        actor.id,
+        organizationId
+      )
 
     if (
       access &&
@@ -596,17 +868,11 @@ export function createCapabilityResolver(
         workspaceType: 'organization',
         workspaceId: organizationId,
         membershipId: access.membership.id,
-        legacyProfileId: access.organization.legacy_profile_id,
+        legacyProfileId: organization.legacy_profile_id,
       })
     }
 
-    const organization =
-      await dependencies.loadOrganizationById(organizationId)
-
-    if (
-      organization &&
-      isLegacyOrganizationEntityAdmin(actor, organization)
-    ) {
+    if (isLegacyOrganizationEntityAdmin(actor, organization)) {
       return buildAllowedResult(actor, 'canCreateCampaign', {
         source: 'legacy-profile',
         workspaceType: 'organization',
@@ -618,15 +884,15 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canCreateCampaign',
-      access ? 'insufficient-role' : 'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) => hasOrganizationCapability(role, 'canCreateCampaign')
+      ),
       {
         workspaceType: 'organization',
         workspaceId: organizationId,
         membershipId: access?.membership.id,
-        legacyProfileId:
-          access?.organization.legacy_profile_id ??
-          organization?.legacy_profile_id ??
-          null,
+        legacyProfileId: organization.legacy_profile_id,
       }
     )
   }
@@ -635,9 +901,6 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     campaignId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
-
     const campaign = await dependencies.loadCampaignById(campaignId)
 
     if (!campaign) {
@@ -652,16 +915,41 @@ export function createCapabilityResolver(
       )
     }
 
-    const access = summary.organizationAccess.find(
-      ({ organization, membership }) =>
-        organization.legacy_profile_id === campaign.organization_id &&
-        hasOrganizationCapability(
-          membership.membership_role,
-          'canManageCampaign'
-        )
-    )
+    const organization =
+      await dependencies.loadOrganizationByLegacyProfileId(
+        campaign.organization_id
+      )
 
-    if (access) {
+    const lifecycleDenialReason = organization
+      ? getOrganizationLifecycleDenialReason(organization)
+      : null
+
+    if (lifecycleDenialReason) {
+      return buildDeniedResult(
+        actor,
+        'canManageCampaign',
+        lifecycleDenialReason,
+        {
+          workspaceType: 'campaign',
+          workspaceId: campaignId,
+          legacyProfileId: campaign.organization_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadOrganizationAccessForActorByLegacyProfileId(
+        actor.id,
+        campaign.organization_id
+      )
+
+    if (
+      access &&
+      hasOrganizationCapability(
+        access.membership.membership_role,
+        'canManageCampaign'
+      )
+    ) {
       return buildAllowedResult(actor, 'canManageCampaign', {
         source: 'organization-membership',
         workspaceType: 'campaign',
@@ -683,10 +971,14 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canManageCampaign',
-      'inactive-membership',
+      buildMembershipDeniedReason(
+        access,
+        (role) => hasOrganizationCapability(role, 'canManageCampaign')
+      ),
       {
         workspaceType: 'campaign',
         workspaceId: campaignId,
+        membershipId: access?.membership.id,
         legacyProfileId: campaign.organization_id,
       }
     )
@@ -696,13 +988,38 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     campaignId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
+    const campaign = await dependencies.loadCampaignById(campaignId)
 
-    const access = summary.campaignAccess.find(
-      ({ campaignMembership }) =>
-        campaignMembership.campaign_id === campaignId
-    )
+    if (!campaign) {
+      return buildDeniedResult(
+        actor,
+        'canSellForCampaign',
+        'resource-not-found',
+        {
+          workspaceType: 'campaign',
+          workspaceId: campaignId,
+        }
+      )
+    }
+
+    if (!isCampaignCurrentlySellable(campaign, getNow())) {
+      return buildDeniedResult(
+        actor,
+        'canSellForCampaign',
+        'campaign-not-sellable',
+        {
+          workspaceType: 'campaign',
+          workspaceId: campaignId,
+          legacyProfileId: campaign.organization_id,
+        }
+      )
+    }
+
+    const access =
+      await dependencies.loadCampaignAccessForActorAndCampaign(
+        actor.id,
+        campaignId
+      )
 
     if (access) {
       return buildAllowedResult(actor, 'canSellForCampaign', {
@@ -710,6 +1027,7 @@ export function createCapabilityResolver(
         workspaceType: 'campaign',
         workspaceId: campaignId,
         membershipId: access.campaignMembership.id,
+        legacyProfileId: campaign.organization_id,
       })
     }
 
@@ -720,6 +1038,7 @@ export function createCapabilityResolver(
       {
         workspaceType: 'campaign',
         workspaceId: campaignId,
+        legacyProfileId: campaign.organization_id,
       }
     )
   }
@@ -728,27 +1047,8 @@ export function createCapabilityResolver(
     actor: AuthenticatedActor,
     campaignMembershipId: string
   ): Promise<CapabilityResult> {
-    const summary =
-      await resolveActorCapabilitySummaryForActor(actor)
-
-    const selfAccess = summary.campaignAccess.find(
-      ({ campaignMembership }) =>
-        campaignMembership.id === campaignMembershipId
-    )
-
-    if (selfAccess) {
-      return buildAllowedResult(actor, 'canViewSellerProgress', {
-        source: 'campaign-membership',
-        workspaceType: 'campaign',
-        workspaceId: selfAccess.campaignMembership.campaign_id,
-        membershipId: campaignMembershipId,
-      })
-    }
-
     const campaignMembership =
-      await dependencies.loadCampaignMembershipById(
-        campaignMembershipId
-      )
+      await dependencies.loadCampaignMembershipById(campaignMembershipId)
 
     if (!campaignMembership) {
       return buildDeniedResult(
@@ -780,17 +1080,34 @@ export function createCapabilityResolver(
       )
     }
 
-    const managerAccess = summary.organizationAccess.find(
-      ({ membership }) =>
-        membership.organization_id ===
-          organizationMembership.organization_id &&
-        hasOrganizationCapability(
-          membership.membership_role,
-          'canViewSellerProgress'
-        )
-    )
+    if (
+      isSelfActiveCampaignMembership(
+        actor,
+        campaignMembership,
+        organizationMembership
+      )
+    ) {
+      return buildAllowedResult(actor, 'canViewSellerProgress', {
+        source: 'campaign-membership',
+        workspaceType: 'campaign',
+        workspaceId: campaignMembership.campaign_id,
+        membershipId: campaignMembershipId,
+      })
+    }
 
-    if (managerAccess) {
+    const managerAccess =
+      await dependencies.loadOrganizationAccessForActorAndOrganization(
+        actor.id,
+        organizationMembership.organization_id
+      )
+
+    if (
+      managerAccess &&
+      hasOrganizationCapability(
+        managerAccess.membership.membership_role,
+        'canViewSellerProgress'
+      )
+    ) {
       return buildAllowedResult(actor, 'canViewSellerProgress', {
         source: 'organization-membership',
         workspaceType: 'campaign',
@@ -802,7 +1119,10 @@ export function createCapabilityResolver(
     return buildDeniedResult(
       actor,
       'canViewSellerProgress',
-      'inactive-membership',
+      buildMembershipDeniedReason(
+        managerAccess,
+        (role) => hasOrganizationCapability(role, 'canViewSellerProgress')
+      ),
       {
         workspaceType: 'campaign',
         workspaceId: campaignMembership.campaign_id,

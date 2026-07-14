@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { purchaseCampaignPassAction } from '@/app/campaigns/actions'
 
@@ -17,6 +18,39 @@ type BuyCampaignPassButtonProps = {
   defaultOrganizationId?: string | null
   sellerName?: string
   hasActivePass?: boolean
+  initialDonationAmount?: string
+  initialSelectedOrganizationId?: string | null
+}
+
+function buildCampaignHref(input: {
+  campaignId: string
+  sellerName: string
+  notice: 'campaign-unavailable' | 'campaign-replaced'
+  replacedCampaignId: string | null
+  donationAmount: string
+  selectedOrganizationId: string
+}) {
+  const searchParams = new URLSearchParams()
+
+  if (input.sellerName) {
+    searchParams.set('seller', input.sellerName)
+  }
+
+  searchParams.set('notice', input.notice)
+
+  if (input.replacedCampaignId) {
+    searchParams.set('replaced', input.replacedCampaignId)
+  }
+
+  if (input.donationAmount) {
+    searchParams.set('donation', input.donationAmount)
+  }
+
+  if (input.selectedOrganizationId) {
+    searchParams.set('organization', input.selectedOrganizationId)
+  }
+
+  return `/campaigns/${input.campaignId}?${searchParams.toString()}`
 }
 
 export default function BuyCampaignPassButton({
@@ -26,19 +60,23 @@ export default function BuyCampaignPassButton({
   defaultOrganizationId = null,
   sellerName = '',
   hasActivePass = false,
+  initialDonationAmount,
+  initialSelectedOrganizationId = null,
 }: BuyCampaignPassButtonProps) {
+  const router = useRouter()
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
-    defaultOrganizationId ?? organizations[0]?.id ?? ''
+    initialSelectedOrganizationId ??
+      defaultOrganizationId ??
+      organizations[0]?.id ??
+      ''
   )
-  const [donationAmount, setDonationAmount] = useState(hasActivePass ? '10' : '0')
+  const [donationAmount, setDonationAmount] = useState(
+    initialDonationAmount ?? (hasActivePass ? '10' : '0')
+  )
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [purchaseComplete, setPurchaseComplete] = useState(false)
 
-  // =========================================
-  // 🧮 PURCHASE TOTALS
-  // If pass is already active, only donation is charged.
-  // =========================================
   const donationNumber = Number(donationAmount) || 0
   const effectivePassPrice = hasActivePass ? 0 : passPrice
   const totalAmount = effectivePassPrice + donationNumber
@@ -52,9 +90,6 @@ export default function BuyCampaignPassButton({
     selectedOrganization?.business_name ||
     'this organization'
 
-  // =========================================
-  // 💳 PURCHASE / DONATION ACTION
-  // =========================================
   async function handleBuyPass() {
     if (loading || purchaseComplete) return
 
@@ -74,19 +109,47 @@ export default function BuyCampaignPassButton({
       seller_name: sellerName || undefined,
     })
 
-    if (result.error) {
-      setMessage(result.error || 'Something went wrong. Please try again.')
+    if (result.status === 'success') {
+      setPurchaseComplete(true)
       setLoading(false)
       return
     }
 
-    setPurchaseComplete(true)
+    if (result.status === 'replacement-found') {
+      router.push(
+        buildCampaignHref({
+          campaignId: result.campaignId,
+          sellerName,
+          notice: 'campaign-replaced',
+          replacedCampaignId: result.replacedCampaignId,
+          donationAmount,
+          selectedOrganizationId,
+        })
+      )
+      return
+    }
+
+    if (
+      result.status === 'selection-required' ||
+      result.status === 'no-valid-campaign'
+    ) {
+      router.push(
+        buildCampaignHref({
+          campaignId,
+          sellerName,
+          notice: 'campaign-unavailable',
+          replacedCampaignId: result.replacedCampaignId,
+          donationAmount,
+          selectedOrganizationId,
+        })
+      )
+      return
+    }
+
+    setMessage(result.message)
     setLoading(false)
   }
 
-  // =========================================
-  // ✅ SUCCESS STATE
-  // =========================================
   if (purchaseComplete) {
     return (
       <div className="rounded-2xl border border-green-100 bg-green-50 p-5">
@@ -128,25 +191,19 @@ export default function BuyCampaignPassButton({
 
   return (
     <div className="space-y-4">
-      {/* =========================================
-          ✅ ACTIVE PASS NOTICE
-      ========================================= */}
       {hasActivePass ? (
-  <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
-    <p>✅ Pass already active. You can make an additional donation below.</p>
+        <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
+          <p>✅ Pass already active. You can make an additional donation below.</p>
 
-    <Link
-      href="/dashboard"
-      className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-    >
-      View My Pass
-    </Link>
-  </div>
-) : null}
+          <Link
+            href="/dashboard"
+            className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            View My Pass
+          </Link>
+        </div>
+      ) : null}
 
-      {/* =========================================
-          🏫 ORGANIZATION SUPPORT DROPDOWN
-      ========================================= */}
       {organizations.length > 0 ? (
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -155,7 +212,7 @@ export default function BuyCampaignPassButton({
 
           <select
             value={selectedOrganizationId}
-            onChange={(e) => setSelectedOrganizationId(e.target.value)}
+            onChange={(event) => setSelectedOrganizationId(event.target.value)}
             className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm"
           >
             {organizations.map((organization) => {
@@ -174,9 +231,6 @@ export default function BuyCampaignPassButton({
         </div>
       ) : null}
 
-      {/* =========================================
-          💝 OPTIONAL DONATION ADD-ON
-      ========================================= */}
       <div>
         <label className="mb-2 block text-sm font-medium text-gray-700">
           {hasActivePass ? 'Additional donation' : 'Optional donation add-on'}
@@ -219,7 +273,7 @@ export default function BuyCampaignPassButton({
             min="0"
             step="1"
             value={donationAmount}
-            onChange={(e) => setDonationAmount(e.target.value)}
+            onChange={(event) => setDonationAmount(event.target.value)}
             className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm"
             placeholder="Enter custom amount"
           />
@@ -230,9 +284,6 @@ export default function BuyCampaignPassButton({
         </p>
       </div>
 
-      {/* =========================================
-          💵 TOTAL SUMMARY
-      ========================================= */}
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
         {!hasActivePass ? (
           <div className="flex items-center justify-between text-sm text-blue-800">
@@ -252,9 +303,6 @@ export default function BuyCampaignPassButton({
         </div>
       </div>
 
-      {/* =========================================
-          💳 SUPPORT BUTTON
-      ========================================= */}
       <button
         type="button"
         onClick={handleBuyPass}

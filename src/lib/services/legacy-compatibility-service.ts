@@ -1,13 +1,13 @@
 import {
   getLegacyWorkspaceRole,
   isLegacyPurchaseActive,
-} from '../rules/identity-access-rules.ts'
+} from '../rules/identity-access-rules'
 import type {
   AuthenticatedActor,
   BusinessRow,
   OrganizationRow,
   WorkspaceRole,
-} from '../types/identity-access.ts'
+} from '../types/identity-access'
 
 export function resolveLegacyWorkspaceRole(
   legacyRole: string | null | undefined
@@ -49,7 +49,7 @@ export async function hasLegacyCustomerPassAccess(
   userId: string
 ): Promise<boolean> {
   const { hasCustomerNonFailedPurchase } = await import(
-    '../repositories/customer-purchase-repository.ts'
+    '../repositories/customer-purchase-repository'
   )
   const { hasPurchase, error } =
     await hasCustomerNonFailedPurchase(userId)
