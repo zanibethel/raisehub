@@ -1,6 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import {
+  useEffect,
+  useRef,
+} from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 import type {
@@ -65,7 +69,8 @@ function getSelectedWorkspace(
     selectedWorkspaceKey
       ? workspaces.find(
           (workspace) =>
-            workspace.key === selectedWorkspaceKey
+            workspace.key ===
+            selectedWorkspaceKey
         )
       : null
 
@@ -88,6 +93,9 @@ export default function AccountMenu({
   workspaces,
   selectedWorkspaceKey,
 }: AccountMenuProps) {
+  const detailsRef =
+    useRef<HTMLDetailsElement | null>(null)
+
   const selectedWorkspace =
     getSelectedWorkspace(
       workspaces,
@@ -97,7 +105,68 @@ export default function AccountMenu({
   const showWorkspaceSwitcher =
     workspaces.length > 1
 
+  // Close the account menu when another part of the interface is used.
+  useEffect(() => {
+    function handlePointerDown(
+      event: PointerEvent
+    ) {
+      const details = detailsRef.current
+
+      if (
+        !details?.open ||
+        details.contains(
+          event.target as Node
+        )
+      ) {
+        return
+      }
+
+      details.open = false
+    }
+
+    function handleKeyDown(
+      event: KeyboardEvent
+    ) {
+      if (
+        event.key === 'Escape' &&
+        detailsRef.current?.open
+      ) {
+        detailsRef.current.open = false
+      }
+    }
+
+    document.addEventListener(
+      'pointerdown',
+      handlePointerDown
+    )
+
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    )
+
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        handlePointerDown
+      )
+
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      )
+    }
+  }, [])
+
+  function closeAccountMenu() {
+    if (detailsRef.current) {
+      detailsRef.current.open = false
+    }
+  }
+
   async function handleLogout() {
+    closeAccountMenu()
+
     const supabase = createClient()
 
     await supabase.auth.signOut()
@@ -106,7 +175,10 @@ export default function AccountMenu({
   }
 
   return (
-    <details className="group relative ml-auto w-fit self-end">
+    <details
+      ref={detailsRef}
+      className="group relative ml-auto w-fit self-end"
+    >
       <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
           {getAccountInitial(email)}
@@ -158,6 +230,7 @@ export default function AccountMenu({
                   <Link
                     key={workspace.key}
                     href={workspace.href}
+                    onClick={closeAccountMenu}
                     aria-current={
                       isCurrent
                         ? 'page'
