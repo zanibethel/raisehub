@@ -57,7 +57,7 @@ export function isCampaignPurchaseProgressEligible(
     return true
   }
 
-  return normalizedStatus.endsWith('paid')
+  return false
 }
 
 export function calculateGoalPercentage(

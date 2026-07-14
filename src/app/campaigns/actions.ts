@@ -84,10 +84,9 @@ export async function purchaseCampaignPassAction(
   }
 
   if (!campaign) {
-    return {
-      status: 'no-valid-campaign',
-      replacedCampaignId: null,
-    }
+    return mapRecoveryResult(
+      await resolveCampaignRecovery(input.campaign_id, now)
+    )
   }
 
   if (!isCampaignCurrentlySellable(campaign, now)) {

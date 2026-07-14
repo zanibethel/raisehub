@@ -69,6 +69,7 @@ Completed:
 - Deterministic multi-role authorization rules introduced under `src/lib/rules/`
 - Capability resolution and legacy compatibility services introduced for future workspace-aware authorization without changing current dashboard routing
 - Workspace lifecycle, campaign sellability, and campaign recovery safeguards now align application behavior with the hardened live RLS campaign rules
+- Verified live RPC prerequisites `get_campaign_recovery_context` and `get_public_campaign_progress` are integrated in the application layer only; this PR does not add SQL, migrations, policies, views, or replacement database functions
 - Focused repository-side multi-role unit tests added for rules, capability resolution, campaign progress, and recovery flows
 
 Pending:

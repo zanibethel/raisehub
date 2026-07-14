@@ -54,6 +54,7 @@ test('valid campaigns remain selected', async () => {
   const service = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => createCampaign(),
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [],
   })
 
@@ -65,7 +66,70 @@ test('valid campaigns remain selected', async () => {
   })
 })
 
-test('one valid replacement automatically resolves, multiple require selection, and none return a safe state', async () => {
+test('one valid replacement automatically resolves and multiple replacements require selection for campaigns hidden by normal RLS', async () => {
+  const requestedOptions: Array<{
+    organizationLegacyProfileId?: string
+    excludeCampaignId?: string
+  }> = []
+
+  const hiddenCampaignService = createCampaignRecoveryService({
+    now: () => new Date('2026-07-15T00:00:00.000Z'),
+    loadCampaignById: async () => null,
+    loadCampaignRecoveryContext: async () => ({
+      campaignId: 'campaign-1',
+      organizationLegacyProfileId: 'legacy-organization-1',
+    }),
+    loadSellableCampaigns: async (options) => {
+      requestedOptions.push({
+        organizationLegacyProfileId: options.organizationLegacyProfileId,
+        excludeCampaignId: options.excludeCampaignId,
+      })
+
+      return [createOption()]
+    },
+  })
+
+  assert.deepEqual(
+    await hiddenCampaignService.resolveCampaignRecovery('campaign-1'),
+    {
+      status: 'replacement-found',
+      campaignId: 'campaign-2',
+      replacedCampaignId: 'campaign-1',
+    }
+  )
+
+  assert.deepEqual(requestedOptions, [
+    {
+      organizationLegacyProfileId: 'legacy-organization-1',
+      excludeCampaignId: 'campaign-1',
+    },
+  ])
+
+  const multiReplacementService = createCampaignRecoveryService({
+    now: () => new Date('2026-07-15T00:00:00.000Z'),
+    loadCampaignById: async () => null,
+    loadCampaignRecoveryContext: async () => ({
+      campaignId: 'campaign-1',
+      organizationLegacyProfileId: 'legacy-organization-1',
+    }),
+    loadSellableCampaigns: async () => [
+      createOption({ id: 'campaign-2' }),
+      createOption({ id: 'campaign-3', name: 'Second Campaign' }),
+    ],
+  })
+
+  const multiResult =
+    await multiReplacementService.resolveCampaignRecovery('campaign-1')
+
+  assert.equal(multiResult.status, 'selection-required')
+  assert.equal(multiResult.replacedCampaignId, 'campaign-1')
+  assert.deepEqual(
+    multiResult.campaigns.map((campaign) => campaign.id),
+    ['campaign-2', 'campaign-3']
+  )
+})
+
+test('one valid replacement automatically resolves, multiple require selection, and none return a safe state for visible historical campaigns', async () => {
   const invalidCampaign = createCampaign({
     ends_at: '2026-07-10T00:00:00.000Z',
   })
@@ -73,6 +137,7 @@ test('one valid replacement automatically resolves, multiple require selection, 
   const singleReplacementService = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => invalidCampaign,
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [createOption()],
   })
 
@@ -88,6 +153,7 @@ test('one valid replacement automatically resolves, multiple require selection, 
   const multiReplacementService = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => invalidCampaign,
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [
       createOption({ id: 'campaign-2' }),
       createOption({ id: 'campaign-3', name: 'Second Campaign' }),
@@ -107,6 +173,7 @@ test('one valid replacement automatically resolves, multiple require selection, 
   const noReplacementService = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => invalidCampaign,
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [],
   })
 
@@ -119,10 +186,11 @@ test('one valid replacement automatically resolves, multiple require selection, 
   )
 })
 
-test('missing campaigns and lookup failures produce safe recovery states', async () => {
+test('missing recovery context returns the safe no-valid-campaign state', async () => {
   const missingService = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => null,
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [],
   })
 
@@ -134,11 +202,15 @@ test('missing campaigns and lookup failures produce safe recovery states', async
     }
   )
 
+})
+
+test('lookup failures produce safe recovery states', async () => {
   const failingService = createCampaignRecoveryService({
     now: () => new Date('2026-07-15T00:00:00.000Z'),
     loadCampaignById: async () => {
       throw new Error('db down')
     },
+    loadCampaignRecoveryContext: async () => null,
     loadSellableCampaigns: async () => [],
   })
 

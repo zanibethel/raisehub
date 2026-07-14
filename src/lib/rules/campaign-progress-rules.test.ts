@@ -52,14 +52,28 @@ function createOption(
   }
 }
 
-test('invalid or failed payment states are excluded from campaign progress totals', () => {
-  assert.equal(isCampaignPurchaseProgressEligible('test_paid'), true)
-  assert.equal(isCampaignPurchaseProgressEligible('succeeded'), true)
-  assert.equal(isCampaignPurchaseProgressEligible('failed'), false)
-  assert.equal(isCampaignPurchaseProgressEligible('cancelled'), false)
-  assert.equal(isCampaignPurchaseProgressEligible('refunded'), false)
-  assert.equal(isCampaignPurchaseProgressEligible('disputed'), false)
-  assert.equal(isCampaignPurchaseProgressEligible('chargeback'), false)
+test('only the approved successful payment states are included in campaign progress totals', () => {
+  for (const status of [
+    'test_paid',
+    'paid',
+    'succeeded',
+    'completed',
+    'captured',
+    'settled',
+  ]) {
+    assert.equal(isCampaignPurchaseProgressEligible(status), true)
+  }
+
+  for (const status of [
+    'unpaid',
+    'failed',
+    'cancelled',
+    'refunded',
+    'disputed',
+    'chargeback',
+  ]) {
+    assert.equal(isCampaignPurchaseProgressEligible(status), false)
+  }
 })
 
 test('sellable campaign options cap progress at 100 and handle missing goals safely', () => {

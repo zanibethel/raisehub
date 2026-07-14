@@ -914,6 +914,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_campaign_recovery_context: {
+        Args: {
+          p_campaign_id: string
+        }
+        Returns: {
+          campaign_id: string
+          organization_legacy_profile_id: string
+        }[]
+      }
+      get_public_campaign_progress: {
+        Args: {
+          p_campaign_ids: string[]
+        }
+        Returns: {
+          campaign_id: string
+          amount_raised: number
+        }[]
+      }
       is_owner: { Args: never; Returns: boolean }
     }
     Enums: {
