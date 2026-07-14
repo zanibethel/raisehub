@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  buildCampaignDetailProgressState,
   buildSellableCampaignOption,
   compareSellableCampaignOptions,
   isCampaignPurchaseProgressEligible,
@@ -98,6 +99,42 @@ test('sellable campaign options cap progress at 100 and handle missing goals saf
   assert.equal(overfunded.amountRemaining, 0)
   assert.equal(noGoal.goalPercentage, null)
   assert.equal(noGoal.amountRemaining, null)
+})
+
+test('campaign detail progress uses aggregate RPC totals and defaults missing rows to zero', () => {
+  const aggregateProgress = buildCampaignDetailProgressState({
+    amountRaised: 1750,
+    goalAmount: 5000,
+  })
+  const missingAggregateRow = buildCampaignDetailProgressState({
+    amountRaised: undefined,
+    goalAmount: 5000,
+  })
+
+  assert.deepEqual(aggregateProgress, {
+    status: 'available',
+    amountRaised: 1750,
+    goalPercentage: 35,
+    amountRemaining: 3250,
+  })
+  assert.deepEqual(missingAggregateRow, {
+    status: 'available',
+    amountRaised: 0,
+    goalPercentage: 0,
+    amountRemaining: 5000,
+  })
+})
+
+test('campaign detail progress shows an unavailable state instead of a false zero when the aggregate RPC fails', () => {
+  const progressState = buildCampaignDetailProgressState({
+    amountRaised: undefined,
+    goalAmount: 5000,
+    unavailable: true,
+  })
+
+  assert.deepEqual(progressState, {
+    status: 'unavailable',
+  })
 })
 
 test('campaign ordering prioritizes nearest expiration, then goal percentage, then stable tie breakers', () => {

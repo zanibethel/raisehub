@@ -43,6 +43,18 @@ type OrganizationLookupRow = {
   logo_url: string | null
 }
 
+type PublicOrganizationProfileRow = Pick<
+  Database['public']['Tables']['profiles']['Row'],
+  'id' | 'display_name' | 'business_name' | 'logo_url'
+>
+
+export type PublicCampaignOrganizationMetadata = {
+  organizationId: string | null
+  organizationLegacyProfileId: string
+  organizationName: string | null
+  imageUrl: string | null
+}
+
 export type CampaignRecoveryContextRow =
   Database['public']['Functions']['get_campaign_recovery_context']['Returns'][number]
 
@@ -51,6 +63,76 @@ type PublicCampaignProgressRow =
 
 type CampaignMembershipLookupRow = {
   campaign_id: string
+}
+
+const PUBLIC_CAMPAIGN_PROGRESS_UNAVAILABLE = 'public-campaign-progress-unavailable'
+
+function normalizePublicOrganizationName(
+  profile: Pick<
+    Database['public']['Tables']['profiles']['Row'],
+    'display_name' | 'business_name'
+  >
+) {
+  return profile.display_name || profile.business_name || null
+}
+
+export function buildPublicCampaignOrganizationMetadata(
+  profile: PublicOrganizationProfileRow
+): PublicCampaignOrganizationMetadata {
+  return {
+    organizationId: null,
+    organizationLegacyProfileId: profile.id,
+    organizationName: normalizePublicOrganizationName(profile),
+    imageUrl: profile.logo_url,
+  }
+}
+
+function mapPublicCampaignProgressRows(progress: PublicCampaignProgressRow[]) {
+  const amountRaisedByCampaignId = new Map<string, number>()
+
+  for (const aggregate of progress) {
+    amountRaisedByCampaignId.set(
+      aggregate.campaign_id,
+      Number(aggregate.amount_raised ?? 0)
+    )
+  }
+
+  return amountRaisedByCampaignId
+}
+
+async function loadPublicCampaignProgressWithClient(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  campaignIds: string[]
+): Promise<{
+  amountRaisedByCampaignId: Map<string, number>
+  error: string | null
+}> {
+  const { data, error } = await supabase.rpc('get_public_campaign_progress', {
+    p_campaign_ids: campaignIds,
+  })
+
+  if (error) {
+    return {
+      amountRaisedByCampaignId: new Map(),
+      error: PUBLIC_CAMPAIGN_PROGRESS_UNAVAILABLE,
+    }
+  }
+
+  return {
+    amountRaisedByCampaignId: mapPublicCampaignProgressRows(
+      (data ?? []) as PublicCampaignProgressRow[]
+    ),
+    error: null,
+  }
+}
+
+export async function getPublicCampaignProgress(campaignIds: string[]): Promise<{
+  amountRaisedByCampaignId: Map<string, number>
+  error: string | null
+}> {
+  const supabase = await createClient()
+
+  return loadPublicCampaignProgressWithClient(supabase, campaignIds)
 }
 
 async function resolveOrganizationLegacyProfileId(
@@ -111,11 +193,11 @@ type SellableCampaignLookupDependencies = {
   loadOrganizationsByLegacyProfileIds(
     organizationLegacyProfileIds: string[]
   ): Promise<{
-    organizations: OrganizationLookupRow[]
+    organizations: PublicCampaignOrganizationMetadata[]
     error: string | null
   }>
   loadPublicCampaignProgress(campaignIds: string[]): Promise<{
-    progress: PublicCampaignProgressRow[]
+    amountRaisedByCampaignId: Map<string, number>
     error: string | null
   }>
 }
@@ -131,7 +213,10 @@ export function createSellableCampaignLookupService(
 
     let organizationLegacyProfileId =
       options.organizationLegacyProfileId ?? null
-    const organizationByLegacyProfileId = new Map<string, OrganizationLookupRow>()
+    const organizationByLegacyProfileId = new Map<
+      string,
+      PublicCampaignOrganizationMetadata
+    >()
 
     if (!organizationLegacyProfileId && options.organizationId) {
       const resolvedOrganization =
@@ -157,11 +242,12 @@ export function createSellableCampaignLookupService(
       organizationByLegacyProfileId.set(
         resolvedOrganization.organizationLegacyProfileId,
         {
-          id: resolvedOrganization.organizationId ?? options.organizationId,
-          legacy_profile_id:
+          organizationId:
+            resolvedOrganization.organizationId ?? options.organizationId,
+          organizationLegacyProfileId:
             resolvedOrganization.organizationLegacyProfileId,
-          name: resolvedOrganization.organizationName ?? '',
-          logo_url: resolvedOrganization.imageUrl,
+          organizationName: resolvedOrganization.organizationName ?? null,
+          imageUrl: resolvedOrganization.imageUrl,
         }
       )
     }
@@ -224,17 +310,15 @@ export function createSellableCampaignLookupService(
       }
 
       for (const organization of organizations) {
-        if (organization.legacy_profile_id) {
-          organizationByLegacyProfileId.set(
-            organization.legacy_profile_id,
-            organization
-          )
-        }
+        organizationByLegacyProfileId.set(
+          organization.organizationLegacyProfileId,
+          organization
+        )
       }
     }
 
     const campaignIds = campaigns.map((campaign) => campaign.id)
-    const { progress, error: progressError } =
+    const { amountRaisedByCampaignId, error: progressError } =
       await dependencies.loadPublicCampaignProgress(campaignIds)
 
     if (progressError) {
@@ -243,15 +327,6 @@ export function createSellableCampaignLookupService(
         error: progressError,
         errorSource: 'progress',
       }
-    }
-
-    const amountRaisedByCampaignId = new Map<string, number>()
-
-    for (const aggregate of progress) {
-      amountRaisedByCampaignId.set(
-        aggregate.campaign_id,
-        Number(aggregate.amount_raised ?? 0)
-      )
     }
 
     return {
@@ -263,9 +338,9 @@ export function createSellableCampaignLookupService(
 
           return buildSellableCampaignOption({
             campaign,
-            organizationId: organization?.id ?? null,
-            organizationName: organization?.name ?? null,
-            imageUrl: organization?.logo_url ?? null,
+            organizationId: organization?.organizationId ?? null,
+            organizationName: organization?.organizationName ?? null,
+            imageUrl: organization?.imageUrl ?? null,
             amountRaised: amountRaisedByCampaignId.get(campaign.id) ?? 0,
             now,
           })
@@ -380,27 +455,20 @@ export async function getSellableCampaigns(
     },
     async loadOrganizationsByLegacyProfileIds(organizationLegacyProfileIds) {
       const { data, error } = await supabase
-        .from('organizations')
-        .select('id, legacy_profile_id, name, logo_url')
-        .in('legacy_profile_id', organizationLegacyProfileIds)
+        .from('profiles')
+        .select('id, display_name, business_name, logo_url')
+        .in('id', organizationLegacyProfileIds)
+        .eq('role', 'organization')
 
       return {
-        organizations: (data ?? []) as OrganizationLookupRow[],
+        organizations: ((data ?? []) as PublicOrganizationProfileRow[]).map(
+          buildPublicCampaignOrganizationMetadata
+        ),
         error: error?.message ?? null,
       }
     },
     async loadPublicCampaignProgress(campaignIds) {
-      const { data, error } = await supabase.rpc(
-        'get_public_campaign_progress',
-        {
-          p_campaign_ids: campaignIds,
-        }
-      )
-
-      return {
-        progress: (data ?? []) as PublicCampaignProgressRow[],
-        error: error?.message ?? null,
-      }
+      return loadPublicCampaignProgressWithClient(supabase, campaignIds)
     },
   })
 

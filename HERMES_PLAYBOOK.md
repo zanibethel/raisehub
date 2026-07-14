@@ -459,6 +459,12 @@ All three read-only workspace roles are now connected end-to-end with owner-auth
 
 This application PR introduces no additional schema or RLS changes.
 
+The live Supabase RPC contracts for public campaign recovery and aggregate
+progress were already completed and verified before the related application
+follow-up work. This PR only consumes those verified contracts in the Next.js
+application and does not add SQL, migrations, policies, functions, views, or
+other database changes.
+
 Next steps:
 
 1. Build owner-authorized business redemption support in Owner Platform.

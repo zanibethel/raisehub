@@ -86,6 +86,38 @@ export function calculateAmountRemaining(
   return Math.max(normalizedGoal - amountRaised, 0)
 }
 
+export type CampaignDetailProgressState =
+  | {
+      status: 'available'
+      amountRaised: number
+      goalPercentage: number
+      amountRemaining: number | null
+    }
+  | {
+      status: 'unavailable'
+    }
+
+export function buildCampaignDetailProgressState(input: {
+  amountRaised: number | null | undefined
+  goalAmount: number | null | undefined
+  unavailable?: boolean
+}): CampaignDetailProgressState {
+  if (input.unavailable) {
+    return {
+      status: 'unavailable',
+    }
+  }
+
+  const amountRaised = Number(input.amountRaised ?? 0)
+
+  return {
+    status: 'available',
+    amountRaised,
+    goalPercentage: calculateGoalPercentage(amountRaised, input.goalAmount) ?? 0,
+    amountRemaining: calculateAmountRemaining(amountRaised, input.goalAmount),
+  }
+}
+
 export function calculateDaysRemaining(
   endsAt: string | null | undefined,
   now = new Date()

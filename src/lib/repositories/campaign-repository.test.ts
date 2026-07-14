@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createSellableCampaignLookupService } from './campaign-repository'
+import {
+  buildPublicCampaignOrganizationMetadata,
+  createSellableCampaignLookupService,
+} from './campaign-repository'
 import type { CampaignRow } from '../types/identity-access'
 
 function createCampaign(overrides: Partial<CampaignRow> = {}): CampaignRow {
@@ -27,13 +30,29 @@ function createService(input?: {
     amount_raised: number
   }>
   progressError?: string | null
+  resolvedOrganization?: {
+    organizationId: string
+    organizationLegacyProfileId: string
+    organizationName: string | null
+    imageUrl: string | null
+  }
+  organizations?: Array<{
+    organizationId: string | null
+    organizationLegacyProfileId: string
+    organizationName: string | null
+    imageUrl: string | null
+  }>
+  onLoadOrganizationsByLegacyProfileIds?: (ids: string[]) => void
 }) {
   return createSellableCampaignLookupService({
     resolveOrganizationLegacyProfileId: async () => ({
-      organizationId: 'organization-1',
-      organizationLegacyProfileId: 'legacy-organization-1',
-      organizationName: 'Roosevelt Football',
-      imageUrl: null,
+      organizationId: input?.resolvedOrganization?.organizationId ?? 'organization-1',
+      organizationLegacyProfileId:
+        input?.resolvedOrganization?.organizationLegacyProfileId ??
+        'legacy-organization-1',
+      organizationName:
+        input?.resolvedOrganization?.organizationName ?? 'Roosevelt Football',
+      imageUrl: input?.resolvedOrganization?.imageUrl ?? null,
       error: null,
     }),
     loadEligibleCampaignIds: async () => ({
@@ -44,25 +63,34 @@ function createService(input?: {
       campaigns: input?.campaigns ?? [createCampaign()],
       error: null,
     }),
-    loadOrganizationsByLegacyProfileIds: async () => ({
-      organizations: [
-        {
-          id: 'organization-1',
-          legacy_profile_id: 'legacy-organization-1',
-          name: 'Roosevelt Football',
-          logo_url: null,
-        },
-        {
-          id: 'organization-2',
-          legacy_profile_id: 'legacy-organization-2',
-          name: 'Lincoln PTO',
-          logo_url: null,
-        },
-      ],
-      error: null,
-    }),
+    loadOrganizationsByLegacyProfileIds: async (ids) => {
+      input?.onLoadOrganizationsByLegacyProfileIds?.(ids)
+
+      return {
+        organizations: input?.organizations ?? [
+          {
+            organizationId: null,
+            organizationLegacyProfileId: 'legacy-organization-1',
+            organizationName: 'Roosevelt Football',
+            imageUrl: null,
+          },
+          {
+            organizationId: null,
+            organizationLegacyProfileId: 'legacy-organization-2',
+            organizationName: 'Lincoln PTO',
+            imageUrl: null,
+          },
+        ],
+        error: null,
+      }
+    },
     loadPublicCampaignProgress: async () => ({
-      progress: input?.progress ?? [],
+      amountRaisedByCampaignId: new Map(
+        (input?.progress ?? []).map((aggregate) => [
+          aggregate.campaign_id,
+          aggregate.amount_raised,
+        ])
+      ),
       error: input?.progressError ?? null,
     }),
   })
@@ -133,14 +161,140 @@ test('missing aggregate rows safely default campaign cards to zero raised', asyn
 test('aggregate progress RPC failures remain distinguishable from an empty campaign state', async () => {
   const service = createService({
     campaigns: [createCampaign()],
-    progressError: 'progress rpc failed',
+    progressError: 'public-campaign-progress-unavailable',
   })
 
   const result = await service.getSellableCampaigns()
 
   assert.deepEqual(result, {
     campaigns: [],
-    error: 'progress rpc failed',
+    error: 'public-campaign-progress-unavailable',
     errorSource: 'progress',
   })
+})
+
+test('public campaign cards receive organization names from legacy profiles', async () => {
+  const service = createService({
+    organizations: [
+      {
+        organizationId: null,
+        organizationLegacyProfileId: 'legacy-organization-1',
+        organizationName: 'Roosevelt Football Booster Club',
+        imageUrl: 'https://cdn.example.com/org-1.png',
+      },
+    ],
+  })
+
+  const result = await service.getSellableCampaigns()
+
+  assert.equal(
+    result.campaigns[0]?.organizationName,
+    'Roosevelt Football Booster Club'
+  )
+  assert.equal(result.campaigns[0]?.imageUrl, 'https://cdn.example.com/org-1.png')
+})
+
+test('display_name is preferred over business_name for public legacy profile metadata', () => {
+  const metadata = buildPublicCampaignOrganizationMetadata({
+    id: 'legacy-organization-1',
+    display_name: 'Roosevelt Football Booster Club',
+    business_name: 'Roosevelt Football',
+    logo_url: 'https://cdn.example.com/org-1.png',
+  })
+
+  assert.deepEqual(metadata, {
+    organizationId: null,
+    organizationLegacyProfileId: 'legacy-organization-1',
+    organizationName: 'Roosevelt Football Booster Club',
+    imageUrl: 'https://cdn.example.com/org-1.png',
+  })
+})
+
+test('business_name is used when display_name is missing for public legacy profile metadata', () => {
+  const metadata = buildPublicCampaignOrganizationMetadata({
+    id: 'legacy-organization-1',
+    display_name: null,
+    business_name: 'Roosevelt Football',
+    logo_url: null,
+  })
+
+  assert.deepEqual(metadata, {
+    organizationId: null,
+    organizationLegacyProfileId: 'legacy-organization-1',
+    organizationName: 'Roosevelt Football',
+    imageUrl: null,
+  })
+})
+
+test('missing public legacy profile metadata keeps the current safe campaign card fallback values', async () => {
+  const service = createService({
+    organizations: [],
+  })
+
+  const result = await service.getSellableCampaigns()
+
+  assert.equal(result.campaigns[0]?.organizationName, null)
+  assert.equal(result.campaigns[0]?.imageUrl, null)
+})
+
+test('authenticated organization lookup keeps the new organization id while matching campaigns by legacy profile id', async () => {
+  const service = createService({
+    resolvedOrganization: {
+      organizationId: 'organization-42',
+      organizationLegacyProfileId: 'legacy-organization-1',
+      organizationName: 'Roosevelt Football Workspace',
+      imageUrl: 'https://cdn.example.com/workspace-logo.png',
+    },
+    onLoadOrganizationsByLegacyProfileIds(ids) {
+      assert.deepEqual(ids, [])
+    },
+  })
+
+  const result = await service.getSellableCampaigns({
+    organizationId: 'organization-42',
+  })
+
+  assert.equal(result.campaigns[0]?.organizationId, 'organization-42')
+  assert.equal(
+    result.campaigns[0]?.organizationLegacyProfileId,
+    'legacy-organization-1'
+  )
+  assert.equal(
+    result.campaigns[0]?.organizationName,
+    'Roosevelt Football Workspace'
+  )
+  assert.equal(
+    result.campaigns[0]?.imageUrl,
+    'https://cdn.example.com/workspace-logo.png'
+  )
+})
+
+test('public campaign card enrichment only compares legacy profile ids for metadata lookups', async () => {
+  let requestedLegacyIds: string[] = []
+
+  const service = createService({
+    campaigns: [
+      createCampaign({
+        organization_id: 'legacy-organization-9',
+      }),
+    ],
+    onLoadOrganizationsByLegacyProfileIds(ids) {
+      requestedLegacyIds = ids
+    },
+    organizations: [
+      {
+        organizationId: null,
+        organizationLegacyProfileId: 'legacy-organization-9',
+        organizationName: 'Legacy Lookup Match',
+        imageUrl: null,
+      },
+    ],
+  })
+
+  const result = await service.getSellableCampaigns({
+    organizationId: 'organization-9',
+  })
+
+  assert.deepEqual(requestedLegacyIds, ['legacy-organization-9'])
+  assert.equal(result.campaigns[0]?.organizationName, 'Legacy Lookup Match')
 })

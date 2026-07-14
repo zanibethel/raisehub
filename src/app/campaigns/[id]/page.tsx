@@ -3,9 +3,15 @@ import { redirect } from 'next/navigation'
 import BuyCampaignPassButton from '@/app/components/buy-campaign-pass-button'
 import SelectableCampaignCarousel from '@/app/components/selectable-campaign-carousel'
 import ShareCampaignButton from '@/app/components/share-campaign-button'
-import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
+import {
+  buildCampaignDetailProgressState,
+  isCampaignPurchaseProgressEligible,
+} from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
-import { getCampaignById } from '@/lib/repositories/campaign-repository'
+import {
+  getCampaignById,
+  getPublicCampaignProgress,
+} from '@/lib/repositories/campaign-repository'
 import { createClient } from '@/lib/supabase/server'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 
@@ -22,11 +28,6 @@ type CampaignPageProps = {
     donation?: string
     organization?: string
   }>
-}
-
-type PurchaseRow = {
-  organization_earnings: number | null
-  payment_status: string
 }
 
 function buildCampaignHref(input: {
@@ -217,21 +218,16 @@ export default async function CampaignPage({
     )
   }
 
-  const { data: purchases } = await supabase
-    .from('campaign_purchases')
-    .select('organization_earnings, payment_status')
-    .eq('campaign_id', campaign.id)
-
-  const earnings = ((purchases ?? []) as PurchaseRow[]).reduce(
-    (sum, purchase) =>
-      isCampaignPurchaseProgressEligible(purchase.payment_status)
-        ? sum + Number(purchase.organization_earnings ?? 0)
-        : sum,
-    0
-  )
-
   const goal = Number(campaign.goal_amount ?? 0)
-  const progress = goal > 0 ? Math.min((earnings / goal) * 100, 100) : 0
+  const {
+    amountRaisedByCampaignId,
+    error: progressError,
+  } = await getPublicCampaignProgress([campaign.id])
+  const progressState = buildCampaignDetailProgressState({
+    amountRaised: amountRaisedByCampaignId.get(campaign.id),
+    goalAmount: campaign.goal_amount,
+    unavailable: Boolean(progressError),
+  })
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-12">
@@ -257,20 +253,44 @@ export default async function CampaignPage({
         <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
           <p className="text-sm text-gray-500">Progress</p>
 
-          <p className="mt-2 text-3xl font-bold text-blue-700">
-            {progress.toFixed(0)}% of goal
-          </p>
+          {progressState.status === 'available' ? (
+            <>
+              <p className="mt-2 text-3xl font-bold text-blue-700">
+                {progressState.goalPercentage.toFixed(0)}% of goal
+              </p>
 
-          <div className="mt-3 h-3 w-full rounded-full bg-gray-200">
-            <div
-              className="h-3 rounded-full bg-blue-600"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+              <div className="mt-3 h-3 w-full rounded-full bg-gray-200">
+                <div
+                  className="h-3 rounded-full bg-blue-600"
+                  style={{ width: `${progressState.goalPercentage}%` }}
+                />
+              </div>
 
-          <p className="mt-2 text-sm text-gray-600">
-            ${earnings.toLocaleString()} raised of ${goal.toLocaleString()}
-          </p>
+              <p className="mt-2 text-sm text-gray-600">
+                ${progressState.amountRaised.toLocaleString()} raised of $
+                {goal.toLocaleString()}
+              </p>
+
+              {progressState.amountRemaining !== null ? (
+                <p className="mt-1 text-sm text-gray-500">
+                  ${progressState.amountRemaining.toLocaleString()} remaining
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-3xl font-bold text-slate-600">
+                Progress temporarily unavailable
+              </p>
+
+              <div className="mt-3 h-3 w-full rounded-full bg-slate-200" />
+
+              <p className="mt-2 text-sm text-gray-600">
+                Fundraising totals are temporarily unavailable. You can still
+                support this campaign right now.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="mt-6 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
