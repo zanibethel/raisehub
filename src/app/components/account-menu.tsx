@@ -1,3 +1,8 @@
+# `src/app/components/account-menu.tsx`
+
+Replace the entire file with the following:
+
+```tsx
 'use client'
 
 import Link from 'next/link'
@@ -23,6 +28,37 @@ type AccountMenuProps = {
 }
 
 // =============================================================================
+// Workspace preference
+// =============================================================================
+
+const WORKSPACE_PREFERENCE_COOKIE =
+  'raisehub-selected-workspace'
+
+const WORKSPACE_PREFERENCE_MAX_AGE =
+  60 * 60 * 24 * 180
+
+function rememberWorkspace(
+  workspaceKey: string
+) {
+  const secureAttribute =
+    window.location.protocol === 'https:'
+      ? '; Secure'
+      : ''
+
+  document.cookie = [
+    `${WORKSPACE_PREFERENCE_COOKIE}=${encodeURIComponent(
+      workspaceKey
+    )}`,
+    'Path=/',
+    `Max-Age=${WORKSPACE_PREFERENCE_MAX_AGE}`,
+    'SameSite=Lax',
+    secureAttribute,
+  ]
+    .filter(Boolean)
+    .join('; ')
+}
+
+// =============================================================================
 // Presentation helpers
 // =============================================================================
 
@@ -31,19 +67,19 @@ function getWorkspaceIcon(
 ): string {
   switch (kind) {
     case 'customer':
-      return '🎟️'
+      return 'ðï¸'
 
     case 'fundraising':
-      return '📣'
+      return 'ð£'
 
     case 'organization':
-      return '🏫'
+      return 'ð«'
 
     case 'business':
-      return '🏪'
+      return 'ðª'
 
     case 'owner':
-      return '🛠️'
+      return 'ð ï¸'
   }
 }
 
@@ -105,7 +141,6 @@ export default function AccountMenu({
   const showWorkspaceSwitcher =
     workspaces.length > 1
 
-  // Close the account menu when another part of the interface is used.
   useEffect(() => {
     function handlePointerDown(
       event: PointerEvent
@@ -164,6 +199,13 @@ export default function AccountMenu({
     }
   }
 
+  function handleWorkspaceSelection(
+    workspaceKey: string
+  ) {
+    rememberWorkspace(workspaceKey)
+    closeAccountMenu()
+  }
+
   async function handleLogout() {
     closeAccountMenu()
 
@@ -199,7 +241,7 @@ export default function AccountMenu({
           aria-hidden="true"
           className="shrink-0 text-xs text-gray-500 transition group-open:rotate-180"
         >
-          ▼
+          â¼
         </span>
       </summary>
 
@@ -230,7 +272,11 @@ export default function AccountMenu({
                   <Link
                     key={workspace.key}
                     href={workspace.href}
-                    onClick={closeAccountMenu}
+                    onClick={() =>
+                      handleWorkspaceSelection(
+                        workspace.key
+                      )
+                    }
                     aria-current={
                       isCurrent
                         ? 'page'
@@ -290,3 +336,5 @@ export default function AccountMenu({
     </details>
   )
 }
+
+```
