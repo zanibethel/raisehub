@@ -360,6 +360,9 @@ export default async function DashboardPage({
                   null
                 }
                 workspaces={availableWorkspaces}
+                selectedWorkspaceKey={
+                  workspaceSelection.selectedWorkspaceKey
+                }
               />
             </div>
           </div>
