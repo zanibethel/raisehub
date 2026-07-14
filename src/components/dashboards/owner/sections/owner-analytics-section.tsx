@@ -28,7 +28,7 @@ type AttentionItem = {
 function getAttentionItems(
   metrics: PlatformMetrics
 ): AttentionItem[] {
-  return [
+  const items: AttentionItem[] = [
     {
       id: 'incomplete-businesses',
       title: 'Businesses need setup help',
@@ -56,7 +56,11 @@ function getAttentionItems(
       href: '/dashboard/owner/organizations',
       tone: 'blue',
     },
-  ].filter((item) => item.count > 0)
+  ]
+
+  return items.filter(
+    (item) => item.count > 0
+  )
 }
 
 function getAttentionTone(
