@@ -15,13 +15,6 @@ import type {
 type AccountMenuProps = {
   email: string | null
   workspaces: SelectableWorkspace[]
-
-  /**
-   * Server-validated workspace key currently controlling the dashboard.
-   *
-   * When omitted, the account menu falls back to the workspace marked as the
-   * default experience.
-   */
   selectedWorkspaceKey?: string | null
 }
 
@@ -72,8 +65,7 @@ function getSelectedWorkspace(
     selectedWorkspaceKey
       ? workspaces.find(
           (workspace) =>
-            workspace.key ===
-            selectedWorkspaceKey
+            workspace.key === selectedWorkspaceKey
         )
       : null
 
@@ -114,26 +106,26 @@ export default function AccountMenu({
   }
 
   return (
-    <details className="group relative">
-      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50">
+    <details className="group relative ml-auto w-fit self-end">
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
           {getAccountInitial(email)}
         </span>
 
-        <span className="hidden min-w-0 sm:block">
-          <span className="block max-w-52 truncate text-sm font-semibold text-gray-900">
+        <span className="min-w-0">
+          <span className="block max-w-40 truncate text-sm font-semibold text-gray-900 sm:max-w-52">
             {selectedWorkspace?.name ??
               'My Account'}
           </span>
 
-          <span className="block max-w-52 truncate text-xs text-gray-500">
+          <span className="hidden max-w-52 truncate text-xs text-gray-500 sm:block">
             {email ?? 'RaiseHub account'}
           </span>
         </span>
 
         <span
           aria-hidden="true"
-          className="text-xs text-gray-500 transition group-open:rotate-180"
+          className="shrink-0 text-xs text-gray-500 transition group-open:rotate-180"
         >
           ▼
         </span>
@@ -179,7 +171,7 @@ export default function AccountMenu({
                   >
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 text-lg"
+                      className="mt-0.5 shrink-0 text-lg"
                     >
                       {getWorkspaceIcon(
                         workspace.kind
@@ -187,7 +179,7 @@ export default function AccountMenu({
                     </span>
 
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
+                      <span className="flex flex-wrap items-center gap-2">
                         <span className="truncate text-sm font-semibold text-gray-900">
                           {workspace.name}
                         </span>
@@ -201,9 +193,7 @@ export default function AccountMenu({
 
                       {workspace.subtitle ? (
                         <span className="mt-0.5 block text-xs text-gray-500">
-                          {
-                            workspace.subtitle
-                          }
+                          {workspace.subtitle}
                         </span>
                       ) : null}
                     </span>
