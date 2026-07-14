@@ -1,8 +1,3 @@
-# `src/app/components/account-menu.tsx`
-
-Replace the entire file with the following:
-
-```tsx
 'use client'
 
 import Link from 'next/link'
@@ -336,5 +331,3 @@ export default function AccountMenu({
     </details>
   )
 }
-
-```
