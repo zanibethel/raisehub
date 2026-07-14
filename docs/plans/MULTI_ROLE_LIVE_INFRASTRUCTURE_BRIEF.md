@@ -44,8 +44,8 @@ No changes to:
 
 ## Next Phase
 
-- repositories
-- domain types
-- capability service
-- invitation system
-- tests
+- repository integration complete
+- domain types connected
+- capability service connected
+- focused repository-side tests complete
+- next application phase: invitations and workspace switching
