@@ -15,13 +15,23 @@ import type {
 type AccountMenuProps = {
   email: string | null
   workspaces: SelectableWorkspace[]
+
+  /**
+   * Server-validated workspace key currently controlling the dashboard.
+   *
+   * When omitted, the account menu falls back to the workspace marked as the
+   * default experience.
+   */
+  selectedWorkspaceKey?: string | null
 }
 
 // =============================================================================
 // Presentation helpers
 // =============================================================================
 
-function getWorkspaceIcon(kind: SelectableWorkspaceKind): string {
+function getWorkspaceIcon(
+  kind: SelectableWorkspaceKind
+): string {
   switch (kind) {
     case 'customer':
       return '🎟️'
@@ -40,14 +50,41 @@ function getWorkspaceIcon(kind: SelectableWorkspaceKind): string {
   }
 }
 
-function getAccountInitial(email: string | null): string {
+function getAccountInitial(
+  email: string | null
+): string {
   const normalizedEmail = email?.trim()
 
   if (!normalizedEmail) {
     return 'A'
   }
 
-  return normalizedEmail.charAt(0).toUpperCase()
+  return normalizedEmail
+    .charAt(0)
+    .toUpperCase()
+}
+
+function getSelectedWorkspace(
+  workspaces: SelectableWorkspace[],
+  selectedWorkspaceKey?: string | null
+): SelectableWorkspace | null {
+  const selectedWorkspace =
+    selectedWorkspaceKey
+      ? workspaces.find(
+          (workspace) =>
+            workspace.key ===
+            selectedWorkspaceKey
+        )
+      : null
+
+  return (
+    selectedWorkspace ??
+    workspaces.find(
+      (workspace) => workspace.isDefault
+    ) ??
+    workspaces[0] ??
+    null
+  )
 }
 
 // =============================================================================
@@ -57,13 +94,16 @@ function getAccountInitial(email: string | null): string {
 export default function AccountMenu({
   email,
   workspaces,
+  selectedWorkspaceKey,
 }: AccountMenuProps) {
-  const defaultWorkspace =
-    workspaces.find((workspace) => workspace.isDefault) ??
-    workspaces[0] ??
-    null
+  const selectedWorkspace =
+    getSelectedWorkspace(
+      workspaces,
+      selectedWorkspaceKey
+    )
 
-  const showWorkspaceSwitcher = workspaces.length > 1
+  const showWorkspaceSwitcher =
+    workspaces.length > 1
 
   async function handleLogout() {
     const supabase = createClient()
@@ -82,7 +122,8 @@ export default function AccountMenu({
 
         <span className="hidden min-w-0 sm:block">
           <span className="block max-w-52 truncate text-sm font-semibold text-gray-900">
-            {defaultWorkspace?.name ?? 'My Account'}
+            {selectedWorkspace?.name ??
+              'My Account'}
           </span>
 
           <span className="block max-w-52 truncate text-xs text-gray-500">
@@ -116,40 +157,59 @@ export default function AccountMenu({
             </p>
 
             <div className="max-h-80 space-y-1 overflow-y-auto">
-              {workspaces.map((workspace) => (
-                <Link
-                  key={workspace.key}
-                  href={workspace.href}
-                  className="flex items-start gap-3 rounded-xl px-3 py-3 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="mt-0.5 text-lg"
-                  >
-                    {getWorkspaceIcon(workspace.kind)}
-                  </span>
+              {workspaces.map((workspace) => {
+                const isCurrent =
+                  workspace.key ===
+                  selectedWorkspace?.key
 
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-gray-900">
-                        {workspace.name}
+                return (
+                  <Link
+                    key={workspace.key}
+                    href={workspace.href}
+                    aria-current={
+                      isCurrent
+                        ? 'page'
+                        : undefined
+                    }
+                    className={`flex items-start gap-3 rounded-xl px-3 py-3 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
+                      isCurrent
+                        ? 'bg-blue-50'
+                        : 'hover:bg-blue-50'
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 text-lg"
+                    >
+                      {getWorkspaceIcon(
+                        workspace.kind
+                      )}
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-gray-900">
+                          {workspace.name}
+                        </span>
+
+                        {isCurrent ? (
+                          <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                            Current
+                          </span>
+                        ) : null}
                       </span>
 
-                      {workspace.isDefault ? (
-                        <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                          Current
+                      {workspace.subtitle ? (
+                        <span className="mt-0.5 block text-xs text-gray-500">
+                          {
+                            workspace.subtitle
+                          }
                         </span>
                       ) : null}
                     </span>
-
-                    {workspace.subtitle ? (
-                      <span className="mt-0.5 block text-xs text-gray-500">
-                        {workspace.subtitle}
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           </div>
         ) : null}
