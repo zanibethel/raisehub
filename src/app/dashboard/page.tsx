@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import AccountMenu from '@/app/components/account-menu'
@@ -42,6 +43,23 @@ type RoleTheme = {
   headingClass: string
   panelClass: string
   intro: string
+}
+
+// =============================================================================
+// Workspace preference
+// =============================================================================
+
+const WORKSPACE_PREFERENCE_COOKIE =
+  'raisehub-selected-workspace'
+
+function hasRequestedWorkspace(
+  value?: string | string[]
+): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0
+  }
+
+  return value !== undefined
 }
 
 // =============================================================================
@@ -266,6 +284,21 @@ export default async function DashboardPage({
     ? await searchParams
     : undefined
 
+  const cookieStore = await cookies()
+
+  const savedWorkspaceKey =
+    cookieStore
+      .get(WORKSPACE_PREFERENCE_COOKIE)
+      ?.value
+      .trim() || undefined
+
+  const requestedWorkspace =
+    hasRequestedWorkspace(
+      resolvedSearchParams?.workspace
+    )
+      ? resolvedSearchParams?.workspace
+      : savedWorkspaceKey
+
   const [{ data: profile }, authenticatedWorkspacesResult] =
     await Promise.all([
       supabase
@@ -293,8 +326,7 @@ export default async function DashboardPage({
 
   const workspaceSelection =
     resolveWorkspaceSelection({
-      requestedWorkspace:
-        resolvedSearchParams?.workspace,
+      requestedWorkspace,
       workspaces: availableWorkspaces,
       legacyRole,
     })
