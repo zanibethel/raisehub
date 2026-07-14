@@ -7,29 +7,31 @@ import CustomerDashboard from '@/components/dashboards/customer/customer-dashboa
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
 import type { PreviewRole } from '@/components/dashboards/owner/owner-dashboard'
+import {
+  resolveWorkspaceSelection,
+  type DashboardExperienceRole,
+} from '@/lib/rules/workspace-selection-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createClient } from '@/lib/supabase/server'
+import type {
+  LegacyProfileRole,
+  SelectableWorkspace,
+} from '@/lib/types/identity-access'
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type Role =
-  | 'customer'
-  | 'business'
-  | 'organization'
-  | 'admin'
-  | 'owner'
-
 type Profile = {
   id: string
   email: string | null
-  role: Role
+  role: LegacyProfileRole
 }
 
 type DashboardPageProps = {
   searchParams?: Promise<{
     previewRole?: string | string[]
+    workspace?: string | string[]
   }>
 }
 
@@ -53,10 +55,16 @@ const VALID_PREVIEW_ROLES: PreviewRole[] = [
   'admin',
 ]
 
-function getPreviewRole(value?: string | string[]): PreviewRole {
-  const candidate = Array.isArray(value) ? value[0] : value
+function getPreviewRole(
+  value?: string | string[]
+): PreviewRole {
+  const candidate = Array.isArray(value)
+    ? value[0]
+    : value
 
-  return VALID_PREVIEW_ROLES.includes(candidate as PreviewRole)
+  return VALID_PREVIEW_ROLES.includes(
+    candidate as PreviewRole
+  )
     ? (candidate as PreviewRole)
     : 'customer'
 }
@@ -65,7 +73,9 @@ function getPreviewRole(value?: string | string[]): PreviewRole {
 // Role presentation
 // =============================================================================
 
-function getRoleTheme(role: Role): RoleTheme {
+function getRoleTheme(
+  role: DashboardExperienceRole
+): RoleTheme {
   switch (role) {
     case 'business':
       return {
@@ -136,12 +146,37 @@ function getRoleTheme(role: Role): RoleTheme {
 }
 
 // =============================================================================
-// Role dashboard selection
+// Dashboard selection
 // =============================================================================
 
+function WorkspaceUnavailable({
+  workspace,
+}: {
+  workspace: SelectableWorkspace
+}) {
+  return (
+    <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6">
+      <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+        Workspace unavailable
+      </p>
+
+      <h2 className="mt-2 text-xl font-bold text-gray-900">
+        {workspace.name} is not connected yet
+      </h2>
+
+      <p className="mt-2 text-sm leading-6 text-gray-600">
+        Your access is recognized, but this workspace does not yet
+        have the legacy account connection required by the current
+        dashboard. No unrelated account data was loaded.
+      </p>
+    </section>
+  )
+}
+
 function renderDashboard(
-  role: Role,
-  previewRole: PreviewRole
+  role: DashboardExperienceRole,
+  previewRole: PreviewRole,
+  selectedWorkspace: SelectableWorkspace | null
 ) {
   switch (role) {
     case 'owner':
@@ -154,10 +189,52 @@ function renderDashboard(
       )
 
     case 'business':
-      return <BusinessDashboard />
+      if (
+        selectedWorkspace &&
+        selectedWorkspace.kind === 'business' &&
+        !selectedWorkspace.legacyProfileId
+      ) {
+        return (
+          <WorkspaceUnavailable
+            workspace={selectedWorkspace}
+          />
+        )
+      }
+
+      return (
+        <BusinessDashboard
+          businessLegacyProfileId={
+            selectedWorkspace?.kind === 'business'
+              ? selectedWorkspace.legacyProfileId
+              : null
+          }
+        />
+      )
 
     case 'organization':
-      return <OrganizationDashboard />
+      if (
+        selectedWorkspace &&
+        (selectedWorkspace.kind === 'organization' ||
+          selectedWorkspace.kind === 'fundraising') &&
+        !selectedWorkspace.legacyProfileId
+      ) {
+        return (
+          <WorkspaceUnavailable
+            workspace={selectedWorkspace}
+          />
+        )
+      }
+
+      return (
+        <OrganizationDashboard
+          organizationLegacyProfileId={
+            selectedWorkspace?.kind === 'organization' ||
+            selectedWorkspace?.kind === 'fundraising'
+              ? selectedWorkspace.legacyProfileId
+              : null
+          }
+        />
+      )
 
     case 'admin':
       return <AdminDashboard />
@@ -185,6 +262,10 @@ export default async function DashboardPage({
     redirect('/login')
   }
 
+  const resolvedSearchParams = searchParams
+    ? await searchParams
+    : undefined
+
   const [{ data: profile }, authenticatedWorkspacesResult] =
     await Promise.all([
       supabase
@@ -202,30 +283,49 @@ export default async function DashboardPage({
     )
   }
 
-  const availableWorkspaces = authenticatedWorkspacesResult.success
-    ? authenticatedWorkspacesResult.workspaces
-    : []
+  const availableWorkspaces =
+    authenticatedWorkspacesResult.success
+      ? authenticatedWorkspacesResult.workspaces
+      : []
 
-  const role: Role = profile?.role ?? 'customer'
+  const legacyRole =
+    profile?.role ?? 'customer'
 
-  const resolvedSearchParams = searchParams
-    ? await searchParams
-    : undefined
+  const workspaceSelection =
+    resolveWorkspaceSelection({
+      requestedWorkspace:
+        resolvedSearchParams?.workspace,
+      workspaces: availableWorkspaces,
+      legacyRole,
+    })
+
+  const selectedWorkspace =
+    workspaceSelection.selectedWorkspace
+
+  const experienceRole =
+    workspaceSelection.experienceRole
 
   const previewRole = getPreviewRole(
     resolvedSearchParams?.previewRole
   )
 
-  const theme = getRoleTheme(role)
+  const theme = getRoleTheme(experienceRole)
 
   return (
     <main
       className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8"
-      data-available-workspace-count={availableWorkspaces.length}
+      data-available-workspace-count={
+        availableWorkspaces.length
+      }
+      data-selected-workspace-key={
+        selectedWorkspace?.key ?? ''
+      }
     >
       <div
         className={`mx-auto ${
-          role === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
+          experienceRole === 'owner'
+            ? 'max-w-7xl'
+            : 'max-w-5xl'
         }`}
       >
         <header
@@ -242,24 +342,34 @@ export default async function DashboardPage({
               <h1
                 className={`mt-4 text-3xl font-bold ${theme.headingClass}`}
               >
-                {theme.title}
+                {selectedWorkspace?.name ??
+                  theme.title}
               </h1>
 
               <p className="mt-2 text-gray-600">
-                {theme.intro}
+                {selectedWorkspace?.subtitle ??
+                  theme.intro}
               </p>
             </div>
 
             <div className="relative sm:pt-1">
               <AccountMenu
-                email={user.email ?? profile?.email ?? null}
+                email={
+                  user.email ??
+                  profile?.email ??
+                  null
+                }
                 workspaces={availableWorkspaces}
               />
             </div>
           </div>
         </header>
 
-        {renderDashboard(role, previewRole)}
+        {renderDashboard(
+          experienceRole,
+          previewRole,
+          selectedWorkspace
+        )}
       </div>
     </main>
   )
