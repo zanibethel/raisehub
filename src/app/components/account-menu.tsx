@@ -283,6 +283,10 @@ export default function AccountMenu({
       switchingWorkspaceKey !== null
     ) {
       setSwitchingWorkspaceKey(null)
+
+      if (detailsRef.current) {
+        detailsRef.current.open = false
+      }
     }
   }, [
     isSwitching,
