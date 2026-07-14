@@ -4,142 +4,324 @@ import Link from 'next/link'
 // Types
 // =============================================================================
 
-type ConsoleItem = {
+type ConsoleLink = {
   title: string
   description: string
   href: string
-  label: string
   status?: string
 }
 
+type ConsoleMenuProps = {
+  title: string
+  description: string
+  items: ConsoleLink[]
+  defaultOpen?: boolean
+}
+
 // =============================================================================
-// Console items
+// Console destinations
 // =============================================================================
 
-const consoleItems: ConsoleItem[] = [
+const quickActions: ConsoleLink[] = [
+  {
+    title: 'Find Account',
+    description: 'Search every workspace',
+    href: '#owner-workspaces',
+  },
+  {
+    title: 'Preview Role',
+    description: 'Test another experience',
+    href: '#owner-role-preview',
+  },
+  {
+    title: 'Support Tools',
+    description: 'Assist a client safely',
+    href: '/dashboard/owner/support',
+  },
+  {
+    title: 'Platform Analytics',
+    description: 'Review live totals',
+    href: '#owner-analytics',
+  },
+]
+
+const managementItems: ConsoleLink[] = [
   {
     title: 'Businesses',
     description:
-      'Search partner businesses, review profiles, inspect offers, and enter support mode.',
+      'Review business profiles, offers, and support access.',
     href: '/dashboard/owner/businesses',
-    label: 'Manage Businesses',
   },
   {
     title: 'Organizations',
     description:
-      'Review fundraising organizations, campaigns, sellers, earnings, and support requests.',
+      'Review organizations, campaigns, sellers, and earnings.',
     href: '/dashboard/owner/organizations',
-    label: 'Manage Organizations',
   },
   {
     title: 'Customers',
     description:
-      'Review customer accounts, purchased passes, saved offers, and redemption activity.',
+      'Review customer accounts, passes, savings, and redemptions.',
     href: '/dashboard/owner/customers',
-    label: 'Manage Customers',
+  },
+]
+
+const demoItems: ConsoleLink[] = [
+  {
+    title: 'Experience Viewer',
+    description:
+      'Preview customer, business, organization, and admin experiences.',
+    href: '#owner-role-preview',
   },
   {
-    title: 'Role Preview',
+    title: 'Demo Profiles',
     description:
-      'Test customer, business, organization, and admin experiences from one owner login.',
-    href: '/dashboard?previewRole=customer',
-    label: 'Open Preview',
-    status: 'Available soon',
+      'Create, open, reset, and remove reusable demo identities.',
+    href: '#owner-demo-center',
+    status: 'Next',
+  },
+  {
+    title: 'Demo Groups',
+    description:
+      'Review portable demo datasets and their related records.',
+    href: '#owner-demo-center',
+    status: 'Next',
+  },
+]
+
+const supportItems: ConsoleLink[] = [
+  {
+    title: 'Find Workspace',
+    description:
+      'Search businesses, organizations, and customers.',
+    href: '#owner-workspaces',
   },
   {
     title: 'Client Assistance',
     description:
-      'View a live client account, enable assisted editing, and record the reason for each change.',
+      'Open support tools and inspect client workspaces.',
     href: '/dashboard/owner/support',
-    label: 'Open Support Tools',
     status: 'Foundation ready',
   },
   {
     title: 'Support Activity',
     description:
-      'Review owner actions, affected accounts, changed resources, and audit history.',
+      'Review owner actions and audit history.',
     href: '/dashboard/owner/activity',
-    label: 'View Audit Log',
     status: 'Foundation ready',
   },
+]
+
+const platformItems: ConsoleLink[] = [
   {
     title: 'Platform Health',
     description:
-      'Review operational warnings, incomplete profiles, expiring offers, and system issues.',
+      'Review warnings, incomplete profiles, and system issues.',
     href: '/dashboard/owner/health',
-    label: 'View Platform Health',
     status: 'Planned',
   },
   {
     title: 'Revenue',
     description:
-      'Track campaign volume, platform fees, organization earnings, and future subscriptions.',
+      'Track campaign volume, fees, and organization earnings.',
     href: '/dashboard/owner/revenue',
-    label: 'View Revenue',
     status: 'Planned',
   },
   {
     title: 'Platform Settings',
     description:
-      'Manage global limits, feature flags, support permissions, and platform-wide behavior.',
+      'Manage limits, feature flags, and platform behavior.',
     href: '/dashboard/owner/settings',
-    label: 'Open Settings',
     status: 'Planned',
   },
 ]
 
 // =============================================================================
-// Component
+// Components
+// =============================================================================
+
+function ArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+      className="h-5 w-5 shrink-0 text-slate-400"
+    >
+      <path
+        fillRule="evenodd"
+        d="M7.22 14.78a.75.75 0 0 1 0-1.06L10.94 10 7.22 6.28a.75.75 0 0 1 1.06-1.06l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+      className="h-5 w-5 shrink-0 text-slate-500 transition group-open:rotate-180"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function ConsoleMenu({
+  title,
+  description,
+  items,
+  defaultOpen = false,
+}: ConsoleMenuProps) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 transition hover:bg-slate-50 sm:p-6">
+        <span className="min-w-0">
+          <span className="block text-lg font-bold text-slate-950">
+            {title}
+          </span>
+
+          <span className="mt-1 block text-sm leading-5 text-slate-600">
+            {description}
+          </span>
+        </span>
+
+        <ChevronIcon />
+      </summary>
+
+      <div className="border-t border-slate-100 p-2 sm:p-3">
+        {items.map((item) => (
+          <Link
+            key={item.title}
+            href={item.href}
+            className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-blue-50 sm:px-4"
+          >
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-slate-900">
+                  {item.title}
+                </span>
+
+                {item.status ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    {item.status}
+                  </span>
+                ) : null}
+              </span>
+
+              <span className="mt-0.5 block text-sm leading-5 text-slate-600">
+                {item.description}
+              </span>
+            </span>
+
+            <ArrowIcon />
+          </Link>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+// =============================================================================
+// Section
 // =============================================================================
 
 export default function OwnerPlatformOverviewSection() {
   return (
-    <section>
-      <div className="rounded-3xl border border-slate-200 bg-slate-950 p-8 text-white shadow-xl">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-300">
-          RaiseHub Platform
-        </p>
-
-        <h2 className="mt-3 text-3xl font-bold">
-          Owner Console
-        </h2>
-
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-          Run the platform, preview every role, assist clients, review activity,
-          and monitor RaiseHub from one secure owner account.
-        </p>
-      </div>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {consoleItems.map((item) => (
-          <article
-            key={item.title}
-            className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-bold text-slate-900">
-                {item.title}
-              </h3>
-
-              {item.status ? (
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {item.status}
-                </span>
-              ) : null}
-            </div>
-
-            <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">
-              {item.description}
+    <section className="space-y-6">
+      <div className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white shadow-xl sm:p-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-300">
+              RaiseHub Platform
             </p>
 
+            <h2 className="mt-3 text-3xl font-bold">
+              Owner Console
+            </h2>
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+              Monitor the platform, manage accounts, operate demo
+              experiences, and assist clients from one secure workspace.
+            </p>
+          </div>
+
+          <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-sm font-semibold text-emerald-200">
+            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            Platform online
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-3 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+              Quick Actions
+            </p>
+
+            <h3 className="mt-1 text-xl font-bold text-slate-950">
+              Go straight to the work
+            </h3>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {quickActions.map((item) => (
             <Link
+              key={item.title}
               href={item.href}
-              className="mt-5 inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
             >
-              {item.label}
+              <span className="block font-bold text-slate-950">
+                {item.title}
+              </span>
+
+              <span className="mt-1 block text-xs leading-5 text-slate-600">
+                {item.description}
+              </span>
             </Link>
-          </article>
-        ))}
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <ConsoleMenu
+          title="Manage Platform"
+          description="Businesses, organizations, and customers"
+          items={managementItems}
+          defaultOpen
+        />
+
+        <div id="owner-demo-center">
+          <ConsoleMenu
+            title="Demo Center"
+            description="Demo profiles, groups, and experience tools"
+            items={demoItems}
+          />
+        </div>
+
+        <ConsoleMenu
+          title="Client Support"
+          description="Workspace search, assistance, and audit history"
+          items={supportItems}
+        />
+
+        <ConsoleMenu
+          title="Platform Operations"
+          description="Health, revenue, settings, and platform controls"
+          items={platformItems}
+        />
       </div>
     </section>
   )
