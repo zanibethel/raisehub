@@ -225,6 +225,14 @@ export default function AccountMenu({
     workspaces.length > 1
 
   useEffect(() => {
+    if (selectedWorkspace?.key) {
+      rememberWorkspace(
+        selectedWorkspace.key
+      )
+    }
+  }, [selectedWorkspace?.key])
+
+  useEffect(() => {
     function handlePointerDown(
       event: PointerEvent
     ) {
