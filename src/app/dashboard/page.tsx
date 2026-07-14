@@ -7,6 +7,7 @@ import CustomerDashboard from '@/components/dashboards/customer/customer-dashboa
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
 import type { PreviewRole } from '@/components/dashboards/owner/owner-dashboard'
+import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
@@ -184,13 +185,29 @@ export default async function DashboardPage({
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, email, role')
-    .eq('id', user.id)
-    .single<Profile>()
+  const [{ data: profile }, authenticatedWorkspacesResult] =
+    await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, email, role')
+        .eq('id', user.id)
+        .single<Profile>(),
+      getAuthenticatedWorkspaces(),
+    ])
+
+  if (!authenticatedWorkspacesResult.success) {
+    console.error(
+      'Unable to load authenticated workspaces:',
+      authenticatedWorkspacesResult.reason
+    )
+  }
+
+  const availableWorkspaces = authenticatedWorkspacesResult.success
+    ? authenticatedWorkspacesResult.workspaces
+    : []
 
   const role: Role = profile?.role ?? 'customer'
+
   const resolvedSearchParams = searchParams
     ? await searchParams
     : undefined
@@ -202,13 +219,18 @@ export default async function DashboardPage({
   const theme = getRoleTheme(role)
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8">
+    <main
+      className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8"
+      data-available-workspace-count={availableWorkspaces.length}
+    >
       <div
         className={`mx-auto ${
           role === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
         }`}
       >
-        <header className={`rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}>
+        <header
+          className={`rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
+        >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div
