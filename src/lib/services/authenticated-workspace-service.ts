@@ -4,7 +4,6 @@ import type {
   BusinessAccessRecord,
   CapabilitySource,
   OrganizationAccessRecord,
-  OrganizationMembershipRole,
   SelectableWorkspace,
   SelectableWorkspaceKind,
 } from '../types/identity-access'
@@ -44,10 +43,8 @@ function buildWorkspaceHref(key: string): string {
 // Display helpers
 // =============================================================================
 
-function getBusinessSubtitle(
-  access: BusinessAccessRecord
-): string {
-  switch (access.membership.role) {
+function getBusinessSubtitle(access: BusinessAccessRecord): string {
+  switch (access.membership.membership_role) {
     case 'owner':
       return 'Business owner'
 
@@ -63,10 +60,8 @@ function getBusinessSubtitle(
   }
 }
 
-function getOrganizationSubtitle(
-  access: OrganizationAccessRecord
-): string {
-  switch (access.membership.role) {
+function getOrganizationSubtitle(access: OrganizationAccessRecord): string {
+  switch (access.membership.membership_role) {
     case 'admin':
       return 'Organization administrator'
 
@@ -82,10 +77,8 @@ function getOrganizationSubtitle(
   }
 }
 
-function getFundraisingSubtitle(
-  role: OrganizationMembershipRole
-): string {
-  switch (role) {
+function getFundraisingSubtitle(membershipRole: string): string {
+  switch (membershipRole) {
     case 'admin':
       return 'Fundraising administrator'
 
@@ -109,10 +102,7 @@ function buildCustomerWorkspace(
   summary: ActorCapabilitySummary,
   source: CapabilitySource
 ): SelectableWorkspace {
-  const key = buildWorkspaceKey(
-    'customer',
-    summary.actor.id
-  )
+  const key = buildWorkspaceKey('customer', summary.actor.id)
 
   return {
     key,
@@ -124,8 +114,7 @@ function buildCustomerWorkspace(
     membershipId: null,
     legacyProfileId: summary.actor.id,
     source,
-    isDefault:
-      summary.legacyWorkspaceRole === 'customer',
+    isDefault: summary.legacyWorkspaceRole === 'customer',
   }
 }
 
@@ -133,10 +122,7 @@ function buildBusinessWorkspace(
   summary: ActorCapabilitySummary,
   access: BusinessAccessRecord
 ): SelectableWorkspace {
-  const key = buildWorkspaceKey(
-    'business',
-    access.business.id
-  )
+  const key = buildWorkspaceKey('business', access.business.id)
 
   return {
     key,
@@ -146,13 +132,11 @@ function buildBusinessWorkspace(
     href: buildWorkspaceHref(key),
     workspaceId: access.business.id,
     membershipId: access.membership.id,
-    legacyProfileId:
-      access.business.legacy_profile_id,
+    legacyProfileId: access.business.legacy_profile_id,
     source: 'business-membership',
     isDefault:
       summary.legacyWorkspaceRole === 'business' &&
-      access.business.legacy_profile_id ===
-        summary.actor.id,
+      access.business.legacy_profile_id === summary.actor.id,
   }
 }
 
@@ -160,10 +144,7 @@ function buildOrganizationWorkspace(
   summary: ActorCapabilitySummary,
   access: OrganizationAccessRecord
 ): SelectableWorkspace {
-  const key = buildWorkspaceKey(
-    'organization',
-    access.organization.id
-  )
+  const key = buildWorkspaceKey('organization', access.organization.id)
 
   return {
     key,
@@ -173,24 +154,18 @@ function buildOrganizationWorkspace(
     href: buildWorkspaceHref(key),
     workspaceId: access.organization.id,
     membershipId: access.membership.id,
-    legacyProfileId:
-      access.organization.legacy_profile_id,
+    legacyProfileId: access.organization.legacy_profile_id,
     source: 'organization-membership',
     isDefault:
-      summary.legacyWorkspaceRole ===
-        'organization' &&
-      access.organization.legacy_profile_id ===
-        summary.actor.id,
+      summary.legacyWorkspaceRole === 'organization' &&
+      access.organization.legacy_profile_id === summary.actor.id,
   }
 }
 
 function buildOwnerWorkspace(
   summary: ActorCapabilitySummary
 ): SelectableWorkspace {
-  const key = buildWorkspaceKey(
-    'owner',
-    summary.actor.id
-  )
+  const key = buildWorkspaceKey('owner', summary.actor.id)
 
   return {
     key,
@@ -202,8 +177,7 @@ function buildOwnerWorkspace(
     membershipId: null,
     legacyProfileId: summary.actor.id,
     source: 'owner-role',
-    isDefault:
-      summary.actor.legacyRole === 'owner',
+    isDefault: summary.actor.legacyRole === 'owner',
   }
 }
 
@@ -211,10 +185,7 @@ function buildLegacyWorkspace(
   summary: ActorCapabilitySummary,
   kind: 'business' | 'organization'
 ): SelectableWorkspace {
-  const key = buildWorkspaceKey(
-    kind,
-    `legacy-${summary.actor.id}`
-  )
+  const key = buildWorkspaceKey(kind, `legacy-${summary.actor.id}`)
 
   return {
     key,
@@ -240,10 +211,7 @@ function buildLegacyWorkspace(
 // Sorting and deduplication
 // =============================================================================
 
-const WORKSPACE_KIND_ORDER: Record<
-  SelectableWorkspaceKind,
-  number
-> = {
+const WORKSPACE_KIND_ORDER: Record<SelectableWorkspaceKind, number> = {
   customer: 0,
   fundraising: 1,
   organization: 2,
@@ -260,8 +228,7 @@ function compareWorkspaces(
   }
 
   const kindDifference =
-    WORKSPACE_KIND_ORDER[first.kind] -
-    WORKSPACE_KIND_ORDER[second.kind]
+    WORKSPACE_KIND_ORDER[first.kind] - WORKSPACE_KIND_ORDER[second.kind]
 
   if (kindDifference !== 0) {
     return kindDifference
@@ -288,10 +255,7 @@ function addWorkspace(
 export function buildSelectableWorkspaces(
   summary: ActorCapabilitySummary
 ): SelectableWorkspace[] {
-  const workspacesByKey = new Map<
-    string,
-    SelectableWorkspace
-  >()
+  const workspacesByKey = new Map<string, SelectableWorkspace>()
 
   const hasCustomerAccess =
     Boolean(summary.activeCustomerEntitlement) ||
@@ -299,19 +263,15 @@ export function buildSelectableWorkspaces(
     summary.legacyWorkspaceRole === 'customer'
 
   if (hasCustomerAccess) {
-    const customerSource: CapabilitySource =
-      summary.activeCustomerEntitlement
-        ? 'customer-entitlement'
-        : summary.hasLegacyCustomerPass
-          ? 'legacy-customer-pass'
-          : 'legacy-profile'
+    const customerSource: CapabilitySource = summary.activeCustomerEntitlement
+      ? 'customer-entitlement'
+      : summary.hasLegacyCustomerPass
+        ? 'legacy-customer-pass'
+        : 'legacy-profile'
 
     addWorkspace(
       workspacesByKey,
-      buildCustomerWorkspace(
-        summary,
-        customerSource
-      )
+      buildCustomerWorkspace(summary, customerSource)
     )
   }
 
@@ -326,14 +286,12 @@ export function buildSelectableWorkspaces(
     const organizationMembership =
       campaignAccess.organizationMembership
 
-    const organizationAccess =
-      organizationAccessByMembershipId.get(
-        organizationMembership.id
-      )
+    const organizationAccess = organizationAccessByMembershipId.get(
+      organizationMembership.id
+    )
 
     const organizationName =
-      organizationAccess?.organization.name ??
-      'My Fundraising'
+      organizationAccess?.organization.name ?? 'My Fundraising'
 
     const key = buildWorkspaceKey(
       'fundraising',
@@ -348,15 +306,13 @@ export function buildSelectableWorkspaces(
           ? organizationName
           : `${organizationName} Fundraising`,
       subtitle: getFundraisingSubtitle(
-        organizationMembership.role
+        organizationMembership.membership_role
       ),
       href: buildWorkspaceHref(key),
-      workspaceId:
-        organizationMembership.organization_id,
+      workspaceId: organizationMembership.organization_id,
       membershipId: organizationMembership.id,
       legacyProfileId:
-        organizationAccess?.organization
-          .legacy_profile_id ?? null,
+        organizationAccess?.organization.legacy_profile_id ?? null,
       source: 'campaign-membership',
       isDefault: false,
     })
@@ -365,10 +321,7 @@ export function buildSelectableWorkspaces(
   for (const access of summary.organizationAccess) {
     addWorkspace(
       workspacesByKey,
-      buildOrganizationWorkspace(
-        summary,
-        access
-      )
+      buildOrganizationWorkspace(summary, access)
     )
   }
 
@@ -379,9 +332,7 @@ export function buildSelectableWorkspaces(
     )
   }
 
-  const hasBusinessWorkspace = [
-    ...workspacesByKey.values(),
-  ].some(
+  const hasBusinessWorkspace = [...workspacesByKey.values()].some(
     (workspace) => workspace.kind === 'business'
   )
 
@@ -395,24 +346,17 @@ export function buildSelectableWorkspaces(
     )
   }
 
-  const hasOrganizationWorkspace = [
-    ...workspacesByKey.values(),
-  ].some(
-    (workspace) =>
-      workspace.kind === 'organization'
+  const hasOrganizationWorkspace = [...workspacesByKey.values()].some(
+    (workspace) => workspace.kind === 'organization'
   )
 
   if (
-    summary.legacyWorkspaceRole ===
-      'organization' &&
+    summary.legacyWorkspaceRole === 'organization' &&
     !hasOrganizationWorkspace
   ) {
     addWorkspace(
       workspacesByKey,
-      buildLegacyWorkspace(
-        summary,
-        'organization'
-      )
+      buildLegacyWorkspace(summary, 'organization')
     )
   }
 
@@ -423,9 +367,7 @@ export function buildSelectableWorkspaces(
     )
   }
 
-  return [...workspacesByKey.values()].sort(
-    compareWorkspaces
-  )
+  return [...workspacesByKey.values()].sort(compareWorkspaces)
 }
 
 // =============================================================================
@@ -433,8 +375,7 @@ export function buildSelectableWorkspaces(
 // =============================================================================
 
 export async function getAuthenticatedWorkspaces(): Promise<AuthenticatedWorkspacesResult> {
-  const capabilityResult =
-    await resolveActorCapabilitySummary()
+  const capabilityResult = await resolveActorCapabilitySummary()
 
   if (!capabilityResult.success) {
     return {
