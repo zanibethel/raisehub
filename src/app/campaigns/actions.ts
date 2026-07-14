@@ -2,6 +2,13 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
+import { getCampaignById } from '@/lib/repositories/campaign-repository'
+import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
+import type {
+  CampaignRecoveryResult,
+  SellableCampaignOption,
+} from '@/lib/types/campaigns'
 
 const PLATFORM_FEE_PERCENT = 25
 
@@ -13,27 +20,85 @@ type PurchaseCampaignInput = {
   seller_name?: string
 }
 
-// =========================================
-// 💳 SIMULATED PASS PURCHASE
-// Pass price gets platform fee.
-// Donation goes fully to selected organization.
-// Later, Stripe can replace the simulated payment step
-// while keeping this same purchase table structure.
-// =========================================
-export async function purchaseCampaignPassAction(input: PurchaseCampaignInput) {
-  const supabase = await createClient()
+type PurchaseCampaignPassActionResult =
+  | {
+      status: 'success'
+    }
+  | {
+      status: 'replacement-found'
+      campaignId: string
+      replacedCampaignId: string
+    }
+  | {
+      status: 'selection-required'
+      replacedCampaignId: string
+      campaigns: SellableCampaignOption[]
+    }
+  | {
+      status: 'no-valid-campaign'
+      replacedCampaignId: string | null
+    }
+  | {
+      status: 'error'
+      message: string
+    }
 
-  // =========================================
-  // 🔐 AUTH CHECK
-  // Optional user tracking. Public supporters can still purchase.
-  // =========================================
+function mapRecoveryResult(
+  recoveryResult: CampaignRecoveryResult
+): PurchaseCampaignPassActionResult {
+  switch (recoveryResult.status) {
+    case 'replacement-found':
+      return recoveryResult
+    case 'selection-required':
+      return recoveryResult
+    case 'no-valid-campaign':
+      return recoveryResult
+    case 'lookup-failure':
+      return {
+        status: 'error',
+        message: 'We could not refresh campaign availability. Please try again.',
+      }
+    case 'current-campaign-valid':
+      return {
+        status: 'error',
+        message: 'We could not complete the purchase. Please try again.',
+      }
+  }
+}
+
+export async function purchaseCampaignPassAction(
+  input: PurchaseCampaignInput
+): Promise<PurchaseCampaignPassActionResult> {
+  const supabase = await createClient()
+  const now = new Date()
+
+  const { campaign, error: campaignError } = await getCampaignById(
+    input.campaign_id
+  )
+
+  if (campaignError) {
+    return {
+      status: 'error',
+      message: 'We could not confirm the selected campaign. Please try again.',
+    }
+  }
+
+  if (!campaign) {
+    return mapRecoveryResult(
+      await resolveCampaignRecovery(input.campaign_id, now)
+    )
+  }
+
+  if (!isCampaignCurrentlySellable(campaign, now)) {
+    return mapRecoveryResult(
+      await resolveCampaignRecovery(input.campaign_id, now)
+    )
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // =========================================
-  // 🧮 PURCHASE CALCULATION
-  // =========================================
   const passPrice = Number(input.pass_price) || 0
   const donationAmount = Number(input.donation_amount ?? 0) || 0
 
@@ -42,9 +107,6 @@ export async function purchaseCampaignPassAction(input: PurchaseCampaignInput) {
   const organizationEarnings = passOrganizationEarnings + donationAmount
   const amountPaid = passPrice + donationAmount
 
-  // =========================================
-  // 💾 SAVE PURCHASE
-  // =========================================
   const { error } = await supabase.from('campaign_purchases').insert({
     campaign_id: input.campaign_id,
     user_id: user?.id ?? null,
@@ -59,18 +121,15 @@ export async function purchaseCampaignPassAction(input: PurchaseCampaignInput) {
   })
 
   if (error) {
-    return { error: error.message }
+    return mapRecoveryResult(
+      await resolveCampaignRecovery(input.campaign_id, new Date())
+    )
   }
 
-  // =========================================
-  // ♻️ REVALIDATE UPDATED PAGES
-  // Keeps dashboard, campaign page, campaign list,
-  // and homepage carousel progress fresh.
-  // =========================================
   revalidatePath('/dashboard')
   revalidatePath(`/campaigns/${input.campaign_id}`)
   revalidatePath('/campaigns')
   revalidatePath('/')
 
-  return { success: true }
+  return { status: 'success' }
 }

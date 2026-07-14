@@ -1,5 +1,5 @@
 import ReadOnlyWorkspaceView from '@/components/platform/read-only-workspace-view'
-import type { WorkspaceCardData } from '@/components/platform/workspace-card'
+import type { WorkspaceCardData } from '@/lib/types/identity-access'
 import SelectedWorkspacePanel, {
   type WorkspaceSupportMode,
 } from '@/components/platform/selected-workspace-panel'

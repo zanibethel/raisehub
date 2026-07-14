@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
+import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 
 // =============================================================================
 // Types
@@ -14,6 +15,7 @@ type CampaignPurchase = {
   platform_fee: number
   organization_earnings: number
   seller_name: string | null
+  payment_status: string
 }
 
 type CampaignMetrics = {
@@ -82,15 +84,16 @@ export default async function OrganizationDashboard() {
   let purchases: CampaignPurchase[] = []
 
   if (campaignIds.length > 0) {
-    // Metrics currently include all recorded purchase statuses; add Stripe-paid status filtering once final payment statuses are defined.
     const { data } = await supabase
       .from('campaign_purchases')
       .select(
-        'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, seller_name'
+        'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, seller_name, payment_status'
       )
       .in('campaign_id', campaignIds)
 
-    purchases = data ?? []
+    purchases = (data ?? []).filter((purchase) =>
+      isCampaignPurchaseProgressEligible(purchase.payment_status)
+    )
   }
 
   const totalPassesSold = purchases.length

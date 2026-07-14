@@ -2,17 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-
-type CampaignCard = {
-  id: string
-  name: string
-  goal: number
-  earnings: number
-  progress: number
-}
+import CampaignCard from './campaign-card'
+import type { SelectableCampaignCard } from '@/lib/types/campaigns'
 
 type CampaignProgressCarouselClientProps = {
-  campaigns: CampaignCard[]
+  campaigns: SelectableCampaignCard[]
 }
 
 const SCROLL_PX_PER_FRAME = 1.5
@@ -34,37 +28,34 @@ export default function CampaignProgressCarouselClient({
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
 
-    function onChange(e: MediaQueryListEvent) {
-      setReducedMotion(e.matches)
-      if (e.matches) setIsPaused(true)
+    function onChange(event: MediaQueryListEvent) {
+      setReducedMotion(event.matches)
+      if (event.matches) setIsPaused(true)
     }
 
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  // =========================================
-  // 🎠 AUTO-SCROLL
-  // =========================================
   useEffect(() => {
     if (!scrollRef.current || campaigns.length === 0 || reducedMotion) return
 
     let raf: number
 
     function loop() {
-      const currentEl = scrollRef.current
-      if (!currentEl) return
+      const currentElement = scrollRef.current
+      if (!currentElement) return
 
       if (!isPaused) {
         isAutoScrollingRef.current = true
-        currentEl.scrollLeft += SCROLL_PX_PER_FRAME
+        currentElement.scrollLeft += SCROLL_PX_PER_FRAME
 
         setTimeout(() => {
           isAutoScrollingRef.current = false
         }, 50)
 
-        if (currentEl.scrollLeft >= currentEl.scrollWidth / 2) {
-          currentEl.scrollLeft = 0
+        if (currentElement.scrollLeft >= currentElement.scrollWidth / 2) {
+          currentElement.scrollLeft = 0
         }
       }
 
@@ -74,11 +65,8 @@ export default function CampaignProgressCarouselClient({
     raf = requestAnimationFrame(loop)
 
     return () => cancelAnimationFrame(raf)
-  }, [isPaused, campaigns, reducedMotion])
+  }, [campaigns, isPaused, reducedMotion])
 
-  // =========================================
-  // ⏸️ PAUSE / RESUME HELPERS
-  // =========================================
   function pauseCarousel() {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
     if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current)
@@ -103,9 +91,8 @@ export default function CampaignProgressCarouselClient({
   function scrollBy(direction: 'prev' | 'next') {
     if (!scrollRef.current) return
     pauseCarousel()
-    const cardWidth = 288 + 24
     scrollRef.current.scrollBy({
-      left: direction === 'next' ? cardWidth : -cardWidth,
+      left: direction === 'next' ? 384 : -384,
       behavior: 'smooth',
     })
     resumeCarouselWithDelay()
@@ -122,13 +109,10 @@ export default function CampaignProgressCarouselClient({
 
   return (
     <section
-      className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl"
+      className="mx-auto mt-12 max-w-6xl overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl"
       aria-label="Trending Fundraisers carousel"
     >
-      {/* =========================================
-          🏷️ SECTION HEADER
-      ========================================= */}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-blue-700">
             Trending Fundraisers
@@ -167,9 +151,6 @@ export default function CampaignProgressCarouselClient({
         </div>
       </div>
 
-      {/* =========================================
-          🎠 CAROUSEL
-      ========================================= */}
       <div
         ref={scrollRef}
         role="list"
@@ -194,47 +175,13 @@ export default function CampaignProgressCarouselClient({
             role="listitem"
             style={reducedMotion ? { scrollSnapAlign: 'start' } : undefined}
           >
-            <Link
+            <CampaignCard
+              campaign={campaign}
               href={`/campaigns/${campaign.id}`}
               onClick={pauseCarousel}
-              aria-label={`${campaign.name} — ${campaign.progress.toFixed(0)}% of goal`}
-              className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-blue-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-            >
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                  Fundraiser
-                </p>
-                <h3 className="mt-1 line-clamp-2 text-base font-semibold text-gray-900">
-                  {campaign.name}
-                </h3>
-                <p className="mt-4 text-2xl font-bold text-blue-700">
-                  {campaign.progress.toFixed(0)}% of goal!
-                </p>
-                <div className="mt-3 h-2 w-full rounded-full bg-gray-200">
-                  <div
-                    className="h-2 rounded-full bg-blue-600 transition-all"
-                    style={{ width: `${Math.min(campaign.progress, 100)}%` }}
-                    role="progressbar"
-                    // aria-valuenow is clamped to 100 because the visual bar cannot exceed full.
-                    // The unclamped percentage (e.g. "125% funded") is conveyed via aria-label
-                    // and the text above, so screen readers see the same figure sighted users do.
-                    aria-valuenow={Math.min(campaign.progress, 100)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`${campaign.progress.toFixed(0)}% funded`}
-                  />
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className="text-xs text-gray-500">
-                  Raised ${campaign.earnings.toLocaleString()} of $
-                  {campaign.goal.toLocaleString()}
-                </p>
-                <div className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white">
-                  View Campaign
-                </div>
-              </div>
-            </Link>
+              actionLabel="View Campaign"
+              className="w-[360px] min-w-[360px] shrink-0"
+            />
           </div>
         ))}
       </div>

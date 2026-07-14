@@ -1,17 +1,13 @@
 import type {
   WorkspaceCardData,
   WorkspaceRole,
-} from '@/components/platform/workspace-card'
+} from '@/lib/types/identity-access'
 import { createClient } from '@/lib/supabase/server'
 import { getOwnerWorkspacesResult } from '@/lib/services/workspace-service'
 
 // =============================================================================
 // Types
 // =============================================================================
-
-// Note: WorkspaceCardData is currently imported from a component file.
-// This is existing technical debt. A shared domain type is the correct
-// long-term location. Type migration is out of scope for this PR.
 
 export type OwnerWorkspaceAuthorizationFailureReason =
   | 'unauthenticated'

@@ -1,8 +1,8 @@
 # Multi-Role Foundation PR Plan
 
-**Version:** 4.0  
-**Status:** Approved for implementation planning  
-**Target:** Next RaiseHub pull request  
+**Version:** 4.2  
+**Status:** Repository authorization and campaign recovery implemented; live runtime verification pending  
+**Target:** Multi-role foundation pull request  
 **Scope type:** Additive architectural foundation  
 **User-visible change:** None or minimal  
 **Primary source of truth:** `docs/IDENTITY_ACCESS_MODEL.md`
@@ -14,6 +14,26 @@ The purpose of this PR is to establish the database, authorization, type, reposi
 This PR is foundational.
 
 It must not attempt to complete every user-facing feature that will eventually depend on this architecture.
+
+## Implementation Status
+
+Repository status:
+
+- Shared identity/access domain types: implemented
+- Business and organization repositories: implemented
+- Membership repositories: implemented
+- Customer entitlement repository: implemented
+- Capability resolution service: implemented
+- Workspace lifecycle and campaign sellability rules: implemented
+- Campaign recovery flow and sellable campaign selection: implemented
+- Legacy compatibility helpers: implemented
+- Focused repository-side unit tests: implemented
+
+Still pending outside the repository-only agent scope:
+
+- Authorized live verification of application reads and purchase flows against the verified foundation
+- Runtime connection of future workspace switching and invitation workflows beyond campaign recovery
+- Any write-path enablement for privileged memberships or entitlements outside the campaign purchase flow
 
 ---
 

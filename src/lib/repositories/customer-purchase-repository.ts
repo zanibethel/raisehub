@@ -59,6 +59,11 @@ type CustomerPurchasesResult = {
   error: string | null
 }
 
+type CustomerPurchasePresenceResult = {
+  hasPurchase: boolean
+  error: string | null
+}
+
 // =============================================================================
 // Repository
 // =============================================================================
@@ -141,6 +146,31 @@ export async function getCustomerPurchases(
       payment_status: row.payment_status,
       created_at: row.created_at,
     })),
+    error: null,
+  }
+}
+
+export async function hasCustomerNonFailedPurchase(
+  customerProfileId: string
+): Promise<CustomerPurchasePresenceResult> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('campaign_purchases')
+    .select('id')
+    .eq('user_id', customerProfileId)
+    .neq('payment_status', 'failed')
+    .limit(1)
+
+  if (error) {
+    return {
+      hasPurchase: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    hasPurchase: (data?.length ?? 0) > 0,
     error: null,
   }
 }

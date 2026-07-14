@@ -1,4 +1,4 @@
-import type { WorkspaceCardData } from '@/components/platform/workspace-card'
+import type { WorkspaceCardData } from '@/lib/types/identity-access'
 import {
   getWorkspaceProfiles,
   type WorkspaceProfile,

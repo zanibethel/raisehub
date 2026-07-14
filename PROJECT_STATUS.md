@@ -64,6 +64,18 @@ Completed:
 - Workspace repository introduced
 - Service and repository responsibilities separated
 - Platform components introduced under `src/components/platform/`
+- Multi-role identity/access domain types introduced under `src/lib/types/`
+- Multi-role repositories introduced for businesses, memberships, organizations, campaign participation, customer entitlements, campaigns, and actor profiles
+- Deterministic multi-role authorization rules introduced under `src/lib/rules/`
+- Capability resolution and legacy compatibility services introduced for future workspace-aware authorization without changing current dashboard routing
+- Workspace lifecycle, campaign sellability, and campaign recovery safeguards now align application behavior with the hardened live RLS campaign rules
+- Verified live RPC prerequisites `get_campaign_recovery_context` and `get_public_campaign_progress` are integrated in the application layer only; this PR does not add SQL, migrations, policies, views, or replacement database functions
+- Focused repository-side multi-role unit tests added for rules, capability resolution, campaign progress, and recovery flows
+
+Pending:
+
+- Extend the same multi-role capability model into broader workspace selection and invitation workflows
+- Perform authorized live runtime verification against the verified database foundation and authenticated campaign accounts
 
 ### Owner Platform — Workspace Browser and Read-Only Support Shell
 

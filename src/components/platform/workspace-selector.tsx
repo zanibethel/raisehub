@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react'
 
-import WorkspaceCard, {
-  type WorkspaceCardData,
-  type WorkspaceRole,
-} from './workspace-card'
+import WorkspaceCard from './workspace-card'
+import type {
+  WorkspaceCardData,
+  WorkspaceRole,
+} from '@/lib/types/identity-access'
 
 // =============================================================================
 // Types
