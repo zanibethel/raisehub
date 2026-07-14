@@ -22,6 +22,10 @@ type AccountMenuProps = {
   selectedWorkspaceKey?: string | null
 }
 
+type WorkspaceIconProps = {
+  kind: SelectableWorkspaceKind
+}
+
 // =============================================================================
 // Workspace preference
 // =============================================================================
@@ -57,24 +61,70 @@ function rememberWorkspace(
 // Presentation helpers
 // =============================================================================
 
-function getWorkspaceIcon(
-  kind: SelectableWorkspaceKind
-): string {
+function WorkspaceIcon({
+  kind,
+}: WorkspaceIconProps) {
+  const sharedProps = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className: 'h-5 w-5',
+    'aria-hidden': true,
+  }
+
   switch (kind) {
     case 'customer':
-      return 'ðï¸'
+      return (
+        <svg {...sharedProps}>
+          <path d="M5 7.5h14v11H5z" />
+          <path d="M8 7.5V6a4 4 0 0 1 8 0v1.5" />
+          <path d="M8 11h.01" />
+          <path d="M16 11h.01" />
+        </svg>
+      )
 
     case 'fundraising':
-      return 'ð£'
+      return (
+        <svg {...sharedProps}>
+          <path d="M4 13V8.5a1.5 1.5 0 0 1 1.5-1.5H8l7-3v13l-7-3H5.5A1.5 1.5 0 0 1 4 13Z" />
+          <path d="m8 14 1.5 5H7l-1.5-5" />
+          <path d="M18 8.5a4 4 0 0 1 0 4" />
+        </svg>
+      )
 
     case 'organization':
-      return 'ð«'
+      return (
+        <svg {...sharedProps}>
+          <path d="M4 20h16" />
+          <path d="M6 20V8l6-4 6 4v12" />
+          <path d="M9 20v-5h6v5" />
+          <path d="M9 10h.01" />
+          <path d="M12 10h.01" />
+          <path d="M15 10h.01" />
+        </svg>
+      )
 
     case 'business':
-      return 'ðª'
+      return (
+        <svg {...sharedProps}>
+          <path d="M4 10h16" />
+          <path d="M5 10V6h14v4" />
+          <path d="M6 10v10h12V10" />
+          <path d="M9 20v-5h6v5" />
+          <path d="M4 10c0 1.1.9 2 2 2s2-.9 2-2c0 1.1.9 2 2 2s2-.9 2-2c0 1.1.9 2 2 2s2-.9 2-2c0 1.1.9 2 2 2s2-.9 2-2" />
+        </svg>
+      )
 
     case 'owner':
-      return 'ð ï¸'
+      return (
+        <svg {...sharedProps}>
+          <path d="M12 3 4.5 6v5c0 4.8 3 8.2 7.5 10 4.5-1.8 7.5-5.2 7.5-10V6L12 3Z" />
+          <path d="m9.5 12 1.7 1.7 3.6-3.6" />
+        </svg>
+      )
   }
 }
 
@@ -232,12 +282,18 @@ export default function AccountMenu({
           </span>
         </span>
 
-        <span
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
           aria-hidden="true"
-          className="shrink-0 text-xs text-gray-500 transition group-open:rotate-180"
+          className="h-4 w-4 shrink-0 text-gray-500 transition group-open:rotate-180"
         >
-          â¼
-        </span>
+          <path
+            fillRule="evenodd"
+            d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z"
+            clipRule="evenodd"
+          />
+        </svg>
       </summary>
 
       <div className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
@@ -285,11 +341,11 @@ export default function AccountMenu({
                   >
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 shrink-0 text-lg"
+                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-700"
                     >
-                      {getWorkspaceIcon(
-                        workspace.kind
-                      )}
+                      <WorkspaceIcon
+                        kind={workspace.kind}
+                      />
                     </span>
 
                     <span className="min-w-0 flex-1">
