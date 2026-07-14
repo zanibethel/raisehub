@@ -1,10 +1,22 @@
+import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
-import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 
 // =============================================================================
 // Types
 // =============================================================================
+
+type OrganizationDashboardProps = {
+  /**
+   * Legacy organization profile ID associated with an already-authorized
+   * organization workspace.
+   *
+   * The dashboard route must verify the selected workspace before supplying
+   * this value. When omitted, the current legacy behavior continues to use
+   * the authenticated user's ID.
+   */
+  organizationLegacyProfileId?: string | null
+}
 
 type CampaignPurchase = {
   id: string
@@ -26,7 +38,9 @@ type CampaignMetrics = {
   amountRaised: number
 }
 
-function generateSupporterKey(purchase: CampaignPurchase): string {
+function generateSupporterKey(
+  purchase: CampaignPurchase
+): string {
   if (purchase.user_id) {
     return `user:${purchase.user_id}`
   }
@@ -42,7 +56,9 @@ function generateSupporterKey(purchase: CampaignPurchase): string {
 // Organization dashboard loader
 // =============================================================================
 
-export default async function OrganizationDashboard() {
+export default async function OrganizationDashboard({
+  organizationLegacyProfileId,
+}: OrganizationDashboardProps = {}) {
   const supabase = await createClient()
 
   // ===========================================================================
@@ -57,6 +73,9 @@ export default async function OrganizationDashboard() {
     return null
   }
 
+  const organizationProfileId =
+    organizationLegacyProfileId?.trim() || user.id
+
   // ===========================================================================
   // Campaigns
   // ===========================================================================
@@ -64,7 +83,7 @@ export default async function OrganizationDashboard() {
   const { data: campaigns } = await supabase
     .from('campaigns')
     .select('*')
-    .eq('organization_id', user.id)
+    .eq('organization_id', organizationProfileId)
     .order('created_at', { ascending: false })
 
   const organizationCampaigns = campaigns ?? []
@@ -92,7 +111,9 @@ export default async function OrganizationDashboard() {
       .in('campaign_id', campaignIds)
 
     purchases = (data ?? []).filter((purchase) =>
-      isCampaignPurchaseProgressEligible(purchase.payment_status)
+      isCampaignPurchaseProgressEligible(
+        purchase.payment_status
+      )
     )
   }
 
@@ -112,7 +133,8 @@ export default async function OrganizationDashboard() {
 
   const totalEarnings = purchases.reduce(
     (sum, purchase) =>
-      sum + Number(purchase.organization_earnings ?? 0),
+      sum +
+      Number(purchase.organization_earnings ?? 0),
     0
   )
 
@@ -147,22 +169,31 @@ export default async function OrganizationDashboard() {
         amountRaised: 0,
       }
 
-    existing.gross += Number(purchase.amount_paid ?? 0)
-    existing.fees += Number(purchase.platform_fee ?? 0)
+    existing.gross += Number(
+      purchase.amount_paid ?? 0
+    )
+
+    existing.fees += Number(
+      purchase.platform_fee ?? 0
+    )
+
     existing.amountRaised += Number(
       purchase.organization_earnings ?? 0
     )
 
-    const supporterKey = generateSupporterKey(purchase)
+    const supporterKey =
+      generateSupporterKey(purchase)
 
     supporterKeys.add(supporterKey)
 
     const campaignSupporters =
-      supportersByCampaign.get(purchase.campaign_id) ??
-      new Set<string>()
+      supportersByCampaign.get(
+        purchase.campaign_id
+      ) ?? new Set<string>()
 
     campaignSupporters.add(supporterKey)
-    existing.supporterCount = campaignSupporters.size
+    existing.supporterCount =
+      campaignSupporters.size
 
     supportersByCampaign.set(
       purchase.campaign_id,
@@ -173,11 +204,13 @@ export default async function OrganizationDashboard() {
 
     if (seller) {
       const campaignSellers =
-        sellersByCampaign.get(purchase.campaign_id) ??
-        new Set<string>()
+        sellersByCampaign.get(
+          purchase.campaign_id
+        ) ?? new Set<string>()
 
       campaignSellers.add(seller)
-      existing.sellerCount = campaignSellers.size
+      existing.sellerCount =
+        campaignSellers.size
 
       sellersByCampaign.set(
         purchase.campaign_id,
@@ -229,9 +262,13 @@ export default async function OrganizationDashboard() {
       sold: stats.sold,
       earnings: stats.earnings,
     }))
-    .sort((a, b) => b.sold - a.sold)
+    .sort((first, second) =>
+      second.sold - first.sold
+    )
 
-  const totalCampaigns = organizationCampaigns.length
+  const totalCampaigns =
+    organizationCampaigns.length
+
   const activeSellerCount = sellerStats.size
   const totalSupporters = supporterKeys.size
 
