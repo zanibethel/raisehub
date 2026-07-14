@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import LogoutButton from '@/app/components/logout-button'
+import AccountMenu from '@/app/components/account-menu'
 import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
@@ -248,14 +248,13 @@ export default async function DashboardPage({
               <p className="mt-2 text-gray-600">
                 {theme.intro}
               </p>
-
-              <p className="mt-2 text-sm text-gray-500">
-                Signed in as {user.email}
-              </p>
             </div>
 
-            <div className="sm:pt-1">
-              <LogoutButton />
+            <div className="relative sm:pt-1">
+              <AccountMenu
+                email={user.email ?? profile?.email ?? null}
+                workspaces={availableWorkspaces}
+              />
             </div>
           </div>
         </header>
