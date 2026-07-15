@@ -2,6 +2,10 @@
 
 /* =============================================================================
    Global viewport safety
+
+   Keep the application inside the device viewport without changing the sizing
+   behavior of every generic div. Carousel items, menus, and other fixed-width
+   UI elements must remain free to preserve their intended width.
    ============================================================================= */
 
 html {
@@ -19,14 +23,18 @@ body {
   overflow-x: clip;
 }
 
+/*
+ * Structural landmarks may safely shrink within grid and flex layouts.
+ * Do not include every div here: carousel item wrappers depend on their
+ * natural width and were collapsing when div { min-width: 0 } was global.
+ */
 main,
 header,
 nav,
 section,
 article,
 aside,
-footer,
-div {
+footer {
   min-width: 0;
 }
 
