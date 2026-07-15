@@ -1,8 +1,51 @@
 @import "tailwindcss";
+
+/* =============================================================================
+   Global viewport safety
+   ============================================================================= */
+
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+main,
+header,
+nav,
+section,
+article,
+aside,
+footer,
+div {
+  min-width: 0;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* =============================================================================
+   Existing scrolling animation
+   ============================================================================= */
+
 @keyframes scroll {
   0% {
     transform: translateX(0);
   }
+
   100% {
     transform: translateX(-50%);
   }
