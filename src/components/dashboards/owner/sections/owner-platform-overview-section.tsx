@@ -243,7 +243,12 @@ function DemoGroupCard({
   group: DemoGroupSummary
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <Link
+      href={`/dashboard/owner/demo-groups/${encodeURIComponent(
+        group.groupKey
+      )}`}
+      className="group block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:p-5"
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -287,11 +292,17 @@ function DemoGroupCard({
           </span>
         </div>
 
-        <span className="text-xs font-medium text-slate-400">
-          {group.groupKey}
+        <span className="flex items-center gap-2 text-xs font-bold text-blue-700">
+          Open group
+          <span
+            aria-hidden="true"
+            className="transition group-hover:translate-x-0.5"
+          >
+            →
+          </span>
         </span>
       </div>
-    </article>
+    </Link>
   )
 }
 
