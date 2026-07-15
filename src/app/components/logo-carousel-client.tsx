@@ -18,7 +18,9 @@ type LogoCarouselClientProps = {
   partners: PartnerProfile[]
 }
 
-const AUTO_SCROLL_PIXELS_PER_SECOND = 34
+const BASE_SCROLL_PIXELS_PER_SECOND = 34
+const MAX_EDGE_SCROLL_PIXELS_PER_SECOND = 150
+const EDGE_ZONE_RATIO = 0.28
 const RESUME_DELAY_MS = 1000
 const MINIMUM_LOOP_ITEMS = 8
 
@@ -32,6 +34,10 @@ export default function LogoCarouselClient({
   const interactionRef = useRef(false)
   const lastFrameRef = useRef<number | null>(null)
   const fractionalDistanceRef = useRef(0)
+  const hoverDirectionRef = useRef<1 | -1>(1)
+  const hoverSpeedRef = useRef(
+    BASE_SCROLL_PIXELS_PER_SECOND
+  )
   const resumeTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -69,6 +75,10 @@ export default function LogoCarouselClient({
       if (currentElement.scrollLeft >= loopWidth) {
         currentElement.scrollLeft -= loopWidth
       }
+
+      if (currentElement.scrollLeft <= 0) {
+        currentElement.scrollLeft += loopWidth
+      }
     }
 
     function animate(timestamp: number) {
@@ -92,16 +102,19 @@ export default function LogoCarouselClient({
         !selectedPartner
       ) {
         fractionalDistanceRef.current +=
-          AUTO_SCROLL_PIXELS_PER_SECOND *
-          elapsedSeconds
+          hoverSpeedRef.current * elapsedSeconds
 
         const wholePixels = Math.floor(
           fractionalDistanceRef.current
         )
 
         if (wholePixels > 0) {
-          currentElement.scrollLeft += wholePixels
-          fractionalDistanceRef.current -= wholePixels
+          currentElement.scrollLeft +=
+            wholePixels * hoverDirectionRef.current
+
+          fractionalDistanceRef.current -=
+            wholePixels
+
           normalizePosition(currentElement)
         }
       }
@@ -148,6 +161,58 @@ export default function LogoCarouselClient({
     }, RESUME_DELAY_MS)
   }
 
+  function handleMouseMove(
+    event: React.MouseEvent<HTMLDivElement>
+  ) {
+    const element = scrollRef.current
+
+    if (!element) return
+
+    const bounds = element.getBoundingClientRect()
+    const position =
+      (event.clientX - bounds.left) / bounds.width
+
+    if (position < EDGE_ZONE_RATIO) {
+      const edgeStrength =
+        (EDGE_ZONE_RATIO - position) /
+        EDGE_ZONE_RATIO
+
+      hoverDirectionRef.current = -1
+      hoverSpeedRef.current =
+        BASE_SCROLL_PIXELS_PER_SECOND +
+        edgeStrength *
+          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
+            BASE_SCROLL_PIXELS_PER_SECOND)
+
+      return
+    }
+
+    if (position > 1 - EDGE_ZONE_RATIO) {
+      const edgeStrength =
+        (position - (1 - EDGE_ZONE_RATIO)) /
+        EDGE_ZONE_RATIO
+
+      hoverDirectionRef.current = 1
+      hoverSpeedRef.current =
+        BASE_SCROLL_PIXELS_PER_SECOND +
+        edgeStrength *
+          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
+            BASE_SCROLL_PIXELS_PER_SECOND)
+
+      return
+    }
+
+    hoverDirectionRef.current = 1
+    hoverSpeedRef.current =
+      BASE_SCROLL_PIXELS_PER_SECOND
+  }
+
+  function resetDesktopHover() {
+    hoverDirectionRef.current = 1
+    hoverSpeedRef.current =
+      BASE_SCROLL_PIXELS_PER_SECOND
+  }
+
   function getPartnerName(
     partner: PartnerProfile
   ) {
@@ -180,14 +245,14 @@ export default function LogoCarouselClient({
           ref={scrollRef}
           role="list"
           aria-label="Partner logos"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={resetDesktopHover}
           onTouchStart={pauseForInteraction}
           onTouchEnd={resumeAfterInteraction}
           onTouchCancel={resumeAfterInteraction}
           onPointerDown={pauseForInteraction}
           onPointerUp={resumeAfterInteraction}
           onPointerCancel={resumeAfterInteraction}
-          onMouseEnter={pauseForInteraction}
-          onMouseLeave={resumeAfterInteraction}
           onFocus={pauseForInteraction}
           onBlur={resumeAfterInteraction}
           className="flex w-full touch-pan-x gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden sm:gap-6"
