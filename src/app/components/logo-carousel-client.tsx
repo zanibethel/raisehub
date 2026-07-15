@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type PartnerProfile = {
   id: string
@@ -18,9 +18,9 @@ type LogoCarouselClientProps = {
   partners: PartnerProfile[]
 }
 
-// =============================================================================
-// Component
-// =============================================================================
+const AUTO_SCROLL_PIXELS_PER_SECOND = 34
+const RESUME_DELAY_MS = 1000
+const MINIMUM_LOOP_ITEMS = 8
 
 export default function LogoCarouselClient({
   partners,
@@ -28,11 +28,112 @@ export default function LogoCarouselClient({
   const [selectedPartner, setSelectedPartner] =
     useState<PartnerProfile | null>(null)
 
-  const [isPaused, setIsPaused] =
-    useState(false)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const interactionRef = useRef(false)
+  const lastFrameRef = useRef<number | null>(null)
+  const resumeTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  if (!partners.length) {
-    return null
+  const loopPartners = useMemo(() => {
+    if (!partners.length) return []
+
+    const count = Math.max(
+      partners.length,
+      MINIMUM_LOOP_ITEMS
+    )
+
+    const singleSet = Array.from(
+      { length: count },
+      (_, index) => partners[index % partners.length]
+    )
+
+    return [...singleSet, ...singleSet]
+  }, [partners])
+
+  useEffect(() => {
+    const element = scrollRef.current
+
+    if (!element || !partners.length) return
+
+    let animationFrameId = 0
+
+    function normalizePosition(
+      currentElement: HTMLDivElement
+    ) {
+      const loopWidth =
+        currentElement.scrollWidth / 2
+
+      if (loopWidth <= 0) return
+
+      if (currentElement.scrollLeft >= loopWidth) {
+        currentElement.scrollLeft -= loopWidth
+      }
+    }
+
+    function animate(timestamp: number) {
+      const currentElement = scrollRef.current
+
+      if (!currentElement) return
+
+      if (lastFrameRef.current === null) {
+        lastFrameRef.current = timestamp
+      }
+
+      const elapsedSeconds = Math.min(
+        (timestamp - lastFrameRef.current) / 1000,
+        0.05
+      )
+
+      lastFrameRef.current = timestamp
+
+      if (
+        !interactionRef.current &&
+        !selectedPartner
+      ) {
+        currentElement.scrollLeft +=
+          AUTO_SCROLL_PIXELS_PER_SECOND *
+          elapsedSeconds
+
+        normalizePosition(currentElement)
+      }
+
+      animationFrameId =
+        requestAnimationFrame(animate)
+    }
+
+    animationFrameId =
+      requestAnimationFrame(animate)
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+      lastFrameRef.current = null
+    }
+  }, [partners.length, selectedPartner])
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current)
+      }
+    }
+  }, [])
+
+  function pauseForInteraction() {
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current)
+    }
+
+    interactionRef.current = true
+  }
+
+  function resumeAfterInteraction() {
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current)
+    }
+
+    resumeTimerRef.current = setTimeout(() => {
+      interactionRef.current = false
+    }, RESUME_DELAY_MS)
   }
 
   function getPartnerName(
@@ -45,76 +146,7 @@ export default function LogoCarouselClient({
     )
   }
 
-  function PartnerLogo({
-    partner,
-    duplicate,
-  }: {
-    partner: PartnerProfile
-    duplicate?: boolean
-  }) {
-    const name =
-      getPartnerName(partner)
-
-    return (
-      <button
-        type="button"
-        tabIndex={duplicate ? -1 : 0}
-        aria-hidden={
-          duplicate ? true : undefined
-        }
-        aria-label={
-          duplicate
-            ? undefined
-            : `View ${name} details`
-        }
-        onClick={() => {
-          if (duplicate) {
-            return
-          }
-
-          setSelectedPartner(partner)
-          setIsPaused(true)
-        }}
-        className="flex h-20 w-32 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition hover:scale-105 hover:border-green-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:h-24 sm:w-40 sm:p-4"
-      >
-        <img
-          src={
-            partner.logo_url ||
-            '/default-business-logo.png'
-          }
-          alt={
-            duplicate
-              ? ''
-              : `${name} logo`
-          }
-          className="max-h-12 max-w-24 object-contain sm:max-h-16 sm:max-w-32"
-        />
-      </button>
-    )
-  }
-
-  function PartnerSet({
-    duplicate = false,
-  }: {
-    duplicate?: boolean
-  }) {
-    return (
-      <div
-        className="flex shrink-0 gap-4 pr-4 sm:gap-6 sm:pr-6"
-        aria-hidden={
-          duplicate ? true : undefined
-        }
-      >
-        {partners.map((partner) => (
-          <PartnerLogo
-            key={`${duplicate ? 'copy' : 'original'}-${partner.id}`}
-            partner={partner}
-            duplicate={duplicate}
-          />
-        ))}
-      </div>
-    )
-  }
+  if (!partners.length) return null
 
   return (
     <>
@@ -133,46 +165,69 @@ export default function LogoCarouselClient({
         </div>
 
         <div
-          className="w-full overflow-hidden"
-          onMouseEnter={() =>
-            setIsPaused(true)
-          }
-          onMouseLeave={() =>
-            setIsPaused(false)
-          }
-          onTouchStart={() =>
-            setIsPaused(true)
-          }
-          onTouchEnd={() =>
-            setIsPaused(false)
-          }
-          onTouchCancel={() =>
-            setIsPaused(false)
-          }
-          onFocus={() =>
-            setIsPaused(true)
-          }
-          onBlur={() =>
-            setIsPaused(false)
-          }
+          ref={scrollRef}
+          role="list"
+          aria-label="Partner logos"
+          onTouchStart={pauseForInteraction}
+          onTouchEnd={resumeAfterInteraction}
+          onTouchCancel={resumeAfterInteraction}
+          onPointerDown={pauseForInteraction}
+          onPointerUp={resumeAfterInteraction}
+          onPointerCancel={resumeAfterInteraction}
+          onMouseEnter={pauseForInteraction}
+          onMouseLeave={resumeAfterInteraction}
+          onFocus={pauseForInteraction}
+          onBlur={resumeAfterInteraction}
+          className="flex w-full touch-pan-x gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden sm:gap-6"
         >
-          <div
-            role="list"
-            aria-label="Partner logos"
-            className="flex w-max"
-            style={{
-              animation:
-                'scroll 28s linear infinite',
-              animationPlayState:
-                isPaused
-                  ? 'paused'
-                  : 'running',
-              willChange: 'transform',
-            }}
-          >
-            <PartnerSet />
-            <PartnerSet duplicate />
-          </div>
+          {loopPartners.map((partner, index) => {
+            const duplicate =
+              index >= loopPartners.length / 2
+
+            const name =
+              getPartnerName(partner)
+
+            return (
+              <div
+                key={`${partner.id}-${index}`}
+                role="listitem"
+                className="shrink-0"
+                aria-hidden={
+                  duplicate ? true : undefined
+                }
+              >
+                <button
+                  type="button"
+                  tabIndex={duplicate ? -1 : 0}
+                  onClick={() => {
+                    if (duplicate) return
+
+                    interactionRef.current = true
+                    setSelectedPartner(partner)
+                  }}
+                  aria-label={
+                    duplicate
+                      ? undefined
+                      : `View ${name} details`
+                  }
+                  className="flex h-20 w-32 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition hover:scale-105 hover:border-green-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:h-24 sm:w-40 sm:p-4"
+                >
+                  <img
+                    src={
+                      partner.logo_url ||
+                      '/default-business-logo.png'
+                    }
+                    alt={
+                      duplicate
+                        ? ''
+                        : `${name} logo`
+                    }
+                    className="max-h-12 max-w-24 object-contain sm:max-h-16 sm:max-w-32"
+                  />
+                </button>
+              </div>
+            )
+          })}
         </div>
       </section>
 
@@ -185,12 +240,9 @@ export default function LogoCarouselClient({
           )} details`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           onClick={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
+            if (event.target === event.currentTarget) {
               setSelectedPartner(null)
-              setIsPaused(false)
+              resumeAfterInteraction()
             }
           }}
         >
@@ -209,14 +261,11 @@ export default function LogoCarouselClient({
 
               <div className="min-w-0">
                 <h3 className="break-words text-xl font-semibold text-green-700">
-                  {getPartnerName(
-                    selectedPartner
-                  )}
+                  {getPartnerName(selectedPartner)}
                 </h3>
 
                 <p className="mt-1 text-sm capitalize text-gray-500">
-                  {selectedPartner.role ||
-                    'business'}
+                  {selectedPartner.role || 'business'}
                 </p>
               </div>
             </div>
@@ -226,7 +275,6 @@ export default function LogoCarouselClient({
                 <p className="font-medium text-gray-900">
                   Phone
                 </p>
-
                 <p>
                   {selectedPartner.phone ||
                     'Not available yet'}
@@ -237,7 +285,6 @@ export default function LogoCarouselClient({
                 <p className="font-medium text-gray-900">
                   Address
                 </p>
-
                 <p className="break-words">
                   {selectedPartner.address ||
                     'Not available yet'}
@@ -285,7 +332,7 @@ export default function LogoCarouselClient({
               type="button"
               onClick={() => {
                 setSelectedPartner(null)
-                setIsPaused(false)
+                resumeAfterInteraction()
               }}
               className="mt-6 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:border-gray-400"
             >
