@@ -39,19 +39,25 @@ function getRoleTone(role: string) {
   }
 }
 
-function DemoProfileCard({
+function DemoProfileRow({
   profile,
 }: {
   profile: DemoProfileSummary
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-4">
+    <article className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-bold text-slate-950">
+            <h2 className="truncate font-bold text-slate-950">
               {profile.label}
             </h2>
+
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getRoleTone(profile.role)}`}
+            >
+              {profile.role}
+            </span>
 
             {profile.isPrimary ? (
               <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
@@ -59,33 +65,23 @@ function DemoProfileCard({
               </span>
             ) : null}
 
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getRoleTone(profile.role)}`}
-            >
-              {profile.role}
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+              {profile.status}
             </span>
           </div>
 
-          <p className="mt-2 text-sm text-slate-600">
-            {profile.displayName ??
-              'No linked display name'}
-          </p>
+          <div className="mt-2 space-y-0.5">
+            <p className="truncate text-sm font-medium text-slate-700">
+              {profile.displayName ??
+                'No linked display name'}
+            </p>
 
-          <p className="mt-1 break-all text-xs text-slate-400">
-            {profile.email ??
-              'No linked email'}
-          </p>
+            <p className="truncate text-xs text-slate-400">
+              {profile.email ??
+                'No linked email'}
+            </p>
+          </div>
         </div>
-
-        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-          {profile.status}
-        </span>
-      </div>
-
-      <div className="mt-4 border-t border-slate-100 pt-4">
-        <p className="text-xs font-medium text-slate-400">
-          {profile.slug}
-        </p>
 
         {profile.profileId ? (
           <Link
@@ -94,14 +90,14 @@ function DemoProfileCard({
             )}&subject=${encodeURIComponent(
               profile.profileId
             )}#owner-role-preview`}
-            className="mt-3 inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
           >
-            Open in Experience Viewer
+            Open →
           </Link>
         ) : (
-          <p className="mt-3 text-sm font-medium text-amber-700">
-            This demo profile is not linked to an account yet.
-          </p>
+          <span className="shrink-0 text-sm font-medium text-amber-700">
+            Not linked
+          </span>
         )}
       </div>
     </article>
@@ -131,7 +127,7 @@ export default async function DemoGroupPage({
     result.details
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
       <Link
         href="/dashboard/owner#owner-demo-groups"
         className="inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900"
@@ -164,16 +160,14 @@ export default async function DemoGroupPage({
             </p>
           </div>
 
-          <div className="flex gap-3">
-            <div className="rounded-2xl bg-white/10 px-4 py-3 text-center">
-              <p className="text-2xl font-bold">
-                {profiles.length}
-              </p>
+          <div className="w-fit rounded-2xl bg-white/10 px-4 py-3 text-center">
+            <p className="text-2xl font-bold">
+              {profiles.length}
+            </p>
 
-              <p className="text-xs text-slate-300">
-                Profiles
-              </p>
-            </div>
+            <p className="text-xs text-slate-300">
+              Profiles
+            </p>
           </div>
         </div>
       </section>
@@ -202,7 +196,7 @@ export default async function DemoGroupPage({
             </h2>
 
             <p className="mt-1 text-sm text-slate-600">
-              Open a linked identity in the existing Experience Viewer.
+              Open a linked identity in the Experience Viewer.
             </p>
           </div>
 
@@ -222,9 +216,9 @@ export default async function DemoGroupPage({
             </p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 space-y-3">
             {profiles.map((profile) => (
-              <DemoProfileCard
+              <DemoProfileRow
                 key={profile.id}
                 profile={profile}
               />
