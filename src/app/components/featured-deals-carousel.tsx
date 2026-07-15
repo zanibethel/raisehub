@@ -7,37 +7,44 @@ type Profile = {
   business_name: string | null
   display_name: string | null
   logo_url: string | null
+  role: string | null
 }
 
-// =========================================
-// 🎭 DEMO SAMPLE OFFERS
-// Shown only when app mode is demo AND the real
-// Supabase query returns no active offers. Production
-// behavior is unaffected — this data is never used
-// unless isDemoMode() is true.
-// =========================================
+type Offer = {
+  id: string
+  title: string | null
+  discount: string | null
+  description: string | null
+  starts_at: string | null
+  ends_at: string | null
+  business_id: string
+}
+
 const DEMO_SAMPLE_PROFILES: Record<string, Profile> = {
   'demo-business-1': {
     id: 'demo-business-1',
     business_name: 'Maple Street Coffee Co.',
     display_name: 'Maple Street Coffee Co.',
     logo_url: null,
+    role: 'business',
   },
   'demo-business-2': {
     id: 'demo-business-2',
     business_name: 'Riverside Pizza Kitchen',
     display_name: 'Riverside Pizza Kitchen',
     logo_url: null,
+    role: 'business',
   },
   'demo-business-3': {
     id: 'demo-business-3',
     business_name: 'Bright Smiles Family Dentistry',
     display_name: 'Bright Smiles Family Dentistry',
     logo_url: null,
+    role: 'business',
   },
 }
 
-const DEMO_SAMPLE_OFFERS = [
+const DEMO_SAMPLE_OFFERS: Offer[] = [
   {
     id: 'demo-offer-1',
     title: 'Buy One Latte, Get One Free',
@@ -71,25 +78,32 @@ export default async function FeaturedDealsCarousel() {
   const supabase = await createClient()
   const now = new Date().toISOString()
 
-  // =========================================
-  // 📦 FETCH ACTIVE OFFERS
-  // =========================================
-  const { data: offers } = await supabase
+  const { data: offers, error: offersError } = await supabase
     .from('offers')
-    .select('id, title, discount, description, starts_at, ends_at, business_id')
+    .select(
+      'id, title, discount, description, starts_at, ends_at, business_id'
+    )
+    .eq('is_active', true)
     .or(`starts_at.is.null,starts_at.lte.${now}`)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
     .limit(12)
-    .eq('is_active', true)
 
-  const hasRealOffers = !!offers && offers.length > 0
+  if (offersError) {
+    return null
+  }
 
-  // Demo fallback only applies when real data is empty AND
-  // the app is running in demo mode. In production (the
-  // default), this branch is never taken — behavior is
-  // identical to before this change.
-  if (!hasRealOffers && isDemoMode()) {
+  const candidateOffers =
+    (offers as Offer[] | null)?.filter(
+      (offer) =>
+        Boolean(offer.business_id) &&
+        Boolean(offer.title?.trim())
+    ) ?? []
+
+  if (
+    candidateOffers.length === 0 &&
+    isDemoMode()
+  ) {
     return (
       <FeaturedDealsCarouselClient
         offers={DEMO_SAMPLE_OFFERS}
@@ -98,25 +112,71 @@ export default async function FeaturedDealsCarousel() {
     )
   }
 
-  if (!hasRealOffers) return null
+  if (candidateOffers.length === 0) {
+    return null
+  }
 
-  // =========================================
-  // 🏪 FETCH BUSINESS PROFILES FOR OFFERS
-  // =========================================
-  const businessIds = [...new Set(offers.map((offer) => offer.business_id))]
+  const businessIds = [
+    ...new Set(
+      candidateOffers.map(
+        (offer) => offer.business_id
+      )
+    ),
+  ]
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, business_name, display_name, logo_url')
-    .in('id', businessIds)
+  const { data: profiles, error: profilesError } =
+    await supabase
+      .from('profiles')
+      .select(
+        'id, business_name, display_name, logo_url, role'
+      )
+      .in('id', businessIds)
+      .eq('role', 'business')
+
+  if (profilesError) {
+    return null
+  }
+
+  const validProfiles =
+    (profiles as Profile[] | null)?.filter(
+      (profile) =>
+        profile.role === 'business' &&
+        Boolean(
+          profile.business_name?.trim() ||
+            profile.display_name?.trim()
+        )
+    ) ?? []
 
   const profileById = Object.fromEntries(
-    (profiles ?? []).map((profile: Profile) => [profile.id, profile])
+    validProfiles.map((profile) => [
+      profile.id,
+      profile,
+    ])
   )
+
+  const validOffers = candidateOffers.filter(
+    (offer) => Boolean(profileById[offer.business_id])
+  )
+
+  if (
+    validOffers.length === 0 &&
+    isDemoMode()
+  ) {
+    return (
+      <FeaturedDealsCarouselClient
+        offers={DEMO_SAMPLE_OFFERS}
+        profileById={DEMO_SAMPLE_PROFILES}
+      />
+    )
+  }
+
+  if (validOffers.length === 0) {
+    return null
+  }
 
   return (
     <FeaturedDealsCarouselClient
-      offers={offers}
+      offers={validOffers}
       profileById={profileById}
     />
   )
