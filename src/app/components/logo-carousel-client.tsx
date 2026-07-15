@@ -31,6 +31,7 @@ export default function LogoCarouselClient({
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const interactionRef = useRef(false)
   const lastFrameRef = useRef<number | null>(null)
+  const fractionalDistanceRef = useRef(0)
   const resumeTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -90,11 +91,19 @@ export default function LogoCarouselClient({
         !interactionRef.current &&
         !selectedPartner
       ) {
-        currentElement.scrollLeft +=
+        fractionalDistanceRef.current +=
           AUTO_SCROLL_PIXELS_PER_SECOND *
           elapsedSeconds
 
-        normalizePosition(currentElement)
+        const wholePixels = Math.floor(
+          fractionalDistanceRef.current
+        )
+
+        if (wholePixels > 0) {
+          currentElement.scrollLeft += wholePixels
+          fractionalDistanceRef.current -= wholePixels
+          normalizePosition(currentElement)
+        }
       }
 
       animationFrameId =
@@ -107,6 +116,7 @@ export default function LogoCarouselClient({
     return () => {
       cancelAnimationFrame(animationFrameId)
       lastFrameRef.current = null
+      fractionalDistanceRef.current = 0
     }
   }, [partners.length, selectedPartner])
 
@@ -133,6 +143,8 @@ export default function LogoCarouselClient({
 
     resumeTimerRef.current = setTimeout(() => {
       interactionRef.current = false
+      lastFrameRef.current = null
+      fractionalDistanceRef.current = 0
     }, RESUME_DELAY_MS)
   }
 
