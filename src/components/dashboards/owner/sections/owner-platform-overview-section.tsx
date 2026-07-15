@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import CreateDemoGroupForm from '@/components/dashboards/owner/create-demo-group-form'
 import {
   getDemoGroups,
   type DemoGroupSummary,
@@ -336,6 +337,10 @@ function DemoGroupsPanel({
         <span className="rounded-full bg-blue-700 px-3 py-1.5 text-sm font-bold text-white">
           {groups.length}
         </span>
+      </div>
+
+      <div className="mt-4">
+        <CreateDemoGroupForm />
       </div>
 
       {error ? (
