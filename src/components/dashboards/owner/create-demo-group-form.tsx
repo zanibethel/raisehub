@@ -90,28 +90,28 @@ export default function CreateDemoGroupForm() {
               Custom
             </option>
 
-            <option value="school">
-              School fundraiser
+            <option value="fundraiser">
+              School / Organization Fundraiser
             </option>
 
             <option value="business">
               Business
             </option>
 
-            <option value="organization">
-              Organization
-            </option>
-
             <option value="customer">
               Customer
             </option>
 
-            <option value="platform_test">
-              Platform test
+            <option value="support">
+              Support Scenario
             </option>
 
-            <option value="mixed">
-              Mixed experience
+            <option value="platform">
+              Platform
+            </option>
+
+            <option value="generated">
+              Generated Demo Dataset
             </option>
           </select>
         </div>
