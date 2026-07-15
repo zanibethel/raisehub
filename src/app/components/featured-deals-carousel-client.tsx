@@ -25,10 +25,11 @@ type FeaturedDealsCarouselClientProps = {
   profileById: Record<string, Profile>
 }
 
-const AUTO_SCROLL_PIXELS_PER_SECOND = 34
+const BASE_SCROLL_PIXELS_PER_SECOND = 34
+const MAX_EDGE_SCROLL_PIXELS_PER_SECOND = 150
+const EDGE_ZONE_RATIO = 0.28
 const RESUME_DELAY_MS = 1000
 const MINIMUM_LOOP_ITEMS = 8
-const CARD_SCROLL_DISTANCE = 312
 
 export default function FeaturedDealsCarouselClient({
   offers,
@@ -38,6 +39,10 @@ export default function FeaturedDealsCarouselClient({
   const interactionRef = useRef(false)
   const lastFrameRef = useRef<number | null>(null)
   const fractionalDistanceRef = useRef(0)
+  const hoverDirectionRef = useRef<1 | -1>(1)
+  const hoverSpeedRef = useRef(
+    BASE_SCROLL_PIXELS_PER_SECOND
+  )
   const resumeTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -75,6 +80,10 @@ export default function FeaturedDealsCarouselClient({
       if (currentElement.scrollLeft >= loopWidth) {
         currentElement.scrollLeft -= loopWidth
       }
+
+      if (currentElement.scrollLeft <= 0) {
+        currentElement.scrollLeft += loopWidth
+      }
     }
 
     function animate(timestamp: number) {
@@ -95,15 +104,15 @@ export default function FeaturedDealsCarouselClient({
 
       if (!interactionRef.current) {
         fractionalDistanceRef.current +=
-          AUTO_SCROLL_PIXELS_PER_SECOND *
-          elapsedSeconds
+          hoverSpeedRef.current * elapsedSeconds
 
         const wholePixels = Math.floor(
           fractionalDistanceRef.current
         )
 
         if (wholePixels > 0) {
-          currentElement.scrollLeft += wholePixels
+          currentElement.scrollLeft +=
+            wholePixels * hoverDirectionRef.current
 
           fractionalDistanceRef.current -=
             wholePixels
@@ -154,24 +163,56 @@ export default function FeaturedDealsCarouselClient({
     }, RESUME_DELAY_MS)
   }
 
-  function scrollByDirection(
-    direction: 'prev' | 'next'
+  function handleMouseMove(
+    event: React.MouseEvent<HTMLDivElement>
   ) {
     const element = scrollRef.current
 
     if (!element) return
 
-    pauseForInteraction()
+    const bounds = element.getBoundingClientRect()
+    const position =
+      (event.clientX - bounds.left) / bounds.width
 
-    element.scrollBy({
-      left:
-        direction === 'next'
-          ? CARD_SCROLL_DISTANCE
-          : -CARD_SCROLL_DISTANCE,
-      behavior: 'smooth',
-    })
+    if (position < EDGE_ZONE_RATIO) {
+      const edgeStrength =
+        (EDGE_ZONE_RATIO - position) /
+        EDGE_ZONE_RATIO
 
-    resumeAfterInteraction()
+      hoverDirectionRef.current = -1
+      hoverSpeedRef.current =
+        BASE_SCROLL_PIXELS_PER_SECOND +
+        edgeStrength *
+          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
+            BASE_SCROLL_PIXELS_PER_SECOND)
+
+      return
+    }
+
+    if (position > 1 - EDGE_ZONE_RATIO) {
+      const edgeStrength =
+        (position - (1 - EDGE_ZONE_RATIO)) /
+        EDGE_ZONE_RATIO
+
+      hoverDirectionRef.current = 1
+      hoverSpeedRef.current =
+        BASE_SCROLL_PIXELS_PER_SECOND +
+        edgeStrength *
+          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
+            BASE_SCROLL_PIXELS_PER_SECOND)
+
+      return
+    }
+
+    hoverDirectionRef.current = 1
+    hoverSpeedRef.current =
+      BASE_SCROLL_PIXELS_PER_SECOND
+  }
+
+  function resetDesktopHover() {
+    hoverDirectionRef.current = 1
+    hoverSpeedRef.current =
+      BASE_SCROLL_PIXELS_PER_SECOND
   }
 
   if (!offers.length) return null
@@ -181,7 +222,7 @@ export default function FeaturedDealsCarouselClient({
       className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-yellow-100 bg-white/90 p-4 shadow-xl sm:p-6"
       aria-label="Exclusive Local Deals carousel"
     >
-      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-yellow-600">
             Exclusive Local Deals
@@ -192,52 +233,26 @@ export default function FeaturedDealsCarouselClient({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                scrollByDirection('prev')
-              }
-              aria-label="Previous deals"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm hover:border-yellow-400 hover:text-yellow-700"
-            >
-              ‹
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                scrollByDirection('next')
-              }
-              aria-label="Next deals"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm hover:border-yellow-400 hover:text-yellow-700"
-            >
-              ›
-            </button>
-          </div>
-
-          <Link
-            href="/offers"
-            className="text-sm font-medium text-yellow-700 hover:underline"
-          >
-            View all deals →
-          </Link>
-        </div>
+        <Link
+          href="/offers"
+          className="w-fit text-sm font-medium text-yellow-700 hover:underline"
+        >
+          View all deals →
+        </Link>
       </div>
 
       <div
         ref={scrollRef}
         role="list"
         aria-label="Featured deals"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={resetDesktopHover}
         onTouchStart={pauseForInteraction}
         onTouchEnd={resumeAfterInteraction}
         onTouchCancel={resumeAfterInteraction}
         onPointerDown={pauseForInteraction}
         onPointerUp={resumeAfterInteraction}
         onPointerCancel={resumeAfterInteraction}
-        onMouseEnter={pauseForInteraction}
-        onMouseLeave={resumeAfterInteraction}
         onFocus={pauseForInteraction}
         onBlur={resumeAfterInteraction}
         className="flex w-full touch-pan-x gap-6 overflow-x-auto pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
