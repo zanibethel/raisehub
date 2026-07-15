@@ -30,6 +30,11 @@ export type CreatePortableDemoProfileResult = {
   error: string | null
 }
 
+export type DemoProfileMutationResult = {
+  success: boolean
+  error: string | null
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -57,6 +62,30 @@ function createProfileSlug(
   return `${base || role}-${suffix}`
 }
 
+async function requireSignedInUser() {
+  const baseClient = await createClient()
+
+  const {
+    data: authData,
+    error: authError,
+  } = await baseClient.auth.getUser()
+
+  if (authError || !authData.user) {
+    return {
+      baseClient,
+      userId: null,
+      error:
+        'You must be signed in to manage demo profiles.',
+    }
+  }
+
+  return {
+    baseClient,
+    userId: authData.user.id,
+    error: null,
+  }
+}
+
 // =============================================================================
 // Repository
 // =============================================================================
@@ -81,21 +110,17 @@ export async function createPortableDemoProfile(
     }
   }
 
-  const baseClient = await createClient()
-  const supabase = toDemoClient(baseClient)
+  const auth = await requireSignedInUser()
 
-  const {
-    data: authData,
-    error: authError,
-  } = await baseClient.auth.getUser()
-
-  if (authError || !authData.user) {
+  if (auth.error || !auth.userId) {
     return {
       profile: null,
-      error:
-        'You must be signed in to create a demo profile.',
+      error: auth.error,
     }
   }
+
+  const supabase =
+    toDemoClient(auth.baseClient)
 
   const {
     data: group,
@@ -165,7 +190,7 @@ export async function createPortableDemoProfile(
       },
       metadata: {
         created_by:
-          authData.user.id,
+          auth.userId,
         portable: true,
       },
     })
@@ -181,6 +206,194 @@ export async function createPortableDemoProfile(
 
   return {
     profile,
+    error: null,
+  }
+}
+
+export async function setDemoProfilePrimary(
+  profileId: string
+): Promise<DemoProfileMutationResult> {
+  const auth = await requireSignedInUser()
+
+  if (auth.error || !auth.userId) {
+    return {
+      success: false,
+      error: auth.error,
+    }
+  }
+
+  const supabase =
+    toDemoClient(auth.baseClient)
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from('demo_profiles')
+    .select(
+      'id, demo_group_id, role'
+    )
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (profileError) {
+    return {
+      success: false,
+      error: profileError.message,
+    }
+  }
+
+  if (!profile) {
+    return {
+      success: false,
+      error: 'Demo profile not found.',
+    }
+  }
+
+  const { error: clearError } =
+    await supabase
+      .from('demo_profiles')
+      .update({
+        is_primary: false,
+      })
+      .eq(
+        'demo_group_id',
+        profile.demo_group_id
+      )
+      .eq('role', profile.role)
+
+  if (clearError) {
+    return {
+      success: false,
+      error: clearError.message,
+    }
+  }
+
+  const { error: updateError } =
+    await supabase
+      .from('demo_profiles')
+      .update({
+        is_primary: true,
+      })
+      .eq('id', profile.id)
+
+  if (updateError) {
+    return {
+      success: false,
+      error: updateError.message,
+    }
+  }
+
+  return {
+    success: true,
+    error: null,
+  }
+}
+
+export async function setDemoProfileArchived(
+  profileId: string,
+  archived: boolean
+): Promise<DemoProfileMutationResult> {
+  const auth = await requireSignedInUser()
+
+  if (auth.error || !auth.userId) {
+    return {
+      success: false,
+      error: auth.error,
+    }
+  }
+
+  const supabase =
+    toDemoClient(auth.baseClient)
+
+  const updateValues = archived
+    ? {
+        status: 'archived' as const,
+        is_primary: false,
+      }
+    : {
+        status: 'active' as const,
+      }
+
+  const { error } = await supabase
+    .from('demo_profiles')
+    .update(updateValues)
+    .eq('id', profileId)
+
+  if (error) {
+    return {
+      success: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    success: true,
+    error: null,
+  }
+}
+
+export async function deletePortableDemoProfile(
+  profileId: string
+): Promise<DemoProfileMutationResult> {
+  const auth = await requireSignedInUser()
+
+  if (auth.error || !auth.userId) {
+    return {
+      success: false,
+      error: auth.error,
+    }
+  }
+
+  const supabase =
+    toDemoClient(auth.baseClient)
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from('demo_profiles')
+    .select('id, profile_id')
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (profileError) {
+    return {
+      success: false,
+      error: profileError.message,
+    }
+  }
+
+  if (!profile) {
+    return {
+      success: false,
+      error: 'Demo profile not found.',
+    }
+  }
+
+  if (profile.profile_id) {
+    return {
+      success: false,
+      error:
+        'Linked demo profiles must be unlinked before permanent deletion.',
+    }
+  }
+
+  const { error: deleteError } =
+    await supabase
+      .from('demo_profiles')
+      .delete()
+      .eq('id', profile.id)
+
+  if (deleteError) {
+    return {
+      success: false,
+      error: deleteError.message,
+    }
+  }
+
+  return {
+    success: true,
     error: null,
   }
 }
