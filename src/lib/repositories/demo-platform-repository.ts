@@ -53,6 +53,17 @@ export type DemoGroupDetailsResult = {
   error: string | null
 }
 
+export type CreateDemoGroupInput = {
+  name: string
+  description?: string | null
+  scenarioType?: string
+}
+
+export type CreateDemoGroupResult = {
+  group: DemoGroupSummary | null
+  error: string | null
+}
+
 type DemoProfileGroupReference = {
   demo_group_id: string
 }
@@ -136,6 +147,24 @@ function toDemoProfileSummary(
     createdAt: demoProfile.created_at,
     updatedAt: demoProfile.updated_at,
   }
+}
+
+function createGroupKey(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return normalized || 'demo_group'
+}
+
+function normalizeOptionalText(
+  value: string | null | undefined
+) {
+  const normalized = value?.trim()
+
+  return normalized ? normalized : null
 }
 
 // =============================================================================
@@ -301,6 +330,94 @@ export async function getDemoGroupDetails(
       ),
       profiles,
     },
+    error: null,
+  }
+}
+
+export async function createDemoGroup(
+  input: CreateDemoGroupInput
+): Promise<CreateDemoGroupResult> {
+  const name = input.name.trim()
+
+  if (!name) {
+    return {
+      group: null,
+      error: 'Demo group name is required.',
+    }
+  }
+
+  const baseClient = await createClient()
+  const supabase = toDemoClient(baseClient)
+
+  const {
+    data: authData,
+    error: authError,
+  } = await baseClient.auth.getUser()
+
+  if (authError || !authData.user) {
+    return {
+      group: null,
+      error: 'You must be signed in to create a demo group.',
+    }
+  }
+
+  const groupKey = createGroupKey(name)
+
+  const {
+    data: existingGroup,
+    error: existingGroupError,
+  } = await supabase
+    .from('demo_groups')
+    .select('id')
+    .eq('group_key', groupKey)
+    .maybeSingle()
+
+  if (existingGroupError) {
+    return {
+      group: null,
+      error: existingGroupError.message,
+    }
+  }
+
+  if (existingGroup) {
+    return {
+      group: null,
+      error:
+        'A demo group with this name already exists.',
+    }
+  }
+
+  const {
+    data: group,
+    error: insertError,
+  } = await supabase
+    .from('demo_groups')
+    .insert({
+      name,
+      group_key: groupKey,
+      description:
+        normalizeOptionalText(input.description),
+      scenario_type:
+        normalizeOptionalText(
+          input.scenarioType
+        ) ?? 'custom',
+      status: 'active',
+      is_default: false,
+      created_by: authData.user.id,
+      metadata: {},
+    })
+    .select('*')
+    .single()
+
+  if (insertError) {
+    return {
+      group: null,
+      error: insertError.message,
+    }
+  }
+
+  return {
+    group: toDemoGroupSummary(group, 0),
     error: null,
   }
 }
