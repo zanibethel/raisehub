@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import CreateDemoProfileForm from '@/components/dashboards/owner/create-demo-profile-form'
 import {
   getDemoGroupDetails,
   type DemoProfileSummary,
@@ -185,6 +186,10 @@ export default async function DemoGroupPage({
           </section>
         ) : null}
 
+        <CreateDemoProfileForm
+          groupKey={group.groupKey}
+        />
+
         <section className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -213,7 +218,7 @@ export default async function DemoGroupPage({
               </p>
 
               <p className="mt-1 break-words text-sm text-slate-600">
-                This group may contain platform test data without a linked user profile.
+                Create the first portable identity above, then link it to a full RaiseHub experience.
               </p>
             </div>
           ) : (
