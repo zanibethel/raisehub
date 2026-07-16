@@ -1,10 +1,10 @@
 import type { Database } from './database.types'
 
 // =============================================================================
-// Gift Pass database type bridge
+// Extended database type bridge
 // =============================================================================
-// This keeps privileged Gift a Pass operations strongly typed until the full
-// generated database.types.ts file is refreshed from the live Supabase schema.
+// This keeps newer RaiseHub tables strongly typed until the full generated
+// database.types.ts file is refreshed from the live Supabase schema.
 
 type GiftPassTable = {
   Row: {
@@ -125,10 +125,110 @@ type GiftPassTable = {
   ]
 }
 
+type PricingRuleTable = {
+  Row: {
+    campaign_id: string | null
+    created_at: string
+    created_by: string | null
+    demo_group: string | null
+    expires_at: string | null
+    id: string
+    internal_note: string | null
+    is_demo: boolean
+    organization_id: string | null
+    pass_price: number
+    platform_fee_percent: number
+    reason: string | null
+    scope_type: string
+    starts_at: string
+    state_code: string | null
+    status: string
+    town_name: string | null
+    updated_at: string
+    updated_by: string | null
+  }
+
+  Insert: {
+    campaign_id?: string | null
+    created_at?: string
+    created_by?: string | null
+    demo_group?: string | null
+    expires_at?: string | null
+    id?: string
+    internal_note?: string | null
+    is_demo?: boolean
+    organization_id?: string | null
+    pass_price: number
+    platform_fee_percent: number
+    reason?: string | null
+    scope_type: string
+    starts_at?: string
+    state_code?: string | null
+    status?: string
+    town_name?: string | null
+    updated_at?: string
+    updated_by?: string | null
+  }
+
+  Update: {
+    campaign_id?: string | null
+    created_at?: string
+    created_by?: string | null
+    demo_group?: string | null
+    expires_at?: string | null
+    id?: string
+    internal_note?: string | null
+    is_demo?: boolean
+    organization_id?: string | null
+    pass_price?: number
+    platform_fee_percent?: number
+    reason?: string | null
+    scope_type?: string
+    starts_at?: string
+    state_code?: string | null
+    status?: string
+    town_name?: string | null
+    updated_at?: string
+    updated_by?: string | null
+  }
+
+  Relationships: [
+    {
+      foreignKeyName: 'pricing_rules_campaign_id_fkey'
+      columns: ['campaign_id']
+      isOneToOne: false
+      referencedRelation: 'campaigns'
+      referencedColumns: ['id']
+    },
+    {
+      foreignKeyName: 'pricing_rules_created_by_fkey'
+      columns: ['created_by']
+      isOneToOne: false
+      referencedRelation: 'profiles'
+      referencedColumns: ['id']
+    },
+    {
+      foreignKeyName: 'pricing_rules_organization_id_fkey'
+      columns: ['organization_id']
+      isOneToOne: false
+      referencedRelation: 'organizations'
+      referencedColumns: ['id']
+    },
+    {
+      foreignKeyName: 'pricing_rules_updated_by_fkey'
+      columns: ['updated_by']
+      isOneToOne: false
+      referencedRelation: 'profiles'
+      referencedColumns: ['id']
+    },
+  ]
+}
+
 export type GiftPassDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Tables'> & {
     Tables: Database['public']['Tables'] & {
       gift_passes: GiftPassTable
+      pricing_rules: PricingRuleTable
     }
   }
 }
