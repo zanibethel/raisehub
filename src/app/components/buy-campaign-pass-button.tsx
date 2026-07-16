@@ -23,6 +23,12 @@ type BuyCampaignPassButtonProps = {
   initialSelectedOrganizationId?: string | null
 }
 
+type CompletedSupport = {
+  donationAmount: number
+  totalAmount: number
+  wasDonationOnly: boolean
+}
+
 function buildCampaignHref(input: {
   campaignId: string
   sellerName: string
@@ -78,7 +84,8 @@ export default function BuyCampaignPassButton({
   )
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [purchaseComplete, setPurchaseComplete] = useState(false)
+  const [completedSupport, setCompletedSupport] =
+    useState<CompletedSupport | null>(null)
 
   const donationNumber = Number(donationAmount) || 0
   const effectivePassPrice = hasActivePass ? 0 : passPrice
@@ -94,7 +101,7 @@ export default function BuyCampaignPassButton({
     'this organization'
 
   async function handleBuyPass() {
-    if (loading || purchaseComplete) return
+    if (loading || completedSupport) return
 
     const {
       data: { user },
@@ -114,6 +121,12 @@ export default function BuyCampaignPassButton({
       return
     }
 
+    const submittedSupport: CompletedSupport = {
+      donationAmount: donationNumber,
+      totalAmount,
+      wasDonationOnly: hasActivePass,
+    }
+
     setLoading(true)
     setMessage('')
 
@@ -126,7 +139,7 @@ export default function BuyCampaignPassButton({
     })
 
     if (result.status === 'success') {
-      setPurchaseComplete(true)
+      setCompletedSupport(submittedSupport)
       setLoading(false)
       return
     }
@@ -166,7 +179,7 @@ export default function BuyCampaignPassButton({
     setLoading(false)
   }
 
-  if (purchaseComplete) {
+  if (completedSupport) {
     return (
       <div className="rounded-2xl border border-green-100 bg-green-50 p-5">
         <p className="text-lg font-semibold text-green-800">
@@ -174,15 +187,20 @@ export default function BuyCampaignPassButton({
         </p>
 
         <p className="mt-2 text-sm text-green-700">
-          Your ${totalAmount.toFixed(2)}{' '}
-          {hasActivePass ? 'donation' : 'pass purchase'} has been recorded for{' '}
-          {selectedOrganizationName}
-          {sellerName ? ` in support of ${sellerName}` : ''}.
+          Your ${completedSupport.totalAmount.toFixed(2)}{' '}
+          {completedSupport.wasDonationOnly
+            ? 'donation'
+            : completedSupport.donationAmount > 0
+              ? 'support'
+              : 'pass purchase'}{' '}
+          goes a long way for {selectedOrganizationName}. Thank you!
         </p>
 
-        {donationNumber > 0 ? (
+        {!completedSupport.wasDonationOnly &&
+        completedSupport.donationAmount > 0 ? (
           <p className="mt-2 text-sm text-green-700">
-            This includes a ${donationNumber.toFixed(2)} donation add-on.
+            This includes a $
+            {completedSupport.donationAmount.toFixed(2)} donation add-on.
           </p>
         ) : null}
 
@@ -326,14 +344,16 @@ export default function BuyCampaignPassButton({
           </div>
         ) : null}
 
-        <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
-          <span>
-            {hasActivePass
-              ? 'Donation'
-              : 'Donation add-on'}
-          </span>
-          <span>${donationNumber.toFixed(2)}</span>
-        </div>
+        {hasActivePass || donationNumber > 0 ? (
+          <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
+            <span>
+              {hasActivePass
+                ? 'Donation'
+                : 'Donation add-on'}
+            </span>
+            <span>${donationNumber.toFixed(2)}</span>
+          </div>
+        ) : null}
 
         <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900">
           <span>Total today</span>
