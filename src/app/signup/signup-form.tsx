@@ -18,6 +18,7 @@ export default function SignupForm({
 
   const requestedCampaignId = searchParams.get('campaignId')
   const requestedOrganizationId = searchParams.get('organizationId')
+  const requestedSource = searchParams.get('source')
 
   const initialCampaignId = useMemo(() => {
     if (
@@ -114,7 +115,9 @@ export default function SignupForm({
 
     const destination = selectedCampaignId
       ? `/campaigns/${selectedCampaignId}`
-      : '/campaigns'
+      : requestedSource === 'offers'
+        ? '/offers'
+        : '/campaigns'
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -123,6 +126,7 @@ export default function SignupForm({
         data: {
           role: 'customer',
           selected_campaign_id: selectedCampaignId,
+          signup_source: requestedSource,
         },
         emailRedirectTo: `${
           window.location.origin
@@ -142,7 +146,11 @@ export default function SignupForm({
     }
 
     setMessage(
-      'Account created. Check your email to confirm your account, then continue to your selected fundraiser.'
+      selectedCampaignId
+        ? 'Account created. Check your email to confirm your account, then continue to your selected fundraiser.'
+        : requestedSource === 'offers'
+          ? 'Account created. Check your email to confirm your account, then continue to local deals.'
+          : 'Account created. Check your email to confirm your account, then continue to current fundraisers.'
     )
     setLoading(false)
   }
