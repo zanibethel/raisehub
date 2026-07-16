@@ -152,17 +152,18 @@ export default async function OffersPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Preview participating local offers. Full savings and redemption details are available with an active RaiseHub pass.
+              Preview participating local offers. Full savings and redemption
+              details are available with an active RaiseHub pass.
             </p>
           </div>
 
           {!user ? (
             <div className="flex shrink-0 flex-col gap-3 sm:items-end">
               <Link
-                href="/login"
+                href="/login?next=/offers"
                 className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
               >
-                Have an active pass? Login here
+                Have an active pass? Log in here
               </Link>
 
               <Link
@@ -266,54 +267,36 @@ export default async function OffersPage() {
                         )}
                       </>
                     ) : (
-                      <div className="relative overflow-hidden rounded-2xl border border-yellow-100 bg-yellow-50 p-5">
-                        <div
-                          className="select-none blur-md"
-                          aria-hidden="true"
-                        >
-                          <p className="text-lg font-semibold text-yellow-700">
-                            {offer.discount ||
-                              'Exclusive pass savings'}
-                          </p>
-
-                          <p className="mt-3 text-sm text-gray-700">
-                            {offer.description ||
-                              'Unlock this participating local offer with your RaiseHub pass.'}
-                          </p>
-
-                          <div className="mt-4 space-y-2 text-sm text-gray-600">
-                            <p>
-                              📍{' '}
-                              {profile.address ||
-                                'Participating location'}
-                            </p>
-                            <p>
-                              📞{' '}
-                              {profile.phone ||
-                                'Contact details'}
-                            </p>
-                          </div>
+                      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-center">
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-yellow-100 text-lg">
+                          🔒
                         </div>
 
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/65 p-5 text-center">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              Active pass required
-                            </p>
-                            <p className="mt-1 text-xs text-gray-600">
-                              Log in or choose a fundraiser to purchase a pass and unlock full offer details.
-                            </p>
+                        <p className="mt-3 text-sm font-semibold text-gray-900">
+                          Active pass required
+                        </p>
 
-                            {!user ? (
-                              <Link
-                                href="/signup?source=offers"
-                                className="mt-3 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
-                              >
-                                Choose a Fundraiser
-                              </Link>
-                            ) : null}
-                          </div>
-                        </div>
+                        <p className="mt-2 text-xs leading-5 text-gray-600">
+                          Purchase a qualifying fundraiser pass to reveal the
+                          discount, full offer description, location details,
+                          and redemption information.
+                        </p>
+
+                        {!user ? (
+                          <Link
+                            href="/signup?source=offers"
+                            className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
+                          >
+                            Choose a Fundraiser
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/campaigns"
+                            className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
+                          >
+                            Choose a Fundraiser
+                          </Link>
+                        )}
                       </div>
                     )}
 
