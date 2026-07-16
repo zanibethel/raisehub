@@ -27,17 +27,30 @@ export default function CustomerPassesSection({
 }: Props) {
   return (
     <section className="rounded-3xl border border-blue-100 bg-white/90 p-8 shadow-xl backdrop-blur">
-      <h2 className="text-2xl font-semibold text-blue-700">
-        My Fundraiser Passes
-      </h2>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-blue-700">
+            Fundraiser Support History
+          </h2>
 
-      <p className="mt-2 text-sm text-gray-600">
-        Your purchased passes unlock participating local deals.
-      </p>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600">
+            These are the fundraiser passes you have purchased. Your current
+            RaiseHub pass access and expiration are verified separately from
+            this purchase history.
+          </p>
+        </div>
+
+        <Link
+          href="/campaigns"
+          className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Support Another Fundraiser
+        </Link>
+      </div>
 
       {purchasedPasses.length > 0 ? (
         <div className="mt-6 grid gap-4">
-          {purchasedPasses.map((purchase) => {
+          {purchasedPasses.map((purchase, index) => {
             const campaign = purchase.campaigns
 
             const organization = purchase.selected_organization_id
@@ -59,7 +72,9 @@ export default function CustomerPassesSection({
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
-                      Active Pass
+                      {index === 0
+                        ? 'Most Recent Support'
+                        : 'Fundraiser Purchase'}
                     </p>
 
                     <h3 className="mt-1 text-lg font-semibold text-gray-900">
@@ -92,23 +107,16 @@ export default function CustomerPassesSection({
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {campaign?.id ? (
+                {campaign?.id ? (
+                  <div className="mt-4">
                     <Link
                       href={`/campaigns/${campaign.id}`}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="inline-flex rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
                     >
                       View Campaign
                     </Link>
-                  ) : null}
-
-                  <a
-                    href="#available-deals"
-                    className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
-                  >
-                    View Available Deals
-                  </a>
-                </div>
+                  </div>
+                ) : null}
               </div>
             )
           })}
@@ -116,7 +124,7 @@ export default function CustomerPassesSection({
       ) : (
         <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
           <p className="text-sm text-blue-800">
-            You have not purchased any fundraiser passes yet.
+            You have not supported a fundraiser with a pass purchase yet.
           </p>
 
           <Link
