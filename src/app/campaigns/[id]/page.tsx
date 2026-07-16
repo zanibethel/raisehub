@@ -11,9 +11,11 @@ import {
   getCampaignById,
   getPublicCampaignProgress,
 } from '@/lib/repositories/campaign-repository'
-import { createClient } from '@/lib/supabase/server'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
+import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,7 +64,9 @@ function buildCampaignHref(input: {
 
   const query = searchParams.toString()
 
-  return query ? `/campaigns/${input.campaignId}?${query}` : `/campaigns/${input.campaignId}`
+  return query
+    ? `/campaigns/${input.campaignId}?${query}`
+    : `/campaigns/${input.campaignId}`
 }
 
 function getCampaignNotice(
@@ -86,6 +90,7 @@ export default async function CampaignPage({
     donation,
     organization,
   } = await searchParams
+
   const supabase = await createClient()
   const now = new Date()
 
@@ -98,12 +103,17 @@ export default async function CampaignPage({
           <h1 className="text-2xl font-bold text-blue-700">
             Campaign unavailable
           </h1>
+
           <p className="mt-3 text-sm text-gray-600">
-            We could not load this campaign right now. Please return to the active
-            fundraiser list and try again.
+            We could not load this campaign right now. Please return to the
+            active fundraiser list and try again.
           </p>
+
           <div className="mt-6">
-            <Link href="/campaigns" className="text-sm font-medium text-blue-700 hover:underline">
+            <Link
+              href="/campaigns"
+              className="text-sm font-medium text-blue-700 hover:underline"
+            >
               Browse active campaigns →
             </Link>
           </div>
@@ -128,14 +138,18 @@ export default async function CampaignPage({
       )
     }
 
-    const noticeMessage = getCampaignNotice(notice) ??
+    const noticeMessage =
+      getCampaignNotice(notice) ??
       'The selected campaign is no longer accepting new sales. Choose an active campaign to continue.'
 
     if (recoveryResult.status === 'selection-required') {
       return (
         <main className="min-h-screen bg-slate-50 px-6 py-12">
           <div className="mx-auto max-w-6xl space-y-6">
-            <Link href="/campaigns" className="text-sm text-blue-600">
+            <Link
+              href="/campaigns"
+              className="text-sm text-blue-600"
+            >
               ← Back to fundraisers
             </Link>
 
@@ -146,7 +160,9 @@ export default async function CampaignPage({
             <SelectableCampaignCarousel
               campaigns={recoveryResult.campaigns}
               seller={seller}
-              replacedCampaignId={recoveryResult.replacedCampaignId}
+              replacedCampaignId={
+                recoveryResult.replacedCampaignId
+              }
               notice="campaign-unavailable"
               donationAmount={donation}
               selectedOrganizationId={organization}
@@ -162,7 +178,10 @@ export default async function CampaignPage({
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-12">
         <div className="mx-auto max-w-3xl space-y-6">
-          <Link href="/campaigns" className="text-sm text-blue-600">
+          <Link
+            href="/campaigns"
+            className="text-sm text-blue-600"
+          >
             ← Back to fundraisers
           </Link>
 
@@ -170,7 +189,11 @@ export default async function CampaignPage({
             <h1 className="text-2xl font-bold text-blue-700">
               Campaign unavailable
             </h1>
-            <p className="mt-3 text-sm text-gray-600">{noticeMessage}</p>
+
+            <p className="mt-3 text-sm text-gray-600">
+              {noticeMessage}
+            </p>
+
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/campaigns"
@@ -178,6 +201,7 @@ export default async function CampaignPage({
               >
                 Browse active campaigns
               </Link>
+
               <Link
                 href="/"
                 className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
@@ -213,11 +237,38 @@ export default async function CampaignPage({
       passAccess.activeEntitlement?.expires_at ?? null
   }
 
+  const admin = createAdminClient()
+
+  const [
+    { data: campaignOrganization },
+    { data: campaignOrganizationProfile },
+  ] = await Promise.all([
+    admin
+      .from('organizations')
+      .select('id')
+      .eq('legacy_profile_id', campaign.organization_id)
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('is_demo')
+      .eq('id', campaign.organization_id)
+      .maybeSingle(),
+  ])
+
+  const effectivePricing = await resolveEffectivePricing({
+    campaignId: campaign.id,
+    organizationId: campaignOrganization?.id ?? null,
+    isDemo: campaignOrganizationProfile?.is_demo ?? false,
+    now,
+  })
+
   const goal = Number(campaign.goal_amount ?? 0)
+
   const {
     amountRaisedByCampaignId,
     error: progressError,
   } = await getPublicCampaignProgress([campaign.id])
+
   const progressState = buildCampaignDetailProgressState({
     amountRaised: amountRaisedByCampaignId.get(campaign.id),
     goalAmount: campaign.goal_amount,
@@ -227,7 +278,10 @@ export default async function CampaignPage({
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        <Link href="/campaigns" className="text-sm text-blue-600">
+        <Link
+          href="/campaigns"
+          className="text-sm text-blue-600"
+        >
           ← Back to fundraisers
         </Link>
 
@@ -242,11 +296,14 @@ export default async function CampaignPage({
         </h1>
 
         <p className="mt-2 text-gray-600">
-          {campaign.description || 'Support this local fundraiser.'}
+          {campaign.description ||
+            'Support this local fundraiser.'}
         </p>
 
         <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Progress</p>
+          <p className="text-sm text-gray-500">
+            Progress
+          </p>
 
           {progressState.status === 'available' ? (
             <>
@@ -257,7 +314,9 @@ export default async function CampaignPage({
               <div className="mt-3 h-3 w-full rounded-full bg-gray-200">
                 <div
                   className="h-3 rounded-full bg-blue-600"
-                  style={{ width: `${progressState.goalPercentage}%` }}
+                  style={{
+                    width: `${progressState.goalPercentage}%`,
+                  }}
                 />
               </div>
 
@@ -294,7 +353,9 @@ export default async function CampaignPage({
 
         <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
           <p className="text-lg font-semibold text-gray-900">
-            {hasActivePass ? 'Your pass is active' : 'Get your fundraising pass'}
+            {hasActivePass
+              ? 'Your pass is active'
+              : 'Get your fundraising pass'}
           </p>
 
           <p className="mt-1 text-sm text-gray-600">
@@ -311,7 +372,9 @@ export default async function CampaignPage({
 
               <p className="mt-1 text-lg font-bold text-green-900">
                 {activePassExpiresAt
-                  ? new Date(activePassExpiresAt).toLocaleDateString()
+                  ? new Date(
+                      activePassExpiresAt
+                    ).toLocaleDateString()
                   : 'No expiration date'}
               </p>
 
@@ -334,13 +397,17 @@ export default async function CampaignPage({
           <div className="mt-4 space-y-3">
             <BuyCampaignPassButton
               campaignId={campaign.id}
-              passPrice={Number(campaign.pass_price ?? 0)}
+              passPrice={effectivePricing.passPrice}
               organizations={organizations ?? []}
-              defaultOrganizationId={campaign.organization_id}
+              defaultOrganizationId={
+                campaign.organization_id
+              }
               sellerName={seller || ''}
               hasActivePass={hasActivePass}
               initialDonationAmount={donation}
-              initialSelectedOrganizationId={organization ?? null}
+              initialSelectedOrganizationId={
+                organization ?? null
+              }
             />
 
             <div className="flex justify-center">
