@@ -46,10 +46,10 @@ export default async function HomePage() {
           </Link>
 
           <Link
-            href="/signup"
+            href="/signup?source=offers"
             className="rounded-xl bg-green-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl"
           >
-            Get Started
+            View Local Deals
           </Link>
 
           {user ? (
@@ -147,7 +147,7 @@ export default async function HomePage() {
               use for months.
             </p>
             <Link
-              href="/how-it-works/organizations"
+              href="/signup/organization"
               className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
             >
               Start a Fundraiser
@@ -163,7 +163,7 @@ export default async function HomePage() {
               performance in one place.
             </p>
             <Link
-              href="/how-it-works/businesses"
+              href="/signup/business"
               className="mt-4 inline-block rounded-xl bg-green-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-green-700"
             >
               Join as a Business
@@ -179,10 +179,10 @@ export default async function HomePage() {
               that matter.
             </p>
             <Link
-              href="/campaigns"
+              href="/signup?source=offers"
               className="mt-4 inline-block rounded-xl bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700"
             >
-              Browse Fundraisers
+              View Local Deals
             </Link>
           </div>
         </div>
