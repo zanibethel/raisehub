@@ -79,7 +79,7 @@ function normalizeDonationAmount(value: number | undefined) {
     return 0
   }
 
-  return Math.max(0, normalized)
+  return Math.round(Math.max(0, normalized) * 100) / 100
 }
 
 function cleanOptionalText(
@@ -216,14 +216,15 @@ export async function purchaseCampaignPassAction(
       .maybeSingle(),
     admin
       .from('profiles')
-      .select('is_demo')
+      .select('is_demo, demo_group')
       .eq('id', campaign.organization_id)
       .maybeSingle(),
   ])
 
   if (
     campaignOrganizationError ||
-    campaignOrganizationProfileError
+    campaignOrganizationProfileError ||
+    !campaignOrganizationProfile
   ) {
     return {
       status: 'error',
@@ -240,8 +241,7 @@ export async function purchaseCampaignPassAction(
           campaignOrganization?.id ?? null,
         donationAmount,
         isDemo:
-          campaignOrganizationProfile?.is_demo ??
-          false,
+          campaignOrganizationProfile.is_demo,
         now,
       })
 
@@ -257,62 +257,78 @@ export async function purchaseCampaignPassAction(
     }
   }
 
-  const purchaseValues = isDonationOnly
-    ? {
-        campaign_id: campaign.id,
-        user_id: user.id,
-        buyer_email: user.email ?? null,
-        amount_paid: donationAmount,
-        platform_fee: 0,
-        organization_earnings: donationAmount,
-        selected_organization_id:
-          selectedOrganizationId,
-        donation_amount: donationAmount,
-        seller_name: cleanOptionalText(
-          input.seller_name,
-          120
-        ),
-        payment_status: 'test_paid',
-      }
-    : {
-        campaign_id: campaign.id,
-        user_id: user.id,
-        buyer_email: user.email ?? null,
-        amount_paid: effectivePricing!.totalAmount,
-        platform_fee:
-          effectivePricing!.platformFeeAmount,
-        organization_earnings:
-          effectivePricing!
-            .organizationTotalEarnings,
-        selected_organization_id:
-          selectedOrganizationId,
-        donation_amount:
-          effectivePricing!.donationAmount,
-        seller_name: cleanOptionalText(
-          input.seller_name,
-          120
-        ),
-        payment_status: 'test_paid',
-        pricing_rule_id:
-          effectivePricing!.pricingRuleId,
-        pricing_scope:
-          effectivePricing!.pricingScope,
-        pass_price_charged:
-          effectivePricing!.passPrice,
-        platform_fee_percent:
-          effectivePricing!
-            .platformFeePercent,
-        organization_pass_earnings:
-          effectivePricing!
-            .organizationPassEarnings,
-        pricing_resolved_at: now.toISOString(),
-      }
+  const amountPaid = isDonationOnly
+    ? donationAmount
+    : effectivePricing!.totalAmount
 
-  const { error: purchaseError } = await admin
-    .from('campaign_purchases')
-    .insert(purchaseValues)
+  const platformFee = isDonationOnly
+    ? 0
+    : effectivePricing!.platformFeeAmount
 
-  if (purchaseError) {
+  const organizationEarnings = isDonationOnly
+    ? donationAmount
+    : effectivePricing!.organizationTotalEarnings
+
+  const {
+    data: purchaseResult,
+    error: purchaseError,
+  } = await admin.rpc(
+    'create_campaign_purchase_with_entitlement',
+    {
+      p_campaign_id: campaign.id,
+      p_user_id: user.id,
+      p_buyer_email: user.email ?? null,
+      p_selected_organization_id:
+        selectedOrganizationId,
+      p_donation_amount: donationAmount,
+      p_seller_name: cleanOptionalText(
+        input.seller_name,
+        120
+      ),
+      p_amount_paid: amountPaid,
+      p_platform_fee: platformFee,
+      p_organization_earnings:
+        organizationEarnings,
+      p_is_demo:
+        campaignOrganizationProfile.is_demo,
+      p_demo_group:
+        campaignOrganizationProfile.demo_group,
+      p_grant_entitlement: !isDonationOnly,
+      p_pricing_rule_id:
+        effectivePricing?.pricingRuleId ?? null,
+      p_pricing_scope:
+        effectivePricing?.pricingScope ?? null,
+      p_pass_price_charged:
+        effectivePricing?.passPrice ?? null,
+      p_platform_fee_percent:
+        effectivePricing?.platformFeePercent ??
+        null,
+      p_organization_pass_earnings:
+        effectivePricing
+          ?.organizationPassEarnings ?? null,
+      p_pricing_resolved_at:
+        effectivePricing
+          ? now.toISOString()
+          : null,
+    }
+  )
+
+  const createdRecord = purchaseResult?.[0]
+
+  const missingExpectedEntitlement =
+    !isDonationOnly &&
+    !createdRecord?.entitlement_id
+
+  const unexpectedDonationEntitlement =
+    isDonationOnly &&
+    Boolean(createdRecord?.entitlement_id)
+
+  if (
+    purchaseError ||
+    !createdRecord?.purchase_id ||
+    missingExpectedEntitlement ||
+    unexpectedDonationEntitlement
+  ) {
     const recoveryResult =
       await resolveCampaignRecovery(
         input.campaign_id,
@@ -329,7 +345,7 @@ export async function purchaseCampaignPassAction(
     return {
       status: 'error',
       message:
-        'We could not record your support. Please try again.',
+        'We could not record your support and pass access. Please try again.',
     }
   }
 
@@ -338,6 +354,8 @@ export async function purchaseCampaignPassAction(
     `/campaigns/${input.campaign_id}`
   )
   revalidatePath('/campaigns')
+  revalidatePath('/offers')
+  revalidatePath('/saved-offers')
   revalidatePath('/')
 
   return { status: 'success' }
