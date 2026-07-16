@@ -13,16 +13,28 @@ export default function OrganizationsHowItWorksPage() {
         </h1>
 
         <p className="mt-4 text-gray-700">
-          Organizations can use RaiseHub to create fundraisers powered by valuable
+          Organizations use RaiseHub to create fundraisers powered by valuable
           local business deals.
         </p>
 
         <div className="mt-8 space-y-4">
           {[
-            ['1. Create a campaign', 'Set up a fundraiser for your school, team, club, or organization.'],
-            ['2. Share your link or QR code', 'Supporters can buy access and help your campaign grow.'],
-            ['3. Promote local offers', 'Participating businesses provide deals supporters can use.'],
-            ['4. Track progress', 'See passes sold, money raised, and campaign activity.'],
+            [
+              '1. Create your organization account',
+              'Manage your organization, fundraising campaigns, sellers, supporters, and results from one place.',
+            ],
+            [
+              '2. Build and share your fundraiser',
+              'Set your goal, pass price, important dates, and shareable campaign link.',
+            ],
+            [
+              '3. Give supporters real local value',
+              'Supporters purchase a digital pass filled with participating local business offers.',
+            ],
+            [
+              '4. Track progress and results',
+              'See qualifying passes sold, active sellers, supporters, and funds raised.',
+            ],
           ].map(([title, body]) => (
             <div key={title} className="rounded-2xl bg-white p-6 shadow">
               <h2 className="font-semibold text-gray-900">{title}</h2>
@@ -31,11 +43,25 @@ export default function OrganizationsHowItWorksPage() {
           ))}
         </div>
 
+        <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <p className="font-bold text-blue-800">
+            Clear costs. No surprises.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-blue-900">
+            Creating your organization account is free. RaiseHub earns a
+            portion of each fundraising pass sold, so there is no required
+            upfront subscription. Your organization keeps its share of every
+            qualifying pass sale, and optional donations go directly toward
+            the selected organization. Any applicable payment-processing fees
+            will be shown before launch.
+          </p>
+        </div>
+
         <Link
-          href="/signup?role=organization"
+          href="/signup/organization"
           className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
         >
-          Start a Fundraiser
+          Start Raising Funds
         </Link>
       </div>
     </main>
