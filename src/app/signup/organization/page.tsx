@@ -169,6 +169,21 @@ export default function OrganizationSignupPage() {
               Supporters receive useful local savings while your organization
               gains a stronger reason for people to participate and share.
             </div>
+
+            <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-900">
+              <h2 className="text-lg font-bold text-blue-800">
+                Clear costs. No surprises.
+              </h2>
+
+              <p className="mt-2">
+                Creating your organization account is free. RaiseHub earns a
+                portion of each fundraising pass sold, so there is no required
+                upfront subscription. Your organization keeps its share of
+                every qualifying pass sale, and optional donations go directly
+                toward the selected organization. Any applicable
+                payment-processing fees will be shown before launch.
+              </p>
+            </div>
           </section>
 
           <aside className="h-fit rounded-3xl border border-blue-100 bg-white p-7 shadow-xl sm:p-8">
