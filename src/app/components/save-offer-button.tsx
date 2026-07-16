@@ -33,15 +33,16 @@ export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
 
     if (error) {
       if (error.code === '23505') {
-        setMessage('Already saved.')
+        setMessage('Already on your pass.')
       } else {
         setMessage(error.message)
       }
+
       setLoading(false)
       return
     }
 
-    setMessage('Saved to your pass!')
+    setMessage('Added to your pass!')
     setLoading(false)
 
     window.location.reload()
@@ -54,7 +55,7 @@ export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
         disabled={loading}
         className="w-full rounded-lg bg-yellow-500 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-600 disabled:opacity-50"
       >
-        {loading ? 'Saving...' : 'Save for Pass'}
+        {loading ? 'Adding...' : 'Add to My Pass'}
       </button>
 
       {message ? (
