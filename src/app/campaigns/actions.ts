@@ -15,11 +15,6 @@ import type {
 
 type PurchaseCampaignInput = {
   campaign_id: string
-
-  // Transitional compatibility only. The server never trusts or uses this
-  // browser-supplied value. It can be removed after the client stops sending it.
-  pass_price?: number
-
   selected_organization_id?: string
   donation_amount?: number
   seller_name?: string
