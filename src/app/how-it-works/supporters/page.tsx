@@ -13,16 +13,28 @@ export default function SupportersHowItWorksPage() {
         </h1>
 
         <p className="mt-4 text-gray-700">
-          Supporters get access to local deals while helping raise money for schools,
-          teams, and community organizations.
+          Supporters unlock valuable local deals while helping schools, teams,
+          nonprofits, and community organizations raise money.
         </p>
 
         <div className="mt-8 space-y-4">
           {[
-            ['1. Sign up', 'Create your RaiseHub account.'],
-            ['2. Browse local deals', 'See participating businesses and exclusive offers.'],
-            ['3. Save offers to your pass', 'Keep your favorite deals ready to use.'],
-            ['4. Use offers locally', 'Redeem deals while supporting local fundraising.'],
+            [
+              '1. Explore local deals',
+              'See participating businesses and the exclusive offers included with a RaiseHub pass.',
+            ],
+            [
+              '2. Choose a fundraiser to support',
+              'Select a current campaign during signup or follow a direct campaign link from someone you know.',
+            ],
+            [
+              '3. Purchase your digital pass',
+              'Your qualifying purchase supports the selected organization and unlocks access to participating offers.',
+            ],
+            [
+              '4. Save and redeem offers locally',
+              'Keep useful deals on your pass and redeem them at participating businesses during the access period.',
+            ],
           ].map(([title, body]) => (
             <div key={title} className="rounded-2xl bg-white p-6 shadow">
               <h2 className="font-semibold text-gray-900">{title}</h2>
@@ -31,12 +43,31 @@ export default function SupportersHowItWorksPage() {
           ))}
         </div>
 
-        <Link
-          href="/campaigns"
-          className="mt-8 inline-flex rounded-xl bg-yellow-600 px-6 py-3 font-medium text-white hover:bg-yellow-700"
-        >
-          Browse Fundraisers
-        </Link>
+        <div className="mt-8 rounded-2xl border border-yellow-100 bg-yellow-50 p-5">
+          <p className="font-bold text-yellow-800">
+            Save locally. Support something meaningful.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-yellow-900">
+            RaiseHub gives your purchase lasting value through reusable local
+            offers while helping a fundraiser move closer to its goal.
+          </p>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/signup?source=offers"
+            className="inline-flex justify-center rounded-xl bg-yellow-600 px-6 py-3 font-medium text-white hover:bg-yellow-700"
+          >
+            View Local Deals
+          </Link>
+
+          <Link
+            href="/campaigns"
+            className="inline-flex justify-center rounded-xl border border-yellow-300 bg-white px-6 py-3 font-medium text-yellow-700 hover:bg-yellow-50"
+          >
+            Browse Fundraisers
+          </Link>
+        </div>
       </div>
     </main>
   )
