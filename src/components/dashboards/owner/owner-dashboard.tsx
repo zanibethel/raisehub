@@ -18,6 +18,7 @@ import {
 } from '@/lib/services/owner-pricing-service'
 
 import OwnerDashboardContent from './owner-dashboard-content'
+import OwnerPricingEditor from './owner-pricing-editor'
 
 // =============================================================================
 // Types
@@ -255,12 +256,12 @@ function OwnerPricingOverviewSection({
             Pricing
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            Review the effective platform default for production and demo before creating state, town, organization, or campaign overrides.
+            Review and change the platform default for production and demo before creating state, town, organization, or campaign overrides.
           </p>
         </div>
 
-        <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300">
-          Read-only foundation
+        <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-200">
+          Owner editable
         </span>
       </div>
 
@@ -274,6 +275,15 @@ function OwnerPricingOverviewSection({
           counts={demoRuleCounts}
         />
       </div>
+
+      <OwnerPricingEditor
+        productionPassPrice={production.passPrice}
+        productionFeePercent={
+          production.platformFeePercent
+        }
+        demoPassPrice={demo.passPrice}
+        demoFeePercent={demo.platformFeePercent}
+      />
     </section>
   )
 }
