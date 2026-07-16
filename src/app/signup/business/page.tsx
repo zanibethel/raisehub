@@ -173,7 +173,7 @@ export default function BusinessSignupPage() {
 
           <aside className="h-fit rounded-3xl border border-green-100 bg-white p-7 shadow-xl sm:p-8">
             <p className="text-sm font-semibold text-green-700">
-              Free to get started
+              Start free. Stay free.
             </p>
 
             <h2 className="mt-2 text-2xl font-bold text-blue-700">
@@ -181,8 +181,10 @@ export default function BusinessSignupPage() {
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-gray-600">
-              Create your account now. After email confirmation, we will guide
-              you through the complete business setup process.
+              Create and manage up to 3 active offers with no required
+              subscription. Upgrade only when you want additional offers or
+              advanced features. After email confirmation, we will guide you
+              through the complete business setup process.
             </p>
 
             <form
