@@ -2,7 +2,7 @@ import 'server-only'
 
 import { createClient } from '@supabase/supabase-js'
 
-import type { Database } from './database.types'
+import type { GiftPassDatabase } from './gift-pass-database.types'
 
 // =============================================================================
 // Privileged Supabase client
@@ -33,7 +33,7 @@ export function createAdminClient() {
     )
   }
 
-  return createClient<Database>(
+  return createClient<GiftPassDatabase>(
     supabaseUrl,
     serviceRoleKey,
     {
