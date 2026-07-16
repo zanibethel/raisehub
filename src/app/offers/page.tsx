@@ -157,18 +157,27 @@ export default async function OffersPage() {
           </div>
 
           {!user ? (
-            <Link
-              href="/login"
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
-            >
-              Have an active pass? Login here
-            </Link>
+            <div className="flex shrink-0 flex-col gap-3 sm:items-end">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
+              >
+                Have an active pass? Login here
+              </Link>
+
+              <Link
+                href="/signup?source=offers"
+                className="text-center text-sm font-semibold text-yellow-700 hover:underline sm:text-right"
+              >
+                Need a pass? Choose a fundraiser →
+              </Link>
+            </div>
           ) : !hasActivePass ? (
             <Link
-              href="/campaigns"
+              href="/signup?source=offers"
               className="inline-flex shrink-0 items-center justify-center rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-yellow-600"
             >
-              Get an Active Pass
+              Choose a Fundraiser
             </Link>
           ) : (
             <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
@@ -292,8 +301,17 @@ export default async function OffersPage() {
                               Active pass required
                             </p>
                             <p className="mt-1 text-xs text-gray-600">
-                              Log in or purchase a fundraiser pass to unlock full offer details.
+                              Log in or choose a fundraiser to purchase a pass and unlock full offer details.
                             </p>
+
+                            {!user ? (
+                              <Link
+                                href="/signup?source=offers"
+                                className="mt-3 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
+                              >
+                                Choose a Fundraiser
+                              </Link>
+                            ) : null}
                           </div>
                         </div>
                       </div>
