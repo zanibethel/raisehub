@@ -4,10 +4,10 @@ import { createHash, randomBytes } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { getCampaignById } from '@/lib/repositories/campaign-repository'
+import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-const PLATFORM_FEE_PERCENT = 25
 const CLAIM_WINDOW_MONTHS = 12
 
 export type GiftPassDeliveryMethod =
@@ -35,6 +35,8 @@ export type PurchaseGiftPassResult =
       claimToken: string
       claimPath: string
       claimExpiresAt: string
+      passPrice: number
+      platformFeePercent: number
       totalAmount: number
     }
   | {
@@ -56,7 +58,8 @@ function cleanOptionalText(
 }
 
 function normalizeEmail(value: string | undefined) {
-  const email = cleanOptionalText(value, 320)?.toLowerCase() ?? null
+  const email =
+    cleanOptionalText(value, 320)?.toLowerCase() ?? null
 
   if (!email) {
     return null
@@ -78,6 +81,16 @@ function normalizePhone(value: string | undefined) {
   const digitCount = phone.replace(/\D/g, '').length
 
   return digitCount >= 7 ? phone : null
+}
+
+function normalizeDonationAmount(value: number | undefined) {
+  const normalized = Number(value ?? 0)
+
+  if (!Number.isFinite(normalized)) {
+    return 0
+  }
+
+  return Math.max(0, normalized)
 }
 
 function createClaimToken() {
@@ -179,36 +192,26 @@ export async function purchaseGiftPassAction(
     input.selectedOrganizationId?.trim() ||
     campaign.organization_id
 
-  const donationAmount = Math.max(
-    0,
-    Number(input.donationAmount ?? 0) || 0
+  const donationAmount = normalizeDonationAmount(
+    input.donationAmount
   )
-  const passPrice = Math.max(
-    0,
-    Number(campaign.pass_price ?? 0) || 0
-  )
-
-  if (passPrice <= 0) {
-    return {
-      status: 'error',
-      message:
-        'This fundraiser does not currently have a valid gift-pass price.',
-    }
-  }
 
   const admin = createAdminClient()
 
   const {
-    data: selectedOrganization,
-    error: organizationError,
+    data: selectedOrganizationProfile,
+    error: organizationProfileError,
   } = await admin
     .from('profiles')
-    .select('id, role')
+    .select('id, role, is_demo')
     .eq('id', selectedOrganizationId)
     .eq('role', 'organization')
     .maybeSingle()
 
-  if (organizationError || !selectedOrganization) {
+  if (
+    organizationProfileError ||
+    !selectedOrganizationProfile
+  ) {
     return {
       status: 'error',
       message:
@@ -216,12 +219,38 @@ export async function purchaseGiftPassAction(
     }
   }
 
-  const platformFee =
-    passPrice * (PLATFORM_FEE_PERCENT / 100)
-  const organizationEarnings =
-    passPrice - platformFee + donationAmount
-  const totalAmount =
-    passPrice + donationAmount
+  const {
+    data: organizationRecord,
+    error: organizationRecordError,
+  } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('legacy_profile_id', selectedOrganizationId)
+    .maybeSingle()
+
+  if (organizationRecordError) {
+    return {
+      status: 'error',
+      message:
+        'We could not confirm organization pricing. Please try again.',
+    }
+  }
+
+  const pricing = await resolveEffectivePricing({
+    campaignId: campaign.id,
+    organizationId: organizationRecord?.id ?? null,
+    donationAmount,
+    isDemo: selectedOrganizationProfile.is_demo,
+    now,
+  })
+
+  if (pricing.passPrice <= 0) {
+    return {
+      status: 'error',
+      message:
+        'This fundraiser does not currently have valid gift-pass pricing.',
+    }
+  }
 
   const {
     data: purchase,
@@ -232,15 +261,24 @@ export async function purchaseGiftPassAction(
       campaign_id: campaign.id,
       user_id: user.id,
       buyer_email: user.email ?? null,
-      amount_paid: totalAmount,
-      platform_fee: platformFee,
-      organization_earnings: organizationEarnings,
+      amount_paid: pricing.totalAmount,
+      platform_fee: pricing.platformFeeAmount,
+      organization_earnings:
+        pricing.organizationTotalEarnings,
       selected_organization_id:
         selectedOrganizationId,
-      donation_amount: donationAmount,
+      donation_amount: pricing.donationAmount,
       seller_name:
         cleanOptionalText(input.sellerName, 120),
       payment_status: 'test_paid',
+      pricing_rule_id: pricing.pricingRuleId,
+      pricing_scope: pricing.pricingScope,
+      pass_price_charged: pricing.passPrice,
+      platform_fee_percent:
+        pricing.platformFeePercent,
+      organization_pass_earnings:
+        pricing.organizationPassEarnings,
+      pricing_resolved_at: now.toISOString(),
     })
     .select('id')
     .single()
@@ -279,6 +317,7 @@ export async function purchaseGiftPassAction(
       status: 'purchased',
       claim_token_hash: claimTokenHash,
       claim_expires_at: claimExpiresAt,
+      is_demo: selectedOrganizationProfile.is_demo,
     })
     .select('id')
     .single()
@@ -306,6 +345,9 @@ export async function purchaseGiftPassAction(
     claimToken,
     claimPath: `/gifts/claim/${claimToken}`,
     claimExpiresAt,
-    totalAmount,
+    passPrice: pricing.passPrice,
+    platformFeePercent:
+      pricing.platformFeePercent,
+    totalAmount: pricing.totalAmount,
   }
 }
