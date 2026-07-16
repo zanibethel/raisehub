@@ -16,9 +16,9 @@ import type {
 type PurchaseCampaignInput = {
   campaign_id: string
 
-  // Kept temporarily so the existing client contract does not break.
-  // The server intentionally ignores this untrusted browser value.
-  pass_price: number
+  // Transitional compatibility only. The server never trusts or uses this
+  // browser-supplied value. It can be removed after the client stops sending it.
+  pass_price?: number
 
   selected_organization_id?: string
   donation_amount?: number
