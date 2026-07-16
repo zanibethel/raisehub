@@ -11,6 +11,11 @@ import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-
 import { getOwnerAuthorizedCustomerActivity } from '@/lib/services/owner-customer-activity-service'
 import { getOwnerWorkspaces } from '@/lib/services/workspace-service'
 import { getOwnerPlatformAnalytics } from '@/lib/services/owner-platform-analytics-service'
+import {
+  getOwnerPricingOverview,
+  type OwnerPlatformPricingSummary,
+  type OwnerPricingRuleCounts,
+} from '@/lib/services/owner-pricing-service'
 
 import OwnerDashboardContent from './owner-dashboard-content'
 
@@ -111,6 +116,168 @@ function resolveSelectedWorkspace({
   )
 }
 
+function formatMoney(value: number) {
+  return `$${value.toFixed(2)}`
+}
+
+function PricingMetric({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-bold text-slate-950">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function RuleCountSummary({
+  counts,
+}: {
+  counts: OwnerPricingRuleCounts
+}) {
+  return (
+    <p className="mt-4 text-xs leading-5 text-slate-500">
+      {counts.total} active rule
+      {counts.total === 1 ? '' : 's'} ·{' '}
+      {counts.state} state · {counts.town} town ·{' '}
+      {counts.organization} organization ·{' '}
+      {counts.campaign} campaign
+    </p>
+  )
+}
+
+function PricingEnvironmentCard({
+  summary,
+  counts,
+}: {
+  summary: OwnerPlatformPricingSummary
+  counts: OwnerPricingRuleCounts
+}) {
+  const title =
+    summary.environment === 'production'
+      ? 'Production'
+      : 'Demo'
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-slate-950">
+            {title}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Current platform default
+          </p>
+        </div>
+
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+            summary.usesFallback
+              ? 'bg-amber-100 text-amber-800'
+              : 'bg-emerald-100 text-emerald-800'
+          }`}
+        >
+          {summary.usesFallback
+            ? 'Fallback'
+            : 'Managed'}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <PricingMetric
+          label="Pass price"
+          value={formatMoney(summary.passPrice)}
+        />
+        <PricingMetric
+          label="RaiseHub fee"
+          value={`${summary.platformFeePercent.toFixed(
+            2
+          )}% · ${formatMoney(
+            summary.platformFeeAmount
+          )}`}
+        />
+        <PricingMetric
+          label="Organization share"
+          value={formatMoney(
+            summary.organizationPassEarnings
+          )}
+        />
+      </div>
+
+      {summary.reason ? (
+        <p className="mt-4 text-sm leading-6 text-slate-600">
+          {summary.reason}
+        </p>
+      ) : null}
+
+      {summary.usesFallback ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          No active managed platform rule was found. Checkout is using the emergency application fallback.
+        </p>
+      ) : null}
+
+      <RuleCountSummary counts={counts} />
+    </div>
+  )
+}
+
+function OwnerPricingOverviewSection({
+  production,
+  demo,
+  productionRuleCounts,
+  demoRuleCounts,
+}: {
+  production: OwnerPlatformPricingSummary
+  demo: OwnerPlatformPricingSummary
+  productionRuleCounts: OwnerPricingRuleCounts
+  demoRuleCounts: OwnerPricingRuleCounts
+}) {
+  return (
+    <section
+      id="owner-pricing"
+      className="mt-8 scroll-mt-6 rounded-3xl border border-slate-200 bg-slate-950 p-5 shadow-xl sm:p-6"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-300">
+            Manage Platform
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-white">
+            Pricing
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            Review the effective platform default for production and demo before creating state, town, organization, or campaign overrides.
+          </p>
+        </div>
+
+        <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300">
+          Read-only foundation
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        <PricingEnvironmentCard
+          summary={production}
+          counts={productionRuleCounts}
+        />
+        <PricingEnvironmentCard
+          summary={demo}
+          counts={demoRuleCounts}
+        />
+      </div>
+    </section>
+  )
+}
+
 // =============================================================================
 // Loader
 // =============================================================================
@@ -122,7 +289,12 @@ export default async function OwnerDashboard({
     searchParams?.previewRole
   )
 
-  const workspaces = await getOwnerWorkspaces()
+  const [workspaces, platformAnalyticsResult, pricingResult] =
+    await Promise.all([
+      getOwnerWorkspaces(),
+      getOwnerPlatformAnalytics(),
+      getOwnerPricingOverview(),
+    ])
 
   const selectedWorkspace =
     resolveSelectedWorkspace({
@@ -185,24 +357,48 @@ export default async function OwnerDashboard({
       )
   }
 
-  const platformAnalyticsResult =
-    await getOwnerPlatformAnalytics()
-
   const platformMetrics =
     platformAnalyticsResult.status === 'success'
       ? platformAnalyticsResult.metrics
       : null
 
   return (
-    <OwnerDashboardContent
-      activeRole={previewRole}
-      workspaces={workspaces}
-      selectedWorkspace={selectedWorkspace}
-      workspaceMode={workspaceMode}
-      businessOffersResult={businessOffersResult}
-      organizationCampaignsResult={organizationCampaignsResult}
-      customerActivityResult={customerActivityResult}
-      platformMetrics={platformMetrics}
-    />
+    <>
+      {pricingResult.status === 'success' ? (
+        <OwnerPricingOverviewSection
+          production={
+            pricingResult.overview.production
+          }
+          demo={pricingResult.overview.demo}
+          productionRuleCounts={
+            pricingResult.overview
+              .productionRuleCounts
+          }
+          demoRuleCounts={
+            pricingResult.overview.demoRuleCounts
+          }
+        />
+      ) : (
+        <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="font-bold text-amber-900">
+            Pricing overview unavailable
+          </p>
+          <p className="mt-2 text-sm text-amber-800">
+            {pricingResult.message}
+          </p>
+        </section>
+      )}
+
+      <OwnerDashboardContent
+        activeRole={previewRole}
+        workspaces={workspaces}
+        selectedWorkspace={selectedWorkspace}
+        workspaceMode={workspaceMode}
+        businessOffersResult={businessOffersResult}
+        organizationCampaignsResult={organizationCampaignsResult}
+        customerActivityResult={customerActivityResult}
+        platformMetrics={platformMetrics}
+      />
+    </>
   )
 }
