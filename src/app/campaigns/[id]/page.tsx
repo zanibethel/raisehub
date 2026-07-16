@@ -204,10 +204,13 @@ export default async function CampaignPage({
     .order('business_name', { ascending: true })
 
   let hasActivePass = false
+  let activePassExpiresAt: string | null = null
 
   if (user) {
     const passAccess = await getCustomerPassAccess(user.id, now)
     hasActivePass = passAccess.hasActivePass
+    activePassExpiresAt =
+      passAccess.activeEntitlement?.expires_at ?? null
   }
 
   const goal = Number(campaign.goal_amount ?? 0)
@@ -299,6 +302,34 @@ export default async function CampaignPage({
               ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation.'
               : 'One purchase gives you access to exclusive local deals while supporting this campaign.'}
           </p>
+
+          {hasActivePass ? (
+            <div className="mt-4 rounded-xl border border-green-100 bg-green-50 p-4">
+              <p className="text-sm font-semibold text-green-800">
+                Current pass expiration
+              </p>
+
+              <p className="mt-1 text-lg font-bold text-green-900">
+                {activePassExpiresAt
+                  ? new Date(activePassExpiresAt).toLocaleDateString()
+                  : 'No expiration date'}
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-green-700">
+                Supporting another fundraiser will soon let you extend this
+                date, gift a separate six-month pass, or donate without
+                changing your current pass.
+              </p>
+
+              <button
+                type="button"
+                disabled
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-green-300 bg-white px-4 py-3 text-sm font-semibold text-green-800 opacity-70 sm:w-auto"
+              >
+                🎁 Gift a Pass — Coming Next
+              </button>
+            </div>
+          ) : null}
 
           <div className="mt-4 space-y-3">
             <BuyCampaignPassButton
