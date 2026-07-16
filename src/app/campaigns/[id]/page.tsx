@@ -5,7 +5,6 @@ import SelectableCampaignCarousel from '@/app/components/selectable-campaign-car
 import ShareCampaignButton from '@/app/components/share-campaign-button'
 import {
   buildCampaignDetailProgressState,
-  isCampaignPurchaseProgressEligible,
 } from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import {
@@ -14,6 +13,7 @@ import {
 } from '@/lib/repositories/campaign-repository'
 import { createClient } from '@/lib/supabase/server'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
+import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -206,16 +206,8 @@ export default async function CampaignPage({
   let hasActivePass = false
 
   if (user) {
-    const { data: existingPurchase } = await supabase
-      .from('campaign_purchases')
-      .select('id, payment_status')
-      .eq('campaign_id', campaign.id)
-      .eq('user_id', user.id)
-      .limit(10)
-
-    hasActivePass = (existingPurchase ?? []).some((purchase) =>
-      isCampaignPurchaseProgressEligible(purchase.payment_status)
-    )
+    const passAccess = await getCustomerPassAccess(user.id, now)
+    hasActivePass = passAccess.hasActivePass
   }
 
   const goal = Number(campaign.goal_amount ?? 0)
@@ -304,7 +296,7 @@ export default async function CampaignPage({
 
           <p className="mt-1 text-sm text-gray-600">
             {hasActivePass
-              ? 'You already have access to this fundraiser pass. You can still make an additional donation.'
+              ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation.'
               : 'One purchase gives you access to exclusive local deals while supporting this campaign.'}
           </p>
 
