@@ -9,6 +9,9 @@ import type { Database } from './database.types'
 type BaseCampaignPurchaseTable =
   Database['public']['Tables']['campaign_purchases']
 
+type BaseProfileTable =
+  Database['public']['Tables']['profiles']
+
 type CampaignPurchasePricingSnapshot = {
   organization_pass_earnings: number | null
   pass_price_charged: number | null
@@ -53,6 +56,31 @@ type CampaignPurchaseTable = {
       referencedColumns: ['id']
     },
   ]
+}
+
+type ProfileDemoClassification = {
+  demo_group: string | null
+  is_demo: boolean
+}
+
+type ProfileTable = {
+  Row:
+    BaseProfileTable['Row'] &
+    ProfileDemoClassification
+
+  Insert:
+    BaseProfileTable['Insert'] & {
+      demo_group?: string | null
+      is_demo?: boolean
+    }
+
+  Update:
+    BaseProfileTable['Update'] & {
+      demo_group?: string | null
+      is_demo?: boolean
+    }
+
+  Relationships: BaseProfileTable['Relationships']
 }
 
 type GiftPassTable = {
@@ -275,9 +303,10 @@ type PricingRuleTable = {
 
 type ExtendedTables = Omit<
   Database['public']['Tables'],
-  'campaign_purchases'
+  'campaign_purchases' | 'profiles'
 > & {
   campaign_purchases: CampaignPurchaseTable
+  profiles: ProfileTable
   gift_passes: GiftPassTable
   pricing_rules: PricingRuleTable
 }
