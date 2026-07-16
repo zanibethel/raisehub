@@ -3,8 +3,57 @@ import type { Database } from './database.types'
 // =============================================================================
 // Extended database type bridge
 // =============================================================================
-// This keeps newer RaiseHub tables strongly typed until the full generated
-// database.types.ts file is refreshed from the live Supabase schema.
+// This keeps newer RaiseHub tables and columns strongly typed until the full
+// generated database.types.ts file is refreshed from the live Supabase schema.
+
+type BaseCampaignPurchaseTable =
+  Database['public']['Tables']['campaign_purchases']
+
+type CampaignPurchasePricingSnapshot = {
+  organization_pass_earnings: number | null
+  pass_price_charged: number | null
+  platform_fee_percent: number | null
+  pricing_resolved_at: string | null
+  pricing_rule_id: string | null
+  pricing_scope: string | null
+}
+
+type CampaignPurchaseTable = {
+  Row:
+    BaseCampaignPurchaseTable['Row'] &
+    CampaignPurchasePricingSnapshot
+
+  Insert:
+    BaseCampaignPurchaseTable['Insert'] & {
+      organization_pass_earnings?: number | null
+      pass_price_charged?: number | null
+      platform_fee_percent?: number | null
+      pricing_resolved_at?: string | null
+      pricing_rule_id?: string | null
+      pricing_scope?: string | null
+    }
+
+  Update:
+    BaseCampaignPurchaseTable['Update'] & {
+      organization_pass_earnings?: number | null
+      pass_price_charged?: number | null
+      platform_fee_percent?: number | null
+      pricing_resolved_at?: string | null
+      pricing_rule_id?: string | null
+      pricing_scope?: string | null
+    }
+
+  Relationships: [
+    ...BaseCampaignPurchaseTable['Relationships'],
+    {
+      foreignKeyName: 'campaign_purchases_pricing_rule_id_fkey'
+      columns: ['pricing_rule_id']
+      isOneToOne: false
+      referencedRelation: 'pricing_rules'
+      referencedColumns: ['id']
+    },
+  ]
+}
 
 type GiftPassTable = {
   Row: {
@@ -224,11 +273,17 @@ type PricingRuleTable = {
   ]
 }
 
+type ExtendedTables = Omit<
+  Database['public']['Tables'],
+  'campaign_purchases'
+> & {
+  campaign_purchases: CampaignPurchaseTable
+  gift_passes: GiftPassTable
+  pricing_rules: PricingRuleTable
+}
+
 export type GiftPassDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Tables'> & {
-    Tables: Database['public']['Tables'] & {
-      gift_passes: GiftPassTable
-      pricing_rules: PricingRuleTable
-    }
+    Tables: ExtendedTables
   }
 }
