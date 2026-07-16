@@ -1,16 +1,12 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
 import TrackedOfferLink from '@/app/components/tracked-offer-link'
-import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
+import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
+import { createClient } from '@/lib/supabase/server'
 
 type OfferPageProps = {
   params: Promise<{
     id: string
   }>
-}
-
-type PurchaseStatusRow = {
-  payment_status: string | null
 }
 
 export default async function OfferPage({ params }: OfferPageProps) {
@@ -25,24 +21,12 @@ export default async function OfferPage({ params }: OfferPageProps) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  let hasPurchasedPass = false
+  let isUnlocked = false
 
   if (user) {
-    const { data: purchasedPasses } = await supabase
-      .from('campaign_purchases')
-      .select('payment_status')
-      .eq('user_id', user.id)
-
-    hasPurchasedPass = (
-      (purchasedPasses ?? []) as PurchaseStatusRow[]
-    ).some((purchase) =>
-      isCampaignPurchaseProgressEligible(
-        purchase.payment_status
-      )
-    )
+    const { hasActivePass } = await getCustomerPassAccess(user.id)
+    isUnlocked = hasActivePass
   }
-
-  const isUnlocked = Boolean(user && hasPurchasedPass)
 
   // ===========================================================================
   // Analytics
