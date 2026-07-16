@@ -241,8 +241,6 @@ export async function purchaseGiftPassAction(
       seller_name:
         cleanOptionalText(input.sellerName, 120),
       payment_status: 'test_paid',
-      is_demo: campaign.is_demo,
-      demo_group: campaign.demo_group,
     })
     .select('id')
     .single()
@@ -281,8 +279,6 @@ export async function purchaseGiftPassAction(
       status: 'purchased',
       claim_token_hash: claimTokenHash,
       claim_expires_at: claimExpiresAt,
-      is_demo: campaign.is_demo,
-      demo_group: campaign.demo_group,
     })
     .select('id')
     .single()
