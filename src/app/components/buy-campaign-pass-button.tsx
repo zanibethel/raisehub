@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { purchaseCampaignPassAction } from '@/app/campaigns/actions'
+import { createClient } from '@/lib/supabase/client'
 
 type OrganizationOption = {
   id: string
@@ -64,6 +65,8 @@ export default function BuyCampaignPassButton({
   initialSelectedOrganizationId = null,
 }: BuyCampaignPassButtonProps) {
   const router = useRouter()
+  const supabase = createClient()
+
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     initialSelectedOrganizationId ??
       defaultOrganizationId ??
@@ -92,6 +95,19 @@ export default function BuyCampaignPassButton({
 
   async function handleBuyPass() {
     if (loading || purchaseComplete) return
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push(
+        `/signup?campaignId=${encodeURIComponent(
+          campaignId
+        )}&source=campaign`
+      )
+      return
+    }
 
     if (totalAmount <= 0) {
       setMessage('Please choose a donation amount.')
