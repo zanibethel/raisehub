@@ -119,8 +119,8 @@ export default function BuyCampaignPassButton({
 
     const result = await purchaseCampaignPassAction({
       campaign_id: campaignId,
-      pass_price: effectivePassPrice,
-      selected_organization_id: selectedOrganizationId || undefined,
+      selected_organization_id:
+        selectedOrganizationId || undefined,
       donation_amount: donationNumber,
       seller_name: sellerName || undefined,
     })
@@ -209,7 +209,9 @@ export default function BuyCampaignPassButton({
     <div className="space-y-4">
       {hasActivePass ? (
         <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
-          <p>✅ Pass already active. You can make an additional donation below.</p>
+          <p>
+            ✅ Pass already active. You can make an additional donation below.
+          </p>
 
           <Link
             href="/dashboard"
@@ -228,7 +230,9 @@ export default function BuyCampaignPassButton({
 
           <select
             value={selectedOrganizationId}
-            onChange={(event) => setSelectedOrganizationId(event.target.value)}
+            onChange={(event) =>
+              setSelectedOrganizationId(event.target.value)
+            }
             className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm"
           >
             {organizations.map((organization) => {
@@ -238,7 +242,10 @@ export default function BuyCampaignPassButton({
                 'Organization'
 
               return (
-                <option key={organization.id} value={organization.id}>
+                <option
+                  key={organization.id}
+                  value={organization.id}
+                >
                   {name}
                 </option>
               )
@@ -249,32 +256,39 @@ export default function BuyCampaignPassButton({
 
       <div>
         <label className="mb-2 block text-sm font-medium text-gray-700">
-          {hasActivePass ? 'Additional donation' : 'Optional donation add-on'}
+          {hasActivePass
+            ? 'Additional donation'
+            : 'Optional donation add-on'}
         </label>
 
         <div className="flex flex-wrap gap-2">
-          {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map(
-            (amount) => (
-              <button
-                key={amount}
-                type="button"
-                onClick={() => setDonationAmount(amount)}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-                  donationAmount === amount
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                }`}
-              >
-                {amount === '0' ? 'No donation' : `$${amount}`}
-              </button>
-            )
-          )}
+          {(hasActivePass
+            ? ['5', '10', '25']
+            : ['0', '10', '25']
+          ).map((amount) => (
+            <button
+              key={amount}
+              type="button"
+              onClick={() => setDonationAmount(amount)}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                donationAmount === amount
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+              }`}
+            >
+              {amount === '0'
+                ? 'No donation'
+                : `$${amount}`}
+            </button>
+          ))}
 
           <button
             type="button"
             onClick={() => setDonationAmount('')}
             className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-              !['0', '5', '10', '25'].includes(donationAmount)
+              !['0', '5', '10', '25'].includes(
+                donationAmount
+              )
                 ? 'border-blue-600 bg-blue-600 text-white'
                 : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
             }`}
@@ -283,13 +297,17 @@ export default function BuyCampaignPassButton({
           </button>
         </div>
 
-        {!['0', '5', '10', '25'].includes(donationAmount) ? (
+        {!['0', '5', '10', '25'].includes(
+          donationAmount
+        ) ? (
           <input
             type="number"
             min="0"
             step="1"
             value={donationAmount}
-            onChange={(event) => setDonationAmount(event.target.value)}
+            onChange={(event) =>
+              setDonationAmount(event.target.value)
+            }
             className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm"
             placeholder="Enter custom amount"
           />
@@ -309,7 +327,11 @@ export default function BuyCampaignPassButton({
         ) : null}
 
         <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
-          <span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span>
+          <span>
+            {hasActivePass
+              ? 'Donation'
+              : 'Donation add-on'}
+          </span>
           <span>${donationNumber.toFixed(2)}</span>
         </div>
 
@@ -332,7 +354,11 @@ export default function BuyCampaignPassButton({
             : `Support Campaign - $${totalAmount.toFixed(2)}`}
       </button>
 
-      {message ? <p className="text-sm text-red-600">{message}</p> : null}
+      {message ? (
+        <p className="text-sm text-red-600">
+          {message}
+        </p>
+      ) : null}
     </div>
   )
 }
