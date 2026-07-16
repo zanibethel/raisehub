@@ -1,0 +1,218 @@
+import 'server-only'
+
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export type OwnerPricingHistoryEnvironment =
+  | 'production'
+  | 'demo'
+
+export type OwnerPlatformPricingHistoryItem = {
+  id: string
+  environment: OwnerPricingHistoryEnvironment
+  passPrice: number
+  platformFeePercent: number
+  platformFeeAmount: number
+  organizationPassEarnings: number
+  status: 'active' | 'inactive'
+  startsAt: string
+  expiresAt: string | null
+  reason: string | null
+  internalNote: string | null
+  createdAt: string
+  createdByUserId: string | null
+}
+
+export type OwnerPlatformPricingHistoryResult =
+  | {
+      status: 'success'
+      history: OwnerPlatformPricingHistoryItem[]
+    }
+  | {
+      status: 'unauthenticated'
+      message: string
+    }
+  | {
+      status: 'owner-role-required'
+      message: string
+    }
+  | {
+      status: 'lookup-failure'
+      message: string
+    }
+
+type ActorProfile = {
+  role: string
+}
+
+type PlatformPricingHistoryRow = {
+  id: string
+  pass_price: number
+  platform_fee_percent: number
+  status: string
+  starts_at: string
+  expires_at: string | null
+  reason: string | null
+  internal_note: string | null
+  is_demo: boolean
+  created_at: string
+  created_by: string | null
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const DEFAULT_HISTORY_LIMIT = 20
+const MAX_HISTORY_LIMIT = 100
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function normalizeMoney(value: number) {
+  const normalized = Number(value)
+
+  if (!Number.isFinite(normalized)) {
+    return 0
+  }
+
+  return Math.round(normalized * 100) / 100
+}
+
+function normalizeLimit(limit?: number) {
+  if (!Number.isFinite(limit)) {
+    return DEFAULT_HISTORY_LIMIT
+  }
+
+  return Math.min(
+    MAX_HISTORY_LIMIT,
+    Math.max(1, Math.floor(limit ?? DEFAULT_HISTORY_LIMIT))
+  )
+}
+
+function mapHistoryItem(
+  row: PlatformPricingHistoryRow
+): OwnerPlatformPricingHistoryItem {
+  const passPrice = normalizeMoney(row.pass_price)
+
+  const platformFeePercent = normalizeMoney(
+    row.platform_fee_percent
+  )
+
+  const platformFeeAmount = normalizeMoney(
+    passPrice * (platformFeePercent / 100)
+  )
+
+  return {
+    id: row.id,
+    environment: row.is_demo
+      ? 'demo'
+      : 'production',
+    passPrice,
+    platformFeePercent,
+    platformFeeAmount,
+    organizationPassEarnings: normalizeMoney(
+      passPrice - platformFeeAmount
+    ),
+    status:
+      row.status === 'active'
+        ? 'active'
+        : 'inactive',
+    startsAt: row.starts_at,
+    expiresAt: row.expires_at,
+    reason: row.reason,
+    internalNote: row.internal_note,
+    createdAt: row.created_at,
+    createdByUserId: row.created_by,
+  }
+}
+
+// =============================================================================
+// Service
+// =============================================================================
+
+export async function getOwnerPlatformPricingHistory(
+  limit?: number
+): Promise<OwnerPlatformPricingHistoryResult> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return {
+      status: 'unauthenticated',
+      message: 'Sign in to view pricing history.',
+    }
+  }
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single<ActorProfile>()
+
+  if (profileError || !profile) {
+    return {
+      status: 'lookup-failure',
+      message: 'Unable to verify owner access.',
+    }
+  }
+
+  if (profile.role !== 'owner') {
+    return {
+      status: 'owner-role-required',
+      message: 'Owner access is required.',
+    }
+  }
+
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('pricing_rules')
+    .select(
+      `
+        id,
+        pass_price,
+        platform_fee_percent,
+        status,
+        starts_at,
+        expires_at,
+        reason,
+        internal_note,
+        is_demo,
+        created_at,
+        created_by
+      `
+    )
+    .eq('scope_type', 'platform')
+    .order('starts_at', {
+      ascending: false,
+    })
+    .order('created_at', {
+      ascending: false,
+    })
+    .limit(normalizeLimit(limit))
+
+  if (error) {
+    return {
+      status: 'lookup-failure',
+      message: 'Unable to load platform pricing history.',
+    }
+  }
+
+  return {
+    status: 'success',
+    history: (
+      (data ?? []) as PlatformPricingHistoryRow[]
+    ).map(mapHistoryItem),
+  }
+}
