@@ -1,14 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { addSavedOfferAction } from '@/app/offers/actions'
 
 type SaveOfferButtonProps = {
   offerId: string
 }
 
 export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
-  const supabase = createClient()
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -16,28 +15,16 @@ export default function SaveOfferButton({ offerId }: SaveOfferButtonProps) {
     setLoading(true)
     setMessage('')
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const result = await addSavedOfferAction(offerId)
 
-    if (!user) {
-      setMessage('Please log in first.')
+    if (result.status === 'already-saved') {
+      setMessage('Already on your pass.')
       setLoading(false)
       return
     }
 
-    const { error } = await supabase.from('saved_offers').insert({
-      user_id: user.id,
-      offer_id: offerId,
-    })
-
-    if (error) {
-      if (error.code === '23505') {
-        setMessage('Already on your pass.')
-      } else {
-        setMessage(error.message)
-      }
-
+    if (result.status === 'error') {
+      setMessage(result.message)
       setLoading(false)
       return
     }
