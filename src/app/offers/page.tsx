@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import SaveOfferButton from '@/app/components/save-offer-button'
+import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -39,20 +40,8 @@ export default async function OffersPage() {
   let savedOfferIds = new Set<string>()
 
   if (user) {
-    const { data: entitlements } = await supabase
-      .from('customer_entitlements')
-      .select('id, status, starts_at, expires_at, revoked_at')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .lte('starts_at', nowIso)
-      .is('revoked_at', null)
-
-    hasActivePass =
-      entitlements?.some(
-        (entitlement) =>
-          !entitlement.expires_at ||
-          new Date(entitlement.expires_at) > now
-      ) ?? false
+    const passAccess = await getCustomerPassAccess(user.id, now)
+    hasActivePass = passAccess.hasActivePass
 
     if (hasActivePass) {
       const { data: savedOffers } = await supabase
