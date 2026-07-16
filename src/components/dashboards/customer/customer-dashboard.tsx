@@ -1,3 +1,4 @@
+import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 import CustomerDashboardContent from './customer-dashboard-content'
 
@@ -13,7 +14,8 @@ import type {
 
 export default async function CustomerDashboard() {
   const supabase = await createClient()
-  const now = new Date().toISOString()
+  const nowDate = new Date()
+  const now = nowDate.toISOString()
 
   const {
     data: { user },
@@ -22,6 +24,9 @@ export default async function CustomerDashboard() {
   if (!user) {
     return null
   }
+
+  const passAccess = await getCustomerPassAccess(user.id, nowDate)
+  const hasPurchasedPass = passAccess.hasActivePass
 
   // ===========================================================================
   // Purchased fundraiser passes
@@ -77,8 +82,6 @@ export default async function CustomerDashboard() {
       },
     ])
   )
-
-  const hasPurchasedPass = purchasedPasses.length > 0
 
   // ===========================================================================
   // Active offers
