@@ -56,12 +56,14 @@ function mapRecoveryResult(
     case 'lookup-failure':
       return {
         status: 'error',
-        message: 'We could not refresh campaign availability. Please try again.',
+        message:
+          'We could not refresh campaign availability. Please try again.',
       }
     case 'current-campaign-valid':
       return {
         status: 'error',
-        message: 'We could not complete the purchase. Please try again.',
+        message:
+          'We could not complete the purchase. Please try again.',
       }
   }
 }
@@ -72,26 +74,32 @@ export async function purchaseCampaignPassAction(
   const supabase = await createClient()
   const now = new Date()
 
-  const { campaign, error: campaignError } = await getCampaignById(
-    input.campaign_id
-  )
+  const { campaign, error: campaignError } =
+    await getCampaignById(input.campaign_id)
 
   if (campaignError) {
     return {
       status: 'error',
-      message: 'We could not confirm the selected campaign. Please try again.',
+      message:
+        'We could not confirm the selected campaign. Please try again.',
     }
   }
 
   if (!campaign) {
     return mapRecoveryResult(
-      await resolveCampaignRecovery(input.campaign_id, now)
+      await resolveCampaignRecovery(
+        input.campaign_id,
+        now
+      )
     )
   }
 
   if (!isCampaignCurrentlySellable(campaign, now)) {
     return mapRecoveryResult(
-      await resolveCampaignRecovery(input.campaign_id, now)
+      await resolveCampaignRecovery(
+        input.campaign_id,
+        now
+      )
     )
   }
 
@@ -99,35 +107,61 @@ export async function purchaseCampaignPassAction(
     data: { user },
   } = await supabase.auth.getUser()
 
-  const passPrice = Number(input.pass_price) || 0
-  const donationAmount = Number(input.donation_amount ?? 0) || 0
+  if (!user) {
+    return {
+      status: 'error',
+      message:
+        'Create an account or log in before purchasing a fundraiser pass.',
+    }
+  }
 
-  const platformFee = passPrice * (PLATFORM_FEE_PERCENT / 100)
-  const passOrganizationEarnings = passPrice - platformFee
-  const organizationEarnings = passOrganizationEarnings + donationAmount
-  const amountPaid = passPrice + donationAmount
+  const passPrice =
+    Number(input.pass_price) || 0
+  const donationAmount =
+    Number(input.donation_amount ?? 0) || 0
 
-  const { error } = await supabase.from('campaign_purchases').insert({
-    campaign_id: input.campaign_id,
-    user_id: user?.id ?? null,
-    buyer_email: user?.email ?? null,
-    amount_paid: amountPaid,
-    platform_fee: platformFee,
-    organization_earnings: organizationEarnings,
-    selected_organization_id: input.selected_organization_id ?? null,
-    donation_amount: donationAmount,
-    seller_name: input.seller_name ?? null,
-    payment_status: 'test_paid',
-  })
+  const platformFee =
+    passPrice *
+    (PLATFORM_FEE_PERCENT / 100)
+  const passOrganizationEarnings =
+    passPrice - platformFee
+  const organizationEarnings =
+    passOrganizationEarnings +
+    donationAmount
+  const amountPaid =
+    passPrice + donationAmount
+
+  const { error } = await supabase
+    .from('campaign_purchases')
+    .insert({
+      campaign_id: input.campaign_id,
+      user_id: user.id,
+      buyer_email: user.email ?? null,
+      amount_paid: amountPaid,
+      platform_fee: platformFee,
+      organization_earnings:
+        organizationEarnings,
+      selected_organization_id:
+        input.selected_organization_id ?? null,
+      donation_amount: donationAmount,
+      seller_name:
+        input.seller_name ?? null,
+      payment_status: 'test_paid',
+    })
 
   if (error) {
     return mapRecoveryResult(
-      await resolveCampaignRecovery(input.campaign_id, new Date())
+      await resolveCampaignRecovery(
+        input.campaign_id,
+        new Date()
+      )
     )
   }
 
   revalidatePath('/dashboard')
-  revalidatePath(`/campaigns/${input.campaign_id}`)
+  revalidatePath(
+    `/campaigns/${input.campaign_id}`
+  )
   revalidatePath('/campaigns')
   revalidatePath('/')
 
