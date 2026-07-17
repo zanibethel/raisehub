@@ -4,35 +4,21 @@ import type {
   WorkspaceRole,
 } from '@/lib/types/identity-access'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type {
   WorkspaceCardData,
   WorkspaceRole,
 } from '@/lib/types/identity-access'
 
-// =============================================================================
-// Props
-// =============================================================================
-
 type WorkspaceCardProps = {
   workspace: WorkspaceCardData
 }
-
-// =============================================================================
-// Helpers
-// =============================================================================
 
 function getRoleLabel(role: WorkspaceRole): string {
   switch (role) {
     case 'business':
       return 'Business'
-
     case 'organization':
       return 'Organization'
-
     case 'customer':
       return 'Customer'
   }
@@ -42,10 +28,8 @@ function getRoleClasses(role: WorkspaceRole): string {
   switch (role) {
     case 'business':
       return 'border-green-200 bg-green-50 text-green-700'
-
     case 'organization':
       return 'border-blue-200 bg-blue-50 text-blue-700'
-
     case 'customer':
       return 'border-yellow-200 bg-yellow-50 text-yellow-700'
   }
@@ -108,10 +92,6 @@ function clampPercentage(value?: number | null): number | null {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export default function WorkspaceCard({
   workspace,
 }: WorkspaceCardProps) {
@@ -138,7 +118,6 @@ export default function WorkspaceCard({
 
   return (
     <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:p-5">
-      {/* Header */}
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <span
@@ -188,7 +167,6 @@ export default function WorkspaceCard({
         </div>
       </div>
 
-      {/* Setup progress */}
       <section className="mt-5 min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
@@ -218,7 +196,6 @@ export default function WorkspaceCard({
         ) : null}
       </section>
 
-      {/* Missing setup items */}
       {missingSetupItems.length > 0 ? (
         <section className="mt-3 min-w-0 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">
@@ -251,7 +228,6 @@ export default function WorkspaceCard({
         </section>
       )}
 
-      {/* Contact */}
       <section className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
           Contact
@@ -302,17 +278,16 @@ export default function WorkspaceCard({
         )}
       </section>
 
-      {/* Actions */}
       <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row">
         <Link
-          href={`/dashboard?${workspaceUrl.toString()}`}
+          href={`/dashboard/owner/support?${workspaceUrl.toString()}`}
           className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
         >
-          Open Workspace
+          Open account
         </Link>
 
         <Link
-          href={`/dashboard?${workspaceUrl.toString()}&supportMode=read-only`}
+          href={`/dashboard/owner/support?${workspaceUrl.toString()}&supportMode=read-only`}
           className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
         >
           Support Mode
