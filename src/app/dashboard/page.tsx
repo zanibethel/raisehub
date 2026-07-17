@@ -7,7 +7,6 @@ import BusinessDashboard from '@/components/dashboards/business/business-dashboa
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
-import type { PreviewRole } from '@/components/dashboards/owner/owner-dashboard'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
@@ -31,7 +30,6 @@ type Profile = {
 
 type DashboardPageProps = {
   searchParams?: Promise<{
-    previewRole?: string | string[]
     workspace?: string | string[]
   }>
 }
@@ -60,31 +58,6 @@ function hasRequestedWorkspace(
   }
 
   return value !== undefined
-}
-
-// =============================================================================
-// Preview-role helpers
-// =============================================================================
-
-const VALID_PREVIEW_ROLES: PreviewRole[] = [
-  'customer',
-  'business',
-  'organization',
-  'admin',
-]
-
-function getPreviewRole(
-  value?: string | string[]
-): PreviewRole {
-  const candidate = Array.isArray(value)
-    ? value[0]
-    : value
-
-  return VALID_PREVIEW_ROLES.includes(
-    candidate as PreviewRole
-  )
-    ? (candidate as PreviewRole)
-    : 'customer'
 }
 
 // =============================================================================
@@ -193,18 +166,11 @@ function WorkspaceUnavailable({
 
 function renderDashboard(
   role: DashboardExperienceRole,
-  previewRole: PreviewRole,
   selectedWorkspace: SelectableWorkspace | null
 ) {
   switch (role) {
     case 'owner':
-      return (
-        <OwnerDashboard
-          searchParams={{
-            previewRole,
-          }}
-        />
-      )
+      return <OwnerDashboard />
 
     case 'business':
       if (
@@ -337,10 +303,6 @@ export default async function DashboardPage({
   const experienceRole =
     workspaceSelection.experienceRole
 
-  const previewRole = getPreviewRole(
-    resolvedSearchParams?.previewRole
-  )
-
   const theme = getRoleTheme(experienceRole)
 
   return (
@@ -403,7 +365,6 @@ export default async function DashboardPage({
         <div className="relative z-0">
           {renderDashboard(
             experienceRole,
-            previewRole,
             selectedWorkspace
           )}
         </div>
