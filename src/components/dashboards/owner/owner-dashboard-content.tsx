@@ -4,7 +4,6 @@ import OwnerAnalyticsSection from './sections/owner-analytics-section'
 import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 
 type OwnerDashboardContentProps = {
-  activeRole: string
   platformMetrics?: PlatformMetrics | null
 }
 
