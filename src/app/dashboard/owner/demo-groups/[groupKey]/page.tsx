@@ -1,20 +1,24 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import CreateDemoProfileForm from '@/components/dashboards/owner/create-demo-profile-form'
 import {
   getDemoGroupDetails,
   type DemoProfileSummary,
 } from '@/lib/repositories/demo-platform-repository'
+import { createClient } from '@/lib/supabase/server'
 
-// =============================================================================
-// Types
+// ==========================used
 // =============================================================================
 
 type DemoGroupPageProps = {
   params: Promise<{
     groupKey: string
   }>
+}
+
+type ActorProfile = {
+  role: string
 }
 
 // =============================================================================
@@ -37,6 +41,22 @@ function getRoleTone(role: string) {
 
     default:
       return 'bg-slate-100 text-slate-700'
+  }
+}
+
+function getPreviewRole(role: string) {
+  switch (role) {
+    case 'business':
+    case 'organization':
+    case 'admin':
+      return role
+
+    case 'owner':
+      return 'admin'
+
+    case 'customer':
+    default:
+      return 'customer'
   }
 }
 
@@ -86,11 +106,11 @@ function DemoProfileRow({
 
         {profile.profileId ? (
           <Link
-            href={`/dashboard/owner?previewRole=${encodeURIComponent(
-              profile.role
+            href={`/dashboard/owner/preview?previewRole=${encodeURIComponent(
+              getPreviewRole(profile.role)
             )}&subject=${encodeURIComponent(
               profile.profileId
-            )}#owner-role-preview`}
+            )}`}
             className="inline-flex w-fit shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
           >
             Open →
@@ -112,6 +132,27 @@ function DemoProfileRow({
 export default async function DemoGroupPage({
   params,
 }: DemoGroupPageProps) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    redirect('/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single<ActorProfile>()
+
+  if (!profile || profile.role !== 'owner') {
+    redirect('/dashboard')
+  }
+
   const { groupKey } = await params
 
   const result =
