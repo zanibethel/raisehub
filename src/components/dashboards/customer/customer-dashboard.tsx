@@ -10,6 +10,22 @@ import type {
 } from '@/types/customer-dashboard'
 
 // =============================================================================
+// Types
+// =============================================================================
+
+type CustomerDashboardProps = {
+  /**
+   * Customer profile ID associated with an already-authorized preview or
+   * workspace selection.
+   *
+   * The calling route must verify access before supplying this value. When
+   * omitted, the existing customer dashboard behavior uses the authenticated
+   * user's ID.
+   */
+  customerProfileId?: string | null
+}
+
+// =============================================================================
 // Display helpers
 // =============================================================================
 
@@ -24,7 +40,9 @@ function formatEntitlementType(value: string): string {
 // Customer dashboard loader
 // =============================================================================
 
-export default async function CustomerDashboard() {
+export default async function CustomerDashboard({
+  customerProfileId,
+}: CustomerDashboardProps = {}) {
   const supabase = await createClient()
   const nowDate = new Date()
   const now = nowDate.toISOString()
@@ -37,7 +55,13 @@ export default async function CustomerDashboard() {
     return null
   }
 
-  const passAccess = await getCustomerPassAccess(user.id, nowDate)
+  const resolvedCustomerProfileId =
+    customerProfileId?.trim() || user.id
+
+  const passAccess = await getCustomerPassAccess(
+    resolvedCustomerProfileId,
+    nowDate
+  )
   const activeEntitlement = passAccess.activeEntitlement
   const hasPurchasedPass = passAccess.hasActivePass
 
@@ -61,7 +85,7 @@ export default async function CustomerDashboard() {
         pass_price
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', resolvedCustomerProfileId)
     .order('created_at', { ascending: false })
 
   const purchasedPasses =
@@ -137,7 +161,7 @@ export default async function CustomerDashboard() {
   const { data: savedOffers } = await supabase
     .from('saved_offers')
     .select('id, offer_id')
-    .eq('user_id', user.id)
+    .eq('user_id', resolvedCustomerProfileId)
 
   const savedOfferIds = new Set(
     (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
@@ -150,7 +174,7 @@ export default async function CustomerDashboard() {
   const { data: redemptions } = await supabase
     .from('redemptions')
     .select('offer_id, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', resolvedCustomerProfileId)
 
   const redeemedOfferIds = new Set(
     (redemptions ?? []).map(
