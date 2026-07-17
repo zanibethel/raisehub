@@ -3,15 +3,11 @@ import Link from 'next/link'
 import OwnerFeatureCard from '@/components/dashboards/owner/owner-feature-card'
 import { getDemoGroups } from '@/lib/repositories/demo-platform-repository'
 
-// =============================================================================
-// Quick actions
-// =============================================================================
-
 const quickActions = [
   {
     title: 'Find account',
     description: 'Search every workspace',
-    href: '#owner-workspaces',
+    href: '/dashboard/owner/support',
   },
   {
     title: 'Preview role',
@@ -19,9 +15,9 @@ const quickActions = [
     href: '#owner-role-preview',
   },
   {
-    title: 'Support tools',
-    description: 'Assist a client safely',
-    href: '/dashboard/owner/support',
+    title: 'Demo Center',
+    description: 'Manage demo scenarios',
+    href: '/dashboard/owner/demos',
   },
   {
     title: 'Platform analytics',
@@ -29,10 +25,6 @@ const quickActions = [
     href: '/dashboard/owner/analytics',
   },
 ]
-
-// =============================================================================
-// Section
-// =============================================================================
 
 export default async function OwnerPlatformOverviewSection() {
   const demoGroupsResult = await getDemoGroups()
