@@ -16,30 +16,9 @@ type Props = {
   }
 }
 
-const VALID_PREVIEW_ROLES: PreviewRole[] = [
-  'customer',
-  'business',
-  'organization',
-  'admin',
-]
-
-function resolvePreviewRole(
-  previewRole?: string
-): PreviewRole {
-  return VALID_PREVIEW_ROLES.includes(
-    previewRole as PreviewRole
-  )
-    ? (previewRole as PreviewRole)
-    : 'customer'
-}
-
-export default async function OwnerDashboard({
-  searchParams,
-}: Props) {
-  const previewRole = resolvePreviewRole(
-    searchParams?.previewRole
-  )
-
+export default async function OwnerDashboard(
+  _props: Props
+) {
   const platformAnalyticsResult =
     await getOwnerPlatformAnalytics()
 
@@ -51,7 +30,6 @@ export default async function OwnerDashboard({
   return (
     <>
       <OwnerDashboardContent
-        activeRole={previewRole}
         platformMetrics={platformMetrics}
       />
 
