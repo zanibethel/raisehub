@@ -12,7 +12,7 @@ const quickActions = [
   {
     title: 'Preview role',
     description: 'Test another experience',
-    href: '#owner-role-preview',
+    href: '/dashboard/owner/preview',
   },
   {
     title: 'Demo Center',
