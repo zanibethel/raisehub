@@ -1,242 +1,42 @@
 import Link from 'next/link'
 
 import CreateDemoGroupForm from '@/components/dashboards/owner/create-demo-group-form'
+import OwnerFeatureCard from '@/components/dashboards/owner/owner-feature-card'
 import {
   getDemoGroups,
   type DemoGroupSummary,
 } from '@/lib/repositories/demo-platform-repository'
 
 // =============================================================================
-// Types
+// Quick actions
 // =============================================================================
 
-type ConsoleLink = {
-  title: string
-  description: string
-  href: string
-  status?: string
-}
-
-type ConsoleMenuProps = {
-  title: string
-  description: string
-  items: ConsoleLink[]
-  defaultOpen?: boolean
-}
-
-// =============================================================================
-// Console destinations
-// =============================================================================
-
-const quickActions: ConsoleLink[] = [
+const quickActions = [
   {
-    title: 'Find Account',
+    title: 'Find account',
     description: 'Search every workspace',
     href: '#owner-workspaces',
   },
   {
-    title: 'Preview Role',
+    title: 'Preview role',
     description: 'Test another experience',
     href: '#owner-role-preview',
   },
   {
-    title: 'Support Tools',
+    title: 'Support tools',
     description: 'Assist a client safely',
     href: '/dashboard/owner/support',
   },
   {
-    title: 'Platform Analytics',
+    title: 'Platform analytics',
     description: 'Review live totals',
     href: '#owner-analytics',
   },
 ]
 
-const managementItems: ConsoleLink[] = [
-  {
-    title: 'Businesses',
-    description:
-      'Review business profiles, offers, and support access.',
-    href: '/dashboard/owner/businesses',
-  },
-  {
-    title: 'Organizations',
-    description:
-      'Review organizations, campaigns, sellers, and earnings.',
-    href: '/dashboard/owner/organizations',
-  },
-  {
-    title: 'Customers',
-    description:
-      'Review customer accounts, passes, savings, and redemptions.',
-    href: '/dashboard/owner/customers',
-  },
-]
-
-const demoItems: ConsoleLink[] = [
-  {
-    title: 'Experience Viewer',
-    description:
-      'Preview customer, business, organization, and admin experiences.',
-    href: '#owner-role-preview',
-  },
-  {
-    title: 'Demo Profiles',
-    description:
-      'Create, open, reset, and remove reusable demo identities.',
-    href: '#owner-demo-groups',
-    status: 'Foundation ready',
-  },
-  {
-    title: 'Demo Groups',
-    description:
-      'Review portable demo datasets and their related records.',
-    href: '#owner-demo-groups',
-    status: 'Live',
-  },
-]
-
-const supportItems: ConsoleLink[] = [
-  {
-    title: 'Find Workspace',
-    description:
-      'Search businesses, organizations, and customers.',
-    href: '#owner-workspaces',
-  },
-  {
-    title: 'Client Assistance',
-    description:
-      'Open support tools and inspect client workspaces.',
-    href: '/dashboard/owner/support',
-    status: 'Foundation ready',
-  },
-  {
-    title: 'Support Activity',
-    description:
-      'Review owner actions and audit history.',
-    href: '/dashboard/owner/activity',
-    status: 'Foundation ready',
-  },
-]
-
-const platformItems: ConsoleLink[] = [
-  {
-    title: 'Platform Health',
-    description:
-      'Review warnings, incomplete profiles, and system issues.',
-    href: '/dashboard/owner/health',
-    status: 'Planned',
-  },
-  {
-    title: 'Revenue',
-    description:
-      'Track campaign volume, fees, and organization earnings.',
-    href: '/dashboard/owner/revenue',
-    status: 'Planned',
-  },
-  {
-    title: 'Platform Settings',
-    description:
-      'Manage limits, feature flags, and platform behavior.',
-    href: '/dashboard/owner/settings',
-    status: 'Planned',
-  },
-]
-
 // =============================================================================
-// Components
+// Demo groups
 // =============================================================================
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-      className="h-5 w-5 shrink-0 text-slate-400"
-    >
-      <path
-        fillRule="evenodd"
-        d="M7.22 14.78a.75.75 0 0 1 0-1.06L10.94 10 7.22 6.28a.75.75 0 0 1 1.06-1.06l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-      className="h-5 w-5 shrink-0 text-slate-500 transition group-open:rotate-180"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-function ConsoleMenu({
-  title,
-  description,
-  items,
-  defaultOpen = false,
-}: ConsoleMenuProps) {
-  return (
-    <details
-      open={defaultOpen}
-      className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 transition hover:bg-slate-50 sm:p-6">
-        <span className="min-w-0">
-          <span className="block text-lg font-bold text-slate-950">
-            {title}
-          </span>
-
-          <span className="mt-1 block text-sm leading-5 text-slate-600">
-            {description}
-          </span>
-        </span>
-
-        <ChevronIcon />
-      </summary>
-
-      <div className="border-t border-slate-100 p-2 sm:p-3">
-        {items.map((item) => (
-          <Link
-            key={item.title}
-            href={item.href}
-            className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-blue-50 sm:px-4"
-          >
-            <span className="min-w-0">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-slate-900">
-                  {item.title}
-                </span>
-
-                {item.status ? (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                    {item.status}
-                  </span>
-                ) : null}
-              </span>
-
-              <span className="mt-0.5 block text-sm leading-5 text-slate-600">
-                {item.description}
-              </span>
-            </span>
-
-            <ArrowIcon />
-          </Link>
-        ))}
-      </div>
-    </details>
-  )
-}
 
 function DemoGroupCard({
   group,
@@ -382,8 +182,13 @@ function DemoGroupsPanel({
 // =============================================================================
 
 export default async function OwnerPlatformOverviewSection() {
-  const demoGroupsResult =
-    await getDemoGroups()
+  const demoGroupsResult = await getDemoGroups()
+
+  const demoProfileCount =
+    demoGroupsResult.groups.reduce(
+      (total, group) => total + group.profileCount,
+      0
+    )
 
   return (
     <section className="space-y-6">
@@ -399,8 +204,7 @@ export default async function OwnerPlatformOverviewSection() {
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-              Monitor the platform, manage accounts, operate demo
-              experiences, and assist clients from one secure workspace.
+              Monitor what matters, then open the dedicated workspace for deeper management, tools, and history.
             </p>
           </div>
 
@@ -412,16 +216,14 @@ export default async function OwnerPlatformOverviewSection() {
       </div>
 
       <div>
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
-              Quick Actions
-            </p>
+        <div className="mb-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+            Quick Actions
+          </p>
 
-            <h3 className="mt-1 text-xl font-bold text-slate-950">
-              Go straight to the work
-            </h3>
-          </div>
+          <h3 className="mt-1 text-xl font-bold text-slate-950">
+            Go straight to the work
+          </h3>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -443,33 +245,111 @@ export default async function OwnerPlatformOverviewSection() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <ConsoleMenu
-          title="Manage Platform"
-          description="Businesses, organizations, and customers"
-          items={managementItems}
-          defaultOpen
-        />
+      <div>
+        <div className="mb-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+            Management Areas
+          </p>
 
-        <div id="owner-demo-center">
-          <ConsoleMenu
-            title="Demo Center"
-            description="Demo profiles, groups, and experience tools"
-            items={demoItems}
-          />
+          <h3 className="mt-1 text-xl font-bold text-slate-950">
+            Open a focused workspace
+          </h3>
+
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            Each area keeps the dashboard summary light while providing the complete information and tools behind it.
+          </p>
         </div>
 
-        <ConsoleMenu
-          title="Client Support"
-          description="Workspace search, assistance, and audit history"
-          items={supportItems}
-        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <OwnerFeatureCard
+            eyebrow="Manage Platform"
+            title="Businesses"
+            description="Review profiles, offers, visibility, redemptions, and support access."
+            href="/dashboard/owner/businesses"
+            actionLabel="Manage businesses"
+            status={{
+              label: 'Live',
+              tone: 'green',
+            }}
+          />
 
-        <ConsoleMenu
-          title="Platform Operations"
-          description="Health, revenue, settings, and platform controls"
-          items={platformItems}
-        />
+          <OwnerFeatureCard
+            eyebrow="Manage Platform"
+            title="Organizations"
+            description="Review organizations, campaigns, sellers, supporters, and fundraising earnings."
+            href="/dashboard/owner/organizations"
+            actionLabel="Manage organizations"
+            status={{
+              label: 'Live',
+              tone: 'green',
+            }}
+          />
+
+          <OwnerFeatureCard
+            eyebrow="Manage Platform"
+            title="Customers"
+            description="Review customer accounts, passes, savings, purchases, and redemption activity."
+            href="/dashboard/owner/customers"
+            actionLabel="Manage customers"
+            status={{
+              label: 'Live',
+              tone: 'green',
+            }}
+          />
+
+          <OwnerFeatureCard
+            eyebrow="Demo Platform"
+            title="Demo Center"
+            description="Create reusable scenarios, manage demo identities, and preview role experiences."
+            href="#owner-demo-groups"
+            actionLabel="Open Demo Center"
+            metrics={[
+              {
+                label: 'Groups',
+                value: String(
+                  demoGroupsResult.groups.length
+                ),
+              },
+              {
+                label: 'Profiles',
+                value: String(demoProfileCount),
+              },
+            ]}
+            status={{
+              label: demoGroupsResult.error
+                ? 'Needs review'
+                : 'Live',
+              tone: demoGroupsResult.error
+                ? 'amber'
+                : 'blue',
+            }}
+          />
+
+          <OwnerFeatureCard
+            eyebrow="Client Assistance"
+            title="Support Center"
+            description="Find workspaces, inspect client context safely, and track assistance activity."
+            href="/dashboard/owner/support"
+            actionLabel="Open support tools"
+            status={{
+              label: 'Foundation ready',
+              tone: 'blue',
+            }}
+          />
+
+          <OwnerFeatureCard
+            eyebrow="Platform Controls"
+            title="Operations"
+            description="Review health, revenue, settings, feature controls, and platform-wide warnings."
+            href="/dashboard/owner/health"
+            actionLabel="Open operations"
+            status={{
+              label: 'Building',
+              tone: 'amber',
+            }}
+            footer="Health, revenue, automation, and settings will become focused pages as each tool is completed."
+          />
+        </div>
       </div>
 
       <DemoGroupsPanel
