@@ -131,10 +131,10 @@ export default async function DemoGroupPage({
     <div className="w-full overflow-x-clip">
       <main className="mx-auto w-full min-w-0 max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         <Link
-          href="/dashboard/owner#owner-demo-groups"
+          href="/dashboard/owner/demos"
           className="inline-flex max-w-full items-center break-words text-sm font-semibold text-blue-700 hover:text-blue-900"
         >
-          ← Back to Demo Groups
+          ← Back to Demo Center
         </Link>
 
         <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white shadow-xl sm:p-8">
