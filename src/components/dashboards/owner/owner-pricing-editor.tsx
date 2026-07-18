@@ -1,29 +1,23 @@
-'use server'
+'use client'
 
-import { revalidatePath } from 'next/cache'
+import { useActionState, useMemo, useState } from 'react'
+import { useFormStatus } from 'react-dom'
 
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import {
+  publishPlatformPricingAction,
+  type OwnerPricingEnvironment,
+  type PublishPlatformPricingActionState,
+} from './owner-pricing-actions'
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type OwnerPricingEnvironment =
-  | 'production'
-  | 'demo'
-
-export type PublishPlatformPricingActionState = {
-  success: boolean
-  message: string | null
-  environment: OwnerPricingEnvironment | null
-}
-
-export type PublishCampaignPricingActionState = {
-  success: boolean
-  message: string | null
-  campaignId: string | null
-  environment: OwnerPricingEnvironment | null
+type OwnerPricingEditorProps = {
+  productionPassPrice: number
+  productionFeePercent: number
+  demoPassPrice: number
+  demoFeePercent: number
 }
 
 // =============================================================================
@@ -36,418 +30,335 @@ const INITIAL_STATE: PublishPlatformPricingActionState = {
   environment: null,
 }
 
-const INITIAL_CAMPAIGN_STATE: PublishCampaignPricingActionState = {
-  success: false,
-  message: null,
-  campaignId: null,
-  environment: null,
-}
-
 // =============================================================================
 // Helpers
 // =============================================================================
 
-function readFormValue(
-  formData: FormData,
-  key: string
-) {
-  const value = formData.get(key)
-
-  return typeof value === 'string'
-    ? value.trim()
-    : ''
-}
-
-function isPricingEnvironment(
-  value: string
-): value is OwnerPricingEnvironment {
-  return value === 'production' || value === 'demo'
-}
-
-function parseMoney(
-  value: string
-): number | null {
-  if (!value) {
-    return null
-  }
-
+function normalizeNumber(value: string) {
   const parsed = Number(value)
 
-  if (!Number.isFinite(parsed)) {
-    return null
-  }
-
-  return Math.round(parsed * 100) / 100
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0
 }
 
-function failure(
-  message: string,
-  environment: OwnerPricingEnvironment | null = null
-): PublishPlatformPricingActionState {
-  return {
-    success: false,
-    message,
-    environment,
-  }
+function formatMoney(value: number) {
+  return `$${value.toFixed(2)}`
 }
 
-function campaignFailure(
-  message: string,
-  campaignId: string | null = null,
-  environment: OwnerPricingEnvironment | null = null
-): PublishCampaignPricingActionState {
-  return {
-    success: false,
-    message,
-    campaignId,
-    environment,
-  }
+function SubmitButton({
+  environment,
+}: {
+  environment: OwnerPricingEnvironment
+}) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending
+        ? 'Publishing...'
+        : `Publish ${
+            environment === 'production'
+              ? 'Production'
+              : 'Demo'
+          } Default`}
+    </button>
+  )
 }
 
-async function getOwnerUser() {
-  const supabase = await createClient()
+// =============================================================================
+// Component
+// =============================================================================
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+export default function OwnerPricingEditor({
+  productionPassPrice,
+  productionFeePercent,
+  demoPassPrice,
+  demoFeePercent,
+}: OwnerPricingEditorProps) {
+  const [state, formAction] = useActionState(
+    publishPlatformPricingAction,
+    INITIAL_STATE
+  )
 
-  if (authError || !user) {
-    return {
-      user: null,
-      error: 'Sign in before changing pricing.',
+  const [environment, setEnvironment] =
+    useState<OwnerPricingEnvironment>('production')
+
+  const [passPrice, setPassPrice] = useState(
+    productionPassPrice.toFixed(2)
+  )
+
+  const [feePercent, setFeePercent] = useState(
+    productionFeePercent.toFixed(2)
+  )
+
+  function loadEnvironmentDefaults(
+    nextEnvironment: OwnerPricingEnvironment
+  ) {
+    setEnvironment(nextEnvironment)
+
+    if (nextEnvironment === 'production') {
+      setPassPrice(
+        productionPassPrice.toFixed(2)
+      )
+      setFeePercent(
+        productionFeePercent.toFixed(2)
+      )
+      return
     }
+
+    setPassPrice(demoPassPrice.toFixed(2))
+    setFeePercent(demoFeePercent.toFixed(2))
   }
 
-  const { data: profile, error: profileError } =
-    await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single<{ role: string }>()
+  const preview = useMemo(() => {
+    const normalizedPassPrice = Math.max(
+      0,
+      normalizeNumber(passPrice)
+    )
 
-  if (profileError || !profile) {
+    const normalizedFeePercent = Math.min(
+      100,
+      Math.max(0, normalizeNumber(feePercent))
+    )
+
+    const feeAmount =
+      normalizedPassPrice *
+      (normalizedFeePercent / 100)
+
     return {
-      user: null,
-      error: 'Unable to verify owner access.',
+      passPrice: normalizedPassPrice,
+      feePercent: normalizedFeePercent,
+      feeAmount,
+      organizationShare:
+        normalizedPassPrice - feeAmount,
     }
-  }
+  }, [passPrice, feePercent])
 
-  if (profile.role !== 'owner') {
-    return {
-      user: null,
-      error: 'Owner access is required.',
-    }
-  }
+  return (
+    <details className="group mt-5 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 transition hover:bg-slate-800">
+        <span>
+          <span className="block text-base font-bold text-white">
+            Change platform default
+          </span>
+          <span className="mt-1 block text-sm text-slate-400">
+            Publish a new default without rewriting prior purchases or pricing history.
+          </span>
+        </span>
 
-  return {
-    user,
-    error: null,
-  }
-}
+        <span className="rounded-full border border-slate-600 px-3 py-1 text-xs font-bold text-slate-300">
+          Owner only
+        </span>
+      </summary>
 
-// =============================================================================
-// Platform pricing action
-// =============================================================================
+      <form
+        action={formAction}
+        className="border-t border-slate-700 p-5"
+      >
+        <fieldset>
+          <legend className="text-sm font-bold text-white">
+            Environment
+          </legend>
 
-export async function publishPlatformPricingAction(
-  _previousState: PublishPlatformPricingActionState = INITIAL_STATE,
-  formData: FormData
-): Promise<PublishPlatformPricingActionState> {
-  const environmentValue =
-    readFormValue(formData, 'environment')
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                'production',
+                'demo',
+              ] as OwnerPricingEnvironment[]
+            ).map((option) => {
+              const selected =
+                environment === option
 
-  if (!isPricingEnvironment(environmentValue)) {
-    return failure(
-      'Choose Production or Demo pricing.'
-    )
-  }
+              return (
+                <label
+                  key={option}
+                  className={`cursor-pointer rounded-xl border p-4 transition ${
+                    selected
+                      ? 'border-blue-400 bg-blue-500/10'
+                      : 'border-slate-700 bg-slate-950 hover:border-slate-500'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="environment"
+                    value={option}
+                    checked={selected}
+                    onChange={() =>
+                      loadEnvironmentDefaults(option)
+                    }
+                    className="sr-only"
+                  />
 
-  const passPrice = parseMoney(
-    readFormValue(formData, 'passPrice')
+                  <span className="block text-sm font-bold capitalize text-white">
+                    {option}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">
+                    {option === 'production'
+                      ? 'Affects real customer purchases.'
+                      : 'Affects demo campaigns and demo purchases only.'}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Pass price
+            </span>
+            <span className="mt-1 block text-xs text-slate-400">
+              Amount charged for a new six-month pass.
+            </span>
+            <div className="relative mt-2">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">
+                $
+              </span>
+              <input
+                type="number"
+                name="passPrice"
+                min="0.01"
+                max="1000"
+                step="0.01"
+                required
+                value={passPrice}
+                onChange={(event) =>
+                  setPassPrice(event.target.value)
+                }
+                className="w-full rounded-xl border border-slate-600 bg-slate-950 py-3 pl-7 pr-3 text-white outline-none transition focus:border-blue-400"
+              />
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              RaiseHub fee
+            </span>
+            <span className="mt-1 block text-xs text-slate-400">
+              Percentage retained from the pass price.
+            </span>
+            <div className="relative mt-2">
+              <input
+                type="number"
+                name="platformFeePercent"
+                min="0"
+                max="100"
+                step="0.01"
+                required
+                value={feePercent}
+                onChange={(event) =>
+                  setFeePercent(event.target.value)
+                }
+                className="w-full rounded-xl border border-slate-600 bg-slate-950 py-3 pl-3 pr-8 text-white outline-none transition focus:border-blue-400"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                %
+              </span>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-5 grid gap-3 rounded-2xl border border-slate-700 bg-slate-950 p-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Customer pays
+            </p>
+            <p className="mt-1 text-lg font-bold text-white">
+              {formatMoney(preview.passPrice)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              RaiseHub receives
+            </p>
+            <p className="mt-1 text-lg font-bold text-blue-300">
+              {formatMoney(preview.feeAmount)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Organization receives
+            </p>
+            <p className="mt-1 text-lg font-bold text-emerald-300">
+              {formatMoney(
+                preview.organizationShare
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Reason
+            </span>
+            <span className="mt-1 block text-xs text-slate-400">
+              Owner-facing explanation for this change.
+            </span>
+            <input
+              type="text"
+              name="reason"
+              maxLength={160}
+              placeholder="Example: Updated platform launch pricing"
+              className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Internal note
+            </span>
+            <span className="mt-1 block text-xs text-slate-400">
+              Optional private operational context.
+            </span>
+            <input
+              type="text"
+              name="internalNote"
+              maxLength={240}
+              placeholder="Optional"
+              className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+          Publishing makes this the active{' '}
+          <strong>
+            {environment === 'production'
+              ? 'Production'
+              : 'Demo'}
+          </strong>{' '}
+          platform default immediately. Existing purchases keep their original pricing snapshots.
+        </div>
+
+        {state.message ? (
+          <p
+            role="status"
+            className={`mt-4 rounded-xl border p-4 text-sm ${
+              state.success
+                ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100'
+                : 'border-red-400/30 bg-red-400/10 text-red-100'
+            }`}
+          >
+            {state.message}
+          </p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end">
+          <SubmitButton
+            environment={environment}
+          />
+        </div>
+      </form>
+    </details>
   )
-
-  if (
-    passPrice === null ||
-    passPrice <= 0 ||
-    passPrice > 1000
-  ) {
-    return failure(
-      'Pass price must be greater than $0 and no more than $1,000.',
-      environmentValue
-    )
-  }
-
-  const platformFeePercent = parseMoney(
-    readFormValue(formData, 'platformFeePercent')
-  )
-
-  if (
-    platformFeePercent === null ||
-    platformFeePercent < 0 ||
-    platformFeePercent > 100
-  ) {
-    return failure(
-      'RaiseHub fee must be between 0% and 100%.',
-      environmentValue
-    )
-  }
-
-  const reason =
-    readFormValue(formData, 'reason') ||
-    `Updated ${environmentValue} platform default`
-
-  const internalNote =
-    readFormValue(formData, 'internalNote') ||
-    null
-
-  const ownerResult = await getOwnerUser()
-
-  if (!ownerResult.user) {
-    return failure(
-      ownerResult.error,
-      environmentValue
-    )
-  }
-
-  const isDemo = environmentValue === 'demo'
-  const startsAt = new Date().toISOString()
-  const admin = createAdminClient()
-
-  // Insert the new default first so checkout never loses a managed rule.
-  const { data: newRule, error: insertError } =
-    await admin
-      .from('pricing_rules')
-      .insert({
-        scope_type: 'platform',
-        pass_price: passPrice,
-        platform_fee_percent:
-          platformFeePercent,
-        status: 'active',
-        starts_at: startsAt,
-        reason,
-        internal_note: internalNote,
-        created_by: ownerResult.user.id,
-        updated_by: ownerResult.user.id,
-        is_demo: isDemo,
-        demo_group: null,
-      })
-      .select('id')
-      .single<{ id: string }>()
-
-  if (insertError || !newRule) {
-    return failure(
-      'The new platform pricing rule could not be published.',
-      environmentValue
-    )
-  }
-
-  // Retire older defaults only after the replacement exists.
-  const { error: retirementError } =
-    await admin
-      .from('pricing_rules')
-      .update({
-        status: 'inactive',
-        expires_at: startsAt,
-        updated_by: ownerResult.user.id,
-      })
-      .eq('scope_type', 'platform')
-      .eq('is_demo', isDemo)
-      .eq('status', 'active')
-      .neq('id', newRule.id)
-
-  if (retirementError) {
-    return failure(
-      'The new rule is active, but older platform defaults could not be retired. Review pricing rules before publishing another change.',
-      environmentValue
-    )
-  }
-
-  revalidatePath('/dashboard')
-
-  return {
-    success: true,
-    message: `$${passPrice.toFixed(
-      2
-    )} with a ${platformFeePercent.toFixed(
-      2
-    )}% RaiseHub fee is now the ${environmentValue} platform default.`,
-    environment: environmentValue,
-  }
-}
-
-// =============================================================================
-// Campaign pricing action
-// =============================================================================
-
-export async function publishCampaignPricingAction(
-  _previousState: PublishCampaignPricingActionState =
-    INITIAL_CAMPAIGN_STATE,
-  formData: FormData
-): Promise<PublishCampaignPricingActionState> {
-  const campaignId =
-    readFormValue(formData, 'campaignId')
-
-  if (!campaignId) {
-    return campaignFailure(
-      'Choose a campaign before publishing campaign pricing.'
-    )
-  }
-
-  const environmentValue =
-    readFormValue(formData, 'environment')
-
-  if (!isPricingEnvironment(environmentValue)) {
-    return campaignFailure(
-      'Choose Production or Demo pricing.',
-      campaignId
-    )
-  }
-
-  const passPrice = parseMoney(
-    readFormValue(formData, 'passPrice')
-  )
-
-  if (
-    passPrice === null ||
-    passPrice <= 0 ||
-    passPrice > 1000
-  ) {
-    return campaignFailure(
-      'Pass price must be greater than $0 and no more than $1,000.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  const platformFeePercent = parseMoney(
-    readFormValue(formData, 'platformFeePercent')
-  )
-
-  if (
-    platformFeePercent === null ||
-    platformFeePercent < 0 ||
-    platformFeePercent > 100
-  ) {
-    return campaignFailure(
-      'RaiseHub fee must be between 0% and 100%.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  const reason =
-    readFormValue(formData, 'reason') ||
-    'Owner-managed campaign pricing override'
-
-  const internalNote =
-    readFormValue(formData, 'internalNote') ||
-    null
-
-  const ownerResult = await getOwnerUser()
-
-  if (!ownerResult.user) {
-    return campaignFailure(
-      ownerResult.error,
-      campaignId,
-      environmentValue
-    )
-  }
-
-  const isDemo = environmentValue === 'demo'
-  const startsAt = new Date().toISOString()
-  const admin = createAdminClient()
-
-  const { data: campaign, error: campaignError } =
-    await admin
-      .from('campaigns')
-      .select('id, is_demo')
-      .eq('id', campaignId)
-      .single<{
-        id: string
-        is_demo: boolean
-      }>()
-
-  if (campaignError || !campaign) {
-    return campaignFailure(
-      'The selected campaign could not be found.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  if (campaign.is_demo !== isDemo) {
-    return campaignFailure(
-      `The selected campaign does not belong to the ${environmentValue} environment.`,
-      campaignId,
-      environmentValue
-    )
-  }
-
-  // Insert the replacement first so the campaign never loses its override.
-  const { data: newRule, error: insertError } =
-    await admin
-      .from('pricing_rules')
-      .insert({
-        scope_type: 'campaign',
-        campaign_id: campaignId,
-        pass_price: passPrice,
-        platform_fee_percent:
-          platformFeePercent,
-        status: 'active',
-        starts_at: startsAt,
-        reason,
-        internal_note: internalNote,
-        created_by: ownerResult.user.id,
-        updated_by: ownerResult.user.id,
-        is_demo: isDemo,
-        demo_group: null,
-      })
-      .select('id')
-      .single<{ id: string }>()
-
-  if (insertError || !newRule) {
-    return campaignFailure(
-      'The campaign pricing override could not be published.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  // Retire older overrides only after the replacement exists.
-  const { error: retirementError } =
-    await admin
-      .from('pricing_rules')
-      .update({
-        status: 'inactive',
-        expires_at: startsAt,
-        updated_by: ownerResult.user.id,
-      })
-      .eq('scope_type', 'campaign')
-      .eq('campaign_id', campaignId)
-      .eq('is_demo', isDemo)
-      .eq('status', 'active')
-      .neq('id', newRule.id)
-
-  if (retirementError) {
-    return campaignFailure(
-      'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  revalidatePath('/dashboard')
-  revalidatePath('/dashboard/owner/pricing')
-
-  return {
-    success: true,
-    message: `$${passPrice.toFixed(
-      2
-    )} with a ${platformFeePercent.toFixed(
-      2
-    )}% RaiseHub fee is now active for the selected campaign.`,
-    campaignId,
-    environment: environmentValue,
-  }
 }
