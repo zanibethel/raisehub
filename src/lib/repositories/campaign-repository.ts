@@ -105,6 +105,69 @@ export function buildPublicCampaignOrganizationMetadata(
   }
 }
 
+function mergeCanonicalOrganizationMetadata({
+  profiles,
+  organizations,
+}: {
+  profiles: PublicOrganizationProfileRow[]
+  organizations: OrganizationLookupRow[]
+}): PublicCampaignOrganizationMetadata[] {
+  const metadataByLegacyProfileId =
+    new Map<
+      string,
+      PublicCampaignOrganizationMetadata
+    >(
+      profiles.map((profile) => {
+        const metadata =
+          buildPublicCampaignOrganizationMetadata(
+            profile
+          )
+
+        return [
+          metadata.organizationLegacyProfileId,
+          metadata,
+        ]
+      })
+    )
+
+  for (const organization of organizations) {
+    const legacyProfileId =
+      organization.legacy_profile_id
+
+    if (!legacyProfileId) {
+      continue
+    }
+
+    const existingMetadata =
+      metadataByLegacyProfileId.get(
+        legacyProfileId
+      )
+
+    metadataByLegacyProfileId.set(
+      legacyProfileId,
+      {
+        organizationId:
+          organization.id,
+        organizationLegacyProfileId:
+          legacyProfileId,
+        organizationName:
+          existingMetadata
+            ?.organizationName ??
+          organization.name ??
+          null,
+        imageUrl:
+          existingMetadata?.imageUrl ??
+          organization.logo_url ??
+          null,
+      }
+    )
+  }
+
+  return [
+    ...metadataByLegacyProfileId.values(),
+  ]
+}
+
 function mapPublicCampaignProgressRows(
   progress: PublicCampaignProgressRow[]
 ) {
@@ -682,8 +745,26 @@ export async function getSellableCampaigns(
       async loadOrganizationsByLegacyProfileIds(
         organizationLegacyProfileIds
       ) {
-        const { data, error } =
-          await supabase
+        const [
+          {
+            data: organizationRows,
+            error: organizationsError,
+          },
+          {
+            data: profileRows,
+            error: profilesError,
+          },
+        ] = await Promise.all([
+          supabase
+            .from('organizations')
+            .select(
+              'id, legacy_profile_id, name, logo_url'
+            )
+            .in(
+              'legacy_profile_id',
+              organizationLegacyProfileIds
+            ),
+          supabase
             .from('profiles')
             .select(
               'id, display_name, business_name, logo_url'
@@ -695,17 +776,33 @@ export async function getSellableCampaigns(
             .eq(
               'role',
               'organization'
-            )
+            ),
+        ])
+
+        const lookupError =
+          organizationsError ??
+          profilesError
+
+        if (lookupError) {
+          return {
+            organizations: [],
+            error: lookupError.message,
+          }
+        }
 
         return {
-          organizations: (
-            (data ??
-              []) as PublicOrganizationProfileRow[]
-          ).map(
-            buildPublicCampaignOrganizationMetadata
-          ),
-          error:
-            error?.message ?? null,
+          organizations:
+            mergeCanonicalOrganizationMetadata(
+              {
+                profiles:
+                  (profileRows ??
+                    []) as PublicOrganizationProfileRow[],
+                organizations:
+                  (organizationRows ??
+                    []) as OrganizationLookupRow[],
+              }
+            ),
+          error: null,
         }
       },
 
