@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createCapabilityResolver } from './capability-resolution-core'
+import {
+  createCapabilityResolver,
+  type CapabilityCampaign,
+} from './capability-resolution-core'
 import type {
   AuthenticatedActor,
   BusinessAccessRecord,
@@ -9,12 +12,15 @@ import type {
   BusinessRow,
   CampaignAccessRecord,
   CampaignMembershipRow,
-  CampaignRow,
   CustomerEntitlementRecord,
   OrganizationAccessRecord,
   OrganizationMembershipRow,
   OrganizationRow,
 } from '../types/identity-access'
+
+type CapabilityCampaignFixture = CapabilityCampaign & {
+  id: string
+}
 
 const actor: AuthenticatedActor = {
   id: 'actor-1',
@@ -149,19 +155,14 @@ function createEntitlement(
 }
 
 function createCampaign(
-  overrides: Partial<CampaignRow> = {}
-): CampaignRow {
+  overrides: Partial<CapabilityCampaignFixture> = {}
+): CapabilityCampaignFixture {
   return {
     id: 'campaign-1',
     organization_id: 'legacy-organization-1',
-    name: 'Fall Fundraiser',
-    description: null,
-    goal_amount: 5000,
-    pass_price: 25,
     starts_at: '2026-07-01T00:00:00.000Z',
     ends_at: '2026-08-01T00:00:00.000Z',
     status: 'active',
-    created_at: '2026-07-01T00:00:00.000Z',
     ...overrides,
   }
 }
@@ -175,7 +176,7 @@ function createResolver(options?: {
   businessById?: BusinessRow | null
   organizationById?: OrganizationRow | null
   organizationByLegacyProfileId?: OrganizationRow | null
-  campaignById?: CampaignRow | null
+  campaignById?: CapabilityCampaignFixture | null
   campaignMembershipById?: CampaignMembershipRow | null
   organizationMembershipById?: OrganizationMembershipRow | null
 }) {
