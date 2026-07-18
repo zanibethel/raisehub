@@ -142,20 +142,10 @@ function createService(input?: {
         new Map(
           pricingInputs.map(
             ({ campaignId }) => {
-              const campaign =
-                campaigns.find(
-                  (candidate) =>
-                    candidate.id ===
-                    campaignId
-                )
-
               const effectivePassPrice =
                 input?.effectivePricing?.[
                   campaignId
-                ] ??
-                Number(
-                  campaign?.pass_price ?? 20
-                )
+                ] ?? 20
 
               return [
                 campaignId,
@@ -510,9 +500,7 @@ test(
   async () => {
     const service = createService({
       campaigns: [
-        createCampaign({
-          pass_price: 20,
-        }),
+        createCampaign(),
       ],
       effectivePricing: {
         'campaign-1': 27,
