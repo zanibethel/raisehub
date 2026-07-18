@@ -23,11 +23,12 @@ type CampaignOptionRow = {
   is_demo: boolean
 }
 
-type ActiveCampaignPricingRuleRow = {
+type CampaignPricingRuleRow = {
   campaign_id: string | null
   pass_price: number
   platform_fee_percent: number
   starts_at: string
+  expires_at: string | null
   reason: string | null
 }
 
@@ -84,11 +85,14 @@ export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPri
     admin
       .from('pricing_rules')
       .select(
-        'campaign_id, pass_price, platform_fee_percent, starts_at, reason'
+        'campaign_id, pass_price, platform_fee_percent, starts_at, expires_at, reason'
       )
       .eq('scope_type', 'campaign')
       .eq('status', 'active')
-      .returns<ActiveCampaignPricingRuleRow[]>(),
+      .order('starts_at', {
+        ascending: true,
+      })
+      .returns<CampaignPricingRuleRow[]>(),
   ])
 
   if (campaignResult.error) {
@@ -107,28 +111,96 @@ export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPri
     }
   }
 
-  const activeRuleByCampaignId = new Map(
-    (activeRuleResult.data ?? [])
-      .filter(
-        (
-          rule
-        ): rule is ActiveCampaignPricingRuleRow & {
-          campaign_id: string
-        } => Boolean(rule.campaign_id)
+  const now = new Date()
+
+  const currentRuleByCampaignId = new Map<
+    string,
+    CampaignPricingRuleRow & {
+      campaign_id: string
+    }
+  >()
+
+  const scheduledRuleByCampaignId = new Map<
+    string,
+    CampaignPricingRuleRow & {
+      campaign_id: string
+    }
+  >()
+
+  for (const rule of activeRuleResult.data ?? []) {
+    if (!rule.campaign_id) {
+      continue
+    }
+
+    const startsAt = new Date(rule.starts_at)
+    const expiresAt = rule.expires_at
+      ? new Date(rule.expires_at)
+      : null
+
+    const isCurrentlyEffective =
+      startsAt <= now &&
+      (!expiresAt || expiresAt > now)
+
+    if (isCurrentlyEffective) {
+      const existingCurrent =
+        currentRuleByCampaignId.get(
+          rule.campaign_id
+        )
+
+      if (
+        !existingCurrent ||
+        new Date(existingCurrent.starts_at) <
+          startsAt
+      ) {
+        currentRuleByCampaignId.set(
+          rule.campaign_id,
+          {
+            ...rule,
+            campaign_id: rule.campaign_id,
+          }
+        )
+      }
+
+      continue
+    }
+
+    if (startsAt <= now) {
+      continue
+    }
+
+    const existingScheduled =
+      scheduledRuleByCampaignId.get(
+        rule.campaign_id
       )
-      .map((rule) => [
+
+    if (
+      !existingScheduled ||
+      new Date(existingScheduled.starts_at) >
+        startsAt
+    ) {
+      scheduledRuleByCampaignId.set(
         rule.campaign_id,
-        rule,
-      ])
-  )
+        {
+          ...rule,
+          campaign_id: rule.campaign_id,
+        }
+      )
+    }
+  }
 
   return {
     status: 'success',
     campaigns: (campaignResult.data ?? []).map(
       (campaign) => {
         const activeRule =
-          activeRuleByCampaignId.get(campaign.id) ??
-          null
+          currentRuleByCampaignId.get(
+            campaign.id
+          ) ?? null
+
+        const scheduledRule =
+          scheduledRuleByCampaignId.get(
+            campaign.id
+          ) ?? null
 
         return {
           id: campaign.id,
@@ -145,6 +217,20 @@ export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPri
                   activeRule.starts_at,
                 reason:
                   activeRule.reason,
+              }
+            : null,
+          scheduledOverride: scheduledRule
+            ? {
+                passPrice:
+                  scheduledRule.pass_price,
+                platformFeePercent:
+                  scheduledRule.platform_fee_percent,
+                startsAt:
+                  scheduledRule.starts_at,
+                expiresAt:
+                  scheduledRule.expires_at,
+                reason:
+                  scheduledRule.reason,
               }
             : null,
         }
