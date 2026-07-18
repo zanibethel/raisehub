@@ -20,6 +20,12 @@ export type OwnerCampaignPricingOption = {
   name: string
   isDemo: boolean
   organizationName: string | null
+  activeOverride: {
+    passPrice: number
+    platformFeePercent: number
+    startsAt: string
+    reason: string | null
+  } | null
 }
 
 type OwnerCampaignPricingEditorProps = {
@@ -54,6 +60,16 @@ function normalizeNumber(value: string) {
 
 function formatMoney(value: number) {
   return `$${value.toFixed(2)}`
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 function CampaignSubmitButton() {
@@ -186,6 +202,43 @@ export default function OwnerCampaignPricingEditor({
     setFeePercent(demoFeePercent.toFixed(2))
   }
 
+  function selectCampaign(
+    nextCampaignId: string
+  ) {
+    setCampaignId(nextCampaignId)
+
+    const nextCampaign =
+      availableCampaigns.find(
+        (campaign) =>
+          campaign.id === nextCampaignId
+      ) ?? null
+
+    if (nextCampaign?.activeOverride) {
+      setPassPrice(
+        nextCampaign.activeOverride.passPrice.toFixed(2)
+      )
+      setFeePercent(
+        nextCampaign.activeOverride.platformFeePercent.toFixed(
+          2
+        )
+      )
+      return
+    }
+
+    if (environment === 'production') {
+      setPassPrice(
+        productionPassPrice.toFixed(2)
+      )
+      setFeePercent(
+        productionFeePercent.toFixed(2)
+      )
+      return
+    }
+
+    setPassPrice(demoPassPrice.toFixed(2))
+    setFeePercent(demoFeePercent.toFixed(2))
+  }
+
   return (
     <details className="group mt-5 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 transition hover:bg-slate-800">
@@ -269,7 +322,7 @@ export default function OwnerCampaignPricingEditor({
             required
             value={campaignId}
             onChange={(event) =>
-              setCampaignId(event.target.value)
+              selectCampaign(event.target.value)
             }
             className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-3 text-white outline-none transition focus:border-blue-400"
           >
@@ -288,6 +341,9 @@ export default function OwnerCampaignPricingEditor({
                 {campaign.organizationName
                   ? ` — ${campaign.organizationName}`
                   : ''}
+                {campaign.activeOverride
+                  ? ' — Active override'
+                  : ' — Inherited pricing'}
               </option>
             ))}
           </select>
@@ -413,10 +469,51 @@ export default function OwnerCampaignPricingEditor({
         </label>
 
         {selectedCampaign ? (
-          <p className="mt-4 rounded-xl border border-blue-700 bg-blue-950/50 p-3 text-sm text-blue-200">
-            This will override managed pricing for{' '}
-            <strong>{selectedCampaign.name}</strong>.
-          </p>
+          selectedCampaign.activeOverride ? (
+            <div className="mt-4 rounded-xl border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-100">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-bold">
+                  Active campaign override
+                </p>
+                <span className="rounded-full bg-amber-900/70 px-2.5 py-1 text-xs font-bold text-amber-100">
+                  Campaign priority
+                </span>
+              </div>
+
+              <p className="mt-2 leading-6">
+                <strong>{selectedCampaign.name}</strong>{' '}
+                currently charges{' '}
+                <strong>
+                  {formatMoney(
+                    selectedCampaign.activeOverride.passPrice
+                  )}
+                </strong>{' '}
+                with a{' '}
+                <strong>
+                  {selectedCampaign.activeOverride.platformFeePercent.toFixed(
+                    2
+                  )}
+                  %
+                </strong>{' '}
+                RaiseHub fee.
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-amber-300">
+                Effective{' '}
+                {formatDate(
+                  selectedCampaign.activeOverride.startsAt
+                )}
+                {selectedCampaign.activeOverride.reason
+                  ? ` · ${selectedCampaign.activeOverride.reason}`
+                  : ''}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl border border-blue-700 bg-blue-950/50 p-3 text-sm leading-6 text-blue-200">
+              <strong>{selectedCampaign.name}</strong>{' '}
+              currently inherits managed pricing. Publishing will create its first campaign-specific override.
+            </p>
+          )
         ) : null}
 
         {publishState.message ? (
@@ -447,7 +544,9 @@ export default function OwnerCampaignPricingEditor({
           <CampaignSubmitButton />
           <RetireCampaignButton
             formAction={retireFormAction}
-            disabled={!selectedCampaign}
+            disabled={
+              !selectedCampaign?.activeOverride
+            }
           />
         </div>
 
