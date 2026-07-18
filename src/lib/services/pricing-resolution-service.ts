@@ -39,6 +39,23 @@ export type EffectivePricingResult = {
   usedFallback: boolean
 }
 
+export type EffectiveCampaignPricingInput = {
+  campaignId: string
+  organizationId?: string | null
+  townName?: string | null
+  stateCode?: string | null
+  donationAmount?: number
+  isDemo?: boolean
+}
+
+export type EffectiveCampaignPricingBatchResult = {
+  pricingByCampaignId: Map<
+    string,
+    EffectivePricingResult
+  >
+  usedFallback: boolean
+}
+
 type PricingRuleRow = {
   id: string
   scope_type: string
@@ -54,7 +71,32 @@ type PricingRuleRow = {
   created_at: string
 }
 
-const SCOPE_PRIORITY: Record<Exclude<PricingScope, 'fallback'>, number> = {
+type NormalizedPricingInput = {
+  campaignId: string | null
+  organizationId: string | null
+  townName: string | null
+  stateCode: string | null
+}
+
+const PRICING_RULE_SELECT = `
+  id,
+  scope_type,
+  state_code,
+  town_name,
+  organization_id,
+  campaign_id,
+  pass_price,
+  platform_fee_percent,
+  starts_at,
+  expires_at,
+  reason,
+  created_at
+`
+
+const SCOPE_PRIORITY: Record<
+  Exclude<PricingScope, 'fallback'>,
+  number
+> = {
   campaign: 5,
   organization: 4,
   town: 3,
@@ -62,7 +104,9 @@ const SCOPE_PRIORITY: Record<Exclude<PricingScope, 'fallback'>, number> = {
   platform: 1,
 }
 
-function normalizeMoney(value: number | undefined) {
+function normalizeMoney(
+  value: number | undefined
+) {
   const normalized = Number(value ?? 0)
 
   if (!Number.isFinite(normalized)) {
@@ -72,19 +116,44 @@ function normalizeMoney(value: number | undefined) {
   return Math.max(0, normalized)
 }
 
-function normalizeStateCode(value: string | null | undefined) {
-  const normalized = value?.trim().toUpperCase() ?? null
+function normalizeStateCode(
+  value: string | null | undefined
+) {
+  const normalized =
+    value?.trim().toUpperCase() ?? null
 
-  if (!normalized || !/^[A-Z]{2}$/.test(normalized)) {
+  if (
+    !normalized ||
+    !/^[A-Z]{2}$/.test(normalized)
+  ) {
     return null
   }
 
   return normalized
 }
 
-function normalizeTownName(value: string | null | undefined) {
-  const normalized = value?.trim().toLowerCase() ?? null
+function normalizeTownName(
+  value: string | null | undefined
+) {
+  const normalized =
+    value?.trim().toLowerCase() ?? null
+
   return normalized || null
+}
+
+function normalizePricingInput(
+  input: EffectivePricingInput
+): NormalizedPricingInput {
+  return {
+    campaignId:
+      input.campaignId?.trim() || null,
+    organizationId:
+      input.organizationId?.trim() || null,
+    townName: normalizeTownName(input.townName),
+    stateCode: normalizeStateCode(
+      input.stateCode
+    ),
+  }
 }
 
 function calculatePricing(
@@ -100,7 +169,10 @@ function calculatePricing(
   },
   donationAmount: number
 ): EffectivePricingResult {
-  const passPrice = normalizeMoney(input.passPrice)
+  const passPrice = normalizeMoney(
+    input.passPrice
+  )
+
   const platformFeePercent = Math.min(
     100,
     normalizeMoney(input.platformFeePercent)
@@ -121,8 +193,10 @@ function calculatePricing(
     organizationPassEarnings,
     donationAmount,
     organizationTotalEarnings:
-      organizationPassEarnings + donationAmount,
-    totalAmount: passPrice + donationAmount,
+      organizationPassEarnings +
+      donationAmount,
+    totalAmount:
+      passPrice + donationAmount,
     startsAt: input.startsAt,
     expiresAt: input.expiresAt,
     reason: input.reason,
@@ -132,38 +206,39 @@ function calculatePricing(
 
 function matchesRule(
   rule: PricingRuleRow,
-  input: {
-    campaignId: string | null
-    organizationId: string | null
-    townName: string | null
-    stateCode: string | null
-  }
+  input: NormalizedPricingInput
 ) {
   switch (rule.scope_type) {
     case 'campaign':
       return Boolean(
         input.campaignId &&
-          rule.campaign_id === input.campaignId
+          rule.campaign_id ===
+            input.campaignId
       )
 
     case 'organization':
       return Boolean(
         input.organizationId &&
-          rule.organization_id === input.organizationId
+          rule.organization_id ===
+            input.organizationId
       )
 
     case 'town':
       return Boolean(
         input.stateCode &&
           input.townName &&
-          rule.state_code === input.stateCode &&
-          normalizeTownName(rule.town_name) === input.townName
+          rule.state_code ===
+            input.stateCode &&
+          normalizeTownName(
+            rule.town_name
+          ) === input.townName
       )
 
     case 'state':
       return Boolean(
         input.stateCode &&
-          rule.state_code === input.stateCode
+          rule.state_code ===
+            input.stateCode
       )
 
     case 'platform':
@@ -180,12 +255,18 @@ function compareRules(
 ) {
   const leftScope =
     SCOPE_PRIORITY[
-      left.scope_type as Exclude<PricingScope, 'fallback'>
+      left.scope_type as Exclude<
+        PricingScope,
+        'fallback'
+      >
     ] ?? 0
 
   const rightScope =
     SCOPE_PRIORITY[
-      right.scope_type as Exclude<PricingScope, 'fallback'>
+      right.scope_type as Exclude<
+        PricingScope,
+        'fallback'
+      >
     ] ?? 0
 
   if (leftScope !== rightScope) {
@@ -226,87 +307,223 @@ function createFallbackPricing(
   )
 }
 
+function resolvePricingFromRules({
+  rules,
+  input,
+  donationAmount,
+}: {
+  rules: PricingRuleRow[]
+  input: NormalizedPricingInput
+  donationAmount: number
+}): EffectivePricingResult {
+  const winningRule = rules
+    .filter((rule) =>
+      matchesRule(rule, input)
+    )
+    .sort(compareRules)[0]
+
+  if (!winningRule) {
+    return createFallbackPricing(
+      donationAmount
+    )
+  }
+
+  return calculatePricing(
+    {
+      pricingRuleId: winningRule.id,
+      pricingScope:
+        winningRule.scope_type as Exclude<
+          PricingScope,
+          'fallback'
+        >,
+      passPrice: Number(
+        winningRule.pass_price
+      ),
+      platformFeePercent: Number(
+        winningRule.platform_fee_percent
+      ),
+      startsAt: winningRule.starts_at,
+      expiresAt: winningRule.expires_at,
+      reason: winningRule.reason,
+      usedFallback: false,
+    },
+    donationAmount
+  )
+}
+
+async function loadActivePricingRules({
+  isDemo,
+  now,
+}: {
+  isDemo: boolean
+  now: Date
+}): Promise<PricingRuleRow[] | null> {
+  const admin = createAdminClient()
+  const nowIso = now.toISOString()
+
+  const { data, error } = await admin
+    .from('pricing_rules')
+    .select(PRICING_RULE_SELECT)
+    .eq('status', 'active')
+    .eq('is_demo', isDemo)
+    .lte('starts_at', nowIso)
+    .or(
+      `expires_at.is.null,expires_at.gt.${nowIso}`
+    )
+
+  if (error) {
+    return null
+  }
+
+  return (data ?? []) as PricingRuleRow[]
+}
+
 export async function resolveEffectivePricing(
   input: EffectivePricingInput = {}
 ): Promise<EffectivePricingResult> {
   const now = input.now ?? new Date()
-  const nowIso = now.toISOString()
+
   const donationAmount = normalizeMoney(
     input.donationAmount
   )
 
-  const normalizedInput = {
-    campaignId: input.campaignId?.trim() || null,
-    organizationId:
-      input.organizationId?.trim() || null,
-    townName: normalizeTownName(input.townName),
-    stateCode: normalizeStateCode(input.stateCode),
-  }
-
   try {
-    const admin = createAdminClient()
+    const rules =
+      await loadActivePricingRules({
+        isDemo: input.isDemo ?? false,
+        now,
+      })
 
-    const { data, error } = await admin
-      .from('pricing_rules')
-      .select(
-        `
-          id,
-          scope_type,
-          state_code,
-          town_name,
-          organization_id,
-          campaign_id,
-          pass_price,
-          platform_fee_percent,
-          starts_at,
-          expires_at,
-          reason,
-          created_at
-        `
+    if (!rules) {
+      return createFallbackPricing(
+        donationAmount
       )
-      .eq('status', 'active')
-      .eq('is_demo', input.isDemo ?? false)
-      .lte('starts_at', nowIso)
-      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
-
-    if (error) {
-      return createFallbackPricing(donationAmount)
     }
 
-    const matchingRules = (
-      (data ?? []) as PricingRuleRow[]
-    )
-      .filter((rule) =>
-        matchesRule(rule, normalizedInput)
-      )
-      .sort(compareRules)
-
-    const winningRule = matchingRules[0]
-
-    if (!winningRule) {
-      return createFallbackPricing(donationAmount)
-    }
-
-    return calculatePricing(
-      {
-        pricingRuleId: winningRule.id,
-        pricingScope:
-          winningRule.scope_type as Exclude<
-            PricingScope,
-            'fallback'
-          >,
-        passPrice: Number(winningRule.pass_price),
-        platformFeePercent: Number(
-          winningRule.platform_fee_percent
-        ),
-        startsAt: winningRule.starts_at,
-        expiresAt: winningRule.expires_at,
-        reason: winningRule.reason,
-        usedFallback: false,
-      },
+    return resolvePricingFromRules({
+      rules,
+      input: normalizePricingInput(input),
+      donationAmount,
+    })
+  } catch {
+    return createFallbackPricing(
       donationAmount
     )
-  } catch {
-    return createFallbackPricing(donationAmount)
+  }
+}
+
+export async function resolveEffectiveCampaignPricingBatch(
+  inputs: EffectiveCampaignPricingInput[],
+  options: {
+    now?: Date
+  } = {}
+): Promise<EffectiveCampaignPricingBatchResult> {
+  const pricingByCampaignId = new Map<
+    string,
+    EffectivePricingResult
+  >()
+
+  if (inputs.length === 0) {
+    return {
+      pricingByCampaignId,
+      usedFallback: false,
+    }
+  }
+
+  const now = options.now ?? new Date()
+
+  const uniqueInputs = [
+    ...new Map(
+      inputs
+        .filter((input) =>
+          Boolean(input.campaignId.trim())
+        )
+        .map((input) => [
+          input.campaignId.trim(),
+          {
+            ...input,
+            campaignId:
+              input.campaignId.trim(),
+          },
+        ])
+    ).values(),
+  ]
+
+  const productionInputs =
+    uniqueInputs.filter(
+      (input) => !input.isDemo
+    )
+
+  const demoInputs = uniqueInputs.filter(
+    (input) => input.isDemo
+  )
+
+  let usedFallback = false
+
+  async function resolveGroup({
+    group,
+    isDemo,
+  }: {
+    group: EffectiveCampaignPricingInput[]
+    isDemo: boolean
+  }) {
+    if (group.length === 0) {
+      return
+    }
+
+    let rules: PricingRuleRow[] | null = null
+
+    try {
+      rules = await loadActivePricingRules({
+        isDemo,
+        now,
+      })
+    } catch {
+      rules = null
+    }
+
+    for (const input of group) {
+      const donationAmount =
+        normalizeMoney(
+          input.donationAmount
+        )
+
+      const pricing = rules
+        ? resolvePricingFromRules({
+            rules,
+            input: normalizePricingInput(
+              input
+            ),
+            donationAmount,
+          })
+        : createFallbackPricing(
+            donationAmount
+          )
+
+      if (pricing.usedFallback) {
+        usedFallback = true
+      }
+
+      pricingByCampaignId.set(
+        input.campaignId,
+        pricing
+      )
+    }
+  }
+
+  await Promise.all([
+    resolveGroup({
+      group: productionInputs,
+      isDemo: false,
+    }),
+    resolveGroup({
+      group: demoInputs,
+      isDemo: true,
+    }),
+  ])
+
+  return {
+    pricingByCampaignId,
+    usedFallback,
   }
 }
