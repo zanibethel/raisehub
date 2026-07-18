@@ -17,7 +17,11 @@ function createCampaign(
     name: 'Fall Fundraiser',
     description: null,
     goal_amount: 5000,
-    pass_price: 25,
+
+    // Required only by the current generated database row type.
+    // Public campaign pricing comes from the managed pricing dependency.
+    pass_price: null,
+
     starts_at:
       '2026-07-01T00:00:00.000Z',
     ends_at:
