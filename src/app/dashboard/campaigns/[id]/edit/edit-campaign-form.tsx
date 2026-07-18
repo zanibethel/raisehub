@@ -10,12 +10,6 @@ type EditCampaignFormProps = {
   initialName: string
   initialDescription: string
   initialGoalAmount: string
-
-  // Transitional compatibility prop.
-  // The edit page can now remove its legacy pass_price
-  // selection in a separate build-safe commit.
-  initialPassPrice?: string
-
   initialStartsAt: string
   initialEndsAt: string
 }
