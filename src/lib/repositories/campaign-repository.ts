@@ -2,6 +2,7 @@ import { createClient } from '../supabase/server'
 import {
   buildSellableCampaignOption,
   compareSellableCampaignOptions,
+  type SellableCampaignSource,
 } from '../rules/campaign-progress-rules'
 import { resolveEffectiveCampaignPricingBatch } from '../services/pricing-resolution-service'
 import type { Database } from '../supabase/database.types'
@@ -301,7 +302,7 @@ type SellableCampaignLookupDependencies = {
     excludeCampaignId?: string
     eligibleCampaignIds: string[] | null
   }): Promise<{
-    campaigns: CampaignRow[]
+    campaigns: SellableCampaignSource[]
     error: string | null
   }>
 
@@ -736,7 +737,8 @@ export async function getSellableCampaigns(
         return {
           campaigns:
             ((data ??
-              []) as CampaignRow[]) ?? [],
+              []) as SellableCampaignSource[]) ??
+            [],
           error:
             error?.message ?? null,
         }
