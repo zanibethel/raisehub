@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createClient } from '@/lib/supabase/server'
+
+// =============================================================================
+// Action contracts
+// =============================================================================
 
 type CampaignActionResult =
   | {
@@ -51,6 +54,10 @@ type CampaignStatus =
   | 'completed'
   | 'archived'
 
+// =============================================================================
+// Validation
+// =============================================================================
+
 const VALID_CAMPAIGN_STATUSES =
   new Set<CampaignStatus>([
     'draft',
@@ -90,7 +97,8 @@ function parseCampaignDates({
       Number.isNaN(endTimestamp))
   ) {
     return {
-      error: 'Enter valid campaign dates.',
+      error:
+        'Enter valid campaign dates.',
     }
   }
 
@@ -111,10 +119,33 @@ function parseCampaignDates({
   }
 }
 
+// =============================================================================
+// Cache revalidation
+// =============================================================================
+
+function revalidateCampaignPaths(
+  campaignId?: string
+) {
+  revalidatePath('/dashboard')
+  revalidatePath('/')
+  revalidatePath('/campaigns')
+
+  if (campaignId) {
+    revalidatePath(
+      `/campaigns/${campaignId}`
+    )
+  }
+}
+
+// =============================================================================
+// Create campaign
+// =============================================================================
+
 export async function createCampaignAction(
   input: CreateCampaignInput
 ): Promise<CampaignActionResult> {
-  const supabase = await createClient()
+  const supabase =
+    await createClient()
 
   const {
     data: { user },
@@ -129,11 +160,13 @@ export async function createCampaignAction(
 
   if (!input.name.trim()) {
     return {
-      error: 'Campaign name is required.',
+      error:
+        'Campaign name is required.',
     }
   }
 
-  const goalAmount = Number(input.goal_amount)
+  const goalAmount =
+    Number(input.goal_amount)
 
   if (
     !Number.isFinite(goalAmount) ||
@@ -145,10 +178,11 @@ export async function createCampaignAction(
     }
   }
 
-  const dates = parseCampaignDates({
-    startsAt: input.starts_at,
-    endsAt: input.ends_at,
-  })
+  const dates =
+    parseCampaignDates({
+      startsAt: input.starts_at,
+      endsAt: input.ends_at,
+    })
 
   if (dates.error) {
     return {
@@ -156,24 +190,15 @@ export async function createCampaignAction(
     }
   }
 
-  const pricing = await resolveEffectivePricing({
-    organizationId: user.id,
-  })
-
   const { error } = await supabase
     .from('campaigns')
     .insert({
       organization_id: user.id,
       name: input.name.trim(),
       description:
-        input.description.trim() || null,
+        input.description.trim() ||
+        null,
       goal_amount: goalAmount,
-
-      // Managed pricing is the source of truth.
-      // The legacy column remains synchronized while
-      // older platform reads are being converted.
-      pass_price: pricing.passPrice,
-
       starts_at: dates.startsAt,
       ends_at: dates.endsAt,
       status: 'active',
@@ -186,19 +211,22 @@ export async function createCampaignAction(
     }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/')
-  revalidatePath('/campaigns')
+  revalidateCampaignPaths()
 
   return {
     success: true,
   }
 }
 
+// =============================================================================
+// Update campaign
+// =============================================================================
+
 export async function updateCampaignAction(
   input: UpdateCampaignInput
 ): Promise<CampaignActionResult> {
-  const supabase = await createClient()
+  const supabase =
+    await createClient()
 
   const {
     data: { user },
@@ -213,11 +241,13 @@ export async function updateCampaignAction(
 
   if (!input.name.trim()) {
     return {
-      error: 'Campaign name is required.',
+      error:
+        'Campaign name is required.',
     }
   }
 
-  const goalAmount = Number(input.goal_amount)
+  const goalAmount =
+    Number(input.goal_amount)
 
   if (
     !Number.isFinite(goalAmount) ||
@@ -229,10 +259,11 @@ export async function updateCampaignAction(
     }
   }
 
-  const dates = parseCampaignDates({
-    startsAt: input.starts_at,
-    endsAt: input.ends_at,
-  })
+  const dates =
+    parseCampaignDates({
+      startsAt: input.starts_at,
+      endsAt: input.ends_at,
+    })
 
   if (dates.error) {
     return {
@@ -240,29 +271,22 @@ export async function updateCampaignAction(
     }
   }
 
-  const pricing = await resolveEffectivePricing({
-    campaignId: input.campaignId,
-    organizationId: user.id,
-  })
-
   const { error } = await supabase
     .from('campaigns')
     .update({
       name: input.name.trim(),
       description:
-        input.description.trim() || null,
+        input.description.trim() ||
+        null,
       goal_amount: goalAmount,
-
-      // Managed pricing remains the source of truth.
-      // This keeps the transitional campaign column
-      // synchronized with the effective pricing rule.
-      pass_price: pricing.passPrice,
-
       starts_at: dates.startsAt,
       ends_at: dates.endsAt,
     })
     .eq('id', input.campaignId)
-    .eq('organization_id', user.id)
+    .eq(
+      'organization_id',
+      user.id
+    )
 
   if (error) {
     return {
@@ -271,11 +295,8 @@ export async function updateCampaignAction(
     }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/')
-  revalidatePath('/campaigns')
-  revalidatePath(
-    `/campaigns/${input.campaignId}`
+  revalidateCampaignPaths(
+    input.campaignId
   )
 
   return {
@@ -283,11 +304,16 @@ export async function updateCampaignAction(
   }
 }
 
+// =============================================================================
+// Update campaign status
+// =============================================================================
+
 export async function updateCampaignStatusAction(
   campaignId: string,
   status: string
 ): Promise<CampaignActionResult> {
-  const supabase = await createClient()
+  const supabase =
+    await createClient()
 
   const {
     data: { user },
@@ -302,7 +328,8 @@ export async function updateCampaignStatusAction(
 
   if (!isCampaignStatus(status)) {
     return {
-      error: 'Invalid campaign status.',
+      error:
+        'Invalid campaign status.',
     }
   }
 
@@ -312,7 +339,10 @@ export async function updateCampaignStatusAction(
       status,
     })
     .eq('id', campaignId)
-    .eq('organization_id', user.id)
+    .eq(
+      'organization_id',
+      user.id
+    )
 
   if (error) {
     return {
@@ -321,10 +351,9 @@ export async function updateCampaignStatusAction(
     }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/')
-  revalidatePath('/campaigns')
-  revalidatePath(`/campaigns/${campaignId}`)
+  revalidateCampaignPaths(
+    campaignId
+  )
 
   return {
     success: true,
