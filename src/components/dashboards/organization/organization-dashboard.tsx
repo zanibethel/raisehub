@@ -1,4 +1,5 @@
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
+import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
 
@@ -75,6 +76,22 @@ export default async function OrganizationDashboard({
 
   const organizationProfileId =
     organizationLegacyProfileId?.trim() || user.id
+
+  // ===========================================================================
+  // Effective managed pricing
+  // ===========================================================================
+
+  const { data: organizationProfile } = await supabase
+    .from('profiles')
+    .select('is_demo')
+    .eq('id', organizationProfileId)
+    .maybeSingle()
+
+  const campaignCreationPricing =
+    await resolveEffectivePricing({
+      organizationId: organizationProfileId,
+      isDemo: organizationProfile?.is_demo ?? false,
+    })
 
   // ===========================================================================
   // Campaigns
@@ -293,6 +310,15 @@ export default async function OrganizationDashboard({
       )}
       totalCampaigns={totalCampaigns}
       activeSellerCount={activeSellerCount}
+      campaignCreationPricingy={{
+        passPrice: campaignCreationPricing.passPrice,
+        platformFeePercent:
+          campaignCreationPricing.platformFeePercent,
+        organizationPassEarnings:
+          campaignCreationPricing.organizationPassEarnings,
+        usedFallback:
+          campaignCreationPricing.usedFallback,
+      }}
     />
   )
 }
