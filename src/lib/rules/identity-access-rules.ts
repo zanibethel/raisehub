@@ -1,7 +1,6 @@
 import type {
   BusinessMembershipRole,
   BusinessRow,
-  CampaignRow,
   CapabilityName,
   CustomerEntitlementRecord,
   CustomerEntitlementStatus,
@@ -170,8 +169,14 @@ export function isOrganizationOperational(
   return getOrganizationLifecycleDenialReason(organization) === null
 }
 
+export type SellableCampaignTiming = {
+  status: string
+  starts_at: string | null
+  ends_at: string | null
+}
+
 export function isCampaignCurrentlySellable(
-  campaign: Pick<CampaignRow, 'status' | 'starts_at' | 'ends_at'>,
+  campaign: SellableCampaignTiming,
   now = new Date()
 ): boolean {
   if (campaign.status !== 'active') {
