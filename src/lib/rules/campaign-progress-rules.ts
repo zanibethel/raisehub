@@ -1,6 +1,33 @@
 import type { CampaignRow } from '../types/identity-access'
 import type { SellableCampaignOption } from '../types/campaigns'
 
+// =============================================================================
+// Campaign source contract
+// =============================================================================
+
+/**
+ * Campaign fields required to build a public sellable campaign option.
+ *
+ * Pricing is deliberately excluded. Listing prices must be supplied through
+ * effectivePassPrice after server-side managed-pricing resolution.
+ */
+export type SellableCampaignSource = Pick<
+  CampaignRow,
+  | 'id'
+  | 'organization_id'
+  | 'name'
+  | 'description'
+  | 'goal_amount'
+  | 'starts_at'
+  | 'ends_at'
+  | 'status'
+  | 'created_at'
+>
+
+// =============================================================================
+// Payment progress rules
+// =============================================================================
+
 const INVALID_PROGRESS_PAYMENT_STATUSES = new Set([
   'failed',
   'cancelled',
@@ -35,6 +62,35 @@ function normalizePaymentStatus(
       .toLowerCase() ?? ''
   )
 }
+
+export function isCampaignPurchaseProgressEligible(
+  paymentStatus: string | null | undefined
+): boolean {
+  const normalizedStatus =
+    normalizePaymentStatus(
+      paymentStatus
+    )
+
+  if (!normalizedStatus) {
+    return false
+  }
+
+  if (
+    INVALID_PROGRESS_PAYMENT_STATUSES.has(
+      normalizedStatus
+    )
+  ) {
+    return false
+  }
+
+  return EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES.has(
+    normalizedStatus
+  )
+}
+
+// =============================================================================
+// Shared normalization
+// =============================================================================
 
 function getValidDate(
   value: string | null | undefined
@@ -80,36 +136,9 @@ function normalizePassPrice(
   return normalizedValue
 }
 
-export function isCampaignPurchaseProgressEligible(
-  paymentStatus: string | null | undefined
-): boolean {
-  const normalizedStatus =
-    normalizePaymentStatus(
-      paymentStatus
-    )
-
-  if (!normalizedStatus) {
-    return false
-  }
-
-  if (
-    INVALID_PROGRESS_PAYMENT_STATUSES.has(
-      normalizedStatus
-    )
-  ) {
-    return false
-  }
-
-  if (
-    EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES.has(
-      normalizedStatus
-    )
-  ) {
-    return true
-  }
-
-  return false
-}
+// =============================================================================
+// Goal progress calculations
+// =============================================================================
 
 export function calculateGoalPercentage(
   amountRaised: number,
@@ -208,6 +237,10 @@ export function buildCampaignDetailProgressState(
   }
 }
 
+// =============================================================================
+// Campaign timing
+// =============================================================================
+
 export function calculateDaysRemaining(
   endsAt:
     | string
@@ -236,9 +269,13 @@ export function calculateDaysRemaining(
   )
 }
 
+// =============================================================================
+// Sellable campaign mapping
+// =============================================================================
+
 export function buildSellableCampaignOption(
   input: {
-    campaign: CampaignRow
+    campaign: SellableCampaignSource
     organizationId:
       | string
       | null
@@ -253,9 +290,9 @@ export function buildSellableCampaignOption(
     /**
      * Server-resolved managed price for this campaign.
      *
-     * Every campaign loader must provide this property.
-     * Invalid or missing resolver output produces no displayed
-     * price rather than falling back to campaigns.pass_price.
+     * Every campaign loader must provide this property. Invalid or missing
+     * resolver output produces no displayed price rather than falling back to
+     * campaigns.pass_price.
      */
     effectivePassPrice:
       | number
@@ -312,11 +349,8 @@ export function buildSellableCampaignOption(
       ),
     createdAt:
       input.campaign.created_at,
-
-    // Managed pricing is the only supported listing price.
     passPrice:
       effectivePassPrice,
-
     description:
       input.campaign.description,
     startsAt:
@@ -325,6 +359,10 @@ export function buildSellableCampaignOption(
       input.campaign.status,
   }
 }
+
+// =============================================================================
+// Campaign ordering
+// =============================================================================
 
 export function compareSellableCampaignOptions(
   left: Pick<
