@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation'
 
 import OwnerCampaignPricingEditor from '@/components/dashboards/owner/owner-campaign-pricing-editor'
 import OwnerPricingEditor from '@/components/dashboards/owner/owner-pricing-editor'
+import {
+  getOwnerCampaignPricingHistory,
+  type OwnerCampaignPricingHistoryItem,
+} from '@/lib/services/owner-campaign-pricing-history-service'
 import { getOwnerCampaignPricingOptions } from '@/lib/services/owner-campaign-pricing-service'
 import {
   getOwnerPlatformPricingHistory,
@@ -250,21 +254,108 @@ function HistoryRow({
   )
 }
 
+function CampaignHistoryRow({
+  item,
+}: {
+  item: OwnerCampaignPricingHistoryItem
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+              Campaign
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold capitalize text-slate-700">
+              {item.environment}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                item.status === 'active'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {item.status}
+            </span>
+          </div>
+
+          <h3 className="mt-3 text-lg font-bold text-slate-950">
+            {item.campaignName}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            {formatMoney(item.passPrice)} pass ·{' '}
+            {formatPercent(item.platformFeePercent)} fee
+          </p>
+        </div>
+
+        <div className="text-right text-xs leading-5 text-slate-500">
+          <p>Started {formatDate(item.startsAt)}</p>
+          <p>
+            {item.expiresAt
+              ? `Ended ${formatDate(item.expiresAt)}`
+              : 'No end date'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl bg-blue-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+            RaiseHub share
+          </p>
+          <p className="mt-1 font-bold text-blue-950">
+            {formatMoney(item.platformFeeAmount)}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-emerald-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+            Organization share
+          </p>
+          <p className="mt-1 font-bold text-emerald-950">
+            {formatMoney(item.organizationPassEarnings)}
+          </p>
+        </div>
+      </div>
+
+      {item.reason ? (
+        <p className="mt-4 text-sm leading-6 text-slate-700">
+          <strong>Reason:</strong> {item.reason}
+        </p>
+      ) : null}
+
+      {item.internalNote ? (
+        <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+          <strong className="text-slate-900">
+            Internal note:
+          </strong>{' '}
+          {item.internalNote}
+        </p>
+      ) : null}
+    </article>
+  )
+}
+
 export default async function OwnerPricingPage() {
   const [
     pricingResult,
     historyResult,
     campaignOptionsResult,
+    campaignHistoryResult,
   ] = await Promise.all([
     getOwnerPricingOverview(),
     getOwnerPlatformPricingHistory(30),
     getOwnerCampaignPricingOptions(),
+    getOwnerCampaignPricingHistory(30),
   ])
 
   if (
     pricingResult.status === 'unauthenticated' ||
     historyResult.status === 'unauthenticated' ||
-    campaignOptionsResult.status === 'unauthenticated'
+    campaignOptionsResult.status === 'unauthenticated' ||
+    campaignHistoryResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
@@ -272,7 +363,8 @@ export default async function OwnerPricingPage() {
   if (
     pricingResult.status === 'owner-role-required' ||
     historyResult.status === 'owner-role-required' ||
-    campaignOptionsResult.status === 'owner-role-required'
+    campaignOptionsResult.status === 'owner-role-required' ||
+    campaignHistoryResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -404,6 +496,54 @@ export default async function OwnerPricingPage() {
           ) : (
             <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
               {historyResult.message}
+            </p>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                Campaign audit trail
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                Campaign pricing history
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Campaign-specific overrides, replacements, and retired rules for Production and Demo campaigns.
+              </p>
+            </div>
+
+            {campaignHistoryResult.status === 'success' ? (
+              <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+                {campaignHistoryResult.history.length} record
+                {campaignHistoryResult.history.length === 1
+                  ? ''
+                  : 's'}
+              </span>
+            ) : null}
+          </div>
+
+          {campaignHistoryResult.status === 'success' ? (
+            campaignHistoryResult.history.length > 0 ? (
+              <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                {campaignHistoryResult.history.map(
+                  (item) => (
+                    <CampaignHistoryRow
+                      key={item.id}
+                      item={item}
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                No campaign pricing history is available yet.
+              </p>
+            )
+          ) : (
+            <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+              {campaignHistoryResult.message}
             </p>
           )}
         </section>
