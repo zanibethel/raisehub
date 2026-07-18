@@ -8,9 +8,7 @@ type CampaignInput =
     typeof buildSellableCampaignOption
   >[0]['campaign']
 
-function createCampaign(
-  passPrice: number | null
-): CampaignInput {
+function createCampaign(): CampaignInput {
   return {
     id: 'campaign-1',
     organization_id:
@@ -19,25 +17,22 @@ function createCampaign(
     description:
       'Support the school band.',
     goal_amount: 1000,
-    pass_price: passPrice,
     starts_at: '2026-07-01',
     ends_at: '2026-08-01',
     status: 'active',
     created_at:
       '2026-07-01T12:00:00.000Z',
-  } as CampaignInput
+  }
 }
 
-function buildOption({
-  legacyPassPrice,
-  effectivePassPrice,
-}: {
-  legacyPassPrice: number | null
-  effectivePassPrice: number
-}) {
+function buildOption(
+  effectivePassPrice:
+    | number
+    | null
+    | undefined
+) {
   return buildSellableCampaignOption({
-    campaign:
-      createCampaign(legacyPassPrice),
+    campaign: createCampaign(),
     organizationId:
       'organization-1',
     organizationName:
@@ -52,12 +47,10 @@ function buildOption({
 }
 
 test(
-  'uses managed pricing instead of the legacy campaign price',
+  'uses the server-resolved managed campaign price',
   () => {
-    const option = buildOption({
-      legacyPassPrice: 20,
-      effectivePassPrice: 25,
-    })
+    const option =
+      buildOption(25)
 
     assert.equal(
       option.passPrice,
@@ -67,36 +60,35 @@ test(
 )
 
 test(
-  'uses managed pricing when the legacy campaign price is missing',
+  'returns no campaign price when managed pricing is missing',
   () => {
-    const option = buildOption({
-      legacyPassPrice: null,
-      effectivePassPrice: 25,
-    })
+    const option =
+      buildOption(undefined)
 
     assert.equal(
       option.passPrice,
-      25
+      null
     )
   }
 )
 
 test(
-  'uses managed pricing when the legacy campaign price is stale',
+  'returns no campaign price when managed pricing is invalid',
   () => {
-    const option = buildOption({
-      legacyPassPrice: 99,
-      effectivePassPrice: 20,
-    })
+    const zeroPrice =
+      buildOption(0)
+
+    const invalidPrice =
+      buildOption(Number.NaN)
 
     assert.equal(
-      option.passPrice,
-      20
+      zeroPrice.passPrice,
+      null
     )
 
-    assert.notEqual(
-      option.passPrice,
-      99
+    assert.equal(
+      invalidPrice.passPrice,
+      null
     )
   }
 )
