@@ -4,21 +4,7 @@ import { getOwnerPlatformAnalytics } from '@/lib/services/owner-platform-analyti
 
 import OwnerDashboardContent from './owner-dashboard-content'
 
-export type PreviewRole =
-  | 'customer'
-  | 'business'
-  | 'organization'
-  | 'admin'
-
-type Props = {
-  searchParams?: {
-    previewRole?: string
-  }
-}
-
-export default async function OwnerDashboard(
-  _props: Props
-) {
+export default async function OwnerDashboard() {
   const platformAnalyticsResult =
     await getOwnerPlatformAnalytics()
 
