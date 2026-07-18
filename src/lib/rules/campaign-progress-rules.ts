@@ -1,4 +1,3 @@
-import type { CampaignRow } from '../types/identity-access'
 import type { SellableCampaignOption } from '../types/campaigns'
 
 // =============================================================================
@@ -11,18 +10,17 @@ import type { SellableCampaignOption } from '../types/campaigns'
  * Pricing is deliberately excluded. Listing prices must be supplied through
  * effectivePassPrice after server-side managed-pricing resolution.
  */
-export type SellableCampaignSource = Pick<
-  CampaignRow,
-  | 'id'
-  | 'organization_id'
-  | 'name'
-  | 'description'
-  | 'goal_amount'
-  | 'starts_at'
-  | 'ends_at'
-  | 'status'
-  | 'created_at'
->
+export type SellableCampaignSource = {
+  id: string
+  organization_id: string
+  name: string
+  description: string | null
+  goal_amount: number | null
+  starts_at: string | null
+  ends_at: string | null
+  status: string
+  created_at: string
+}
 
 // =============================================================================
 // Payment progress rules
