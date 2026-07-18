@@ -194,7 +194,6 @@ export type SelectableWorkspace = {
 export type BusinessRow = Tables<'businesses'>
 export type BusinessMembershipRow = Tables<'business_memberships'>
 export type CampaignMembershipRow = Tables<'campaign_memberships'>
-export type CampaignRow = Omit<Tables<'campaigns'>, 'pass_price'>
 export type CustomerEntitlementRow = Tables<'customer_entitlements'>
 export type OrganizationMembershipRow = Tables<'organization_memberships'>
 export type OrganizationRow = Tables<'organizations'>
