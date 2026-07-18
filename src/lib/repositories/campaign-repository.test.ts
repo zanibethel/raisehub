@@ -5,11 +5,13 @@ import {
   buildPublicCampaignOrganizationMetadata,
   createSellableCampaignLookupService,
 } from './campaign-repository'
-import type { CampaignRow } from '../types/identity-access'
+import type {
+  SellableCampaignSource,
+} from '../rules/campaign-progress-rules'
 
 function createCampaign(
-  overrides: Partial<CampaignRow> = {}
-): CampaignRow {
+  overrides: Partial<SellableCampaignSource> = {}
+): SellableCampaignSource {
   return {
     id: 'campaign-1',
     organization_id:
@@ -17,11 +19,6 @@ function createCampaign(
     name: 'Fall Fundraiser',
     description: null,
     goal_amount: 5000,
-
-    // Required only by the current generated database row type.
-    // Public campaign pricing comes from the managed pricing dependency.
-    pass_price: null,
-
     starts_at:
       '2026-07-01T00:00:00.000Z',
     ends_at:
@@ -34,7 +31,7 @@ function createCampaign(
 }
 
 function createService(input?: {
-  campaigns?: CampaignRow[]
+  campaigns?: SellableCampaignSource[]
   progress?: Array<{
     campaign_id: string
     amount_raised: number
