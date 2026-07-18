@@ -9,8 +9,10 @@ import { useFormStatus } from 'react-dom'
 
 import {
   publishCampaignPricingAction,
+  retireCampaignPricingAction,
   type OwnerPricingEnvironment,
   type PublishCampaignPricingActionState,
+  type RetireCampaignPricingActionState,
 } from './owner-pricing-actions'
 
 export type OwnerCampaignPricingOption = {
@@ -29,6 +31,13 @@ type OwnerCampaignPricingEditorProps = {
 }
 
 const INITIAL_STATE: PublishCampaignPricingActionState = {
+  success: false,
+  message: null,
+  campaignId: null,
+  environment: null,
+}
+
+const INITIAL_RETIRE_STATE: RetireCampaignPricingActionState = {
   success: false,
   message: null,
   campaignId: null,
@@ -57,8 +66,31 @@ function CampaignSubmitButton() {
       className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending
-        ? 'Publishing...'
+        ? 'Saving...'
         : 'Publish Campaign Override'}
+    </button>
+  )
+}
+
+function RetireCampaignButton({
+  formAction,
+  disabled,
+}: {
+  formAction: (formData: FormData) => void
+  disabled: boolean
+}) {
+  const { pending } = useFormStatus()
+
+  return (
+    <button
+      type="submit"
+      formAction={formAction}
+      disabled={disabled || pending}
+      className="rounded-xl border border-red-700 bg-red-950/40 px-5 py-3 text-sm font-bold text-red-200 transition hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {pending
+        ? 'Saving...'
+        : 'Retire Campaign Override'}
     </button>
   )
 }
@@ -70,10 +102,17 @@ export default function OwnerCampaignPricingEditor({
   demoPassPrice,
   demoFeePercent,
 }: OwnerCampaignPricingEditorProps) {
-  const [state, formAction] = useActionState(
-    publishCampaignPricingAction,
-    INITIAL_STATE
-  )
+  const [publishState, publishFormAction] =
+    useActionState(
+      publishCampaignPricingAction,
+      INITIAL_STATE
+    )
+
+  const [retireState, retireFormAction] =
+    useActionState(
+      retireCampaignPricingAction,
+      INITIAL_RETIRE_STATE
+    )
 
   const [environment, setEnvironment] =
     useState<OwnerPricingEnvironment>('production')
@@ -165,7 +204,7 @@ export default function OwnerCampaignPricingEditor({
       </summary>
 
       <form
-        action={formAction}
+        action={publishFormAction}
         className="border-t border-slate-700 p-5"
       >
         <fieldset>
@@ -380,21 +419,41 @@ export default function OwnerCampaignPricingEditor({
           </p>
         ) : null}
 
-        {state.message ? (
+        {publishState.message ? (
           <p
             className={`mt-4 rounded-xl border p-3 text-sm ${
-              state.success
+              publishState.success
                 ? 'border-emerald-700 bg-emerald-950/50 text-emerald-200'
                 : 'border-red-700 bg-red-950/50 text-red-200'
             }`}
           >
-            {state.message}
+            {publishState.message}
           </p>
         ) : null}
 
-        <div className="mt-5">
+        {retireState.message ? (
+          <p
+            className={`mt-4 rounded-xl border p-3 text-sm ${
+              retireState.success
+                ? 'border-emerald-700 bg-emerald-950/50 text-emerald-200'
+                : 'border-red-700 bg-red-950/50 text-red-200'
+            }`}
+          >
+            {retireState.message}
+          </p>
+        ) : null}
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <CampaignSubmitButton />
+          <RetireCampaignButton
+            formAction={retireFormAction}
+            disabled={!selectedCampaign}
+          />
         </div>
+
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Retiring an override returns the campaign to organization, town, state, platform, or the $20 / 20% application fallback.
+        </p>
       </form>
     </details>
   )
