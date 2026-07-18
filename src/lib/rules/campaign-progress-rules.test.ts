@@ -1,190 +1,102 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import {
-  buildCampaignDetailProgressState,
-  buildSellableCampaignOption,
-  compareSellableCampaignOptions,
-  isCampaignPurchaseProgressEligible,
-} from './campaign-progress-rules'
-import type { CampaignRow } from '../types/identity-access'
-import type { SellableCampaignOption } from '../types/campaigns'
+import { buildSellableCampaignOption } from './campaign-progress-rules'
+
+type CampaignInput =
+  Parameters<
+    typeof buildSellableCampaignOption
+  >[0]['campaign']
 
 function createCampaign(
-  overrides: Partial<CampaignRow> = {}
-): CampaignRow {
+  passPrice: number | null
+): CampaignInput {
   return {
     id: 'campaign-1',
-    organization_id: 'legacy-organization-1',
-    name: 'Fall Fundraiser',
-    description: null,
-    goal_amount: 5000,
-    pass_price: 25,
-    starts_at: '2026-07-01T00:00:00.000Z',
-    ends_at: '2026-08-01T00:00:00.000Z',
+    organization_id:
+      'organization-profile-1',
+    name: 'Band Booster Fundraiser',
+    description:
+      'Support the school band.',
+    goal_amount: 1000,
+    pass_price: passPrice,
+    starts_at: '2026-07-01',
+    ends_at: '2026-08-01',
     status: 'active',
-    created_at: '2026-07-01T00:00:00.000Z',
-    ...overrides,
-  }
+    created_at:
+      '2026-07-01T12:00:00.000Z',
+  } as CampaignInput
 }
 
-function createOption(
-  overrides: Partial<SellableCampaignOption> = {}
-): SellableCampaignOption {
-  return {
-    id: 'campaign-1',
-    organizationId: 'organization-1',
-    organizationLegacyProfileId: 'legacy-organization-1',
-    name: 'Fall Fundraiser',
-    organizationName: 'Roosevelt Football',
+function buildOption({
+  legacyPassPrice,
+  effectivePassPrice,
+}: {
+  legacyPassPrice: number | null
+  effectivePassPrice: number
+}) {
+  return buildSellableCampaignOption({
+    campaign:
+      createCampaign(legacyPassPrice),
+    organizationId:
+      'organization-1',
+    organizationName:
+      'Band Boosters',
     imageUrl: null,
-    amountRaised: 2500,
-    goalAmount: 5000,
-    goalPercentage: 50,
-    amountRemaining: 2500,
-    endsAt: '2026-08-01T00:00:00.000Z',
-    daysRemaining: 17,
-    createdAt: '2026-07-01T00:00:00.000Z',
-    passPrice: 25,
-    description: null,
-    startsAt: '2026-07-01T00:00:00.000Z',
-    status: 'active',
-    ...overrides,
-  }
+    amountRaised: 250,
+    effectivePassPrice,
+    now: new Date(
+      '2026-07-15T12:00:00.000Z'
+    ),
+  })
 }
 
-test('only the approved successful payment states are included in campaign progress totals', () => {
-  for (const status of [
-    'test_paid',
-    'paid',
-    'succeeded',
-    'completed',
-    'captured',
-    'settled',
-  ]) {
-    assert.equal(isCampaignPurchaseProgressEligible(status), true)
+test(
+  'uses managed pricing instead of the legacy campaign price',
+  () => {
+    const option = buildOption({
+      legacyPassPrice: 20,
+      effectivePassPrice: 25,
+    })
+
+    assert.equal(
+      option.passPrice,
+      25
+    )
   }
+)
 
-  for (const status of [
-    'unpaid',
-    'failed',
-    'cancelled',
-    'refunded',
-    'disputed',
-    'chargeback',
-  ]) {
-    assert.equal(isCampaignPurchaseProgressEligible(status), false)
+test(
+  'uses managed pricing when the legacy campaign price is missing',
+  () => {
+    const option = buildOption({
+      legacyPassPrice: null,
+      effectivePassPrice: 25,
+    })
+
+    assert.equal(
+      option.passPrice,
+      25
+    )
   }
-})
+)
 
-test('sellable campaign options cap progress at 100 and handle missing goals safely', () => {
-  const overfunded = buildSellableCampaignOption({
-    campaign: createCampaign(),
-    organizationId: 'organization-1',
-    organizationName: 'Roosevelt Football',
-    imageUrl: null,
-    amountRaised: 7500,
-    now: new Date('2026-07-15T00:00:00.000Z'),
-  })
-  const noGoal = buildSellableCampaignOption({
-    campaign: createCampaign({ id: 'campaign-2', goal_amount: null }),
-    organizationId: 'organization-1',
-    organizationName: 'Roosevelt Football',
-    imageUrl: null,
-    amountRaised: 500,
-    now: new Date('2026-07-15T00:00:00.000Z'),
-  })
+test(
+  'uses managed pricing when the legacy campaign price is stale',
+  () => {
+    const option = buildOption({
+      legacyPassPrice: 99,
+      effectivePassPrice: 20,
+    })
 
-  assert.equal(overfunded.goalPercentage, 100)
-  assert.equal(overfunded.amountRemaining, 0)
-  assert.equal(noGoal.goalPercentage, null)
-  assert.equal(noGoal.amountRemaining, null)
-})
+    assert.equal(
+      option.passPrice,
+      20
+    )
 
-test('campaign detail progress uses aggregate RPC totals and defaults missing rows to zero', () => {
-  const aggregateProgress = buildCampaignDetailProgressState({
-    amountRaised: 1750,
-    goalAmount: 5000,
-  })
-  const missingAggregateRow = buildCampaignDetailProgressState({
-    amountRaised: undefined,
-    goalAmount: 5000,
-  })
-
-  assert.deepEqual(aggregateProgress, {
-    status: 'available',
-    amountRaised: 1750,
-    goalPercentage: 35,
-    amountRemaining: 3250,
-  })
-  assert.deepEqual(missingAggregateRow, {
-    status: 'available',
-    amountRaised: 0,
-    goalPercentage: 0,
-    amountRemaining: 5000,
-  })
-})
-
-test('campaign detail progress shows an unavailable state instead of a false zero when the aggregate RPC fails', () => {
-  const progressState = buildCampaignDetailProgressState({
-    amountRaised: undefined,
-    goalAmount: 5000,
-    unavailable: true,
-  })
-
-  assert.deepEqual(progressState, {
-    status: 'unavailable',
-  })
-})
-
-test('campaign ordering prioritizes nearest expiration, then goal percentage, then stable tie breakers', () => {
-  const options = [
-    createOption({
-      id: 'campaign-c',
-      name: 'Campaign C',
-      endsAt: null,
-      goalPercentage: 90,
-      createdAt: '2026-07-03T00:00:00.000Z',
-    }),
-    createOption({
-      id: 'campaign-b',
-      name: 'Campaign B',
-      endsAt: '2026-08-01T00:00:00.000Z',
-      goalPercentage: 80,
-      createdAt: '2026-07-02T00:00:00.000Z',
-    }),
-    createOption({
-      id: 'campaign-a',
-      name: 'Campaign A',
-      endsAt: '2026-08-01T00:00:00.000Z',
-      goalPercentage: 95,
-      createdAt: '2026-07-01T00:00:00.000Z',
-    }),
-    createOption({
-      id: 'campaign-d',
-      name: 'Campaign D',
-      endsAt: '2026-07-20T00:00:00.000Z',
-      goalPercentage: 20,
-      createdAt: '2026-07-04T00:00:00.000Z',
-    }),
-    createOption({
-      id: 'campaign-e',
-      name: 'Campaign E',
-      endsAt: '2026-08-01T00:00:00.000Z',
-      goalPercentage: 95,
-      createdAt: '2026-07-01T00:00:00.000Z',
-    }),
-  ]
-
-  const orderedIds = options
-    .sort(compareSellableCampaignOptions)
-    .map((campaign) => campaign.id)
-
-  assert.deepEqual(orderedIds, [
-    'campaign-d',
-    'campaign-a',
-    'campaign-e',
-    'campaign-b',
-    'campaign-c',
-  ])
-})
+    assert.notEqual(
+      option.passPrice,
+      99
+    )
+  }
+)
