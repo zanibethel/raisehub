@@ -6,7 +6,6 @@ import {
 } from '../rules/campaign-progress-rules'
 import { resolveEffectiveCampaignPricingBatch } from '../services/pricing-resolution-service'
 import type { Database } from '../supabase/database.types'
-import type { CampaignRow } from '../types/identity-access'
 import type {
   SellableCampaignOption,
   SellableCampaignQueryOptions,
@@ -24,18 +23,17 @@ const CAMPAIGN_SELECT_COLUMNS = `
   created_at
 `
 
-export type CampaignLookupRow = Pick<
-  CampaignRow,
-  | 'id'
-  | 'organization_id'
-  | 'name'
-  | 'description'
-  | 'goal_amount'
-  | 'starts_at'
-  | 'ends_at'
-  | 'status'
-  | 'created_at'
->
+export type CampaignLookupRow = {
+  id: string
+  organization_id: string
+  name: string
+  description: string | null
+  goal_amount: number | null
+  starts_at: string | null
+  ends_at: string | null
+  status: string
+  created_at: string
+}
 
 type CampaignResult = {
   campaign: CampaignLookupRow | null
