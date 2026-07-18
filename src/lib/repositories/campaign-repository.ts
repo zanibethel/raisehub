@@ -17,7 +17,6 @@ const CAMPAIGN_SELECT_COLUMNS = `
   name,
   description,
   goal_amount,
-  pass_price,
   starts_at,
   ends_at,
   status,
