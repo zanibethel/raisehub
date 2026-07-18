@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createSellableCampaignLookupService } from './campaign-repository'
-import type { CampaignRow } from '../types/identity-access'
+import type { SellableCampaignSource } from '../rules/campaign-progress-rules'
 
 type PricingRequest = {
   campaignId: string
@@ -12,14 +12,12 @@ type PricingRequest = {
 function createCampaign({
   id,
   organizationLegacyProfileId,
-  passPrice,
   createdAt = '2026-07-01T12:00:00.000Z',
 }: {
   id: string
   organizationLegacyProfileId: string
-  passPrice: number
   createdAt?: string
-}): CampaignRow {
+}): SellableCampaignSource {
   return {
     id,
     organization_id:
@@ -27,18 +25,17 @@ function createCampaign({
     name: `Campaign ${id}`,
     description: null,
     goal_amount: 1000,
-    pass_price: passPrice,
     starts_at: '2026-07-01',
     ends_at: '2026-08-01',
     status: 'active',
     created_at: createdAt,
-  } as CampaignRow
+  }
 }
 
 function createBaseDependencies({
   campaigns,
 }: {
-  campaigns: CampaignRow[]
+  campaigns: SellableCampaignSource[]
 }) {
   const organizationIds = [
     ...new Set(
@@ -120,7 +117,6 @@ test(
       id: 'campaign-1',
       organizationLegacyProfileId:
         'legacy-organization-1',
-      passPrice: 20,
     })
 
     const pricingRequests:
@@ -182,7 +178,6 @@ test(
         id: 'campaign-1',
         organizationLegacyProfileId:
           'legacy-organization-1',
-        passPrice: 18,
         createdAt:
           '2026-07-01T12:00:00.000Z',
       }),
@@ -190,7 +185,6 @@ test(
         id: 'campaign-2',
         organizationLegacyProfileId:
           'legacy-organization-2',
-        passPrice: 22,
         createdAt:
           '2026-07-02T12:00:00.000Z',
       }),
@@ -269,16 +263,12 @@ test(
 )
 
 test(
-  'uses the emergency price returned by managed pricing instead of the legacy campaign column',
+  'uses the emergency price returned by managed pricing',
   async () => {
     const campaign = createCampaign({
       id: 'campaign-1',
       organizationLegacyProfileId:
         'legacy-organization-1',
-
-      // Deliberately stale. The listing must not
-      // display this value.
-      passPrice: 99,
     })
 
     const service =
@@ -308,15 +298,9 @@ test(
       result.errorSource,
       null
     )
-
     assert.equal(
       result.campaigns[0]?.passPrice,
       20
-    )
-
-    assert.notEqual(
-      result.campaigns[0]?.passPrice,
-      campaign.pass_price
     )
   }
 )
