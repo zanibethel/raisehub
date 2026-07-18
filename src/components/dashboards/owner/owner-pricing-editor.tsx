@@ -46,6 +46,12 @@ function formatMoney(value: number) {
   return `$${value.toFixed(2)}`
 }
 
+function formatInitialPassPrice(value: number) {
+  return value > 0
+    ? value.toFixed(2)
+    : ''
+}
+
 function SubmitButton({
   environment,
 }: {
@@ -89,7 +95,7 @@ export default function OwnerPricingEditor({
     useState<OwnerPricingEnvironment>('production')
 
   const [passPrice, setPassPrice] = useState(
-    productionPassPrice.toFixed(2)
+    formatInitialPassPrice(productionPassPrice)
   )
 
   const [feePercent, setFeePercent] = useState(
@@ -102,14 +108,18 @@ export default function OwnerPricingEditor({
     setEnvironment(nextEnvironment)
 
     if (nextEnvironment === 'production') {
-      setPassPrice(productionPassPrice.toFixed(2))
+      setPassPrice(
+        formatInitialPassPrice(productionPassPrice)
+      )
       setFeePercent(
         productionFeePercent.toFixed(2)
       )
       return
     }
 
-    setPassPrice(demoPassPrice.toFixed(2))
+    setPassPrice(
+      formatInitialPassPrice(demoPassPrice)
+    )
     setFeePercent(demoFeePercent.toFixed(2))
   }
 
