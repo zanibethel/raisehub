@@ -119,7 +119,7 @@ function EnvironmentCard({
               : 'bg-emerald-100 text-emerald-800'
           }`}
         >
-          {summary.usesFallback ? 'Unavailable' : 'Managed'}
+          {summary.usesFallback ? 'Fallback' : 'Managed'}
         </span>
       </div>
 
@@ -163,7 +163,7 @@ function EnvironmentCard({
 
       {summary.usesFallback ? (
         <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-          No active managed platform rule was found. Checkout remains unavailable until a managed platform pricing rule is published.
+          No active managed platform rule was found. Checkout is using the emergency application fallback.
         </p>
       ) : null}
 
