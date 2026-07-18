@@ -6,6 +6,7 @@ import {
   createPortableDemoProfile,
   type DemoProfileRole,
 } from '@/lib/repositories/demo-profile-management-repository'
+import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
 // Types
@@ -19,6 +20,15 @@ export type CreateDemoProfileActionState = {
 // =============================================================================
 // Helpers
 // =============================================================================
+
+function failure(
+  message: string
+): CreateDemoProfileActionState {
+  return {
+    success: false,
+    message,
+  }
+}
 
 function readFormValue(
   formData: FormData,
@@ -59,6 +69,38 @@ export async function createDemoProfileAction(
   _previousState: CreateDemoProfileActionState,
   formData: FormData
 ): Promise<CreateDemoProfileActionState> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return failure(
+      'Sign in before creating a demo profile.'
+    )
+  }
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single<{ role: string }>()
+
+  if (profileError || !profile) {
+    return failure(
+      'Unable to verify owner access.'
+    )
+  }
+
+  if (profile.role !== 'owner') {
+    return failure(
+      'Owner access is required.'
+    )
+  }
+
   const groupKey =
     readFormValue(formData, 'groupKey')
 
@@ -69,10 +111,9 @@ export async function createDemoProfileAction(
     readFormValue(formData, 'role')
 
   if (!isDemoProfileRole(roleValue)) {
-    return {
-      success: false,
-      message: 'Choose a valid demo profile role.',
-    }
+    return failure(
+      'Choose a valid demo profile role.'
+    )
   }
 
   const result =
@@ -85,19 +126,17 @@ export async function createDemoProfileAction(
     })
 
   if (result.error || !result.profile) {
-    return {
-      success: false,
-      message:
-        result.error ??
-        'The demo profile could not be created.',
-    }
+    return failure(
+      result.error ??
+        'The demo profile could not be created.'
+    )
   }
 
   revalidatePath(
     `/dashboard/owner/demo-groups/${groupKey}`
   )
 
-  revalidatePath('/dashboard/owner')
+  revalidatePath('/dashboard/owner/demos')
 
   return {
     success: true,
