@@ -29,7 +29,11 @@ const EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES = new Set([
 function normalizePaymentStatus(
   paymentStatus: string | null | undefined
 ) {
-  return paymentStatus?.trim().toLowerCase() ?? ''
+  return (
+    paymentStatus
+      ?.trim()
+      .toLowerCase() ?? ''
+  )
 }
 
 function getValidDate(
@@ -41,11 +45,17 @@ function getValidDate(
 
   const date = new Date(value)
 
-  return Number.isNaN(date.getTime()) ? null : date
+  return Number.isNaN(date.getTime())
+    ? null
+    : date
 }
 
 function normalizePassPrice(
-  value: number | string | null | undefined
+  value:
+    | number
+    | string
+    | null
+    | undefined
 ): number | null {
   if (
     value === null ||
@@ -55,10 +65,13 @@ function normalizePassPrice(
     return null
   }
 
-  const normalizedValue = Number(value)
+  const normalizedValue =
+    Number(value)
 
   if (
-    !Number.isFinite(normalizedValue) ||
+    !Number.isFinite(
+      normalizedValue
+    ) ||
     normalizedValue <= 0
   ) {
     return null
@@ -71,7 +84,9 @@ export function isCampaignPurchaseProgressEligible(
   paymentStatus: string | null | undefined
 ): boolean {
   const normalizedStatus =
-    normalizePaymentStatus(paymentStatus)
+    normalizePaymentStatus(
+      paymentStatus
+    )
 
   if (!normalizedStatus) {
     return false
@@ -98,31 +113,47 @@ export function isCampaignPurchaseProgressEligible(
 
 export function calculateGoalPercentage(
   amountRaised: number,
-  goalAmount: number | null | undefined
+  goalAmount:
+    | number
+    | null
+    | undefined
 ): number | null {
-  const normalizedGoal = Number(goalAmount ?? 0)
+  const normalizedGoal = Number(
+    goalAmount ?? 0
+  )
 
   if (normalizedGoal <= 0) {
     return null
   }
 
   return Math.min(
-    (amountRaised / normalizedGoal) * 100,
+    (amountRaised /
+      normalizedGoal) *
+      100,
     100
   )
 }
 
 export function calculateAmountRemaining(
   amountRaised: number,
-  goalAmount: number | null | undefined
+  goalAmount:
+    | number
+    | null
+    | undefined
 ): number | null {
-  const normalizedGoal = Number(goalAmount ?? 0)
+  const normalizedGoal = Number(
+    goalAmount ?? 0
+  )
 
   if (normalizedGoal <= 0) {
     return null
   }
 
-  return Math.max(normalizedGoal - amountRaised, 0)
+  return Math.max(
+    normalizedGoal -
+      amountRaised,
+    0
+  )
 }
 
 export type CampaignDetailProgressState =
@@ -130,24 +161,36 @@ export type CampaignDetailProgressState =
       status: 'available'
       amountRaised: number
       goalPercentage: number
-      amountRemaining: number | null
+      amountRemaining:
+        | number
+        | null
     }
   | {
       status: 'unavailable'
     }
 
-export function buildCampaignDetailProgressState(input: {
-  amountRaised: number | null | undefined
-  goalAmount: number | null | undefined
-  unavailable?: boolean
-}): CampaignDetailProgressState {
+export function buildCampaignDetailProgressState(
+  input: {
+    amountRaised:
+      | number
+      | null
+      | undefined
+    goalAmount:
+      | number
+      | null
+      | undefined
+    unavailable?: boolean
+  }
+): CampaignDetailProgressState {
   if (input.unavailable) {
     return {
       status: 'unavailable',
     }
   }
 
-  const amountRaised = Number(input.amountRaised ?? 0)
+  const amountRaised = Number(
+    input.amountRaised ?? 0
+  )
 
   return {
     status: 'available',
@@ -157,117 +200,158 @@ export function buildCampaignDetailProgressState(input: {
         amountRaised,
         input.goalAmount
       ) ?? 0,
-    amountRemaining: calculateAmountRemaining(
-      amountRaised,
-      input.goalAmount
-    ),
+    amountRemaining:
+      calculateAmountRemaining(
+        amountRaised,
+        input.goalAmount
+      ),
   }
 }
 
 export function calculateDaysRemaining(
-  endsAt: string | null | undefined,
+  endsAt:
+    | string
+    | null
+    | undefined,
   now = new Date()
 ): number | null {
-  const endDate = getValidDate(endsAt)
+  const endDate =
+    getValidDate(endsAt)
 
   if (!endDate) {
     return null
   }
 
   const differenceMs =
-    endDate.getTime() - now.getTime()
+    endDate.getTime() -
+    now.getTime()
 
   if (differenceMs <= 0) {
     return 0
   }
 
   return Math.ceil(
-    differenceMs / (24 * 60 * 60 * 1000)
+    differenceMs /
+      (24 * 60 * 60 * 1000)
   )
 }
 
-export function buildSellableCampaignOption(input: {
-  campaign: CampaignRow
-  organizationId: string | null
-  organizationName: string | null
-  imageUrl: string | null
-  amountRaised: number
+export function buildSellableCampaignOption(
+  input: {
+    campaign: CampaignRow
+    organizationId:
+      | string
+      | null
+    organizationName:
+      | string
+      | null
+    imageUrl:
+      | string
+      | null
+    amountRaised: number
 
-  /**
-   * Server-resolved effective price for this campaign.
-   *
-   * This override is optional while campaign-loading
-   * callers are migrated one file at a time. The legacy
-   * campaign column remains a temporary fallback.
-   */
-  effectivePassPrice?: number | null
+    /**
+     * Server-resolved managed price for this campaign.
+     *
+     * Every campaign loader must provide this property.
+     * Invalid or missing resolver output produces no displayed
+     * price rather than falling back to campaigns.pass_price.
+     */
+    effectivePassPrice:
+      | number
+      | null
+      | undefined
 
-  now?: Date
-}): SellableCampaignOption {
+    now?: Date
+  }
+): SellableCampaignOption {
   const goalAmount =
-    input.campaign.goal_amount === null
+    input.campaign
+      .goal_amount === null
       ? null
-      : Number(input.campaign.goal_amount)
+      : Number(
+          input.campaign
+            .goal_amount
+        )
 
-  const effectivePassPrice = normalizePassPrice(
-    input.effectivePassPrice
-  )
-
-  const legacyPassPrice = normalizePassPrice(
-    input.campaign.pass_price
-  )
+  const effectivePassPrice =
+    normalizePassPrice(
+      input.effectivePassPrice
+    )
 
   return {
     id: input.campaign.id,
-    organizationId: input.organizationId,
+    organizationId:
+      input.organizationId,
     organizationLegacyProfileId:
-      input.campaign.organization_id,
+      input.campaign
+        .organization_id,
     name: input.campaign.name,
-    organizationName: input.organizationName,
+    organizationName:
+      input.organizationName,
     imageUrl: input.imageUrl,
-    amountRaised: input.amountRaised,
+    amountRaised:
+      input.amountRaised,
     goalAmount,
-    goalPercentage: calculateGoalPercentage(
-      input.amountRaised,
-      goalAmount
-    ),
-    amountRemaining: calculateAmountRemaining(
-      input.amountRaised,
-      goalAmount
-    ),
-    endsAt: input.campaign.ends_at,
-    daysRemaining: calculateDaysRemaining(
+    goalPercentage:
+      calculateGoalPercentage(
+        input.amountRaised,
+        goalAmount
+      ),
+    amountRemaining:
+      calculateAmountRemaining(
+        input.amountRaised,
+        goalAmount
+      ),
+    endsAt:
       input.campaign.ends_at,
-      input.now
-    ),
-    createdAt: input.campaign.created_at,
+    daysRemaining:
+      calculateDaysRemaining(
+        input.campaign.ends_at,
+        input.now
+      ),
+    createdAt:
+      input.campaign.created_at,
 
-    // Prefer managed pricing whenever the caller has
-    // resolved it. Retain the legacy value only until
-    // all campaign loaders provide effective pricing.
+    // Managed pricing is the only supported listing price.
     passPrice:
-      effectivePassPrice ?? legacyPassPrice,
+      effectivePassPrice,
 
-    description: input.campaign.description,
-    startsAt: input.campaign.starts_at,
-    status: input.campaign.status,
+    description:
+      input.campaign.description,
+    startsAt:
+      input.campaign.starts_at,
+    status:
+      input.campaign.status,
   }
 }
 
 export function compareSellableCampaignOptions(
   left: Pick<
     SellableCampaignOption,
-    'endsAt' | 'goalPercentage' | 'createdAt' | 'name'
+    | 'endsAt'
+    | 'goalPercentage'
+    | 'createdAt'
+    | 'name'
   >,
   right: Pick<
     SellableCampaignOption,
-    'endsAt' | 'goalPercentage' | 'createdAt' | 'name'
+    | 'endsAt'
+    | 'goalPercentage'
+    | 'createdAt'
+    | 'name'
   >
 ): number {
-  const leftEndDate = getValidDate(left.endsAt)
-  const rightEndDate = getValidDate(right.endsAt)
+  const leftEndDate =
+    getValidDate(left.endsAt)
 
-  if (leftEndDate && rightEndDate) {
+  const rightEndDate =
+    getValidDate(right.endsAt)
+
+  if (
+    leftEndDate &&
+    rightEndDate
+  ) {
     const endDifference =
       leftEndDate.getTime() -
       rightEndDate.getTime()
@@ -275,25 +359,49 @@ export function compareSellableCampaignOptions(
     if (endDifference !== 0) {
       return endDifference
     }
-  } else if (leftEndDate || rightEndDate) {
-    return leftEndDate ? -1 : 1
+  } else if (
+    leftEndDate ||
+    rightEndDate
+  ) {
+    return leftEndDate
+      ? -1
+      : 1
   }
 
-  const leftProgress = left.goalPercentage ?? -1
-  const rightProgress = right.goalPercentage ?? -1
+  const leftProgress =
+    left.goalPercentage ?? -1
 
-  if (leftProgress !== rightProgress) {
-    return rightProgress - leftProgress
+  const rightProgress =
+    right.goalPercentage ?? -1
+
+  if (
+    leftProgress !==
+    rightProgress
+  ) {
+    return (
+      rightProgress -
+      leftProgress
+    )
   }
 
   const leftCreatedAt =
-    getValidDate(left.createdAt)?.getTime() ?? 0
+    getValidDate(
+      left.createdAt
+    )?.getTime() ?? 0
 
   const rightCreatedAt =
-    getValidDate(right.createdAt)?.getTime() ?? 0
+    getValidDate(
+      right.createdAt
+    )?.getTime() ?? 0
 
-  if (leftCreatedAt !== rightCreatedAt) {
-    return leftCreatedAt - rightCreatedAt
+  if (
+    leftCreatedAt !==
+    rightCreatedAt
+  ) {
+    return (
+      leftCreatedAt -
+      rightCreatedAt
+    )
   }
 
   return left.name.localeCompare(
