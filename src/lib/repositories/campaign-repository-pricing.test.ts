@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createSellableCampaignLookupService } from './campaign-repository'
-import type { CampaignRow } from '../types/identity-access'
+import type {
+  SellableCampaignSource,
+} from '../rules/campaign-progress-rules'
 
 type PricingRequest = {
   campaignId: string
@@ -17,7 +19,7 @@ function createCampaign({
   id: string
   organizationLegacyProfileId: string
   createdAt?: string
-}): CampaignRow {
+}): SellableCampaignSource {
   return {
     id,
     organization_id:
@@ -25,11 +27,6 @@ function createCampaign({
     name: `Campaign ${id}`,
     description: null,
     goal_amount: 1000,
-
-    // Still required by the generated CampaignRow database type.
-    // Runtime listing pricing does not read this value.
-    pass_price: null,
-
     starts_at: '2026-07-01',
     ends_at: '2026-08-01',
     status: 'active',
@@ -40,7 +37,7 @@ function createCampaign({
 function createBaseDependencies({
   campaigns,
 }: {
-  campaigns: CampaignRow[]
+  campaigns: SellableCampaignSource[]
 }) {
   const organizationIds = [
     ...new Set(
