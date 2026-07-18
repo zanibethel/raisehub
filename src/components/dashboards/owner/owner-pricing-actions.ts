@@ -26,6 +26,13 @@ export type PublishCampaignPricingActionState = {
   environment: OwnerPricingEnvironment | null
 }
 
+export type RetireCampaignPricingActionState = {
+  success: boolean
+  message: string | null
+  campaignId: string | null
+  environment: OwnerPricingEnvironment | null
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -37,6 +44,13 @@ const INITIAL_STATE: PublishPlatformPricingActionState = {
 }
 
 const INITIAL_CAMPAIGN_STATE: PublishCampaignPricingActionState = {
+  success: false,
+  message: null,
+  campaignId: null,
+  environment: null,
+}
+
+const INITIAL_RETIRE_CAMPAIGN_STATE: RetireCampaignPricingActionState = {
   success: false,
   message: null,
   campaignId: null,
@@ -451,3 +465,130 @@ export async function publishCampaignPricingAction(
     environment: environmentValue,
   }
 }
+
+// =============================================================================
+// Retire campaign pricing action
+// =============================================================================
+
+export async function retireCampaignPricingAction(
+  _previousState: RetireCampaignPricingActionState =
+    INITIAL_RETIRE_CAMPAIGN_STATE,
+  formData: FormData
+): Promise<RetireCampaignPricingActionState> {
+  const campaignId =
+    readFormValue(formData, 'campaignId')
+
+  if (!campaignId) {
+    return {
+      success: false,
+      message:
+        'Choose a campaign before retiring campaign pricing.',
+      campaignId: null,
+      environment: null,
+    }
+  }
+
+  const environmentValue =
+    readFormValue(formData, 'environment')
+
+  if (!isPricingEnvironment(environmentValue)) {
+    return {
+      success: false,
+      message:
+        'Choose Production or Demo pricing.',
+      campaignId,
+      environment: null,
+    }
+  }
+
+  const ownerResult = await getOwnerUser()
+
+  if (!ownerResult.user) {
+    return {
+      success: false,
+      message: ownerResult.error,
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  const isDemo = environmentValue === 'demo'
+  const retiredAt = new Date().toISOString()
+  const admin = createAdminClient()
+
+  const { data: campaign, error: campaignError } =
+    await admin
+      .from('campaigns')
+      .select('id, is_demo')
+      .eq('id', campaignId)
+      .single<{
+        id: string
+        is_demo: boolean
+      }>()
+
+  if (campaignError || !campaign) {
+    return {
+      success: false,
+      message:
+        'The selected campaign could not be found.',
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  if (campaign.is_demo !== isDemo) {
+    return {
+      success: false,
+      message: `The selected campaign does not belong to the ${environmentValue} environment.`,
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  const { data: retiredRules, error: retirementError } =
+    await admin
+      .from('pricing_rules')
+      .update({
+        status: 'inactive',
+        expires_at: retiredAt,
+        updated_by: ownerResult.user.id,
+      })
+      .eq('scope_type', 'campaign')
+      .eq('campaign_id', campaignId)
+      .eq('is_demo', isDemo)
+      .eq('status', 'active')
+      .select('id')
+      .returns<Array<{ id: string }>>()
+
+  if (retirementError) {
+    return {
+      success: false,
+      message:
+        'The campaign pricing override could not be retired.',
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  if (!retiredRules || retiredRules.length === 0) {
+    return {
+      success: false,
+      message:
+        'This campaign does not have an active pricing override.',
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/owner/pricing')
+
+  return {
+    success: true,
+    message:
+      'The campaign override is retired. Pricing now inherits from the next matching managed rule or the $20 / 20% application fallback.',
+    campaignId,
+    environment: environmentValue,
+  }
+}
+
