@@ -260,16 +260,7 @@ type SellableCampaignLookupDependencies = {
     error: string | null
   }>
 
-  /**
-   * Optional while existing dependency-injected
-   * campaign repository tests are migrated.
-   *
-   * Production supplies this dependency so campaign
-   * listings use managed pricing. Tests and older
-   * callers retain the legacy mapper fallback until
-   * they explicitly provide managed pricing.
-   */
-  loadEffectiveCampaignPricing?(
+  loadEffectiveCampaignPricing(
     inputs: EffectiveCampaignPricingLookupInput[],
     now: Date
   ): Promise<Map<string, number>>
@@ -472,24 +463,22 @@ export function createSellableCampaignLookupService(
     }
 
     const effectivePassPriceByCampaignId =
-      dependencies.loadEffectiveCampaignPricing
-        ? await dependencies.loadEffectiveCampaignPricing(
-            campaigns.map((campaign) => {
-              const organization =
-                organizationByLegacyProfileId.get(
-                  campaign.organization_id
-                )
+      await dependencies.loadEffectiveCampaignPricing(
+        campaigns.map((campaign) => {
+          const organization =
+            organizationByLegacyProfileId.get(
+              campaign.organization_id
+            )
 
-              return {
-                campaignId: campaign.id,
-                organizationId:
-                  organization?.organizationId ??
-                  null,
-              }
-            }),
-            now
-          )
-        : new Map<string, number>()
+          return {
+            campaignId: campaign.id,
+            organizationId:
+              organization?.organizationId ??
+              null,
+          }
+        }),
+        now
+      )
 
     return {
       campaigns: campaigns
