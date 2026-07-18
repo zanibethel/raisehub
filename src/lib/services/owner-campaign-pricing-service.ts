@@ -23,6 +23,14 @@ type CampaignOptionRow = {
   is_demo: boolean
 }
 
+type ActiveCampaignPricingRuleRow = {
+  campaign_id: string | null
+  pass_price: number
+  platform_fee_percent: number
+  starts_at: string
+  reason: string | null
+}
+
 export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPricingOptionsResult> {
   const supabase = await createClient()
 
@@ -64,13 +72,26 @@ export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPri
 
   const admin = createAdminClient()
 
-  const { data, error } = await admin
-    .from('campaigns')
-    .select('id, name, is_demo')
-    .order('name', { ascending: true })
-    .returns<CampaignOptionRow[]>()
+  const [
+    campaignResult,
+    activeRuleResult,
+  ] = await Promise.all([
+    admin
+      .from('campaigns')
+      .select('id, name, is_demo')
+      .order('name', { ascending: true })
+      .returns<CampaignOptionRow[]>(),
+    admin
+      .from('pricing_rules')
+      .select(
+        'campaign_id, pass_price, platform_fee_percent, starts_at, reason'
+      )
+      .eq('scope_type', 'campaign')
+      .eq('status', 'active')
+      .returns<ActiveCampaignPricingRuleRow[]>(),
+  ])
 
-  if (error) {
+  if (campaignResult.error) {
     return {
       status: 'error',
       message:
@@ -78,13 +99,56 @@ export async function getOwnerCampaignPricingOptions(): Promise<OwnerCampaignPri
     }
   }
 
+  if (activeRuleResult.error) {
+    return {
+      status: 'error',
+      message:
+        'Active campaign pricing overrides could not be loaded.',
+    }
+  }
+
+  const activeRuleByCampaignId = new Map(
+    (activeRuleResult.data ?? [])
+      .filter(
+        (
+          rule
+        ): rule is ActiveCampaignPricingRuleRow & {
+          campaign_id: string
+        } => Boolean(rule.campaign_id)
+      )
+      .map((rule) => [
+        rule.campaign_id,
+        rule,
+      ])
+  )
+
   return {
     status: 'success',
-    campaigns: (data ?? []).map((campaign) => ({
-      id: campaign.id,
-      name: campaign.name,
-      isDemo: campaign.is_demo,
-      organizationName: null,
-    })),
+    campaigns: (campaignResult.data ?? []).map(
+      (campaign) => {
+        const activeRule =
+          activeRuleByCampaignId.get(campaign.id) ??
+          null
+
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          isDemo: campaign.is_demo,
+          organizationName: null,
+          activeOverride: activeRule
+            ? {
+                passPrice:
+                  activeRule.pass_price,
+                platformFeePercent:
+                  activeRule.platform_fee_percent,
+                startsAt:
+                  activeRule.starts_at,
+                reason:
+                  activeRule.reason,
+              }
+            : null,
+        }
+      }
+    ),
   }
 }
