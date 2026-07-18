@@ -17,11 +17,19 @@ export const metadata = {
 type PreviewPageProps = {
   searchParams?: Promise<{
     previewRole?: string | string[]
+    subject?: string | string[]
   }>
 }
 
 type ActorProfile = {
   role: string
+}
+
+type DemoSubject = {
+  profile_id: string | null
+  role: string
+  status: string
+  label: string
 }
 
 const VALID_PREVIEW_ROLES: PreviewRole[] = [
@@ -31,18 +39,42 @@ const VALID_PREVIEW_ROLES: PreviewRole[] = [
   'admin',
 ]
 
-function resolvePreviewRole(
+function resolveSingleValue(
   value?: string | string[]
-): PreviewRole {
+): string | null {
   const candidate = Array.isArray(value)
     ? value[0]
     : value
+
+  const normalized = candidate?.trim()
+
+  return normalized || null
+}
+
+function resolvePreviewRole(
+  value?: string | string[]
+): PreviewRole {
+  const candidate = resolveSingleValue(value)
 
   return VALID_PREVIEW_ROLES.includes(
     candidate as PreviewRole
   )
     ? (candidate as PreviewRole)
     : 'customer'
+}
+
+function subjectMatchesRole(
+  subjectRole: string,
+  previewRole: PreviewRole
+): boolean {
+  if (previewRole === 'admin') {
+    return (
+      subjectRole === 'admin' ||
+      subjectRole === 'owner'
+    )
+  }
+
+  return subjectRole === previewRole
 }
 
 function getPreviewLabel(role: PreviewRole): string {
@@ -59,17 +91,35 @@ function getPreviewLabel(role: PreviewRole): string {
   }
 }
 
-function renderPreview(role: PreviewRole) {
+function renderPreview(
+  role: PreviewRole,
+  subjectProfileId: string | null
+) {
   switch (role) {
     case 'business':
-      return <BusinessDashboard />
+      return (
+        <BusinessDashboard
+          businessLegacyProfileId={subjectProfileId}
+        />
+      )
+
     case 'organization':
-      return <OrganizationDashboard />
+      return (
+        <OrganizationDashboard
+          organizationLegacyProfileId={subjectProfileId}
+        />
+      )
+
     case 'admin':
       return <AdminDashboard />
+
     case 'customer':
     default:
-      return <CustomerDashboard />
+      return (
+        <CustomerDashboard
+          customerProfileId={subjectProfileId}
+        />
+      )
   }
 }
 
@@ -82,6 +132,10 @@ export default async function OwnerPreviewPage({
 
   const activeRole = resolvePreviewRole(
     params?.previewRole
+  )
+
+  const requestedSubjectId = resolveSingleValue(
+    params?.subject
   )
 
   const supabase = await createClient()
@@ -104,6 +158,30 @@ export default async function OwnerPreviewPage({
   if (!profile || profile.role !== 'owner') {
     redirect('/dashboard')
   }
+
+  let activeSubject: DemoSubject | null = null
+
+  if (requestedSubjectId) {
+    const { data: demoSubject } = await supabase
+      .from('demo_profiles')
+      .select('profile_id, role, status, label')
+      .eq('profile_id', requestedSubjectId)
+      .eq('status', 'active')
+      .maybeSingle<DemoSubject>()
+
+    if (
+      demoSubject?.profile_id &&
+      subjectMatchesRole(
+        demoSubject.role,
+        activeRole
+      )
+    ) {
+      activeSubject = demoSubject
+    }
+  }
+
+  const activeSubjectId =
+    activeSubject?.profile_id ?? null
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
@@ -142,6 +220,34 @@ export default async function OwnerPreviewPage({
           <OwnerRoleSwitcher activeRole={activeRole} />
         </section>
 
+        {activeSubject ? (
+          <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+              Demo identity
+            </p>
+
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="font-bold text-blue-950">
+                {activeSubject.label}
+              </p>
+
+              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                {activeSubject.role}
+              </span>
+            </div>
+          </section>
+        ) : requestedSubjectId ? (
+          <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="font-bold text-amber-950">
+              Demo identity not applied
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-amber-800">
+              The requested identity is not an active linked demo profile for the selected role. The viewer is using the Owner account fallback instead.
+            </p>
+          </section>
+        ) : null}
+
         <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-200 bg-slate-950 px-5 py-4 text-white sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -162,7 +268,10 @@ export default async function OwnerPreviewPage({
           </div>
 
           <div className="bg-[#F0F6FF] p-4 sm:p-6">
-            {renderPreview(activeRole)}
+            {renderPreview(
+              activeRole,
+              activeSubjectId
+            )}
           </div>
         </section>
 
