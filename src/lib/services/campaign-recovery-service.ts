@@ -11,6 +11,15 @@ import type {
   SellableCampaignQueryOptions,
 } from '../types/campaigns'
 
+export type CampaignRecoveryCampaign = Pick<
+  CampaignRow,
+  | 'id'
+  | 'organization_id'
+  | 'status'
+  | 'starts_at'
+  | 'ends_at'
+>
+
 export type CampaignRecoveryContext = {
   campaignId: string
   organizationLegacyProfileId: string
@@ -18,7 +27,9 @@ export type CampaignRecoveryContext = {
 
 export type CampaignRecoveryDependencies = {
   now?: () => Date
-  loadCampaignById(campaignId: string): Promise<CampaignRow | null>
+  loadCampaignById(
+    campaignId: string
+  ): Promise<CampaignRecoveryCampaign | null>
   loadCampaignRecoveryContext(
     campaignId: string
   ): Promise<CampaignRecoveryContext | null>
@@ -30,31 +41,49 @@ export type CampaignRecoveryDependencies = {
 export function createCampaignRecoveryService(
   dependencies: CampaignRecoveryDependencies
 ) {
-  const getNow = () => dependencies.now?.() ?? new Date()
+  const getNow = () =>
+    dependencies.now?.() ?? new Date()
 
   async function resolveCampaignRecovery(
     campaignId: string
   ): Promise<CampaignRecoveryResult> {
     try {
-      const campaign = await dependencies.loadCampaignById(campaignId)
+      const campaign =
+        await dependencies.loadCampaignById(
+          campaignId
+        )
+
       const now = getNow()
 
-      if (campaign && isCampaignCurrentlySellable(campaign, now)) {
+      if (
+        campaign &&
+        isCampaignCurrentlySellable(
+          campaign,
+          now
+        )
+      ) {
         return {
-          status: 'current-campaign-valid',
+          status:
+            'current-campaign-valid',
           campaignId,
         }
       }
 
-      let replacementOrganizationLegacyProfileId = campaign?.organization_id ?? null
+      let replacementOrganizationLegacyProfileId =
+        campaign?.organization_id ?? null
 
-      if (!replacementOrganizationLegacyProfileId) {
+      if (
+        !replacementOrganizationLegacyProfileId
+      ) {
         const recoveryContext =
-          await dependencies.loadCampaignRecoveryContext(campaignId)
+          await dependencies.loadCampaignRecoveryContext(
+            campaignId
+          )
 
         if (!recoveryContext) {
           return {
-            status: 'no-valid-campaign',
+            status:
+              'no-valid-campaign',
             replacedCampaignId: null,
           }
         }
@@ -63,31 +92,45 @@ export function createCampaignRecoveryService(
           recoveryContext.organizationLegacyProfileId
       }
 
-      const campaigns = await dependencies.loadSellableCampaigns({
-        organizationLegacyProfileId: replacementOrganizationLegacyProfileId,
-        excludeCampaignId: campaign?.id ?? campaignId,
-        now,
-      })
+      const campaigns =
+        await dependencies.loadSellableCampaigns(
+          {
+            organizationLegacyProfileId:
+              replacementOrganizationLegacyProfileId,
+            excludeCampaignId:
+              campaign?.id ??
+              campaignId,
+            now,
+          }
+        )
 
       if (campaigns.length === 1) {
         return {
           status: 'replacement-found',
-          campaignId: campaigns[0].id,
-          replacedCampaignId: campaign?.id ?? campaignId,
+          campaignId:
+            campaigns[0].id,
+          replacedCampaignId:
+            campaign?.id ??
+            campaignId,
         }
       }
 
       if (campaigns.length > 1) {
         return {
-          status: 'selection-required',
-          replacedCampaignId: campaign?.id ?? campaignId,
+          status:
+            'selection-required',
+          replacedCampaignId:
+            campaign?.id ??
+            campaignId,
           campaigns,
         }
       }
 
       return {
         status: 'no-valid-campaign',
-        replacedCampaignId: campaign?.id ?? campaignId,
+        replacedCampaignId:
+          campaign?.id ??
+          campaignId,
       }
     } catch {
       return {
@@ -105,44 +148,62 @@ export async function resolveCampaignRecovery(
   campaignId: string,
   now = new Date()
 ): Promise<CampaignRecoveryResult> {
-  const service = createCampaignRecoveryService({
-    now: () => now,
-    async loadCampaignById(id) {
-      const { campaign, error } = await getCampaignById(id)
+  const service =
+    createCampaignRecoveryService({
+      now: () => now,
 
-      if (error) {
-        throw new Error(error)
-      }
+      async loadCampaignById(id) {
+        const { campaign, error } =
+          await getCampaignById(id)
 
-      return campaign
-    },
-    async loadCampaignRecoveryContext(id) {
-      const { context, error } = await getCampaignRecoveryContext(id)
+        if (error) {
+          throw new Error(error)
+        }
 
-      if (error) {
-        throw new Error(error)
-      }
+        return campaign
+      },
 
-      if (!context) {
-        return null
-      }
+      async loadCampaignRecoveryContext(
+        id
+      ) {
+        const { context, error } =
+          await getCampaignRecoveryContext(
+            id
+          )
 
-      return {
-        campaignId: context.campaign_id,
-        organizationLegacyProfileId:
-          context.organization_legacy_profile_id,
-      }
-    },
-    async loadSellableCampaigns(options) {
-      const { campaigns, error } = await getSellableCampaigns(options)
+        if (error) {
+          throw new Error(error)
+        }
 
-      if (error) {
-        throw new Error(error)
-      }
+        if (!context) {
+          return null
+        }
 
-      return campaigns
-    },
-  })
+        return {
+          campaignId:
+            context.campaign_id,
+          organizationLegacyProfileId:
+            context.organization_legacy_profile_id,
+        }
+      },
 
-  return service.resolveCampaignRecovery(campaignId)
+      async loadSellableCampaigns(
+        options
+      ) {
+        const { campaigns, error } =
+          await getSellableCampaigns(
+            options
+          )
+
+        if (error) {
+          throw new Error(error)
+        }
+
+        return campaigns
+      },
+    })
+
+  return service.resolveCampaignRecovery(
+    campaignId
+  )
 }
