@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 import CampaignStatusActionButton from '@/app/components/campaign-status-action-button'
-import ShareCampaignButton from '@/app/components/share-campaign-button'
 import CreateCampaignForm from '@/app/components/create-campaign-form'
+import ShareCampaignButton from '@/app/components/share-campaign-button'
 import CampaignStatusBadge from '@/components/dashboard/campaign-status-badge'
 import EmptyState from '@/components/dashboard/empty-state'
 import SectionHeader from '@/components/dashboard/section-header'
@@ -27,9 +27,17 @@ type CampaignMetrics = {
   amountRaised: number
 }
 
+type CampaignCreationPricing = {
+  passPrice: number
+  platformFeePercent: number
+  organizationPassEarnings: number
+  usedFallback: boolean
+}
+
 type OrganizationCampaignsSectionProps = {
   campaigns: Campaign[]
   metricsByCampaign: Record<string, CampaignMetrics>
+  campaignCreationPricing: CampaignCreationPricing
 }
 
 function formatCurrency(value: number) {
@@ -61,10 +69,14 @@ function formatDate(value: string | null) {
 export default function OrganizationCampaignsSection({
   campaigns,
   metricsByCampaign,
+  campaignCreationPricing,
 }: OrganizationCampaignsSectionProps) {
   return (
     <>
-      <CreateCampaignForm id="create-campaign" />
+      <CreateCampaignForm
+        id="create-campaign"
+        pricing={campaignCreationPricing}
+      />
 
       <section className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
         <SectionHeader
@@ -300,7 +312,7 @@ function CampaignActions({
           label="Pause"
           pendingLabel="Pausing..."
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-          confirmMessage='Pause "{campaignName}"? Supporters will no longer be able to purchase until you resume it.'
+          confirmMessage={`Pause "${campaignName}"? Supporters will no longer be able to purchase until you resume it.`}
         />
       ) : null}
 
@@ -323,7 +335,7 @@ function CampaignActions({
           label="Archive"
           pendingLabel="Archiving..."
           className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
-          confirmMessage='Archive "{campaignName}"? This keeps campaign history but hides it from active campaign lists.'
+          confirmMessage={`Archive "${campaignName}"? This keeps campaign history but hides it from active campaign lists.`}
         />
       ) : null}
     </div>
