@@ -27,6 +27,14 @@ import type {
   OrganizationRow,
 } from '../types/identity-access'
 
+export type CapabilityCampaign = Pick<
+  CampaignRow,
+  | 'organization_id'
+  | 'status'
+  | 'starts_at'
+  | 'ends_at'
+>
+
 export type CapabilityResolverDependencies = {
   now?: () => Date
   loadBusinessAccess(actorId: string): Promise<BusinessAccessRecord[]>
@@ -43,7 +51,9 @@ export type CapabilityResolverDependencies = {
   loadOrganizationByLegacyProfileId(
     legacyProfileId: string
   ): Promise<OrganizationRow | null>
-  loadCampaignById(campaignId: string): Promise<CampaignRow | null>
+  loadCampaignById(
+    campaignId: string
+  ): Promise<CapabilityCampaign | null>
   loadCampaignMembershipById(
     campaignMembershipId: string
   ): Promise<CampaignMembershipRow | null>
