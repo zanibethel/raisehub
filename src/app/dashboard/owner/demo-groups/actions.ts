@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { createDemoGroup } from '@/lib/repositories/demo-platform-repository'
+import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
 // Types
@@ -17,6 +18,16 @@ export type CreateDemoGroupActionState = {
 // =============================================================================
 // Helpers
 // =============================================================================
+
+function failure(
+  message: string
+): CreateDemoGroupActionState {
+  return {
+    success: false,
+    message,
+    groupKey: null,
+  }
+}
 
 function readFormValue(
   formData: FormData,
@@ -37,6 +48,38 @@ export async function createDemoGroupAction(
   _previousState: CreateDemoGroupActionState,
   formData: FormData
 ): Promise<CreateDemoGroupActionState> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return failure(
+      'Sign in before creating a demo group.'
+    )
+  }
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single<{ role: string }>()
+
+  if (profileError || !profile) {
+    return failure(
+      'Unable to verify owner access.'
+    )
+  }
+
+  if (profile.role !== 'owner') {
+    return failure(
+      'Owner access is required.'
+    )
+  }
+
   const result = await createDemoGroup({
     name: readFormValue(formData, 'name'),
     description:
@@ -46,16 +89,13 @@ export async function createDemoGroupAction(
   })
 
   if (result.error || !result.group) {
-    return {
-      success: false,
-      message:
-        result.error ??
-        'The demo group could not be created.',
-      groupKey: null,
-    }
+    return failure(
+      result.error ??
+        'The demo group could not be created.'
+    )
   }
 
-  revalidatePath('/dashboard/owner')
+  revalidatePath('/dashboard/owner/demos')
   revalidatePath(
     `/dashboard/owner/demo-groups/${result.group.groupKey}`
   )
