@@ -7,6 +7,10 @@ import {
   type OrganizationCampaign,
 } from '@/lib/repositories/organization-campaign-repository'
 import {
+  resolveEffectiveCampaignPricingBatch,
+  type EffectivePricingResult,
+} from '@/lib/services/pricing-resolution-service'
+import {
   authorizeOwnerWorkspaceRead,
   type OwnerWorkspaceAuthorizationFailureReason,
 } from '@/lib/services/owner-workspace-authorization-service'
@@ -21,7 +25,7 @@ export type ReadOnlyOrganizationCampaign = {
   description: string | null
   status: string
   goalAmount: number | null
-  passPrice: number | null
+  passPrice: number
   startsAt: string | null
   endsAt: string | null
   createdAt: string
@@ -43,19 +47,36 @@ export type OwnerOrganizationCampaignsResult =
     }
 
 // =============================================================================
+// Demo-state resolution
+// =============================================================================
+
+function isDemoWorkspace(
+  workspace: WorkspaceCardData
+): boolean {
+  return (
+    'isDemo' in workspace &&
+    Boolean(workspace.isDemo)
+  )
+}
+
+// =============================================================================
 // Mapping
 // =============================================================================
 
-function mapCampaignRecordToReadOnlyCampaign(
+function mapCampaignRecordToReadOnlyCampaign({
+  campaign,
+  pricing,
+}: {
   campaign: OrganizationCampaign
-): ReadOnlyOrganizationCampaign {
+  pricing: EffectivePricingResult
+}): ReadOnlyOrganizationCampaign {
   return {
     id: campaign.id,
     name: campaign.name,
     description: campaign.description,
     status: campaign.status,
     goalAmount: campaign.goal_amount,
-    passPrice: campaign.pass_price,
+    passPrice: pricing.passPrice,
     startsAt: campaign.starts_at,
     endsAt: campaign.ends_at,
     createdAt: campaign.created_at,
@@ -93,24 +114,62 @@ export async function getOwnerAuthorizedOrganizationCampaigns(
     }
   }
 
-  const { workspace } = authorizationResult
+  const { workspace } =
+    authorizationResult
 
   const { campaigns, error } =
-    await getOrganizationCampaigns(workspace.id)
+    await getOrganizationCampaigns(
+      workspace.id
+    )
 
   if (error) {
     return {
       success: false,
       reason: 'campaign-lookup-failure',
-      message: 'Unable to load organization campaigns.',
+      message:
+        'Unable to load organization campaigns.',
     }
   }
+
+  const {
+    pricingByCampaignId,
+  } =
+    await resolveEffectiveCampaignPricingBatch(
+      campaigns.map((campaign) => ({
+        campaignId: campaign.id,
+        organizationId: workspace.id,
+        isDemo:
+          isDemoWorkspace(workspace),
+      }))
+    )
 
   return {
     success: true,
     workspace,
     campaigns: campaigns.map(
-      mapCampaignRecordToReadOnlyCampaign
+      (campaign) =>
+        mapCampaignRecordToReadOnlyCampaign({
+          campaign,
+          pricing:
+            pricingByCampaignId.get(
+              campaign.id
+            ) ?? {
+              pricingRuleId: null,
+              pricingScope: 'fallback',
+              passPrice: 20,
+              platformFeePercent: 10,
+              platformFeeAmount: 2,
+              organizationPassEarnings: 18,
+              donationAmount: 0,
+              organizationTotalEarnings: 18,
+              totalAmount: 20,
+              startsAt: null,
+              expiresAt: null,
+              reason:
+                'Emergency pricing fallback',
+              usedFallback: true,
+            },
+        })
     ),
   }
 }
