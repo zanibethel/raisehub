@@ -24,8 +24,21 @@ const CAMPAIGN_SELECT_COLUMNS = `
   created_at
 `
 
+export type CampaignLookupRow = Pick<
+  CampaignRow,
+  | 'id'
+  | 'organization_id'
+  | 'name'
+  | 'description'
+  | 'goal_amount'
+  | 'starts_at'
+  | 'ends_at'
+  | 'status'
+  | 'created_at'
+>
+
 type CampaignResult = {
-  campaign: CampaignRow | null
+  campaign: CampaignLookupRow | null
   error: string | null
 }
 
@@ -594,7 +607,7 @@ export async function getCampaignById(
     .from('campaigns')
     .select(CAMPAIGN_SELECT_COLUMNS)
     .eq('id', campaignId)
-    .maybeSingle<CampaignRow>()
+    .maybeSingle<CampaignLookupRow>()
 
   if (error) {
     return {
