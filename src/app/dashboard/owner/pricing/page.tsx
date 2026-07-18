@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import OwnerCampaignPricingEditor from '@/components/dashboards/owner/owner-campaign-pricing-editor'
 import OwnerPricingEditor from '@/components/dashboards/owner/owner-pricing-editor'
+import { getOwnerCampaignPricingOptions } from '@/lib/services/owner-campaign-pricing-service'
 import {
   getOwnerPlatformPricingHistory,
   type OwnerPlatformPricingHistoryItem,
@@ -249,22 +251,28 @@ function HistoryRow({
 }
 
 export default async function OwnerPricingPage() {
-  const [pricingResult, historyResult] =
-    await Promise.all([
-      getOwnerPricingOverview(),
-      getOwnerPlatformPricingHistory(30),
-    ])
+  const [
+    pricingResult,
+    historyResult,
+    campaignOptionsResult,
+  ] = await Promise.all([
+    getOwnerPricingOverview(),
+    getOwnerPlatformPricingHistory(30),
+    getOwnerCampaignPricingOptions(),
+  ])
 
   if (
     pricingResult.status === 'unauthenticated' ||
-    historyResult.status === 'unauthenticated'
+    historyResult.status === 'unauthenticated' ||
+    campaignOptionsResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
 
   if (
     pricingResult.status === 'owner-role-required' ||
-    historyResult.status === 'owner-role-required'
+    historyResult.status === 'owner-role-required' ||
+    campaignOptionsResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -332,6 +340,20 @@ export default async function OwnerPricingPage() {
                 demoPassPrice={pricingResult.overview.demo.passPrice}
                 demoFeePercent={pricingResult.overview.demo.platformFeePercent}
               />
+
+              {campaignOptionsResult.status === 'success' ? (
+                <OwnerCampaignPricingEditor
+                  campaigns={campaignOptionsResult.campaigns}
+                  productionPassPrice={pricingResult.overview.production.passPrice}
+                  productionFeePercent={pricingResult.overview.production.platformFeePercent}
+                  demoPassPrice={pricingResult.overview.demo.passPrice}
+                  demoFeePercent={pricingResult.overview.demo.platformFeePercent}
+                />
+              ) : (
+                <p className="mt-5 rounded-2xl border border-amber-700 bg-amber-950/40 p-4 text-sm leading-6 text-amber-200">
+                  {campaignOptionsResult.message}
+                </p>
+              )}
             </section>
           </>
         ) : (
