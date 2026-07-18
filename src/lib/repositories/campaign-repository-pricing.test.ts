@@ -269,21 +269,32 @@ test(
 )
 
 test(
-  'retains legacy pricing while the optional pricing dependency is absent',
+  'uses the emergency price returned by managed pricing instead of the legacy campaign column',
   async () => {
     const campaign = createCampaign({
       id: 'campaign-1',
       organizationLegacyProfileId:
         'legacy-organization-1',
-      passPrice: 20,
+
+      // Deliberately stale. The listing must not
+      // display this value.
+      passPrice: 99,
     })
 
     const service =
-      createSellableCampaignLookupService(
-        createBaseDependencies({
+      createSellableCampaignLookupService({
+        ...createBaseDependencies({
           campaigns: [campaign],
-        })
-      )
+        }),
+
+        async loadEffectiveCampaignPricing() {
+          // Represents the emergency fallback returned
+          // by the managed pricing resolver.
+          return new Map([
+            ['campaign-1', 20],
+          ])
+        },
+      })
 
     const result =
       await service.getSellableCampaigns({
@@ -294,8 +305,18 @@ test(
 
     assert.equal(result.error, null)
     assert.equal(
+      result.errorSource,
+      null
+    )
+
+    assert.equal(
       result.campaigns[0]?.passPrice,
       20
+    )
+
+    assert.notEqual(
+      result.campaigns[0]?.passPrice,
+      campaign.pass_price
     )
   }
 )
