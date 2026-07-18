@@ -19,11 +19,6 @@ type CreateCampaignInput = {
   name: string
   description: string
   goal_amount: number
-
-  // Temporarily retained so the existing form compiles.
-  // Managed pricing is resolved securely on the server.
-  pass_price?: number
-
   starts_at: string
   ends_at: string
 }
@@ -33,11 +28,6 @@ type UpdateCampaignInput = {
   name: string
   description: string
   goal_amount: number
-
-  // Temporarily retained so the existing form compiles.
-  // Organizer-submitted pricing is ignored.
-  pass_price?: number
-
   starts_at: string
   ends_at: string
 }
@@ -263,8 +253,9 @@ export async function updateCampaignAction(
         input.description.trim() || null,
       goal_amount: goalAmount,
 
-      // Organizer-submitted pricing is ignored.
-      // This mirrors the effective managed price.
+      // Managed pricing remains the source of truth.
+      // This keeps the transitional campaign column
+      // synchronized with the effective pricing rule.
       pass_price: pricing.passPrice,
 
       starts_at: dates.startsAt,
