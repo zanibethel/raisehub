@@ -229,54 +229,6 @@ export async function publishPlatformPricingAction(
     readFormValue(formData, 'internalNote') ||
     null
 
-  const requestedStartsAt = readFormValue(
-    formData,
-    'startsAt'
-  )
-
-  const requestedExpiresAt = readFormValue(
-    formData,
-    'expiresAt'
-  )
-
-  const parsedStartsAt = parseOptionalDate(
-    requestedStartsAt
-  )
-
-  const parsedExpiresAt = parseOptionalDate(
-    requestedExpiresAt
-  )
-
-  if (requestedStartsAt && !parsedStartsAt) {
-    return campaignFailure(
-      'Choose a valid campaign pricing start date.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  if (requestedExpiresAt && !parsedExpiresAt) {
-    return campaignFailure(
-      'Choose a valid campaign pricing end date.',
-      campaignId,
-      environmentValue
-    )
-  }
-
-  const now = new Date()
-  const startsAtDate = parsedStartsAt ?? now
-
-  if (
-    parsedExpiresAt &&
-    parsedExpiresAt <= startsAtDate
-  ) {
-    return campaignFailure(
-      'The campaign pricing end date must be after its start date.',
-      campaignId,
-      environmentValue
-    )
-  }
-
   const ownerResult = await getOwnerUser()
 
   if (!ownerResult.user) {
@@ -287,10 +239,7 @@ export async function publishPlatformPricingAction(
   }
 
   const isDemo = environmentValue === 'demo'
-  const startsAt = startsAtDate.toISOString()
-  const expiresAt =
-    parsedExpiresAt?.toISOString() ?? null
-  const isScheduled = startsAtDate > now
+  const startsAt = new Date().toISOString()
   const admin = createAdminClient()
 
   // Insert the new default first so checkout never loses a managed rule.
@@ -304,7 +253,6 @@ export async function publishPlatformPricingAction(
           platformFeePercent,
         status: 'active',
         starts_at: startsAt,
-        expires_at: expiresAt,
         reason,
         internal_note: internalNote,
         created_by: ownerResult.user.id,
@@ -424,6 +372,54 @@ export async function publishCampaignPricingAction(
     readFormValue(formData, 'internalNote') ||
     null
 
+  const requestedStartsAt = readFormValue(
+    formData,
+    'startsAt'
+  )
+
+  const requestedExpiresAt = readFormValue(
+    formData,
+    'expiresAt'
+  )
+
+  const parsedStartsAt = parseOptionalDate(
+    requestedStartsAt
+  )
+
+  const parsedExpiresAt = parseOptionalDate(
+    requestedExpiresAt
+  )
+
+  if (requestedStartsAt && !parsedStartsAt) {
+    return campaignFailure(
+      'Choose a valid campaign pricing start date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
+  if (requestedExpiresAt && !parsedExpiresAt) {
+    return campaignFailure(
+      'Choose a valid campaign pricing end date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
+  const now = new Date()
+  const startsAtDate = parsedStartsAt ?? now
+
+  if (
+    parsedExpiresAt &&
+    parsedExpiresAt <= startsAtDate
+  ) {
+    return campaignFailure(
+      'The campaign pricing end date must be after its start date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
   const ownerResult = await getOwnerUser()
 
   if (!ownerResult.user) {
@@ -435,7 +431,10 @@ export async function publishCampaignPricingAction(
   }
 
   const isDemo = environmentValue === 'demo'
-  const startsAt = new Date().toISOString()
+  const startsAt = startsAtDate.toISOString()
+  const expiresAt =
+    parsedExpiresAt?.toISOString() ?? null
+  const isScheduled = startsAtDate > now
   const admin = createAdminClient()
 
   const { data: campaign, error: campaignError } =
@@ -476,6 +475,7 @@ export async function publishCampaignPricingAction(
           platformFeePercent,
         status: 'active',
         starts_at: startsAt,
+        expires_at: expiresAt,
         reason,
         internal_note: internalNote,
         created_by: ownerResult.user.id,
@@ -495,8 +495,8 @@ export async function publishCampaignPricingAction(
   }
 
   // Immediate replacements retire the current override now.
-  // Scheduled replacements keep the current override active until
-  // the scheduled start, then its expiration makes the new rule win.
+  // Scheduled replacements keep the current override available until
+  // the future rule begins, then expire it at that exact start time.
   const replacementUpdate = isScheduled
     ? {
         expires_at: startsAt,
@@ -542,8 +542,8 @@ export async function publishCampaignPricingAction(
         ? `is scheduled for ${startsAtDate.toLocaleString('en-US')}`
         : 'is now active'
     } for the selected campaign${
-      expiresAt
-        ? ` until ${parsedExpiresAt!.toLocaleString('en-US')}`
+      parsedExpiresAt
+        ? ` until ${parsedExpiresAt.toLocaleString('en-US')}`
         : ''
     }.`,
     campaignId,
