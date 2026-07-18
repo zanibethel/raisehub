@@ -94,6 +94,20 @@ function parseMoney(
   return Math.round(parsed * 100) / 100
 }
 
+function parseOptionalDate(
+  value: string
+): Date | null {
+  if (!value) {
+    return null
+  }
+
+  const parsed = new Date(value)
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed
+}
+
 function failure(
   message: string,
   environment: OwnerPricingEnvironment | null = null
@@ -215,6 +229,54 @@ export async function publishPlatformPricingAction(
     readFormValue(formData, 'internalNote') ||
     null
 
+  const requestedStartsAt = readFormValue(
+    formData,
+    'startsAt'
+  )
+
+  const requestedExpiresAt = readFormValue(
+    formData,
+    'expiresAt'
+  )
+
+  const parsedStartsAt = parseOptionalDate(
+    requestedStartsAt
+  )
+
+  const parsedExpiresAt = parseOptionalDate(
+    requestedExpiresAt
+  )
+
+  if (requestedStartsAt && !parsedStartsAt) {
+    return campaignFailure(
+      'Choose a valid campaign pricing start date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
+  if (requestedExpiresAt && !parsedExpiresAt) {
+    return campaignFailure(
+      'Choose a valid campaign pricing end date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
+  const now = new Date()
+  const startsAtDate = parsedStartsAt ?? now
+
+  if (
+    parsedExpiresAt &&
+    parsedExpiresAt <= startsAtDate
+  ) {
+    return campaignFailure(
+      'The campaign pricing end date must be after its start date.',
+      campaignId,
+      environmentValue
+    )
+  }
+
   const ownerResult = await getOwnerUser()
 
   if (!ownerResult.user) {
@@ -225,7 +287,10 @@ export async function publishPlatformPricingAction(
   }
 
   const isDemo = environmentValue === 'demo'
-  const startsAt = new Date().toISOString()
+  const startsAt = startsAtDate.toISOString()
+  const expiresAt =
+    parsedExpiresAt?.toISOString() ?? null
+  const isScheduled = startsAtDate > now
   const admin = createAdminClient()
 
   // Insert the new default first so checkout never loses a managed rule.
@@ -239,6 +304,7 @@ export async function publishPlatformPricingAction(
           platformFeePercent,
         status: 'active',
         starts_at: startsAt,
+        expires_at: expiresAt,
         reason,
         internal_note: internalNote,
         created_by: ownerResult.user.id,
@@ -428,15 +494,24 @@ export async function publishCampaignPricingAction(
     )
   }
 
-  // Retire older overrides only after the replacement exists.
-  const { error: retirementError } =
-    await admin
-      .from('pricing_rules')
-      .update({
+  // Immediate replacements retire the current override now.
+  // Scheduled replacements keep the current override active until
+  // the scheduled start, then its expiration makes the new rule win.
+  const replacementUpdate = isScheduled
+    ? {
+        expires_at: startsAt,
+        updated_by: ownerResult.user.id,
+      }
+    : {
         status: 'inactive',
         expires_at: startsAt,
         updated_by: ownerResult.user.id,
-      })
+      }
+
+  const { error: retirementError } =
+    await admin
+      .from('pricing_rules')
+      .update(replacementUpdate)
       .eq('scope_type', 'campaign')
       .eq('campaign_id', campaignId)
       .eq('is_demo', isDemo)
@@ -445,7 +520,9 @@ export async function publishCampaignPricingAction(
 
   if (retirementError) {
     return campaignFailure(
-      'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
+      isScheduled
+        ? 'The scheduled campaign rule was created, but the current override could not be aligned to its start date. Review pricing rules before publishing another change.'
+        : 'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
       campaignId,
       environmentValue
     )
@@ -460,7 +537,15 @@ export async function publishCampaignPricingAction(
       2
     )} with a ${platformFeePercent.toFixed(
       2
-    )}% RaiseHub fee is now active for the selected campaign.`,
+    )}% RaiseHub fee ${
+      isScheduled
+        ? `is scheduled for ${startsAtDate.toLocaleString('en-US')}`
+        : 'is now active'
+    } for the selected campaign${
+      expiresAt
+        ? ` until ${parsedExpiresAt!.toLocaleString('en-US')}`
+        : ''
+    }.`,
     campaignId,
     environment: environmentValue,
   }
