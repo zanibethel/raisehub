@@ -77,8 +77,8 @@ type PricingRuleRow = {
 // Constants
 // =============================================================================
 
-const UNAVAILABLE_PASS_PRICE = 0
-const UNAVAILABLE_PLATFORM_FEE_PERCENT = 0
+const FALLBACK_PASS_PRICE = 20
+const FALLBACK_PLATFORM_FEE_PERCENT = 20
 
 const EMPTY_RULE_COUNTS: OwnerPricingRuleCounts = {
   platform: 0,
@@ -109,12 +109,12 @@ function calculateSummary(input: {
 }): OwnerPlatformPricingSummary {
   const passPrice = normalizeMoney(
     input.rule?.pass_price ??
-      UNAVAILABLE_PASS_PRICE
+      FALLBACK_PASS_PRICE
   )
 
   const platformFeePercent = normalizeMoney(
     input.rule?.platform_fee_percent ??
-      UNAVAILABLE_PLATFORM_FEE_PERCENT
+      FALLBACK_PLATFORM_FEE_PERCENT
   )
 
   const platformFeeAmount = normalizeMoney(
@@ -132,9 +132,7 @@ function calculateSummary(input: {
     ),
     startsAt: input.rule?.starts_at ?? null,
     expiresAt: input.rule?.expires_at ?? null,
-    reason:
-      input.rule?.reason ??
-      'Managed pricing is unavailable because no active platform pricing rule could be resolved.',
+    reason: input.rule?.reason ?? null,
     usesFallback: !input.rule,
   }
 }
