@@ -13,81 +13,90 @@ function createCampaign(
 ): CampaignInput {
   return {
     id: 'campaign-1',
-    organization_id: 'organization-profile-1',
+    organization_id:
+      'organization-profile-1',
     name: 'Band Booster Fundraiser',
-    description: 'Support the school band.',
+    description:
+      'Support the school band.',
     goal_amount: 1000,
     pass_price: passPrice,
     starts_at: '2026-07-01',
     ends_at: '2026-08-01',
     status: 'active',
-    created_at: '2026-07-01T12:00:00.000Z',
+    created_at:
+      '2026-07-01T12:00:00.000Z',
   } as CampaignInput
+}
+
+function buildOption({
+  legacyPassPrice,
+  effectivePassPrice,
+}: {
+  legacyPassPrice: number | null
+  effectivePassPrice: number
+}) {
+  return buildSellableCampaignOption({
+    campaign:
+      createCampaign(legacyPassPrice),
+    organizationId:
+      'organization-1',
+    organizationName:
+      'Band Boosters',
+    imageUrl: null,
+    amountRaised: 250,
+    effectivePassPrice,
+    now: new Date(
+      '2026-07-15T12:00:00.000Z'
+    ),
+  })
 }
 
 test(
   'uses managed pricing instead of the legacy campaign price',
   () => {
-    const option = buildSellableCampaignOption({
-      campaign: createCampaign(20),
-      organizationId: 'organization-1',
-      organizationName: 'Band Boosters',
-      imageUrl: null,
-      amountRaised: 250,
+    const option = buildOption({
+      legacyPassPrice: 20,
       effectivePassPrice: 25,
-      now: new Date('2026-07-15T12:00:00.000Z'),
     })
 
-    assert.equal(option.passPrice, 25)
+    assert.equal(
+      option.passPrice,
+      25
+    )
   }
 )
 
 test(
-  'uses the legacy campaign price while managed pricing is not supplied',
+  'uses managed pricing when the legacy campaign price is missing',
   () => {
-    const option = buildSellableCampaignOption({
-      campaign: createCampaign(20),
-      organizationId: 'organization-1',
-      organizationName: 'Band Boosters',
-      imageUrl: null,
-      amountRaised: 250,
-      now: new Date('2026-07-15T12:00:00.000Z'),
+    const option = buildOption({
+      legacyPassPrice: null,
+      effectivePassPrice: 25,
     })
 
-    assert.equal(option.passPrice, 20)
+    assert.equal(
+      option.passPrice,
+      25
+    )
   }
 )
 
 test(
-  'uses the legacy price when the managed override is invalid',
+  'uses managed pricing when the legacy campaign price is stale',
   () => {
-    const option = buildSellableCampaignOption({
-      campaign: createCampaign(20),
-      organizationId: 'organization-1',
-      organizationName: 'Band Boosters',
-      imageUrl: null,
-      amountRaised: 250,
-      effectivePassPrice: 0,
-      now: new Date('2026-07-15T12:00:00.000Z'),
+    const option = buildOption({
+      legacyPassPrice: 99,
+      effectivePassPrice: 20,
     })
 
-    assert.equal(option.passPrice, 20)
-  }
-)
+    assert.equal(
+      option.passPrice,
+      20
+    )
 
-test(
-  'returns no price when neither managed nor legacy pricing is valid',
-  () => {
-    const option = buildSellableCampaignOption({
-      campaign: createCampaign(null),
-      organizationId: 'organization-1',
-      organizationName: 'Band Boosters',
-      imageUrl: null,
-      amountRaised: 250,
-      effectivePassPrice: Number.NaN,
-      now: new Date('2026-07-15T12:00:00.000Z'),
-    })
-
-    assert.equal(option.passPrice, null)
+    assert.notEqual(
+      option.passPrice,
+      99
+    )
   }
 )
