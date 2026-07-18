@@ -4,21 +4,19 @@ import {
   getCampaignRecoveryContext,
   getSellableCampaigns,
 } from '../repositories/campaign-repository'
-import type { CampaignRow } from '../types/identity-access'
 import type {
   CampaignRecoveryResult,
   SellableCampaignOption,
   SellableCampaignQueryOptions,
 } from '../types/campaigns'
 
-export type CampaignRecoveryCampaign = Pick<
-  CampaignRow,
-  | 'id'
-  | 'organization_id'
-  | 'status'
-  | 'starts_at'
-  | 'ends_at'
->
+export type CampaignRecoveryCampaign = {
+  id: string
+  organization_id: string
+  status: string
+  starts_at: string | null
+  ends_at: string | null
+}
 
 export type CampaignRecoveryContext = {
   campaignId: string
