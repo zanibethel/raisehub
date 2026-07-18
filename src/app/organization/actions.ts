@@ -5,11 +5,25 @@ import { revalidatePath } from 'next/cache'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createClient } from '@/lib/supabase/server'
 
+type CampaignActionResult =
+  | {
+      success: true
+      error?: never
+    }
+  | {
+      success?: never
+      error: string
+    }
+
 type CreateCampaignInput = {
   name: string
   description: string
   goal_amount: number
+
+  // Temporarily retained so the existing form compiles.
+  // Managed pricing is resolved securely on the server.
   pass_price?: number
+
   starts_at: string
   ends_at: string
 }
@@ -19,10 +33,26 @@ type UpdateCampaignInput = {
   name: string
   description: string
   goal_amount: number
+
+  // Temporarily retained so the existing form compiles.
+  // Organizer-submitted pricing is ignored.
   pass_price?: number
+
   starts_at: string
   ends_at: string
 }
+
+type ParsedCampaignDates =
+  | {
+      error: string
+      startsAt?: never
+      endsAt?: never
+    }
+  | {
+      error?: never
+      startsAt: string | null
+      endsAt: string | null
+    }
 
 type CampaignStatus =
   | 'draft'
@@ -31,13 +61,14 @@ type CampaignStatus =
   | 'completed'
   | 'archived'
 
-const VALID_CAMPAIGN_STATUSES = new Set<CampaignStatus>([
-  'draft',
-  'active',
-  'paused',
-  'completed',
-  'archived',
-])
+const VALID_CAMPAIGN_STATUSES =
+  new Set<CampaignStatus>([
+    'draft',
+    'active',
+    'paused',
+    'completed',
+    'archived',
+  ])
 
 function isCampaignStatus(
   status: string
@@ -53,7 +84,7 @@ function parseCampaignDates({
 }: {
   startsAt: string
   endsAt: string
-}) {
+}): ParsedCampaignDates {
   const startTimestamp = startsAt
     ? new Date(startsAt).getTime()
     : null
@@ -92,7 +123,7 @@ function parseCampaignDates({
 
 export async function createCampaignAction(
   input: CreateCampaignInput
-) {
+): Promise<CampaignActionResult> {
   const supabase = await createClient()
 
   const {
@@ -129,8 +160,10 @@ export async function createCampaignAction(
     endsAt: input.ends_at,
   })
 
-  if ('error' in dates) {
-    return dates
+  if (dates.error) {
+    return {
+      error: dates.error,
+    }
   }
 
   const pricing = await resolveEffectivePricing({
@@ -146,9 +179,9 @@ export async function createCampaignAction(
         input.description.trim() || null,
       goal_amount: goalAmount,
 
-      // Keep the legacy campaign column synchronized
-      // for older reads while managed pricing remains
-      // the source of truth.
+      // Managed pricing is the source of truth.
+      // The legacy column remains synchronized while
+      // older platform reads are being converted.
       pass_price: pricing.passPrice,
 
       starts_at: dates.startsAt,
@@ -174,7 +207,7 @@ export async function createCampaignAction(
 
 export async function updateCampaignAction(
   input: UpdateCampaignInput
-) {
+): Promise<CampaignActionResult> {
   const supabase = await createClient()
 
   const {
@@ -211,8 +244,10 @@ export async function updateCampaignAction(
     endsAt: input.ends_at,
   })
 
-  if ('error' in dates) {
-    return dates
+  if (dates.error) {
+    return {
+      error: dates.error,
+    }
   }
 
   const pricing = await resolveEffectivePricing({
@@ -228,8 +263,8 @@ export async function updateCampaignAction(
         input.description.trim() || null,
       goal_amount: goalAmount,
 
-      // Organizers cannot set pricing. This legacy
-      // value mirrors the current managed rule only.
+      // Organizer-submitted pricing is ignored.
+      // This mirrors the effective managed price.
       pass_price: pricing.passPrice,
 
       starts_at: dates.startsAt,
@@ -260,7 +295,7 @@ export async function updateCampaignAction(
 export async function updateCampaignStatusAction(
   campaignId: string,
   status: string
-) {
+): Promise<CampaignActionResult> {
   const supabase = await createClient()
 
   const {
