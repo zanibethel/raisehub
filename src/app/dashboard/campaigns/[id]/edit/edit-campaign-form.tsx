@@ -10,7 +10,11 @@ type EditCampaignFormProps = {
   initialName: string
   initialDescription: string
   initialGoalAmount: string
+
+  // Retained until the edit page removes its legacy pass_price
+  // selection in the next independently build-safe commit.
   initialPassPrice: string
+
   initialStartsAt: string
   initialEndsAt: string
 }
@@ -20,36 +24,42 @@ export default function EditCampaignForm({
   initialName,
   initialDescription,
   initialGoalAmount,
-  initialPassPrice,
   initialStartsAt,
   initialEndsAt,
 }: EditCampaignFormProps) {
   const router = useRouter()
 
   const [name, setName] = useState(initialName)
-  const [description, setDescription] = useState(initialDescription)
-  const [goalAmount, setGoalAmount] = useState(initialGoalAmount)
-  const [passPrice, setPassPrice] = useState(initialPassPrice)
-  const [startsAt, setStartsAt] = useState(initialStartsAt)
+  const [description, setDescription] = useState(
+    initialDescription
+  )
+  const [goalAmount, setGoalAmount] = useState(
+    initialGoalAmount
+  )
+  const [startsAt, setStartsAt] = useState(
+    initialStartsAt
+  )
   const [endsAt, setEndsAt] = useState(initialEndsAt)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault()
     setLoading(true)
     setMessage('')
 
     const goalValue = Number(goalAmount)
-    const passPriceValue = Number(passPrice)
 
     if (
       goalAmount.trim() === '' ||
-      passPrice.trim() === '' ||
       !Number.isFinite(goalValue) ||
-      !Number.isFinite(passPriceValue)
+      goalValue < 0
     ) {
-      setMessage('Enter valid values for goal amount and pass price.')
+      setMessage(
+        'Enter a valid fundraising goal before saving the campaign.'
+      )
       setLoading(false)
       return
     }
@@ -60,7 +70,6 @@ export default function EditCampaignForm({
         name,
         description,
         goal_amount: goalValue,
-        pass_price: passPriceValue,
         starts_at: startsAt,
         ends_at: endsAt,
       })
@@ -87,7 +96,9 @@ export default function EditCampaignForm({
         <input
           className="w-full rounded-lg border border-gray-300 p-2"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) =>
+            setName(event.target.value)
+          }
           required
         />
       </div>
@@ -100,39 +111,47 @@ export default function EditCampaignForm({
         <textarea
           className="w-full rounded-lg border border-gray-300 p-2"
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) =>
+            setDescription(event.target.value)
+          }
           rows={4}
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Goal Amount ($)
-          </label>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          Fundraising Goal ($)
+        </label>
 
-          <input
-            className="w-full rounded-lg border border-gray-300 p-2"
-            type="number"
-            min="0"
-            value={goalAmount}
-            onChange={(event) => setGoalAmount(event.target.value)}
-          />
-        </div>
+        <input
+          className="w-full rounded-lg border border-gray-300 p-2"
+          type="number"
+          min="0"
+          step="0.01"
+          value={goalAmount}
+          onChange={(event) =>
+            setGoalAmount(event.target.value)
+          }
+        />
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Pass Price ($)
-          </label>
+        <p className="mt-1 text-xs text-gray-500">
+          Enter the amount your organization wants to
+          receive after RaiseHub fees.
+        </p>
+      </div>
 
-          <input
-            className="w-full rounded-lg border border-gray-300 p-2"
-            type="number"
-            min="0"
-            value={passPrice}
-            onChange={(event) => setPassPrice(event.target.value)}
-          />
-        </div>
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <p className="text-sm font-semibold text-blue-800">
+          Pricing managed by RaiseHub
+        </p>
+
+        <p className="mt-1 text-sm leading-6 text-blue-700">
+          The campaign&apos;s pass price and platform fee
+          are controlled by RaiseHub-managed pricing.
+          Saving this campaign will automatically keep its
+          pricing synchronized with the current applicable
+          pricing rule.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -145,7 +164,9 @@ export default function EditCampaignForm({
             className="w-full rounded-lg border border-gray-300 p-2"
             type="date"
             value={startsAt}
-            onChange={(event) => setStartsAt(event.target.value)}
+            onChange={(event) =>
+              setStartsAt(event.target.value)
+            }
           />
         </div>
 
@@ -158,7 +179,9 @@ export default function EditCampaignForm({
             className="w-full rounded-lg border border-gray-300 p-2"
             type="date"
             value={endsAt}
-            onChange={(event) => setEndsAt(event.target.value)}
+            onChange={(event) =>
+              setEndsAt(event.target.value)
+            }
           />
         </div>
       </div>
@@ -166,7 +189,7 @@ export default function EditCampaignForm({
       <button
         type="submit"
         disabled={loading}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? 'Saving...' : 'Save Campaign'}
       </button>
