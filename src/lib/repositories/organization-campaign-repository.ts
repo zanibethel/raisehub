@@ -5,24 +5,16 @@ import { createClient } from '@/lib/supabase/server'
 // =============================================================================
 
 /**
- * A single campaign record as needed for read-only owner support.
+ * A single campaign record used for read-only Owner support.
  *
- * Schema verified directly against the RaiseHub Supabase project
- * (public.campaigns):
+ * Pricing is intentionally excluded. Current campaign pricing is resolved by
+ * the managed pricing service rather than read from campaigns.pass_price.
  *
- *   id              uuid        NOT NULL
- *   organization_id uuid        NOT NULL  — verified ownership field
- *   name            text        NOT NULL
- *   description     text        NULL
- *   goal_amount     numeric     NULL
- *   pass_price      numeric     NULL
- *   starts_at       date        NULL
- *   ends_at         date        NULL
- *   status          text        NOT NULL
- *   created_at      timestamptz NOT NULL
+ * Schema ownership field:
+ * organization_id references the organization legacy profile ID currently
+ * stored on campaign records.
  *
- * RLS (SELECT): An owner-only SELECT policy already exists.
- * Policy: "Owners can view all campaigns"
+ * RLS (SELECT): An Owner-only SELECT policy already exists.
  * No schema or RLS changes are part of this repository.
  */
 export type OrganizationCampaign = {
@@ -31,7 +23,6 @@ export type OrganizationCampaign = {
   name: string
   description: string | null
   goal_amount: number | null
-  pass_price: number | null
   starts_at: string | null
   ends_at: string | null
   status: string
@@ -61,15 +52,19 @@ export async function getOrganizationCampaigns(
         name,
         description,
         goal_amount,
-        pass_price,
         starts_at,
         ends_at,
         status,
         created_at
       `
     )
-    .eq('organization_id', organizationProfileId)
-    .order('created_at', { ascending: false })
+    .eq(
+      'organization_id',
+      organizationProfileId
+    )
+    .order('created_at', {
+      ascending: false,
+    })
 
   if (error) {
     return {
@@ -79,7 +74,8 @@ export async function getOrganizationCampaigns(
   }
 
   return {
-    campaigns: (data ?? []) as OrganizationCampaign[],
+    campaigns:
+      (data ?? []) as OrganizationCampaign[],
     error: null,
   }
 }
