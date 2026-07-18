@@ -19,7 +19,6 @@ import type {
   BusinessRow,
   CampaignAccessRecord,
   CampaignMembershipRow,
-  CampaignRow,
   CapabilityResult,
   CustomerEntitlementRecord,
   OrganizationAccessRecord,
@@ -27,13 +26,12 @@ import type {
   OrganizationRow,
 } from '../types/identity-access'
 
-export type CapabilityCampaign = Pick<
-  CampaignRow,
-  | 'organization_id'
-  | 'status'
-  | 'starts_at'
-  | 'ends_at'
->
+export type CapabilityCampaign = {
+  organization_id: string
+  status: string
+  starts_at: string | null
+  ends_at: string | null
+}
 
 export type CapabilityResolverDependencies = {
   now?: () => Date
