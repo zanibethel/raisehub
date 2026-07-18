@@ -32,7 +32,11 @@ type CustomerDashboardProps = {
 function formatEntitlementType(value: string): string {
   return value
     .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(
+      (word) =>
+        word.charAt(0).toUpperCase() +
+        word.slice(1)
+    )
     .join(' ')
 }
 
@@ -58,45 +62,61 @@ export default async function CustomerDashboard({
   const resolvedCustomerProfileId =
     customerProfileId?.trim() || user.id
 
-  const passAccess = await getCustomerPassAccess(
-    resolvedCustomerProfileId,
-    nowDate
-  )
-  const activeEntitlement = passAccess.activeEntitlement
-  const hasPurchasedPass = passAccess.hasActivePass
+  const passAccess =
+    await getCustomerPassAccess(
+      resolvedCustomerProfileId,
+      nowDate
+    )
+
+  const activeEntitlement =
+    passAccess.activeEntitlement
+
+  const hasPurchasedPass =
+    passAccess.hasActivePass
 
   // ===========================================================================
   // Purchased fundraiser passes
   // ===========================================================================
 
-  const { data: purchasedPassesData } = await supabase
-    .from('campaign_purchases')
-    .select(`
-      id,
-      campaign_id,
-      selected_organization_id,
-      created_at,
-      amount_paid,
-      donation_amount,
-      campaigns (
+  const { data: purchasedPassesData } =
+    await supabase
+      .from('campaign_purchases')
+      .select(`
         id,
-        name,
-        description,
-        pass_price
+        campaign_id,
+        selected_organization_id,
+        created_at,
+        amount_paid,
+        donation_amount,
+        campaigns (
+          id,
+          name,
+          description
+        )
+      `)
+      .eq(
+        'user_id',
+        resolvedCustomerProfileId
       )
-    `)
-    .eq('user_id', resolvedCustomerProfileId)
-    .order('created_at', { ascending: false })
+      .order('created_at', {
+        ascending: false,
+      })
 
   const purchasedPasses =
-    (purchasedPassesData ?? []) as PurchasedPass[]
+    (purchasedPassesData ??
+      []) as PurchasedPass[]
 
   const organizationIds = [
     ...new Set(
       purchasedPasses
-        .map((purchase) => purchase.selected_organization_id)
+        .map(
+          (purchase) =>
+            purchase.selected_organization_id
+        )
         .filter(
-          (organizationId): organizationId is string =>
+          (
+            organizationId
+          ): organizationId is string =>
             Boolean(organizationId)
         )
     ),
@@ -106,18 +126,27 @@ export default async function CustomerDashboard({
     organizationIds.length > 0
       ? await supabase
           .from('profiles')
-          .select('id, business_name, display_name')
+          .select(
+            'id, business_name, display_name'
+          )
           .in('id', organizationIds)
       : { data: [] }
 
-  const organizationById = new Map<string, OrganizationLookup>(
-    (organizationProfiles ?? []).map((organization) => [
-      organization.id,
-      {
-        business_name: organization.business_name,
-        display_name: organization.display_name,
-      },
-    ])
+  const organizationById = new Map<
+    string,
+    OrganizationLookup
+  >(
+    (organizationProfiles ?? []).map(
+      (organization) => [
+        organization.id,
+        {
+          business_name:
+            organization.business_name,
+          display_name:
+            organization.display_name,
+        },
+      ]
+    )
   )
 
   // ===========================================================================
@@ -128,9 +157,15 @@ export default async function CustomerDashboard({
     .from('offers')
     .select('*')
     .eq('is_active', true)
-    .or(`starts_at.is.null,starts_at.lte.${now}`)
-    .or(`ends_at.is.null,ends_at.gte.${now}`)
-    .order('created_at', { ascending: false })
+    .or(
+      `starts_at.is.null,starts_at.lte.${now}`
+    )
+    .or(
+      `ends_at.is.null,ends_at.gte.${now}`
+    )
+    .order('created_at', {
+      ascending: false,
+    })
 
   // ===========================================================================
   // Business profiles
@@ -146,10 +181,13 @@ export default async function CustomerDashboard({
     (profiles ?? []).map((profile) => [
       profile.id,
       {
-        name: profile.business_name || 'Local Business',
+        name:
+          profile.business_name ||
+          'Local Business',
         phone: profile.phone || '',
         address: profile.address || '',
-        map: profile.google_maps_url || '',
+        map:
+          profile.google_maps_url || '',
       },
     ])
   )
@@ -158,52 +196,76 @@ export default async function CustomerDashboard({
   // Saved offers
   // ===========================================================================
 
-  const { data: savedOffers } = await supabase
-    .from('saved_offers')
-    .select('id, offer_id')
-    .eq('user_id', resolvedCustomerProfileId)
+  const { data: savedOffers } =
+    await supabase
+      .from('saved_offers')
+      .select('id, offer_id')
+      .eq(
+        'user_id',
+        resolvedCustomerProfileId
+      )
 
   const savedOfferIds = new Set(
-    (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
+    (savedOffers ?? []).map(
+      (savedOffer) =>
+        savedOffer.offer_id
+    )
   )
 
   // ===========================================================================
   // Redemptions
   // ===========================================================================
 
-  const { data: redemptions } = await supabase
-    .from('redemptions')
-    .select('offer_id, created_at')
-    .eq('user_id', resolvedCustomerProfileId)
+  const { data: redemptions } =
+    await supabase
+      .from('redemptions')
+      .select('offer_id, created_at')
+      .eq(
+        'user_id',
+        resolvedCustomerProfileId
+      )
 
   const redeemedOfferIds = new Set(
     (redemptions ?? []).map(
-      (redemption) => redemption.offer_id
+      (redemption) =>
+        redemption.offer_id
     )
   )
 
-  const redemptionDateByOfferId = new Map(
-    (redemptions ?? []).map((redemption) => [
-      redemption.offer_id,
-      redemption.created_at,
-    ])
-  )
+  const redemptionDateByOfferId =
+    new Map(
+      (redemptions ?? []).map(
+        (redemption) => [
+          redemption.offer_id,
+          redemption.created_at,
+        ]
+      )
+    )
 
   // ===========================================================================
   // Enriched offers
   // ===========================================================================
 
-  const enrichedOffers = (offers ?? []).map((offer) => {
-    const business = profileById.get(offer.business_id)
+  const enrichedOffers =
+    (offers ?? []).map((offer) => {
+      const business =
+        profileById.get(
+          offer.business_id
+        )
 
-    return {
-      ...offer,
-      business_name: business?.name || 'Local Business',
-      phone: business?.phone || '',
-      address: business?.address || '',
-      google_maps_url: business?.map || '',
-    }
-  }) as CustomerDashboardOffer[]
+      return {
+        ...offer,
+        business_name:
+          business?.name ||
+          'Local Business',
+        phone:
+          business?.phone || '',
+        address:
+          business?.address || '',
+        google_maps_url:
+          business?.map || '',
+      }
+    }) as CustomerDashboardOffer[]
 
   // ===========================================================================
   // Render
@@ -220,7 +282,8 @@ export default async function CustomerDashboard({
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-gray-900">
-                Your local deals are unlocked
+                Your local deals are
+                unlocked
               </h2>
 
               <p className="mt-2 text-sm text-gray-600">
@@ -267,7 +330,8 @@ export default async function CustomerDashboard({
                 href="/campaigns"
                 className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
               >
-                Support Another Fundraiser
+                Support Another
+                Fundraiser
               </Link>
             </div>
           </div>
@@ -279,12 +343,17 @@ export default async function CustomerDashboard({
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-gray-900">
-                Choose a fundraiser to unlock local deals
+                Choose a fundraiser to
+                unlock local deals
               </h2>
 
               <p className="mt-2 max-w-2xl text-sm text-gray-600">
-                Your previous support history remains below, but an active pass
-                is required to view full offer details and add deals to My Pass.
+                Your previous support
+                history remains below,
+                but an active pass is
+                required to view full
+                offer details and add
+                deals to My Pass.
               </p>
             </div>
 
@@ -299,13 +368,25 @@ export default async function CustomerDashboard({
       </section>
 
       <CustomerDashboardContent
-        purchasedPasses={purchasedPasses}
-        organizationById={organizationById}
-        enrichedOffers={enrichedOffers}
+        purchasedPasses={
+          purchasedPasses
+        }
+        organizationById={
+          organizationById
+        }
+        enrichedOffers={
+          enrichedOffers
+        }
         savedOfferIds={savedOfferIds}
-        redeemedOfferIds={redeemedOfferIds}
-        redemptionDateByOfferId={redemptionDateByOfferId}
-        hasPurchasedPass={hasPurchasedPass}
+        redeemedOfferIds={
+          redeemedOfferIds
+        }
+        redemptionDateByOfferId={
+          redemptionDateByOfferId
+        }
+        hasPurchasedPass={
+          hasPurchasedPass
+        }
       />
     </>
   )
