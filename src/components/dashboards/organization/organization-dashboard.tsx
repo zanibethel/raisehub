@@ -310,7 +310,7 @@ export default async function OrganizationDashboard({
       )}
       totalCampaigns={totalCampaigns}
       activeSellerCount={activeSellerCount}
-      campaignCreationPricingy={{
+      campaignCreationPricing={{
         passPrice: campaignCreationPricing.passPrice,
         platformFeePercent:
           campaignCreationPricing.platformFeePercent,
