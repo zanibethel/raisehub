@@ -349,6 +349,51 @@ export default function OwnerCampaignPricingEditor({
           </select>
         </label>
 
+        <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950 p-4">
+          <div>
+            <p className="text-sm font-bold text-white">
+              Schedule
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Leave both fields blank to publish immediately with no automatic end date.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-bold text-white">
+                Starts
+              </span>
+              <span className="mt-1 block text-xs text-slate-400">
+                Optional future date and time for this override to begin.
+              </span>
+              <input
+                type="datetime-local"
+                name="startsAt"
+                className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-3 text-white outline-none transition focus:border-blue-400"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-bold text-white">
+                Ends
+              </span>
+              <span className="mt-1 block text-xs text-slate-400">
+                Optional date and time to return to inherited pricing.
+              </span>
+              <input
+                type="datetime-local"
+                name="expiresAt"
+                className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 py-3 text-white outline-none transition focus:border-blue-400"
+              />
+            </label>
+          </div>
+
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Times use the timezone of the device submitting this form.
+          </p>
+        </div>
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="text-sm font-bold text-white">
