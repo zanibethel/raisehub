@@ -4,14 +4,21 @@ import test from 'node:test'
 import { createSellableCampaignLookupService } from './campaign-repository'
 import type { CampaignRow } from '../types/identity-access'
 
+type PricingRequest = {
+  campaignId: string
+  organizationId: string | null
+}
+
 function createCampaign({
   id,
   organizationLegacyProfileId,
   passPrice,
+  createdAt = '2026-07-01T12:00:00.000Z',
 }: {
   id: string
   organizationLegacyProfileId: string
   passPrice: number
+  createdAt?: string
 }): CampaignRow {
   return {
     id,
@@ -24,9 +31,86 @@ function createCampaign({
     starts_at: '2026-07-01',
     ends_at: '2026-08-01',
     status: 'active',
-    created_at:
-      '2026-07-01T12:00:00.000Z',
+    created_at: createdAt,
   } as CampaignRow
+}
+
+function createBaseDependencies({
+  campaigns,
+}: {
+  campaigns: CampaignRow[]
+}) {
+  const organizationIds = [
+    ...new Set(
+      campaigns.map(
+        (campaign) =>
+          campaign.organization_id
+      )
+    ),
+  ]
+
+  return {
+    async resolveOrganizationLegacyProfileId() {
+      return {
+        organizationId: null,
+        organizationLegacyProfileId: null,
+        organizationName: null,
+        imageUrl: null,
+        error: null,
+      }
+    },
+
+    async loadEligibleCampaignIds() {
+      return {
+        campaignIds: [],
+        error: null,
+      }
+    },
+
+    async loadCampaignRows() {
+      return {
+        campaigns,
+        error: null,
+      }
+    },
+
+    async loadOrganizationsByLegacyProfileIds() {
+      return {
+        organizations:
+          organizationIds.map(
+            (
+              organizationLegacyProfileId,
+              index
+            ) => ({
+              organizationId:
+                `organization-${index + 1}`,
+              organizationLegacyProfileId,
+              organizationName:
+                `Organization ${index + 1}`,
+              imageUrl: null,
+            })
+          ),
+        error: null,
+      }
+    },
+
+    async loadPublicCampaignProgress(
+      campaignIds: string[]
+    ) {
+      return {
+        amountRaisedByCampaignId:
+          new Map(
+            campaignIds.map(
+              (campaignId) => [
+                campaignId,
+                250,
+              ]
+            )
+          ),
+        error: null,
+      }
+    },
+  }
 }
 
 test(
@@ -39,64 +123,14 @@ test(
       passPrice: 20,
     })
 
-    const pricingRequests: Array<{
-      campaignId: string
-      organizationId: string | null
-    }> = []
+    const pricingRequests:
+      PricingRequest[] = []
 
     const service =
       createSellableCampaignLookupService({
-        async resolveOrganizationLegacyProfileId() {
-          return {
-            organizationId: null,
-            organizationLegacyProfileId:
-              null,
-            organizationName: null,
-            imageUrl: null,
-            error: null,
-          }
-        },
-
-        async loadEligibleCampaignIds() {
-          return {
-            campaignIds: [],
-            error: null,
-          }
-        },
-
-        async loadCampaignRows() {
-          return {
-            campaigns: [campaign],
-            error: null,
-          }
-        },
-
-        async loadOrganizationsByLegacyProfileIds() {
-          return {
-            organizations: [
-              {
-                organizationId:
-                  'organization-1',
-                organizationLegacyProfileId:
-                  'legacy-organization-1',
-                organizationName:
-                  'Band Boosters',
-                imageUrl: null,
-              },
-            ],
-            error: null,
-          }
-        },
-
-        async loadPublicCampaignProgress() {
-          return {
-            amountRaisedByCampaignId:
-              new Map([
-                ['campaign-1', 250],
-              ]),
-            error: null,
-          }
-        },
+        ...createBaseDependencies({
+          campaigns: [campaign],
+        }),
 
         async loadEffectiveCampaignPricing(
           inputs
@@ -141,7 +175,101 @@ test(
 )
 
 test(
-  'retains legacy pricing when the optional pricing dependency is absent',
+  'loads managed pricing for multiple campaigns in one batch call',
+  async () => {
+    const campaigns = [
+      createCampaign({
+        id: 'campaign-1',
+        organizationLegacyProfileId:
+          'legacy-organization-1',
+        passPrice: 18,
+        createdAt:
+          '2026-07-01T12:00:00.000Z',
+      }),
+      createCampaign({
+        id: 'campaign-2',
+        organizationLegacyProfileId:
+          'legacy-organization-2',
+        passPrice: 22,
+        createdAt:
+          '2026-07-02T12:00:00.000Z',
+      }),
+    ]
+
+    const pricingCalls:
+      PricingRequest[][] = []
+
+    const service =
+      createSellableCampaignLookupService({
+        ...createBaseDependencies({
+          campaigns,
+        }),
+
+        async loadEffectiveCampaignPricing(
+          inputs
+        ) {
+          pricingCalls.push(inputs)
+
+          return new Map([
+            ['campaign-1', 25],
+            ['campaign-2', 30],
+          ])
+        },
+      })
+
+    const result =
+      await service.getSellableCampaigns({
+        now: new Date(
+          '2026-07-15T12:00:00.000Z'
+        ),
+      })
+
+    assert.equal(result.error, null)
+    assert.equal(
+      pricingCalls.length,
+      1
+    )
+
+    assert.deepEqual(
+      pricingCalls[0],
+      [
+        {
+          campaignId: 'campaign-1',
+          organizationId:
+            'organization-1',
+        },
+        {
+          campaignId: 'campaign-2',
+          organizationId:
+            'organization-2',
+        },
+      ]
+    )
+
+    assert.deepEqual(
+      result.campaigns.map(
+        (campaign) => ({
+          id: campaign.id,
+          passPrice:
+            campaign.passPrice,
+        })
+      ),
+      [
+        {
+          id: 'campaign-1',
+          passPrice: 25,
+        },
+        {
+          id: 'campaign-2',
+          passPrice: 30,
+        },
+      ]
+    )
+  }
+)
+
+test(
+  'retains legacy pricing while the optional pricing dependency is absent',
   async () => {
     const campaign = createCampaign({
       id: 'campaign-1',
@@ -151,59 +279,11 @@ test(
     })
 
     const service =
-      createSellableCampaignLookupService({
-        async resolveOrganizationLegacyProfileId() {
-          return {
-            organizationId: null,
-            organizationLegacyProfileId:
-              null,
-            organizationName: null,
-            imageUrl: null,
-            error: null,
-          }
-        },
-
-        async loadEligibleCampaignIds() {
-          return {
-            campaignIds: [],
-            error: null,
-          }
-        },
-
-        async loadCampaignRows() {
-          return {
-            campaigns: [campaign],
-            error: null,
-          }
-        },
-
-        async loadOrganizationsByLegacyProfileIds() {
-          return {
-            organizations: [
-              {
-                organizationId:
-                  'organization-1',
-                organizationLegacyProfileId:
-                  'legacy-organization-1',
-                organizationName:
-                  'Band Boosters',
-                imageUrl: null,
-              },
-            ],
-            error: null,
-          }
-        },
-
-        async loadPublicCampaignProgress() {
-          return {
-            amountRaisedByCampaignId:
-              new Map([
-                ['campaign-1', 250],
-              ]),
-            error: null,
-          }
-        },
-      })
+      createSellableCampaignLookupService(
+        createBaseDependencies({
+          campaigns: [campaign],
+        })
+      )
 
     const result =
       await service.getSellableCampaigns({
