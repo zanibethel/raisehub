@@ -3,32 +3,22 @@ import test from 'node:test'
 
 import {
   createCampaignRecoveryService,
+  type CampaignRecoveryCampaign,
 } from './campaign-recovery-service'
-import type { CampaignRow } from '../types/identity-access'
 import type { SellableCampaignOption } from '../types/campaigns'
 
 function createCampaign(
-  overrides: Partial<CampaignRow> = {}
-): CampaignRow {
+  overrides: Partial<CampaignRecoveryCampaign> = {}
+): CampaignRecoveryCampaign {
   return {
     id: 'campaign-1',
     organization_id:
       'legacy-organization-1',
-    name: 'Fall Fundraiser',
-    description: null,
-    goal_amount: 5000,
-
-    // Required only by the current generated database row type.
-    // Campaign recovery does not read legacy campaign pricing.
-    pass_price: null,
-
     starts_at:
       '2026-07-01T00:00:00.000Z',
     ends_at:
       '2026-08-01T00:00:00.000Z',
     status: 'active',
-    created_at:
-      '2026-07-01T00:00:00.000Z',
     ...overrides,
   }
 }
