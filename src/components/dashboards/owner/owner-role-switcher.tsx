@@ -62,6 +62,7 @@ export default function OwnerRoleSwitcher({
     const params = new URLSearchParams(searchParams.toString())
 
     params.set('previewRole', role)
+    params.delete('subject')
 
     router.push(`${pathname}?${params.toString()}`)
   }
