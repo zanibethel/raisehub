@@ -43,6 +43,7 @@ export type OwnerOrganizationCampaignsResult =
         | OwnerWorkspaceAuthorizationFailureReason
         | 'invalid-workspace-role'
         | 'campaign-lookup-failure'
+        | 'pricing-resolution-failure'
       message: string
     }
 
@@ -143,33 +144,36 @@ export async function getOwnerAuthorizedOrganizationCampaigns(
       }))
     )
 
+  const mappedCampaigns:
+    ReadOnlyOrganizationCampaign[] = []
+
+  for (const campaign of campaigns) {
+    const pricing =
+      pricingByCampaignId.get(
+        campaign.id
+      )
+
+    if (!pricing) {
+      return {
+        success: false,
+        reason:
+          'pricing-resolution-failure',
+        message:
+          'Unable to resolve organization campaign pricing.',
+      }
+    }
+
+    mappedCampaigns.push(
+      mapCampaignRecordToReadOnlyCampaign({
+        campaign,
+        pricing,
+      })
+    )
+  }
+
   return {
     success: true,
     workspace,
-    campaigns: campaigns.map(
-      (campaign) =>
-        mapCampaignRecordToReadOnlyCampaign({
-          campaign,
-          pricing:
-            pricingByCampaignId.get(
-              campaign.id
-            ) ?? {
-              pricingRuleId: null,
-              pricingScope: 'fallback',
-              passPrice: 20,
-              platformFeePercent: 10,
-              platformFeeAmount: 2,
-              organizationPassEarnings: 18,
-              donationAmount: 0,
-              organizationTotalEarnings: 18,
-              totalAmount: 20,
-              startsAt: null,
-              expiresAt: null,
-              reason:
-                'Emergency pricing fallback',
-              usedFallback: true,
-            },
-        })
-    ),
+    campaigns: mappedCampaigns,
   }
 }
