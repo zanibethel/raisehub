@@ -26,11 +26,15 @@ const EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES = new Set([
   'settled',
 ])
 
-function normalizePaymentStatus(paymentStatus: string | null | undefined) {
+function normalizePaymentStatus(
+  paymentStatus: string | null | undefined
+) {
   return paymentStatus?.trim().toLowerCase() ?? ''
 }
 
-function getValidDate(value: string | null | undefined): Date | null {
+function getValidDate(
+  value: string | null | undefined
+): Date | null {
   if (!value) {
     return null
   }
@@ -40,20 +44,52 @@ function getValidDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function normalizePassPrice(
+  value: number | string | null | undefined
+): number | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null
+  }
+
+  const normalizedValue = Number(value)
+
+  if (
+    !Number.isFinite(normalizedValue) ||
+    normalizedValue <= 0
+  ) {
+    return null
+  }
+
+  return normalizedValue
+}
+
 export function isCampaignPurchaseProgressEligible(
   paymentStatus: string | null | undefined
 ): boolean {
-  const normalizedStatus = normalizePaymentStatus(paymentStatus)
+  const normalizedStatus =
+    normalizePaymentStatus(paymentStatus)
 
   if (!normalizedStatus) {
     return false
   }
 
-  if (INVALID_PROGRESS_PAYMENT_STATUSES.has(normalizedStatus)) {
+  if (
+    INVALID_PROGRESS_PAYMENT_STATUSES.has(
+      normalizedStatus
+    )
+  ) {
     return false
   }
 
-  if (EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES.has(normalizedStatus)) {
+  if (
+    EXPLICIT_VALID_PROGRESS_PAYMENT_STATUSES.has(
+      normalizedStatus
+    )
+  ) {
     return true
   }
 
@@ -70,7 +106,10 @@ export function calculateGoalPercentage(
     return null
   }
 
-  return Math.min((amountRaised / normalizedGoal) * 100, 100)
+  return Math.min(
+    (amountRaised / normalizedGoal) * 100,
+    100
+  )
 }
 
 export function calculateAmountRemaining(
@@ -113,8 +152,15 @@ export function buildCampaignDetailProgressState(input: {
   return {
     status: 'available',
     amountRaised,
-    goalPercentage: calculateGoalPercentage(amountRaised, input.goalAmount) ?? 0,
-    amountRemaining: calculateAmountRemaining(amountRaised, input.goalAmount),
+    goalPercentage:
+      calculateGoalPercentage(
+        amountRaised,
+        input.goalAmount
+      ) ?? 0,
+    amountRemaining: calculateAmountRemaining(
+      amountRaised,
+      input.goalAmount
+    ),
   }
 }
 
@@ -128,13 +174,16 @@ export function calculateDaysRemaining(
     return null
   }
 
-  const differenceMs = endDate.getTime() - now.getTime()
+  const differenceMs =
+    endDate.getTime() - now.getTime()
 
   if (differenceMs <= 0) {
     return 0
   }
 
-  return Math.ceil(differenceMs / (24 * 60 * 60 * 1000))
+  return Math.ceil(
+    differenceMs / (24 * 60 * 60 * 1000)
+  )
 }
 
 export function buildSellableCampaignOption(input: {
@@ -143,6 +192,16 @@ export function buildSellableCampaignOption(input: {
   organizationName: string | null
   imageUrl: string | null
   amountRaised: number
+
+  /**
+   * Server-resolved effective price for this campaign.
+   *
+   * This override is optional while campaign-loading
+   * callers are migrated one file at a time. The legacy
+   * campaign column remains a temporary fallback.
+   */
+  effectivePassPrice?: number | null
+
   now?: Date
 }): SellableCampaignOption {
   const goalAmount =
@@ -150,24 +209,45 @@ export function buildSellableCampaignOption(input: {
       ? null
       : Number(input.campaign.goal_amount)
 
+  const effectivePassPrice = normalizePassPrice(
+    input.effectivePassPrice
+  )
+
+  const legacyPassPrice = normalizePassPrice(
+    input.campaign.pass_price
+  )
+
   return {
     id: input.campaign.id,
     organizationId: input.organizationId,
-    organizationLegacyProfileId: input.campaign.organization_id,
+    organizationLegacyProfileId:
+      input.campaign.organization_id,
     name: input.campaign.name,
     organizationName: input.organizationName,
     imageUrl: input.imageUrl,
     amountRaised: input.amountRaised,
     goalAmount,
-    goalPercentage: calculateGoalPercentage(input.amountRaised, goalAmount),
-    amountRemaining: calculateAmountRemaining(input.amountRaised, goalAmount),
+    goalPercentage: calculateGoalPercentage(
+      input.amountRaised,
+      goalAmount
+    ),
+    amountRemaining: calculateAmountRemaining(
+      input.amountRaised,
+      goalAmount
+    ),
     endsAt: input.campaign.ends_at,
-    daysRemaining: calculateDaysRemaining(input.campaign.ends_at, input.now),
+    daysRemaining: calculateDaysRemaining(
+      input.campaign.ends_at,
+      input.now
+    ),
     createdAt: input.campaign.created_at,
+
+    // Prefer managed pricing whenever the caller has
+    // resolved it. Retain the legacy value only until
+    // all campaign loaders provide effective pricing.
     passPrice:
-      input.campaign.pass_price === null
-        ? null
-        : Number(input.campaign.pass_price),
+      effectivePassPrice ?? legacyPassPrice,
+
     description: input.campaign.description,
     startsAt: input.campaign.starts_at,
     status: input.campaign.status,
@@ -188,7 +268,9 @@ export function compareSellableCampaignOptions(
   const rightEndDate = getValidDate(right.endsAt)
 
   if (leftEndDate && rightEndDate) {
-    const endDifference = leftEndDate.getTime() - rightEndDate.getTime()
+    const endDifference =
+      leftEndDate.getTime() -
+      rightEndDate.getTime()
 
     if (endDifference !== 0) {
       return endDifference
@@ -204,14 +286,21 @@ export function compareSellableCampaignOptions(
     return rightProgress - leftProgress
   }
 
-  const leftCreatedAt = getValidDate(left.createdAt)?.getTime() ?? 0
-  const rightCreatedAt = getValidDate(right.createdAt)?.getTime() ?? 0
+  const leftCreatedAt =
+    getValidDate(left.createdAt)?.getTime() ?? 0
+
+  const rightCreatedAt =
+    getValidDate(right.createdAt)?.getTime() ?? 0
 
   if (leftCreatedAt !== rightCreatedAt) {
     return leftCreatedAt - rightCreatedAt
   }
 
-  return left.name.localeCompare(right.name, undefined, {
-    sensitivity: 'base',
-  })
+  return left.name.localeCompare(
+    right.name,
+    undefined,
+    {
+      sensitivity: 'base',
+    }
+  )
 }
