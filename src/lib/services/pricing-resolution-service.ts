@@ -2,8 +2,8 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const UNAVAILABLE_PASS_PRICE = 0
-const UNAVAILABLE_PLATFORM_FEE_PERCENT = 0
+const FALLBACK_PASS_PRICE = 20
+const FALLBACK_PLATFORM_FEE_PERCENT = 20
 
 export type PricingScope =
   | 'platform'
@@ -287,20 +287,20 @@ function compareRules(
   )
 }
 
-function createUnavailablePricing(
+function createFallbackPricing(
   donationAmount: number
 ): EffectivePricingResult {
   return calculatePricing(
     {
       pricingRuleId: null,
       pricingScope: 'fallback',
-      passPrice: UNAVAILABLE_PASS_PRICE,
+      passPrice: FALLBACK_PASS_PRICE,
       platformFeePercent:
-        UNAVAILABLE_PLATFORM_FEE_PERCENT,
+        FALLBACK_PLATFORM_FEE_PERCENT,
       startsAt: null,
       expiresAt: null,
       reason:
-        'Managed pricing is unavailable because no active pricing rule could be resolved.',
+        'Emergency application fallback because no pricing rule could be resolved.',
       usedFallback: true,
     },
     donationAmount
@@ -323,7 +323,7 @@ function resolvePricingFromRules({
     .sort(compareRules)[0]
 
   if (!winningRule) {
-    return createUnavailablePricing(
+    return createFallbackPricing(
       donationAmount
     )
   }
@@ -395,7 +395,7 @@ export async function resolveEffectivePricing(
       })
 
     if (!rules) {
-      return createUnavailablePricing(
+      return createFallbackPricing(
         donationAmount
       )
     }
@@ -406,7 +406,7 @@ export async function resolveEffectivePricing(
       donationAmount,
     })
   } catch {
-    return createUnavailablePricing(
+    return createFallbackPricing(
       donationAmount
     )
   }
@@ -496,7 +496,7 @@ export async function resolveEffectiveCampaignPricingBatch(
             ),
             donationAmount,
           })
-        : createUnavailablePricing(
+        : createFallbackPricing(
             donationAmount
           )
 
