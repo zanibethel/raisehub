@@ -26,6 +26,13 @@ export type OwnerCampaignPricingOption = {
     startsAt: string
     reason: string | null
   } | null
+  scheduledOverride: {
+    passPrice: number
+    platformFeePercent: number
+    startsAt: string
+    expiresAt: string | null
+    reason: string | null
+  } | null
 }
 
 type OwnerCampaignPricingEditorProps = {
@@ -344,6 +351,9 @@ export default function OwnerCampaignPricingEditor({
                 {campaign.activeOverride
                   ? ' — Active override'
                   : ' — Inherited pricing'}
+                {campaign.scheduledOverride
+                  ? ' — Scheduled change'
+                  : ''}
               </option>
             ))}
           </select>
@@ -561,6 +571,54 @@ export default function OwnerCampaignPricingEditor({
           )
         ) : null}
 
+        {selectedCampaign?.scheduledOverride ? (
+          <div className="mt-4 rounded-xl border border-violet-700 bg-violet-950/40 p-4 text-sm text-violet-100">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-bold">
+                Scheduled campaign override
+              </p>
+              <span className="rounded-full bg-violet-900/70 px-2.5 py-1 text-xs font-bold text-violet-100">
+                Upcoming
+              </span>
+            </div>
+
+            <p className="mt-2 leading-6">
+              This campaign will change to{' '}
+              <strong>
+                {formatMoney(
+                  selectedCampaign.scheduledOverride.passPrice
+                )}
+              </strong>{' '}
+              with a{' '}
+              <strong>
+                {selectedCampaign.scheduledOverride.platformFeePercent.toFixed(
+                  2
+                )}
+                %
+              </strong>{' '}
+              RaiseHub fee.
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-violet-300">
+              Starts{' '}
+              {formatDate(
+                selectedCampaign.scheduledOverride.startsAt
+              )}
+              {selectedCampaign.scheduledOverride.expiresAt
+                ? ` · Ends ${formatDate(
+                    selectedCampaign.scheduledOverride.expiresAt
+                  )}`
+                : ' · No automatic end date'}
+            </p>
+
+            {selectedCampaign.scheduledOverride.reason ? (
+              <p className="mt-2 text-xs leading-5 text-violet-200">
+                {selectedCampaign.scheduledOverride.reason}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {publishState.message ? (
           <p
             className={`mt-4 rounded-xl border p-3 text-sm ${
@@ -590,13 +648,14 @@ export default function OwnerCampaignPricingEditor({
           <RetireCampaignButton
             formAction={retireFormAction}
             disabled={
-              !selectedCampaign?.activeOverride
+              !selectedCampaign?.activeOverride &&
+              !selectedCampaign?.scheduledOverride
             }
           />
         </div>
 
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          Retiring an override returns the campaign to organization, town, state, platform, or the $20 / 20% application fallback.
+          Retiring removes current and scheduled campaign overrides, returning the campaign to organization, town, state, platform, or the $20 / 20% application fallback.
         </p>
       </form>
     </details>
