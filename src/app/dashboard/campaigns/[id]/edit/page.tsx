@@ -33,7 +33,6 @@ export default async function EditCampaignPage({
         name,
         description,
         goal_amount,
-        pass_price,
         starts_at,
         ends_at,
         status
@@ -62,17 +61,20 @@ export default async function EditCampaignPage({
         </h1>
 
         <p className="mt-2 text-sm text-gray-600">
-          Update campaign details and publish changes to your dashboard and
-          public campaign page.
+          Update campaign details and publish changes to
+          your dashboard and public campaign page.
         </p>
 
         <div className="mt-6">
           <EditCampaignForm
             campaignId={campaign.id}
             initialName={campaign.name ?? ''}
-            initialDescription={campaign.description ?? ''}
-            initialGoalAmount={String(campaign.goal_amount ?? 0)}
-            initialPassPrice={String(campaign.pass_price ?? 0)}
+            initialDescription={
+              campaign.description ?? ''
+            }
+            initialGoalAmount={String(
+              campaign.goal_amount ?? 0
+            )}
             initialStartsAt={campaign.starts_at ?? ''}
             initialEndsAt={campaign.ends_at ?? ''}
           />
