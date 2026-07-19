@@ -494,38 +494,82 @@ export async function publishCampaignPricingAction(
     )
   }
 
-  // Immediate replacements retire the current override now.
-  // Scheduled replacements keep the current override available until
-  // the future rule begins, then expire it at that exact start time.
-  const replacementUpdate = isScheduled
-    ? {
-        expires_at: startsAt,
-        updated_by: ownerResult.user.id,
-      }
-    : {
-        status: 'inactive',
-        expires_at: startsAt,
-        updated_by: ownerResult.user.id,
-      }
+  if (isScheduled) {
+    const nowIso = now.toISOString()
 
-  const { error: retirementError } =
-    await admin
-      .from('pricing_rules')
-      .update(replacementUpdate)
-      .eq('scope_type', 'campaign')
-      .eq('campaign_id', campaignId)
-      .eq('is_demo', isDemo)
-      .eq('status', 'active')
-      .neq('id', newRule.id)
+    // A campaign keeps only one upcoming override. Retire any older
+    // future schedule before aligning the currently effective rule.
+    const { error: scheduledRetirementError } =
+      await admin
+        .from('pricing_rules')
+        .update({
+          status: 'inactive',
+          expires_at: nowIso,
+          updated_by: ownerResult.user.id,
+        })
+        .eq('scope_type', 'campaign')
+        .eq('campaign_id', campaignId)
+        .eq('is_demo', isDemo)
+        .eq('status', 'active')
+        .gt('starts_at', nowIso)
+        .neq('id', newRule.id)
 
-  if (retirementError) {
-    return campaignFailure(
-      isScheduled
-        ? 'The scheduled campaign rule was created, but the current override could not be aligned to its start date. Review pricing rules before publishing another change.'
-        : 'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
-      campaignId,
-      environmentValue
-    )
+    if (scheduledRetirementError) {
+      return campaignFailure(
+        'The new schedule was created, but the previous scheduled override could not be retired. Review pricing rules before publishing another change.',
+        campaignId,
+        environmentValue
+      )
+    }
+
+    // Keep today’s effective rule available until the scheduled start.
+    const { error: currentAlignmentError } =
+      await admin
+        .from('pricing_rules')
+        .update({
+          expires_at: startsAt,
+          updated_by: ownerResult.user.id,
+        })
+        .eq('scope_type', 'campaign')
+        .eq('campaign_id', campaignId)
+        .eq('is_demo', isDemo)
+        .eq('status', 'active')
+        .lte('starts_at', nowIso)
+        .or(
+          `expires_at.is.null,expires_at.gt.${nowIso}`
+        )
+        .neq('id', newRule.id)
+
+    if (currentAlignmentError) {
+      return campaignFailure(
+        'The scheduled campaign rule was created, but the current override could not be aligned to its start date. Review pricing rules before publishing another change.',
+        campaignId,
+        environmentValue
+      )
+    }
+  } else {
+    // Immediate replacements retire every older active campaign rule.
+    const { error: retirementError } =
+      await admin
+        .from('pricing_rules')
+        .update({
+          status: 'inactive',
+          expires_at: startsAt,
+          updated_by: ownerResult.user.id,
+        })
+        .eq('scope_type', 'campaign')
+        .eq('campaign_id', campaignId)
+        .eq('is_demo', isDemo)
+        .eq('status', 'active')
+        .neq('id', newRule.id)
+
+    if (retirementError) {
+      return campaignFailure(
+        'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
+        campaignId,
+        environmentValue
+      )
+    }
   }
 
   revalidatePath('/dashboard')
