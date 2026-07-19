@@ -274,7 +274,11 @@ function CampaignHistoryRow({
               className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                 item.status === 'active'
                   ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-slate-200 text-slate-700'
+                  : item.status === 'scheduled'
+                    ? 'bg-violet-100 text-violet-800'
+                    : item.status === 'expired'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-slate-200 text-slate-700'
               }`}
             >
               {item.status}
@@ -291,10 +295,17 @@ function CampaignHistoryRow({
         </div>
 
         <div className="text-right text-xs leading-5 text-slate-500">
-          <p>Started {formatDate(item.startsAt)}</p>
+          <p>
+            {item.status === 'scheduled'
+              ? `Starts ${formatDate(item.startsAt)}`
+              : `Started ${formatDate(item.startsAt)}`}
+          </p>
           <p>
             {item.expiresAt
-              ? `Ended ${formatDate(item.expiresAt)}`
+              ? item.status === 'scheduled' ||
+                item.status === 'active'
+                ? `Ends ${formatDate(item.expiresAt)}`
+                : `Ended ${formatDate(item.expiresAt)}`
               : 'No end date'}
           </p>
         </div>
