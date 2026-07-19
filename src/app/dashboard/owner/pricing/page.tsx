@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import OwnerCampaignPricingEditor from '@/components/dashboards/owner/owner-campaign-pricing-editor'
 import OwnerOrganizationPricingEditor from '@/components/dashboards/owner/owner-organization-pricing-editor'
 import OwnerPricingEditor from '@/components/dashboards/owner/owner-pricing-editor'
+import OwnerTownPricingEditor from '@/components/dashboards/owner/owner-town-pricing-editor'
 import {
   getOwnerCampaignPricingHistory,
   type OwnerCampaignPricingHistoryItem,
@@ -18,6 +19,7 @@ import {
   getOwnerPlatformPricingHistory,
   type OwnerPlatformPricingHistoryItem,
 } from '@/lib/services/owner-pricing-history-service'
+import { getOwnerTownPricingOptions } from '@/lib/services/owner-town-pricing-service'
 import {
   getOwnerPricingOverview,
   type OwnerPlatformPricingSummary,
@@ -459,6 +461,7 @@ export default async function OwnerPricingPage() {
     campaignHistoryResult,
     organizationOptionsResult,
     organizationHistoryResult,
+    townOptionsResult,
   ] = await Promise.all([
     getOwnerPricingOverview(),
     getOwnerPlatformPricingHistory(30),
@@ -466,6 +469,7 @@ export default async function OwnerPricingPage() {
     getOwnerCampaignPricingHistory(30),
     getOwnerOrganizationPricingOptions(),
     getOwnerOrganizationPricingHistory(30),
+    getOwnerTownPricingOptions(),
   ])
 
   if (
@@ -474,7 +478,8 @@ export default async function OwnerPricingPage() {
     campaignOptionsResult.status === 'unauthenticated' ||
     campaignHistoryResult.status === 'unauthenticated' ||
     organizationOptionsResult.status === 'unauthenticated' ||
-    organizationHistoryResult.status === 'unauthenticated'
+    organizationHistoryResult.status === 'unauthenticated' ||
+    townOptionsResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
@@ -485,7 +490,8 @@ export default async function OwnerPricingPage() {
     campaignOptionsResult.status === 'owner-role-required' ||
     campaignHistoryResult.status === 'owner-role-required' ||
     organizationOptionsResult.status === 'owner-role-required' ||
-    organizationHistoryResult.status === 'owner-role-required'
+    organizationHistoryResult.status === 'owner-role-required' ||
+    townOptionsResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -553,6 +559,18 @@ export default async function OwnerPricingPage() {
                 demoPassPrice={pricingResult.overview.demo.passPrice}
                 demoFeePercent={pricingResult.overview.demo.platformFeePercent}
               />
+
+              {townOptionsResult.status === 'success' ? (
+                <div className="mt-5">
+                  <OwnerTownPricingEditor
+                    towns={townOptionsResult.towns}
+                  />
+                </div>
+              ) : (
+                <p className="mt-5 rounded-2xl border border-amber-700 bg-amber-950/40 p-4 text-sm leading-6 text-amber-200">
+                  {townOptionsResult.message}
+                </p>
+              )}
 
               {organizationOptionsResult.status === 'success' ? (
                 <div className="mt-5">
