@@ -2,12 +2,14 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import OwnerCampaignPricingEditor from '@/components/dashboards/owner/owner-campaign-pricing-editor'
+import OwnerOrganizationPricingEditor from '@/components/dashboards/owner/owner-organization-pricing-editor'
 import OwnerPricingEditor from '@/components/dashboards/owner/owner-pricing-editor'
 import {
   getOwnerCampaignPricingHistory,
   type OwnerCampaignPricingHistoryItem,
 } from '@/lib/services/owner-campaign-pricing-history-service'
 import { getOwnerCampaignPricingOptions } from '@/lib/services/owner-campaign-pricing-service'
+import { getOwnerOrganizationPricingOptions } from '@/lib/services/owner-organization-pricing-service'
 import {
   getOwnerPlatformPricingHistory,
   type OwnerPlatformPricingHistoryItem,
@@ -355,18 +357,21 @@ export default async function OwnerPricingPage() {
     historyResult,
     campaignOptionsResult,
     campaignHistoryResult,
+    organizationOptionsResult,
   ] = await Promise.all([
     getOwnerPricingOverview(),
     getOwnerPlatformPricingHistory(30),
     getOwnerCampaignPricingOptions(),
     getOwnerCampaignPricingHistory(30),
+    getOwnerOrganizationPricingOptions(),
   ])
 
   if (
     pricingResult.status === 'unauthenticated' ||
     historyResult.status === 'unauthenticated' ||
     campaignOptionsResult.status === 'unauthenticated' ||
-    campaignHistoryResult.status === 'unauthenticated'
+    campaignHistoryResult.status === 'unauthenticated' ||
+    organizationOptionsResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
@@ -375,7 +380,8 @@ export default async function OwnerPricingPage() {
     pricingResult.status === 'owner-role-required' ||
     historyResult.status === 'owner-role-required' ||
     campaignOptionsResult.status === 'owner-role-required' ||
-    campaignHistoryResult.status === 'owner-role-required'
+    campaignHistoryResult.status === 'owner-role-required' ||
+    organizationOptionsResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -443,6 +449,20 @@ export default async function OwnerPricingPage() {
                 demoPassPrice={pricingResult.overview.demo.passPrice}
                 demoFeePercent={pricingResult.overview.demo.platformFeePercent}
               />
+
+              {organizationOptionsResult.status === 'success' ? (
+                <div className="mt-5">
+                  <OwnerOrganizationPricingEditor
+                    organizations={
+                      organizationOptionsResult.organizations
+                    }
+                  />
+                </div>
+              ) : (
+                <p className="mt-5 rounded-2xl border border-amber-700 bg-amber-950/40 p-4 text-sm leading-6 text-amber-200">
+                  {organizationOptionsResult.message}
+                </p>
+              )}
 
               {campaignOptionsResult.status === 'success' ? (
                 <OwnerCampaignPricingEditor
