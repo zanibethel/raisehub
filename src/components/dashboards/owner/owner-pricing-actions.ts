@@ -504,7 +504,6 @@ export async function publishCampaignPricingAction(
         .from('pricing_rules')
         .update({
           status: 'inactive',
-          expires_at: nowIso,
           updated_by: ownerResult.user.id,
         })
         .eq('scope_type', 'campaign')
@@ -548,8 +547,34 @@ export async function publishCampaignPricingAction(
       )
     }
   } else {
-    // Immediate replacements retire every older active campaign rule.
-    const { error: retirementError } =
+    const nowIso = now.toISOString()
+
+    // Future schedules cannot receive an expiration before their start.
+    // Deactivate them without changing their original time window.
+    const { error: futureRetirementError } =
+      await admin
+        .from('pricing_rules')
+        .update({
+          status: 'inactive',
+          updated_by: ownerResult.user.id,
+        })
+        .eq('scope_type', 'campaign')
+        .eq('campaign_id', campaignId)
+        .eq('is_demo', isDemo)
+        .eq('status', 'active')
+        .gt('starts_at', nowIso)
+        .neq('id', newRule.id)
+
+    if (futureRetirementError) {
+      return campaignFailure(
+        'The new campaign rule is active, but a future scheduled override could not be retired. Review pricing rules before publishing another change.',
+        campaignId,
+        environmentValue
+      )
+    }
+
+    // Currently effective and older active rules can safely end now.
+    const { error: currentRetirementError } =
       await admin
         .from('pricing_rules')
         .update({
@@ -561,11 +586,12 @@ export async function publishCampaignPricingAction(
         .eq('campaign_id', campaignId)
         .eq('is_demo', isDemo)
         .eq('status', 'active')
+        .lte('starts_at', nowIso)
         .neq('id', newRule.id)
 
-    if (retirementError) {
+    if (currentRetirementError) {
       return campaignFailure(
-        'The new campaign rule is active, but the older override could not be retired. Review pricing rules before publishing another change.',
+        'The new campaign rule is active, but an older override could not be retired. Review pricing rules before publishing another change.',
         campaignId,
         environmentValue
       )
@@ -674,7 +700,32 @@ export async function retireCampaignPricingAction(
     }
   }
 
-  const { data: retiredRules, error: retirementError } =
+  const { data: retiredFutureRules, error: futureRetirementError } =
+    await admin
+      .from('pricing_rules')
+      .update({
+        status: 'inactive',
+        updated_by: ownerResult.user.id,
+      })
+      .eq('scope_type', 'campaign')
+      .eq('campaign_id', campaignId)
+      .eq('is_demo', isDemo)
+      .eq('status', 'active')
+      .gt('starts_at', retiredAt)
+      .select('id')
+      .returns<Array<{ id: string }>>()
+
+  if (futureRetirementError) {
+    return {
+      success: false,
+      message:
+        'The scheduled campaign pricing override could not be retired.',
+      campaignId,
+      environment: environmentValue,
+    }
+  }
+
+  const { data: retiredCurrentRules, error: currentRetirementError } =
     await admin
       .from('pricing_rules')
       .update({
@@ -686,24 +737,29 @@ export async function retireCampaignPricingAction(
       .eq('campaign_id', campaignId)
       .eq('is_demo', isDemo)
       .eq('status', 'active')
+      .lte('starts_at', retiredAt)
       .select('id')
       .returns<Array<{ id: string }>>()
 
-  if (retirementError) {
+  if (currentRetirementError) {
     return {
       success: false,
       message:
-        'The campaign pricing override could not be retired.',
+        'The active campaign pricing override could not be retired.',
       campaignId,
       environment: environmentValue,
     }
   }
 
-  if (!retiredRules || retiredRules.length === 0) {
+  const retiredRuleCount =
+    (retiredFutureRules?.length ?? 0) +
+    (retiredCurrentRules?.length ?? 0)
+
+  if (retiredRuleCount === 0) {
     return {
       success: false,
       message:
-        'This campaign does not have an active pricing override.',
+        'This campaign does not have an active or scheduled pricing override.',
       campaignId,
       environment: environmentValue,
     }
