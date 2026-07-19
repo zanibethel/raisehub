@@ -8,7 +8,16 @@ export type OrganizationPricingLocation = {
   lookupFailed: boolean
 }
 
+export type OrganizationPricingLocationsResult = {
+  locationsByOrganizationId: Map<
+    string,
+    OrganizationPricingLocation
+  >
+  lookupFailed: boolean
+}
+
 type OrganizationPricingLocationRow = {
+  id: string
   town_name: string | null
   state_code: string | null
 }
@@ -27,16 +36,62 @@ function normalizeStateCode(value: string | null) {
     : null
 }
 
-export async function getOrganizationPricingLocation(
-  organizationId: string | null | undefined
-): Promise<OrganizationPricingLocation> {
-  const normalizedOrganizationId =
-    organizationId?.trim() ?? ''
+function createEmptyLocation(
+  lookupFailed = false
+): OrganizationPricingLocation {
+  return {
+    townName: null,
+    stateCode: null,
+    lookupFailed,
+  }
+}
 
-  if (!normalizedOrganizationId) {
+function mapLocationRow(
+  row: OrganizationPricingLocationRow
+): OrganizationPricingLocation {
+  return {
+    townName: normalizeTownName(row.town_name),
+    stateCode: normalizeStateCode(row.state_code),
+    lookupFailed: false,
+  }
+}
+
+export async function getOrganizationPricingLocations(
+  organizationIds: Array<
+    string | null | undefined
+  >
+): Promise<OrganizationPricingLocationsResult> {
+  const normalizedOrganizationIds = [
+    ...new Set(
+      organizationIds
+        .map((organizationId) =>
+          organizationId?.trim()
+        )
+        .filter(
+          (
+            organizationId
+          ): organizationId is string =>
+            Boolean(organizationId)
+        )
+    ),
+  ]
+
+  const locationsByOrganizationId =
+    new Map<
+      string,
+      OrganizationPricingLocation
+    >(
+      normalizedOrganizationIds.map(
+        (organizationId) => [
+          organizationId,
+          createEmptyLocation(),
+        ]
+      )
+    )
+
+  if (normalizedOrganizationIds.length === 0) {
     return {
-      townName: null,
-      stateCode: null,
+      locationsByOrganizationId,
       lookupFailed: false,
     }
   }
@@ -45,30 +100,61 @@ export async function getOrganizationPricingLocation(
 
   const { data, error } = await admin
     .from('organizations')
-    .select('town_name, state_code')
-    .eq('id', normalizedOrganizationId)
-    .maybeSingle()
+    .select('id, town_name, state_code')
+    .in('id', normalizedOrganizationIds)
 
   if (error) {
+    for (const organizationId of normalizedOrganizationIds) {
+      locationsByOrganizationId.set(
+        organizationId,
+        createEmptyLocation(true)
+      )
+    }
+
     return {
-      townName: null,
-      stateCode: null,
+      locationsByOrganizationId,
       lookupFailed: true,
     }
   }
 
   // The generated database type will be refreshed after the location
-  // migration is applied. Keep this narrow cast local until then.
-  const location =
-    data as unknown as OrganizationPricingLocationRow | null
+  // migration is represented in the checked-in Supabase types.
+  const locationRows =
+    data as unknown as OrganizationPricingLocationRow[]
+
+  for (const row of locationRows) {
+    locationsByOrganizationId.set(
+      row.id,
+      mapLocationRow(row)
+    )
+  }
 
   return {
-    townName: normalizeTownName(
-      location?.town_name ?? null
-    ),
-    stateCode: normalizeStateCode(
-      location?.state_code ?? null
-    ),
+    locationsByOrganizationId,
     lookupFailed: false,
   }
+}
+
+export async function getOrganizationPricingLocation(
+  organizationId: string | null | undefined
+): Promise<OrganizationPricingLocation> {
+  const normalizedOrganizationId =
+    organizationId?.trim() ?? ''
+
+  if (!normalizedOrganizationId) {
+    return createEmptyLocation()
+  }
+
+  const {
+    locationsByOrganizationId,
+    lookupFailed,
+  } = await getOrganizationPricingLocations([
+    normalizedOrganizationId,
+  ])
+
+  return (
+    locationsByOrganizationId.get(
+      normalizedOrganizationId
+    ) ?? createEmptyLocation(lookupFailed)
+  )
 }
