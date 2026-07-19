@@ -9,6 +9,10 @@ import {
   type OwnerCampaignPricingHistoryItem,
 } from '@/lib/services/owner-campaign-pricing-history-service'
 import { getOwnerCampaignPricingOptions } from '@/lib/services/owner-campaign-pricing-service'
+import {
+  getOwnerOrganizationPricingHistory,
+  type OwnerOrganizationPricingHistoryItem,
+} from '@/lib/services/owner-organization-pricing-history-service'
 import { getOwnerOrganizationPricingOptions } from '@/lib/services/owner-organization-pricing-service'
 import {
   getOwnerPlatformPricingHistory,
@@ -351,6 +355,102 @@ function CampaignHistoryRow({
   )
 }
 
+
+function OrganizationHistoryRow({
+  item,
+}: {
+  item: OwnerOrganizationPricingHistoryItem
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+              Organization
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold capitalize text-slate-700">
+              {item.environment}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                item.status === 'active'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : item.status === 'scheduled'
+                    ? 'bg-violet-100 text-violet-800'
+                    : item.status === 'expired'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {item.status}
+            </span>
+          </div>
+
+          <h3 className="mt-3 text-lg font-bold text-slate-950">
+            {item.organizationName}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            {formatMoney(item.passPrice)} pass ·{' '}
+            {formatPercent(item.platformFeePercent)} fee
+          </p>
+        </div>
+
+        <div className="text-right text-xs leading-5 text-slate-500">
+          <p>
+            {item.status === 'scheduled'
+              ? `Starts ${formatDate(item.startsAt)}`
+              : `Started ${formatDate(item.startsAt)}`}
+          </p>
+          <p>
+            {item.expiresAt
+              ? item.status === 'scheduled' ||
+                item.status === 'active'
+                ? `Ends ${formatDate(item.expiresAt)}`
+                : `Ended ${formatDate(item.expiresAt)}`
+              : 'No end date'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl bg-blue-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+            RaiseHub share
+          </p>
+          <p className="mt-1 font-bold text-blue-950">
+            {formatMoney(item.platformFeeAmount)}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-emerald-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+            Organization share
+          </p>
+          <p className="mt-1 font-bold text-emerald-950">
+            {formatMoney(item.organizationPassEarnings)}
+          </p>
+        </div>
+      </div>
+
+      {item.reason ? (
+        <p className="mt-4 text-sm leading-6 text-slate-700">
+          <strong>Reason:</strong> {item.reason}
+        </p>
+      ) : null}
+
+      {item.internalNote ? (
+        <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+          <strong className="text-slate-900">
+            Internal note:
+          </strong>{' '}
+          {item.internalNote}
+        </p>
+      ) : null}
+    </article>
+  )
+}
+
 export default async function OwnerPricingPage() {
   const [
     pricingResult,
@@ -358,12 +458,14 @@ export default async function OwnerPricingPage() {
     campaignOptionsResult,
     campaignHistoryResult,
     organizationOptionsResult,
+    organizationHistoryResult,
   ] = await Promise.all([
     getOwnerPricingOverview(),
     getOwnerPlatformPricingHistory(30),
     getOwnerCampaignPricingOptions(),
     getOwnerCampaignPricingHistory(30),
     getOwnerOrganizationPricingOptions(),
+    getOwnerOrganizationPricingHistory(30),
   ])
 
   if (
@@ -371,7 +473,8 @@ export default async function OwnerPricingPage() {
     historyResult.status === 'unauthenticated' ||
     campaignOptionsResult.status === 'unauthenticated' ||
     campaignHistoryResult.status === 'unauthenticated' ||
-    organizationOptionsResult.status === 'unauthenticated'
+    organizationOptionsResult.status === 'unauthenticated' ||
+    organizationHistoryResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
@@ -381,7 +484,8 @@ export default async function OwnerPricingPage() {
     historyResult.status === 'owner-role-required' ||
     campaignOptionsResult.status === 'owner-role-required' ||
     campaignHistoryResult.status === 'owner-role-required' ||
-    organizationOptionsResult.status === 'owner-role-required'
+    organizationOptionsResult.status === 'owner-role-required' ||
+    organizationHistoryResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -527,6 +631,54 @@ export default async function OwnerPricingPage() {
           ) : (
             <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
               {historyResult.message}
+            </p>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">
+                Organization audit trail
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                Organization pricing history
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Organization-level overrides, scheduled changes, replacements, and retired rules for Production and Demo.
+              </p>
+            </div>
+
+            {organizationHistoryResult.status === 'success' ? (
+              <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+                {organizationHistoryResult.history.length} record
+                {organizationHistoryResult.history.length === 1
+                  ? ''
+                  : 's'}
+              </span>
+            ) : null}
+          </div>
+
+          {organizationHistoryResult.status === 'success' ? (
+            organizationHistoryResult.history.length > 0 ? (
+              <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                {organizationHistoryResult.history.map(
+                  (item) => (
+                    <OrganizationHistoryRow
+                      key={item.id}
+                      item={item}
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                No organization pricing history is available yet.
+              </p>
+            )
+          ) : (
+            <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+              {organizationHistoryResult.message}
             </p>
           )}
         </section>
