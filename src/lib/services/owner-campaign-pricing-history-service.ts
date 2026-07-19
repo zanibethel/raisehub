@@ -20,7 +20,11 @@ export type OwnerCampaignPricingHistoryItem = {
   platformFeePercent: number
   platformFeeAmount: number
   organizationPassEarnings: number
-  status: 'active' | 'inactive'
+  status:
+    | 'active'
+    | 'scheduled'
+    | 'expired'
+    | 'inactive'
   startsAt: string
   expiresAt: string | null
   reason: string | null
@@ -132,10 +136,27 @@ function mapHistoryItem(
     organizationPassEarnings: normalizeMoney(
       passPrice - platformFeeAmount
     ),
-    status:
-      row.status === 'active'
-        ? 'active'
-        : 'inactive',
+    status: (() => {
+      if (row.status !== 'active') {
+        return 'inactive'
+      }
+
+      const now = new Date()
+      const startsAt = new Date(row.starts_at)
+      const expiresAt = row.expires_at
+        ? new Date(row.expires_at)
+        : null
+
+      if (startsAt > now) {
+        return 'scheduled'
+      }
+
+      if (expiresAt && expiresAt <= now) {
+        return 'expired'
+      }
+
+      return 'active'
+    })(),
     startsAt: row.starts_at,
     expiresAt: row.expires_at,
     reason: row.reason,
