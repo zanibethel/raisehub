@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import SignupForm from './signup-form'
 
 import { getSellableCampaigns } from '@/lib/repositories/campaign-repository'
+import { getOrganizationPricingLocations } from '@/lib/services/organization-pricing-location-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 
 export const dynamic = 'force-dynamic'
@@ -11,15 +12,40 @@ export default async function SignupPage() {
   const { campaigns, error } =
     await getSellableCampaigns()
 
+  const {
+    locationsByOrganizationId,
+  } = error
+    ? {
+        locationsByOrganizationId: new Map(),
+      }
+    : await getOrganizationPricingLocations(
+        campaigns.map(
+          (campaign) => campaign.organizationId
+        )
+      )
+
   const pricedCampaigns = error
     ? []
     : await Promise.all(
         campaigns.map(async (campaign) => {
+          const organizationLocation =
+            campaign.organizationId
+              ? locationsByOrganizationId.get(
+                  campaign.organizationId
+                )
+              : null
+
           const pricing =
             await resolveEffectivePricing({
               campaignId: campaign.id,
               organizationId:
                 campaign.organizationId,
+              townName:
+                organizationLocation?.townName ??
+                null,
+              stateCode:
+                organizationLocation?.stateCode ??
+                null,
             })
 
           return {
