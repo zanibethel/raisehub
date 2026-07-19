@@ -13,6 +13,7 @@ import {
 } from '@/lib/repositories/campaign-repository'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
+import { getOrganizationPricingLocation } from '@/lib/services/organization-pricing-location-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -255,9 +256,16 @@ export default async function CampaignPage({
       .maybeSingle(),
   ])
 
+  const organizationPricingLocation =
+    await getOrganizationPricingLocation(
+      campaignOrganization?.id ?? null
+    )
+
   const effectivePricing = await resolveEffectivePricing({
     campaignId: campaign.id,
     organizationId: campaignOrganization?.id ?? null,
+    townName: organizationPricingLocation.townName,
+    stateCode: organizationPricingLocation.stateCode,
     isDemo: campaignOrganizationProfile?.is_demo ?? false,
     now,
   })
