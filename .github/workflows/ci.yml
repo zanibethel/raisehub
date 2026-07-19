@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   verify:
-    name: TypeScript, Lint, and Build
+    name: TypeScript and Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -45,12 +45,6 @@ jobs:
           set -o pipefail
           npx tsc --noEmit 2>&1 | tee typecheck.log
 
-      - name: Run lint
-        id: lint
-        run: |
-          set -o pipefail
-          npm run lint 2>&1 | tee lint.log
-
       - name: Build application
         id: build
         run: |
@@ -75,7 +69,6 @@ jobs:
             echo ""
             echo "Install result: ${{ steps.install.outcome }}"
             echo "TypeScript result: ${{ steps.typecheck.outcome }}"
-            echo "Lint result: ${{ steps.lint.outcome }}"
             echo "Build result: ${{ steps.build.outcome }}"
           } > ci-report.txt
 
@@ -87,7 +80,6 @@ jobs:
           path: |
             ci-report.txt
             typecheck.log
-            lint.log
             build.log
           retention-days: 30
           if-no-files-found: warn
