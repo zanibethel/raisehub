@@ -521,7 +521,8 @@ export async function publishCampaignPricingAction(
       )
     }
 
-    // Keep today’s effective rule available until the scheduled start.
+    // Keep an open-ended or longer-running current rule available until
+    // the scheduled start. Do not extend a rule that already ends sooner.
     const { error: currentAlignmentError } =
       await admin
         .from('pricing_rules')
@@ -535,7 +536,7 @@ export async function publishCampaignPricingAction(
         .eq('status', 'active')
         .lte('starts_at', nowIso)
         .or(
-          `expires_at.is.null,expires_at.gt.${nowIso}`
+          `expires_at.is.null,expires_at.gt.${startsAt}`
         )
         .neq('id', newRule.id)
 
