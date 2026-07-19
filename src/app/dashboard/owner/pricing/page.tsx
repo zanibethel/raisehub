@@ -19,6 +19,10 @@ import {
   getOwnerPlatformPricingHistory,
   type OwnerPlatformPricingHistoryItem,
 } from '@/lib/services/owner-pricing-history-service'
+import {
+  getOwnerTownPricingHistory,
+  type OwnerTownPricingHistoryItem,
+} from '@/lib/services/owner-town-pricing-history-service'
 import { getOwnerTownPricingOptions } from '@/lib/services/owner-town-pricing-service'
 import {
   getOwnerPricingOverview,
@@ -358,6 +362,102 @@ function CampaignHistoryRow({
 }
 
 
+
+function TownHistoryRow({
+  item,
+}: {
+  item: OwnerTownPricingHistoryItem
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-bold text-cyan-800">
+              Town
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold capitalize text-slate-700">
+              {item.environment}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                item.status === 'active'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : item.status === 'scheduled'
+                    ? 'bg-violet-100 text-violet-800'
+                    : item.status === 'expired'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {item.status}
+            </span>
+          </div>
+
+          <h3 className="mt-3 text-lg font-bold text-slate-950">
+            {item.townName}, {item.stateCode}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            {formatMoney(item.passPrice)} pass ·{' '}
+            {formatPercent(item.platformFeePercent)} fee
+          </p>
+        </div>
+
+        <div className="text-right text-xs leading-5 text-slate-500">
+          <p>
+            {item.status === 'scheduled'
+              ? `Starts ${formatDate(item.startsAt)}`
+              : `Started ${formatDate(item.startsAt)}`}
+          </p>
+          <p>
+            {item.expiresAt
+              ? item.status === 'scheduled' ||
+                item.status === 'active'
+                ? `Ends ${formatDate(item.expiresAt)}`
+                : `Ended ${formatDate(item.expiresAt)}`
+              : 'No end date'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl bg-blue-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+            RaiseHub share
+          </p>
+          <p className="mt-1 font-bold text-blue-950">
+            {formatMoney(item.platformFeeAmount)}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-emerald-50 p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+            Organization share
+          </p>
+          <p className="mt-1 font-bold text-emerald-950">
+            {formatMoney(item.organizationPassEarnings)}
+          </p>
+        </div>
+      </div>
+
+      {item.reason ? (
+        <p className="mt-4 text-sm leading-6 text-slate-700">
+          <strong>Reason:</strong> {item.reason}
+        </p>
+      ) : null}
+
+      {item.internalNote ? (
+        <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+          <strong className="text-slate-900">
+            Internal note:
+          </strong>{' '}
+          {item.internalNote}
+        </p>
+      ) : null}
+    </article>
+  )
+}
+
 function OrganizationHistoryRow({
   item,
 }: {
@@ -462,6 +562,7 @@ export default async function OwnerPricingPage() {
     organizationOptionsResult,
     organizationHistoryResult,
     townOptionsResult,
+    townHistoryResult,
   ] = await Promise.all([
     getOwnerPricingOverview(),
     getOwnerPlatformPricingHistory(30),
@@ -470,6 +571,7 @@ export default async function OwnerPricingPage() {
     getOwnerOrganizationPricingOptions(),
     getOwnerOrganizationPricingHistory(30),
     getOwnerTownPricingOptions(),
+    getOwnerTownPricingHistory(30),
   ])
 
   if (
@@ -479,7 +581,8 @@ export default async function OwnerPricingPage() {
     campaignHistoryResult.status === 'unauthenticated' ||
     organizationOptionsResult.status === 'unauthenticated' ||
     organizationHistoryResult.status === 'unauthenticated' ||
-    townOptionsResult.status === 'unauthenticated'
+    townOptionsResult.status === 'unauthenticated' ||
+    townHistoryResult.status === 'unauthenticated'
   ) {
     redirect('/login')
   }
@@ -491,7 +594,8 @@ export default async function OwnerPricingPage() {
     campaignHistoryResult.status === 'owner-role-required' ||
     organizationOptionsResult.status === 'owner-role-required' ||
     organizationHistoryResult.status === 'owner-role-required' ||
-    townOptionsResult.status === 'owner-role-required'
+    townOptionsResult.status === 'owner-role-required' ||
+    townHistoryResult.status === 'owner-role-required'
   ) {
     redirect('/dashboard')
   }
@@ -649,6 +753,55 @@ export default async function OwnerPricingPage() {
           ) : (
             <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
               {historyResult.message}
+            </p>
+          )}
+        </section>
+
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-600">
+                Town audit trail
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                Town pricing history
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Town-level overrides, scheduled changes, replacements, and retired rules for Production and Demo.
+              </p>
+            </div>
+
+            {townHistoryResult.status === 'success' ? (
+              <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+                {townHistoryResult.history.length} record
+                {townHistoryResult.history.length === 1
+                  ? ''
+                  : 's'}
+              </span>
+            ) : null}
+          </div>
+
+          {townHistoryResult.status === 'success' ? (
+            townHistoryResult.history.length > 0 ? (
+              <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                {townHistoryResult.history.map(
+                  (item) => (
+                    <TownHistoryRow
+                      key={item.id}
+                      item={item}
+                    />
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                No town pricing history is available yet.
+              </p>
+            )
+          ) : (
+            <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+              {townHistoryResult.message}
             </p>
           )}
         </section>
