@@ -389,9 +389,14 @@ export async function resolveEffectivePricing(
   )
 
   try {
+    const [locatedInput] =
+      await enrichPricingInputsWithOrganizationLocations([
+        input,
+      ])
+
     const rules =
       await loadActivePricingRules({
-        isDemo: input.isDemo ?? false,
+        isDemo: locatedInput.isDemo ?? false,
         now,
       })
 
@@ -403,7 +408,7 @@ export async function resolveEffectivePricing(
 
     return resolvePricingFromRules({
       rules,
-      input: normalizePricingInput(input),
+      input: normalizePricingInput(locatedInput),
       donationAmount,
     })
   } catch {
