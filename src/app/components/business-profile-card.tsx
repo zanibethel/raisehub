@@ -194,6 +194,9 @@ export default function BusinessProfileCard({
   if (isEditing) {
     return (
       <BusinessProfileForm
+        businessLegacyProfileId={
+          businessLegacyProfileId
+        }
         initialBusinessName={
           businessName
         }
