@@ -1,6 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
 import SaveOfferButton from './save-offer-button'
 
@@ -26,6 +30,8 @@ type AvailableOffersSectionProps = {
   savedOfferIds: string[]
 }
 
+type DealView = 'all' | 'saved'
+
 type SortOption =
   | 'recommended'
   | 'expiring'
@@ -37,6 +43,12 @@ type SortOption =
 // =============================================================================
 
 const EXPIRING_SOON_DAYS = 14
+
+const ALL_OFFERS_HASH = '#offers-all'
+const SAVED_OFFERS_HASH = '#offers-saved'
+const EXPIRING_OFFERS_HASH = '#offers-expiring'
+const LEGACY_AVAILABLE_OFFERS_HASH =
+  '#available-offers'
 
 // =============================================================================
 // Helpers
@@ -118,8 +130,15 @@ export default function AvailableOffersSection({
   offers,
   savedOfferIds,
 }: AvailableOffersSectionProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [hideSaved, setHideSaved] = useState(false)
+  const [searchQuery, setSearchQuery] =
+    useState('')
+
+  const [dealView, setDealView] =
+    useState<DealView>('all')
+
+  const [hideSaved, setHideSaved] =
+    useState(false)
+
   const [endingSoonOnly, setEndingSoonOnly] =
     useState(false)
 
@@ -131,6 +150,61 @@ export default function AvailableOffersSection({
     [savedOfferIds]
   )
 
+  function resetToAllDeals() {
+    setSearchQuery('')
+    setDealView('all')
+    setHideSaved(false)
+    setEndingSoonOnly(false)
+    setSortOption('recommended')
+  }
+
+  function applyHashPreset(hash: string) {
+    if (hash === SAVED_OFFERS_HASH) {
+      setSearchQuery('')
+      setDealView('saved')
+      setHideSaved(false)
+      setEndingSoonOnly(false)
+      setSortOption('recommended')
+      return
+    }
+
+    if (hash === EXPIRING_OFFERS_HASH) {
+      setSearchQuery('')
+      setDealView('all')
+      setHideSaved(false)
+      setEndingSoonOnly(true)
+      setSortOption('expiring')
+      return
+    }
+
+    if (
+      hash === ALL_OFFERS_HASH ||
+      hash === LEGACY_AVAILABLE_OFFERS_HASH
+    ) {
+      resetToAllDeals()
+    }
+  }
+
+  useEffect(() => {
+    function handleHashChange() {
+      applyHashPreset(window.location.hash)
+    }
+
+    handleHashChange()
+
+    window.addEventListener(
+      'hashchange',
+      handleHashChange
+    )
+
+    return () => {
+      window.removeEventListener(
+        'hashchange',
+        handleHashChange
+      )
+    }
+  }, [])
+
   const visibleOffers = useMemo(() => {
     const normalizedSearchQuery =
       searchQuery.trim().toLowerCase()
@@ -139,9 +213,20 @@ export default function AvailableOffersSection({
 
     const matchingOffers = offers.filter(
       (offer) => {
-        if (
-          hideSaved &&
+        const isSaved =
           savedOfferIdSet.has(offer.id)
+
+        if (
+          dealView === 'saved' &&
+          !isSaved
+        ) {
+          return false
+        }
+
+        if (
+          dealView === 'all' &&
+          hideSaved &&
+          isSaved
         ) {
           return false
         }
@@ -243,6 +328,7 @@ export default function AvailableOffersSection({
     offers,
     savedOfferIdSet,
     searchQuery,
+    dealView,
     hideSaved,
     endingSoonOnly,
     sortOption,
@@ -253,19 +339,56 @@ export default function AvailableOffersSection({
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 ||
+    dealView !== 'all' ||
     hideSaved ||
     endingSoonOnly ||
     sortOption !== 'recommended'
 
   function clearFilters() {
-    setSearchQuery('')
+    resetToAllDeals()
+
+    if (
+      window.location.hash ===
+        SAVED_OFFERS_HASH ||
+      window.location.hash ===
+        EXPIRING_OFFERS_HASH
+    ) {
+      window.history.replaceState(
+        null,
+        '',
+        ALL_OFFERS_HASH
+      )
+    }
+  }
+
+  function handleDealViewChange(
+    nextView: DealView
+  ) {
+    setDealView(nextView)
     setHideSaved(false)
-    setEndingSoonOnly(false)
-    setSortOption('recommended')
+
+    if (nextView === 'saved') {
+      window.history.replaceState(
+        null,
+        '',
+        SAVED_OFFERS_HASH
+      )
+      return
+    }
+
+    window.history.replaceState(
+      null,
+      '',
+      ALL_OFFERS_HASH
+    )
   }
 
   return (
-    <section aria-label="Available local deals">
+    <section
+      id="deal-browser"
+      aria-label="Available local deals"
+      className="scroll-mt-6"
+    >
       <div className="rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-lg backdrop-blur sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -279,7 +402,7 @@ export default function AvailableOffersSection({
 
             <p className="mt-1 text-sm text-gray-600">
               Search for a favorite business or
-              narrow the list to deals ending soon.
+              narrow the list to the deals you need.
             </p>
           </div>
 
@@ -297,7 +420,7 @@ export default function AvailableOffersSection({
           </p>
         </div>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px_220px]">
           <label className="block">
             <span className="text-sm font-semibold text-gray-700">
               Search businesses or offers
@@ -323,6 +446,33 @@ export default function AvailableOffersSection({
                 className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-700">
+              View deals
+            </span>
+
+            <select
+              value={dealView}
+              onChange={(event) =>
+                handleDealViewChange(
+                  event.target.value as DealView
+                )
+              }
+              className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="all">
+                All Available
+              </option>
+
+              <option
+                value="saved"
+                disabled={!hasSavedOffers}
+              >
+                My Pass
+              </option>
+            </select>
           </label>
 
           <label className="block">
@@ -374,7 +524,8 @@ export default function AvailableOffersSection({
             Ending within {EXPIRING_SOON_DAYS} days
           </label>
 
-          {hasSavedOffers ? (
+          {hasSavedOffers &&
+          dealView === 'all' ? (
             <label className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
               <input
                 type="checkbox"
@@ -401,6 +552,17 @@ export default function AvailableOffersSection({
             </button>
           ) : null}
         </div>
+
+        {dealView === 'saved' ? (
+          <div className="mt-4 rounded-xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            Showing deals saved to My Pass.
+          </div>
+        ) : endingSoonOnly ? (
+          <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            Showing deals ending within the next{' '}
+            {EXPIRING_SOON_DAYS} days.
+          </div>
+        ) : null}
 
         <p className="mt-4 text-xs text-gray-500">
           Nearby sorting will become available after
@@ -501,6 +663,25 @@ export default function AvailableOffersSection({
                 )}
               </article>
             ))}
+          </div>
+        ) : dealView === 'saved' ? (
+          <div className="rounded-3xl border border-yellow-100 bg-yellow-50 p-6 text-center shadow-sm">
+            <p className="text-sm font-semibold text-yellow-900">
+              No saved deals match these filters.
+            </p>
+
+            <p className="mt-2 text-sm text-gray-600">
+              Clear the filters or switch back to
+              All Available to find a deal to save.
+            </p>
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-yellow-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-yellow-700"
+            >
+              Show All Available
+            </button>
           </div>
         ) : hasActiveFilters ? (
           <div className="rounded-3xl border border-blue-100 bg-blue-50 p-6 text-center shadow-sm">
