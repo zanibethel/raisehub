@@ -16,6 +16,12 @@ export type OrganizationPricingLocationsResult = {
   lookupFailed: boolean
 }
 
+export type OrganizationLocatedPricingInput = {
+  organizationId?: string | null
+  townName?: string | null
+  stateCode?: string | null
+}
+
 type OrganizationPricingLocationRow = {
   id: string
   town_name: string | null
@@ -133,6 +139,57 @@ export async function getOrganizationPricingLocations(
     locationsByOrganizationId,
     lookupFailed: false,
   }
+}
+
+export async function enrichPricingInputsWithOrganizationLocations<
+  T extends OrganizationLocatedPricingInput,
+>(inputs: T[]): Promise<T[]> {
+  const organizationIdsNeedingLocation =
+    inputs
+      .filter(
+        (input) =>
+          Boolean(input.organizationId?.trim()) &&
+          (!input.townName?.trim() ||
+            !input.stateCode?.trim())
+      )
+      .map((input) => input.organizationId)
+
+  if (organizationIdsNeedingLocation.length === 0) {
+    return inputs
+  }
+
+  const { locationsByOrganizationId } =
+    await getOrganizationPricingLocations(
+      organizationIdsNeedingLocation
+    )
+
+  return inputs.map((input) => {
+    const organizationId =
+      input.organizationId?.trim() ?? ''
+
+    if (!organizationId) {
+      return input
+    }
+
+    const organizationLocation =
+      locationsByOrganizationId.get(
+        organizationId
+      )
+
+    if (!organizationLocation) {
+      return input
+    }
+
+    return {
+      ...input,
+      townName:
+        input.townName?.trim() ||
+        organizationLocation.townName,
+      stateCode:
+        input.stateCode?.trim() ||
+        organizationLocation.stateCode,
+    }
+  })
 }
 
 export async function getOrganizationPricingLocation(
