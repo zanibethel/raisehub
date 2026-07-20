@@ -4,7 +4,6 @@ import { createHash, randomBytes } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { getCampaignById } from '@/lib/repositories/campaign-repository'
-import { getOrganizationPricingLocation } from '@/lib/services/organization-pricing-location-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -237,18 +236,9 @@ export async function purchaseGiftPassAction(
     }
   }
 
-  const organizationPricingLocation =
-    await getOrganizationPricingLocation(
-      organizationRecord?.id ?? null
-    )
-
   const pricing = await resolveEffectivePricing({
     campaignId: campaign.id,
     organizationId: organizationRecord?.id ?? null,
-    townName:
-      organizationPricingLocation.townName,
-    stateCode:
-      organizationPricingLocation.stateCode,
     donationAmount,
     isDemo: selectedOrganizationProfile.is_demo,
     now,
