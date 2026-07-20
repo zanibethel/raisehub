@@ -473,6 +473,49 @@ The legacy campaign column is not a historical purchase record and must not be c
 
 Proceed with the destructive migration only when every readiness gate below is satisfied. Any failed pricing, checkout, snapshot, Demo separation, fallback, build, or deployment check is a no-go.
 
+## Automated pricing verification status
+
+Automated verification now protects the core managed-pricing rules before the legacy campaign column is removed.
+
+### Core resolution coverage
+
+The pricing resolution test suite verifies:
+
+- Campaign pricing outranks Organization, Town, State, and Platform pricing.
+- Organization pricing outranks Town, State, and Platform pricing.
+- Town matching is case-insensitive and ignores surrounding spaces.
+- Newer rule start times win within the same scope.
+- Newer creation times break equal-start-time ties.
+- Platform-fee and organization-earnings calculations remain correct.
+- Donations remain fully assigned to the organization.
+- The emergency application fallback remains $20 with a 20% platform fee.
+- Missing scoped matches use the emergency fallback.
+
+### Production and Demo separation coverage
+
+The pricing separation test suite verifies:
+
+- `isDemo: true` inputs remain in the Demo pricing group.
+- `isDemo: false` inputs remain in the Production pricing group.
+- Inputs without an `isDemo` property default safely to Production.
+- Separation preserves the original input objects.
+- Empty batches return empty Production and Demo groups.
+
+### Integration status
+
+The live pricing-resolution service now uses the same shared core functions covered by these tests for:
+
+- Pricing hierarchy resolution.
+- Pricing normalization and calculations.
+- Emergency fallback creation.
+- Production and Demo input separation.
+
+The test suite and TypeScript check passed after correcting the generic input constraint so records without an `isDemo` property are accepted and treated as Production.
+
+### Remaining limitation
+
+These automated tests verify deterministic application logic. They do not replace the remaining end-to-end checks against real Production and Demo data, purchase creation, pricing snapshots, or deployed checkout flows.
+
 ## Migration readiness gate
 
 Do not prepare or apply a migration that removes the legacy campaign price until all are true:
