@@ -33,6 +33,7 @@ type BusinessProfile = {
 }
 
 type BusinessDashboardContentProps = {
+  businessLegacyProfileId?: string | null
   profile: BusinessProfile | null
   offers: BusinessOffer[]
   totalRedemptions: number
@@ -42,7 +43,10 @@ type BusinessDashboardContentProps = {
   topOfferTitle: string
   topOfferCount: number
   redemptionCountByOfferId: Record<string, number>
-  redemptionsByOfferId: Record<string, OfferRedemption[]>
+  redemptionsByOfferId: Record<
+    string,
+    OfferRedemption[]
+  >
   profileEmailById: Record<string, string>
 }
 
@@ -51,6 +55,7 @@ type BusinessDashboardContentProps = {
 // =============================================================================
 
 export default function BusinessDashboardContent({
+  businessLegacyProfileId,
   profile,
   offers,
   totalRedemptions,
@@ -63,23 +68,32 @@ export default function BusinessDashboardContent({
   redemptionsByOfferId,
   profileEmailById,
 }: BusinessDashboardContentProps) {
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
+  const [
+    isUpgradeOpen,
+    setIsUpgradeOpen,
+  ] = useState(false)
 
-  const offerStatuses = offers.map((offer) =>
-    getOfferStatus({
-      startsAt: offer.starts_at,
-      endsAt: offer.ends_at,
-      isActive: offer.is_active,
-    })
+  const offerStatuses = offers.map(
+    (offer) =>
+      getOfferStatus({
+        startsAt: offer.starts_at,
+        endsAt: offer.ends_at,
+        isActive: offer.is_active,
+      })
   )
 
-  const pausedOffersCount = offerStatuses.filter(
-    (status) => status.status === 'paused'
-  ).length
+  const pausedOffersCount =
+    offerStatuses.filter(
+      (status) =>
+        status.status === 'paused'
+    ).length
 
-  const expiringSoonCount = offerStatuses.filter(
-    (status) => status.status === 'expiring-soon'
-  ).length
+  const expiringSoonCount =
+    offerStatuses.filter(
+      (status) =>
+        status.status ===
+        'expiring-soon'
+    ).length
 
   const profileComplete = Boolean(
     profile?.business_name &&
@@ -88,60 +102,116 @@ export default function BusinessDashboardContent({
       profile?.logo_url
   )
 
-  const dashboardAlerts = getDashboardAlerts({
-    activeOffers: activeOffersCount,
-    pausedOffers: pausedOffersCount,
-    expiringSoon: expiringSoonCount,
-    reviewRecommended: 0,
-    profileComplete,
-  })
+  const dashboardAlerts =
+    getDashboardAlerts({
+      activeOffers:
+        activeOffersCount,
+      pausedOffers:
+        pausedOffersCount,
+      expiringSoon:
+        expiringSoonCount,
+      reviewRecommended: 0,
+      profileComplete,
+    })
 
   return (
     <div className="mt-8 space-y-10">
       <BusinessProfileCard
-        businessName={profile?.business_name ?? ''}
+        businessLegacyProfileId={
+          businessLegacyProfileId
+        }
+        businessName={
+          profile?.business_name ?? ''
+        }
         phone={profile?.phone ?? ''}
-        address={profile?.address ?? ''}
-        googleMapsUrl={profile?.google_maps_url ?? ''}
-        logoUrl={profile?.logo_url ?? ''}
-        websiteUrl={profile?.website_url ?? ''}
-        displayName={profile?.display_name ?? ''}
+        address={
+          profile?.address ?? ''
+        }
+        googleMapsUrl={
+          profile?.google_maps_url ??
+          ''
+        }
+        logoUrl={
+          profile?.logo_url ?? ''
+        }
+        websiteUrl={
+          profile?.website_url ?? ''
+        }
+        displayName={
+          profile?.display_name ?? ''
+        }
       />
 
-      <AttentionCenter alerts={dashboardAlerts} />
+      <AttentionCenter
+        alerts={dashboardAlerts}
+      />
 
       <BusinessDashboardSnapshot
-        activeOffersCount={activeOffersCount}
-        activeOfferLimit={activeOfferLimit}
-        totalRedemptions={totalRedemptions}
-        topOfferTitle={topOfferTitle}
-        topOfferCount={topOfferCount}
-        publishedOffersCount={offers.length}
+        activeOffersCount={
+          activeOffersCount
+        }
+        activeOfferLimit={
+          activeOfferLimit
+        }
+        totalRedemptions={
+          totalRedemptions
+        }
+        topOfferTitle={
+          topOfferTitle
+        }
+        topOfferCount={
+          topOfferCount
+        }
+        publishedOffersCount={
+          offers.length
+        }
       />
 
       <BusinessDashboardCreateOffer
-        activeOffersCount={activeOffersCount}
-        activeOfferLimit={activeOfferLimit}
-        hasReachedLimit={hasReachedLimit}
-        onViewUpgrade={() => setIsUpgradeOpen(true)}
+        activeOffersCount={
+          activeOffersCount
+        }
+        activeOfferLimit={
+          activeOfferLimit
+        }
+        hasReachedLimit={
+          hasReachedLimit
+        }
+        onViewUpgrade={() =>
+          setIsUpgradeOpen(true)
+        }
       />
 
       <BusinessDashboardQuickActions
-        hasReachedLimit={hasReachedLimit}
+        hasReachedLimit={
+          hasReachedLimit
+        }
       />
 
       <BusinessDashboardOffersSection
         offers={offers}
-        hasReachedLimit={hasReachedLimit}
-        redemptionCountByOfferId={redemptionCountByOfferId}
-        redemptionsByOfferId={redemptionsByOfferId}
-        profileEmailById={profileEmailById}
-        onBoost={() => setIsUpgradeOpen(true)}
+        hasReachedLimit={
+          hasReachedLimit
+        }
+        redemptionCountByOfferId={
+          redemptionCountByOfferId
+        }
+        redemptionsByOfferId={
+          redemptionsByOfferId
+        }
+        profileEmailById={
+          profileEmailById
+        }
+        onBoost={() =>
+          setIsUpgradeOpen(true)
+        }
       />
 
       <UpgradePlanModal
         isOpen={isUpgradeOpen}
-        onClose={() => setIsUpgradeOpen(false)}
+        onClose={() =>
+          setIsUpgradeOpen(false)
+        }
       />
     </div>
   )
