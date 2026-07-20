@@ -5,6 +5,7 @@ import {
   createFallbackPricing,
   normalizePricingInput,
   resolvePricingFromRules,
+  separatePricingInputsByDemo,
   type PricingRuleRow,
 } from '@/lib/services/pricing-resolution-core'
 
@@ -274,4 +275,77 @@ test('no matching scoped rule falls back safely', () => {
 
   assert.equal(pricing.pricingScope, 'fallback')
   assert.equal(pricing.usedFallback, true)
+})
+
+test('demo pricing inputs stay isolated from production inputs', () => {
+  const productionExplicit = {
+    campaignId: 'production-explicit',
+    isDemo: false,
+  }
+  const productionDefault = {
+    campaignId: 'production-default',
+  }
+  const demo = {
+    campaignId: 'demo',
+    isDemo: true,
+  }
+
+  const {
+    productionInputs,
+    demoInputs,
+  } = separatePricingInputsByDemo([
+    productionExplicit,
+    productionDefault,
+    demo,
+  ])
+
+  assert.deepEqual(productionInputs, [
+    productionExplicit,
+    productionDefault,
+  ])
+  assert.deepEqual(demoInputs, [demo])
+})
+
+test('demo pricing separation preserves original input objects', () => {
+  const production = {
+    campaignId: 'production',
+    organizationId: 'org-production',
+    isDemo: false,
+  }
+  const demo = {
+    campaignId: 'demo',
+    organizationId: 'org-demo',
+    isDemo: true,
+  }
+
+  const {
+    productionInputs,
+    demoInputs,
+  } = separatePricingInputsByDemo([
+    production,
+    demo,
+  ])
+
+  assert.equal(productionInputs[0], production)
+  assert.equal(demoInputs[0], demo)
+  assert.deepEqual(production, {
+    campaignId: 'production',
+    organizationId: 'org-production',
+    isDemo: false,
+  })
+  assert.deepEqual(demo, {
+    campaignId: 'demo',
+    organizationId: 'org-demo',
+    isDemo: true,
+  })
+})
+
+test('empty pricing input batches remain safely separated', () => {
+  const {
+    productionInputs,
+    demoInputs,
+  } = separatePricingInputsByDemo([])
+
+  assert.deepEqual(productionInputs, [])
+  assert.deepEqual(demoInputs, [])
 })
