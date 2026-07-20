@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 // =============================================================================
 
 type BusinessProfileFormProps = {
+  businessLegacyProfileId?: string | null
   initialBusinessName: string
   initialPhone: string
   initialAddress: string
@@ -99,6 +100,7 @@ function getLocationErrorStatus(
 // =============================================================================
 
 export default function BusinessProfileForm({
+  businessLegacyProfileId,
   initialBusinessName,
   initialPhone,
   initialAddress,
@@ -168,6 +170,9 @@ export default function BusinessProfileForm({
       return
     }
 
+    const resolvedBusinessProfileId =
+      businessLegacyProfileId?.trim() || user.id
+
     if (logoUrl) {
       const path = logoUrl.split('/logos/')[1]
 
@@ -183,7 +188,10 @@ export default function BusinessProfileForm({
       .update({
         logo_url: null,
       })
-      .eq('id', user.id)
+      .eq(
+        'id',
+        resolvedBusinessProfileId
+      )
 
     if (error) {
       setMessage(error.message)
@@ -194,7 +202,10 @@ export default function BusinessProfileForm({
     const { data: business } = await supabase
       .from('businesses')
       .select('id')
-      .eq('legacy_profile_id', user.id)
+      .eq(
+        'legacy_profile_id',
+        resolvedBusinessProfileId
+      )
       .maybeSingle()
 
     if (business) {
@@ -213,7 +224,9 @@ export default function BusinessProfileForm({
     setLoading(false)
   }
 
-  async function uploadLogo(userId: string) {
+  async function uploadLogo(
+    businessProfileId: string
+  ) {
     if (!logoFile) {
       return logoUrl
     }
@@ -222,7 +235,7 @@ export default function BusinessProfileForm({
       logoFile.name.split('.').pop()
 
     const filePath =
-      `businesses/${userId}-${Date.now()}.${fileExt}`
+      `businesses/${businessProfileId}-${Date.now()}.${fileExt}`
 
     const { error: uploadError } =
       await supabase.storage
@@ -307,9 +320,14 @@ export default function BusinessProfileForm({
       return
     }
 
+    const resolvedBusinessProfileId =
+      businessLegacyProfileId?.trim() || user.id
+
     try {
       const uploadedLogoUrl =
-        await uploadLogo(user.id)
+        await uploadLogo(
+          resolvedBusinessProfileId
+        )
 
       const now = new Date().toISOString()
 
@@ -326,18 +344,26 @@ export default function BusinessProfileForm({
             logo_url:
               uploadedLogoUrl || null,
           })
-          .eq('id', user.id)
+          .eq(
+            'id',
+            resolvedBusinessProfileId
+          )
 
       if (profileError) {
         throw new Error(profileError.message)
       }
 
-      const { data: business, error: businessLookupError } =
-        await supabase
-          .from('businesses')
-          .select('id')
-          .eq('legacy_profile_id', user.id)
-          .maybeSingle()
+      const {
+        data: business,
+        error: businessLookupError,
+      } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq(
+          'legacy_profile_id',
+          resolvedBusinessProfileId
+        )
+        .maybeSingle()
 
       if (businessLookupError) {
         throw new Error(
