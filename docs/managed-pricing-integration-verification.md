@@ -421,6 +421,58 @@ Do not remove the database column yet. The remaining migration gates still inclu
 - Prepare the column-removal migration and rollback plan.
 - Regenerate database types in the same migration sequence.
 
+## Legacy campaign price migration plan
+
+This plan prepares removal of `campaigns.pass_price` without applying the destructive schema change yet.
+
+### Forward sequence
+
+1. Confirm the latest Production deployment is READY.
+2. Complete the managed-pricing verification scenarios for Production and Demo.
+3. Confirm campaign pages, listings, signup, dashboards, normal checkout, and gift checkout resolve managed pricing.
+4. Confirm new purchases preserve pricing snapshots.
+5. Confirm existing purchases remain unchanged after pricing-rule changes.
+6. Confirm the hard application fallback remains available.
+7. Create a dedicated migration that removes only `campaigns.pass_price`.
+8. Update generated Supabase database types in the same commit sequence.
+9. Run TypeScript and production builds against the updated schema contract.
+10. Apply the migration to a safe non-Production environment first.
+11. Verify campaign creation, campaign editing, pricing management, normal checkout, gift checkout, and reporting.
+12. Apply to Production only after the safe-environment verification passes.
+13. Confirm the Production deployment and runtime remain healthy.
+
+### Rollback plan
+
+Because dropping a column removes stored values, rollback must not depend on recovering legacy campaign prices as authoritative pricing.
+
+If rollback is required:
+
+1. Re-add `campaigns.pass_price` as a nullable numeric column.
+2. Do not make application pricing depend on the restored column.
+3. Keep managed pricing rules as the source of truth.
+4. Regenerate Supabase database types after restoring the column.
+5. Revert only the schema/type commit if required; do not revert purchase pricing snapshots.
+6. Confirm campaign pages and checkout continue resolving managed pricing.
+7. Investigate and correct the migration failure before attempting removal again.
+
+### Data preservation rule
+
+No migration should alter or delete:
+
+- `pricing_rules.pass_price`
+- `campaign_purchases.pass_price_charged`
+- `campaign_purchases.platform_fee_percent`
+- `campaign_purchases.organization_pass_earnings`
+- `campaign_purchases.pricing_rule_id`
+- `campaign_purchases.pricing_scope`
+- `campaign_purchases.pricing_resolved_at`
+
+The legacy campaign column is not a historical purchase record and must not be copied into or used to overwrite purchase snapshots.
+
+### Go/no-go decision
+
+Proceed with the destructive migration only when every readiness gate below is satisfied. Any failed pricing, checkout, snapshot, Demo separation, fallback, build, or deployment check is a no-go.
+
 ## Migration readiness gate
 
 Do not prepare or apply a migration that removes the legacy campaign price until all are true:
