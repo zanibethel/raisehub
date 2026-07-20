@@ -52,6 +52,84 @@ Record the following before starting:
 | Donation-only customer ID | |
 | Test started at | |
 
+## Candidate discovery result
+
+On July 20, 2026, the committed read-only candidate discovery script was executed against the connected RaiseHub Supabase production project.
+
+Script:
+
+```text
+supabase/verification/managed-pricing-checkout-candidates.sql
+```
+
+### Usable campaign candidates
+
+Production:
+
+- Campaign: `SouthBound Tour Fees`
+- Campaign ID: `2488c6ba-b9ab-4c32-accf-3543e4971a82`
+- Organization profile ID: `e9881f00-41a2-4d48-8a2f-db4819c8cc93`
+- Demo metadata matched Production expectations.
+- No linked row currently exists in the independent `organizations` table.
+
+Demo:
+
+- Campaign: `[Demo] Youth Soccer Travel Fund`
+- Campaign ID: `77af1998-a3d7-4f89-8281-e9b79a0fc69f`
+- Organization profile ID: `f5ba9952-3aa2-4c49-b2cd-20658856d857`
+- Organization entity ID: `0ab9e9c9-6ef0-4947-9aeb-db581c8d0461`
+- Demo group: `prelaunch_2026`
+- Campaign, profile, and organization Demo metadata matched.
+
+### Active pricing candidates
+
+Production:
+
+- Platform pricing rule ID: `e9881fa0-1096-4e98-b83a-5e0d88850914`
+- Pass price: `$20`
+- Platform fee: `20%`
+
+Demo:
+
+- Platform pricing rule ID: `6ad3d67a-69a7-40bd-aa25-bbd8d2ce3636`
+- Pass price: `$20`
+- Platform fee: `20%`
+
+### Clean customer candidates
+
+Three clean paid-pass candidates exist, but all three are Demo customers in Demo group `prelaunch_2026`.
+
+No clean Production customer currently exists.
+
+### Donation-only candidates
+
+One valid Demo donation-only candidate exists:
+
+- Customer: `Jordan Supporter`
+- Customer ID: `6e253595-1303-42eb-abde-e51cfa0e4afb`
+- Active entitlement ID: `c8fc7e97-782a-4948-aee1-de82fa951466`
+- Demo metadata matched.
+
+Two Production customer profiles currently hold active Demo entitlements:
+
+- Customer ID: `8e836d93-8840-4752-bc9e-d79791bc548a`
+- Active entitlement ID: `710d82a0-63dd-43de-b918-a5d5b2b4ec28`
+
+- Customer ID: `2336db73-eece-4477-ad18-f91e607785f9`
+- Active entitlement ID: `47baaacf-e43a-42cd-9977-f2c77ea7f19a`
+
+Both entitlements are marked Demo and use Demo group `prelaunch_2026`, while their customer profiles are marked Production.
+
+### Current decision
+
+Fresh checkout verification remains a **no-go** until:
+
+1. A clean Production customer account is available.
+2. The two Production-profile/Demo-entitlement mismatches are reviewed and intentionally corrected or documented as expected historical test data.
+3. The Production campaign's missing independent organization linkage is reviewed to confirm whether fallback behavior is intentional for this test.
+
+Do not remove the legacy pricing column while these blockers remain.
+
 ## Scenario 1: Production paid-pass purchase
 
 ### Customer experience
