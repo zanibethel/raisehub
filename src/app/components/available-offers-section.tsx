@@ -6,6 +6,11 @@ import {
   useState,
 } from 'react'
 
+import {
+  calculateDistanceMiles,
+  formatDistanceMiles,
+} from '@/lib/geo/distance'
+
 import SaveOfferButton from './save-offer-button'
 
 // =============================================================================
@@ -23,6 +28,15 @@ type Offer = {
   phone?: string
   address?: string
   google_maps_url?: string
+  business_latitude?: number | null
+  business_longitude?: number | null
+  business_location_source?: string | null
+  google_place_id?: string | null
+  google_business_name?: string | null
+  google_primary_category?: string | null
+  google_rating?: number | null
+  google_review_count?: number | null
+  google_website_url?: string | null
 }
 
 type AvailableOffersSectionProps = {
@@ -34,6 +48,7 @@ type DealView = 'all' | 'saved'
 
 type SortOption =
   | 'recommended'
+  | 'nearest'
   | 'expiring'
   | 'newest'
   | 'business'
@@ -60,12 +75,14 @@ const EXPIRING_SOON_DAYS = 14
 
 const ALL_OFFERS_HASH = '#offers-all'
 const SAVED_OFFERS_HASH = '#offers-saved'
-const EXPIRING_OFFERS_HASH = '#offers-expiring'
+const EXPIRING_OFFERS_HASH =
+  '#offers-expiring'
+
 const LEGACY_AVAILABLE_OFFERS_HASH =
   '#available-offers'
 
 // =============================================================================
-// Helpers
+// Date and search helpers
 // =============================================================================
 
 function getDateValue(
@@ -76,7 +93,8 @@ function getDateValue(
     return fallback
   }
 
-  const dateValue = new Date(value).getTime()
+  const dateValue =
+    new Date(value).getTime()
 
   return Number.isNaN(dateValue)
     ? fallback
@@ -110,9 +128,13 @@ function isEndingSoon(
   )
 }
 
-function getSearchText(offer: Offer): string {
+function getSearchText(
+  offer: Offer
+): string {
   return [
     offer.business_name,
+    offer.google_business_name,
+    offer.google_primary_category,
     offer.title,
     offer.description,
     offer.discount,
@@ -128,13 +150,101 @@ function compareBusinessNames(
   secondOffer: Offer
 ): number {
   const firstName =
-    firstOffer.business_name || 'Local Business'
+    firstOffer.business_name ||
+    'Local Business'
 
   const secondName =
-    secondOffer.business_name || 'Local Business'
+    secondOffer.business_name ||
+    'Local Business'
 
-  return firstName.localeCompare(secondName)
+  return firstName.localeCompare(
+    secondName
+  )
 }
+
+// =============================================================================
+// Distance helpers
+// =============================================================================
+
+function getOfferDistanceMiles(
+  offer: Offer,
+  customerLocation: CustomerLocation | null
+): number | null {
+  if (!customerLocation) {
+    return null
+  }
+
+  if (
+    typeof offer.business_latitude !==
+      'number' ||
+    typeof offer.business_longitude !==
+      'number'
+  ) {
+    return null
+  }
+
+  return calculateDistanceMiles(
+    customerLocation,
+    {
+      latitude:
+        offer.business_latitude,
+      longitude:
+        offer.business_longitude,
+    }
+  )
+}
+
+function compareOfferDistances(
+  firstOffer: Offer,
+  secondOffer: Offer,
+  customerLocation: CustomerLocation
+): number {
+  const firstDistance =
+    getOfferDistanceMiles(
+      firstOffer,
+      customerLocation
+    )
+
+  const secondDistance =
+    getOfferDistanceMiles(
+      secondOffer,
+      customerLocation
+    )
+
+  if (
+    firstDistance === null &&
+    secondDistance === null
+  ) {
+    return compareBusinessNames(
+      firstOffer,
+      secondOffer
+    )
+  }
+
+  if (firstDistance === null) {
+    return 1
+  }
+
+  if (secondDistance === null) {
+    return -1
+  }
+
+  const distanceDifference =
+    firstDistance - secondDistance
+
+  if (distanceDifference !== 0) {
+    return distanceDifference
+  }
+
+  return compareBusinessNames(
+    firstOffer,
+    secondOffer
+  )
+}
+
+// =============================================================================
+// Location helpers
+// =============================================================================
 
 function getLocationErrorStatus(
   error: GeolocationPositionError
@@ -164,14 +274,23 @@ function getLocationErrorStatus(
 }
 
 function getLocationMessage(
-  status: LocationStatus
+  status: LocationStatus,
+  locatedBusinessCount: number
 ): string {
   if (status === 'requesting') {
     return 'Waiting for your browser to share your location.'
   }
 
   if (status === 'ready') {
-    return 'Location is ready. Nearby distance sorting will activate once participating business coordinates are connected.'
+    if (locatedBusinessCount === 0) {
+      return 'Your location is ready, but participating businesses have not added coordinates yet.'
+    }
+
+    return `Showing the closest deals first. ${locatedBusinessCount} ${
+      locatedBusinessCount === 1
+        ? 'deal has'
+        : 'deals have'
+    } a confirmed business location.`
   }
 
   if (status === 'denied') {
@@ -190,7 +309,7 @@ function getLocationMessage(
     return 'This browser does not support location access. You can still search and sort all available offers.'
   }
 
-  return 'Use your current location to prepare nearby-offer sorting.'
+  return 'Use your current location to find the closest participating businesses.'
 }
 
 // =============================================================================
@@ -210,42 +329,82 @@ export default function AvailableOffersSection({
   const [hideSaved, setHideSaved] =
     useState(false)
 
-  const [endingSoonOnly, setEndingSoonOnly] =
-    useState(false)
+  const [
+    endingSoonOnly,
+    setEndingSoonOnly,
+  ] = useState(false)
 
   const [sortOption, setSortOption] =
     useState<SortOption>('recommended')
 
-  const [locationStatus, setLocationStatus] =
-    useState<LocationStatus>('idle')
+  const [
+    locationStatus,
+    setLocationStatus,
+  ] = useState<LocationStatus>('idle')
 
-  const [customerLocation, setCustomerLocation] =
-    useState<CustomerLocation | null>(null)
+  const [
+    customerLocation,
+    setCustomerLocation,
+  ] = useState<CustomerLocation | null>(
+    null
+  )
 
   const savedOfferIdSet = useMemo(
     () => new Set(savedOfferIds),
     [savedOfferIds]
   )
 
+  const locatedBusinessCount =
+    useMemo(
+      () =>
+        offers.filter(
+          (offer) =>
+            typeof offer.business_latitude ===
+              'number' &&
+            typeof offer.business_longitude ===
+              'number'
+        ).length,
+      [offers]
+    )
+
+  // ===========================================================================
+  // Presets
+  // ===========================================================================
+
   function resetToAllDeals() {
     setSearchQuery('')
     setDealView('all')
     setHideSaved(false)
     setEndingSoonOnly(false)
-    setSortOption('recommended')
+
+    setSortOption(
+      customerLocation
+        ? 'nearest'
+        : 'recommended'
+    )
   }
 
-  function applyHashPreset(hash: string) {
+  function applyHashPreset(
+    hash: string
+  ) {
     if (hash === SAVED_OFFERS_HASH) {
       setSearchQuery('')
       setDealView('saved')
       setHideSaved(false)
       setEndingSoonOnly(false)
-      setSortOption('recommended')
+
+      setSortOption(
+        customerLocation
+          ? 'nearest'
+          : 'recommended'
+      )
+
       return
     }
 
-    if (hash === EXPIRING_OFFERS_HASH) {
+    if (
+      hash === EXPIRING_OFFERS_HASH
+    ) {
       setSearchQuery('')
       setDealView('all')
       setHideSaved(false)
@@ -256,7 +415,8 @@ export default function AvailableOffersSection({
 
     if (
       hash === ALL_OFFERS_HASH ||
-      hash === LEGACY_AVAILABLE_OFFERS_HASH
+      hash ===
+        LEGACY_AVAILABLE_OFFERS_HASH
     ) {
       resetToAllDeals()
     }
@@ -264,7 +424,9 @@ export default function AvailableOffersSection({
 
   useEffect(() => {
     function handleHashChange() {
-      applyHashPreset(window.location.hash)
+      applyHashPreset(
+        window.location.hash
+      )
     }
 
     handleHashChange()
@@ -282,14 +444,18 @@ export default function AvailableOffersSection({
     }
   }, [])
 
+  // ===========================================================================
+  // Filtering and sorting
+  // ===========================================================================
+
   const visibleOffers = useMemo(() => {
     const normalizedSearchQuery =
       searchQuery.trim().toLowerCase()
 
     const now = Date.now()
 
-    const matchingOffers = offers.filter(
-      (offer) => {
+    const matchingOffers =
+      offers.filter((offer) => {
         const isSaved =
           savedOfferIdSet.has(offer.id)
 
@@ -325,11 +491,21 @@ export default function AvailableOffersSection({
         }
 
         return true
-      }
-    )
+      })
 
     return [...matchingOffers].sort(
       (firstOffer, secondOffer) => {
+        if (
+          sortOption === 'nearest' &&
+          customerLocation
+        ) {
+          return compareOfferDistances(
+            firstOffer,
+            secondOffer,
+            customerLocation
+          )
+        }
+
         if (sortOption === 'business') {
           return compareBusinessNames(
             firstOffer,
@@ -361,7 +537,9 @@ export default function AvailableOffersSection({
               Number.POSITIVE_INFINITY
             )
 
-          if (expirationDifference !== 0) {
+          if (
+            expirationDifference !== 0
+          ) {
             return expirationDifference
           }
 
@@ -372,12 +550,18 @@ export default function AvailableOffersSection({
         }
 
         const firstIsSaved =
-          savedOfferIdSet.has(firstOffer.id)
+          savedOfferIdSet.has(
+            firstOffer.id
+          )
 
         const secondIsSaved =
-          savedOfferIdSet.has(secondOffer.id)
+          savedOfferIdSet.has(
+            secondOffer.id
+          )
 
-        if (firstIsSaved !== secondIsSaved) {
+        if (
+          firstIsSaved !== secondIsSaved
+        ) {
           return firstIsSaved ? -1 : 1
         }
 
@@ -391,7 +575,9 @@ export default function AvailableOffersSection({
             Number.POSITIVE_INFINITY
           )
 
-        if (expirationDifference !== 0) {
+        if (
+          expirationDifference !== 0
+        ) {
           return expirationDifference
         }
 
@@ -409,6 +595,7 @@ export default function AvailableOffersSection({
     hideSaved,
     endingSoonOnly,
     sortOption,
+    customerLocation,
   ])
 
   const hasSavedOffers =
@@ -419,10 +606,16 @@ export default function AvailableOffersSection({
     dealView !== 'all' ||
     hideSaved ||
     endingSoonOnly ||
-    sortOption !== 'recommended'
+    sortOption !==
+      (customerLocation
+        ? 'nearest'
+        : 'recommended')
 
   const locationMessage =
-    getLocationMessage(locationStatus)
+    getLocationMessage(
+      locationStatus,
+      locatedBusinessCount
+    )
 
   const isRequestingLocation =
     locationStatus === 'requesting'
@@ -430,6 +623,10 @@ export default function AvailableOffersSection({
   const hasLocation =
     locationStatus === 'ready' &&
     customerLocation !== null
+
+  // ===========================================================================
+  // Browser actions
+  // ===========================================================================
 
   function clearFilters() {
     resetToAllDeals()
@@ -460,6 +657,7 @@ export default function AvailableOffersSection({
         '',
         SAVED_OFFERS_HASH
       )
+
       return
     }
 
@@ -474,6 +672,11 @@ export default function AvailableOffersSection({
     if (!navigator.geolocation) {
       setCustomerLocation(null)
       setLocationStatus('unsupported')
+
+      if (sortOption === 'nearest') {
+        setSortOption('recommended')
+      }
+
       return
     }
 
@@ -482,25 +685,39 @@ export default function AvailableOffersSection({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setCustomerLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
+          latitude:
+            position.coords.latitude,
+          longitude:
+            position.coords.longitude,
         })
 
         setLocationStatus('ready')
+        setSortOption('nearest')
       },
       (error) => {
         setCustomerLocation(null)
         setLocationStatus(
           getLocationErrorStatus(error)
         )
+
+        if (
+          sortOption === 'nearest'
+        ) {
+          setSortOption('recommended')
+        }
       },
       {
         enableHighAccuracy: false,
         timeout: 10000,
-        maximumAge: 5 * 60 * 1000,
+        maximumAge:
+          5 * 60 * 1000,
       }
     )
   }
+
+  // ===========================================================================
+  // Render
+  // ===========================================================================
 
   return (
     <section
@@ -520,8 +737,9 @@ export default function AvailableOffersSection({
             </h3>
 
             <p className="mt-1 text-sm text-gray-600">
-              Search for a favorite business or
-              narrow the list to the deals you need.
+              Search for a favorite
+              business or narrow the list
+              to the deals you need.
             </p>
           </div>
 
@@ -565,8 +783,12 @@ export default function AvailableOffersSection({
 
             <button
               type="button"
-              onClick={requestCustomerLocation}
-              disabled={isRequestingLocation}
+              onClick={
+                requestCustomerLocation
+              }
+              disabled={
+                isRequestingLocation
+              }
               className="inline-flex shrink-0 items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-400"
             >
               {isRequestingLocation
@@ -579,9 +801,12 @@ export default function AvailableOffersSection({
 
           {hasLocation ? (
             <p className="mt-3 text-xs text-green-700">
-              Your precise coordinates remain in this
-              browser session and are not displayed or
-              saved by this page.
+              Distances are approximate
+              straight-line measurements.
+              Your precise coordinates
+              remain in this browser
+              session and are not saved
+              by this page.
             </p>
           ) : null}
         </div>
@@ -589,7 +814,8 @@ export default function AvailableOffersSection({
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px_220px]">
           <label className="block">
             <span className="text-sm font-semibold text-gray-700">
-              Search businesses or offers
+              Search businesses or
+              offers
             </span>
 
             <div className="relative mt-2">
@@ -623,7 +849,8 @@ export default function AvailableOffersSection({
               value={dealView}
               onChange={(event) =>
                 handleDealViewChange(
-                  event.target.value as DealView
+                  event.target
+                    .value as DealView
                 )
               }
               className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -650,13 +877,21 @@ export default function AvailableOffersSection({
               value={sortOption}
               onChange={(event) =>
                 setSortOption(
-                  event.target.value as SortOption
+                  event.target
+                    .value as SortOption
                 )
               }
               className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="recommended">
                 Recommended
+              </option>
+
+              <option
+                value="nearest"
+                disabled={!hasLocation}
+              >
+                Nearest First
               </option>
 
               <option value="expiring">
@@ -687,7 +922,8 @@ export default function AvailableOffersSection({
               className="h-4 w-4 rounded border-gray-300"
             />
 
-            Ending within {EXPIRING_SOON_DAYS} days
+            Ending within{' '}
+            {EXPIRING_SOON_DAYS} days
           </label>
 
           {hasSavedOffers &&
@@ -721,12 +957,21 @@ export default function AvailableOffersSection({
 
         {dealView === 'saved' ? (
           <div className="mt-4 rounded-xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-            Showing deals saved to My Pass.
+            Showing deals saved to My
+            Pass.
           </div>
         ) : endingSoonOnly ? (
           <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-            Showing deals ending within the next{' '}
+            Showing deals ending within
+            the next{' '}
             {EXPIRING_SOON_DAYS} days.
+          </div>
+        ) : sortOption === 'nearest' &&
+          hasLocation ? (
+          <div className="mt-4 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800">
+            Showing businesses with
+            confirmed locations nearest
+            to you first.
           </div>
         ) : null}
       </div>
@@ -734,105 +979,142 @@ export default function AvailableOffersSection({
       <div className="mt-6">
         {visibleOffers.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-3">
-            {visibleOffers.map((offer) => (
-              <article
-                key={offer.id}
-                className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
-                      {offer.business_name ||
-                        'Local Business'}
-                    </p>
+            {visibleOffers.map(
+              (offer) => {
+                const distanceMiles =
+                  getOfferDistanceMiles(
+                    offer,
+                    customerLocation
+                  )
 
-                    <h3 className="mt-2 text-lg font-semibold text-yellow-600">
-                      {offer.title ||
-                        'Local Deal'}
-                    </h3>
-                  </div>
+                const distanceLabel =
+                  formatDistanceMiles(
+                    distanceMiles
+                  )
 
-                  <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                    Active
-                  </span>
-                </div>
+                return (
+                  <article
+                    key={offer.id}
+                    className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-yellow-700">
+                          {offer.business_name ||
+                            'Local Business'}
+                        </p>
 
-                {offer.discount ? (
-                  <p className="mt-1 text-sm font-medium text-gray-500">
-                    {offer.discount}
-                  </p>
-                ) : null}
+                        <h3 className="mt-2 text-lg font-semibold text-yellow-600">
+                          {offer.title ||
+                            'Local Deal'}
+                        </h3>
+                      </div>
 
-                {offer.description ? (
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    {offer.description}
-                  </p>
-                ) : null}
+                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                        Active
+                      </span>
+                    </div>
 
-                <div className="mt-3 space-y-1 text-xs text-gray-500">
-                  {offer.phone ? (
-                    <p>📞 {offer.phone}</p>
-                  ) : null}
+                    {distanceLabel ? (
+                      <div className="mt-3 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                        📍 {distanceLabel}{' '}
+                        away
+                      </div>
+                    ) : hasLocation ? (
+                      <p className="mt-3 text-xs text-gray-400">
+                        Distance not
+                        available
+                      </p>
+                    ) : null}
 
-                  {offer.address ? (
-                    <p>📍 {offer.address}</p>
-                  ) : null}
+                    {offer.discount ? (
+                      <p className="mt-2 text-sm font-medium text-gray-500">
+                        {offer.discount}
+                      </p>
+                    ) : null}
 
-                  {offer.google_maps_url ? (
-                    <a
-                      href={offer.google_maps_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium text-yellow-700 underline"
-                    >
-                      View Map
-                    </a>
-                  ) : null}
-                </div>
+                    {offer.description ? (
+                      <p className="mt-2 text-sm leading-6 text-gray-600">
+                        {
+                          offer.description
+                        }
+                      </p>
+                    ) : null}
 
-                <div className="mt-4 space-y-1 text-xs text-gray-500">
-                  <p>
-                    Starts:{' '}
-                    {offer.starts_at
-                      ? new Date(
-                          offer.starts_at
-                        ).toLocaleDateString()
-                      : 'Available now'}
-                  </p>
+                    <div className="mt-3 space-y-1 text-xs text-gray-500">
+                      {offer.phone ? (
+                        <p>
+                          📞 {offer.phone}
+                        </p>
+                      ) : null}
 
-                  <p>
-                    Ends:{' '}
-                    {offer.ends_at
-                      ? new Date(
-                          offer.ends_at
-                        ).toLocaleDateString()
-                      : 'No listed end date'}
-                  </p>
-                </div>
+                      {offer.address ? (
+                        <p>
+                          📍 {offer.address}
+                        </p>
+                      ) : null}
 
-                {savedOfferIdSet.has(
-                  offer.id
-                ) ? (
-                  <div className="mt-4 rounded-lg bg-green-50 px-4 py-2 text-center text-sm font-medium text-green-700">
-                    Saved to My Pass
-                  </div>
-                ) : (
-                  <SaveOfferButton
-                    offerId={offer.id}
-                  />
-                )}
-              </article>
-            ))}
+                      {offer.google_maps_url ? (
+                        <a
+                          href={
+                            offer.google_maps_url
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-yellow-700 underline"
+                        >
+                          View Map
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 space-y-1 text-xs text-gray-500">
+                      <p>
+                        Starts:{' '}
+                        {offer.starts_at
+                          ? new Date(
+                              offer.starts_at
+                            ).toLocaleDateString()
+                          : 'Available now'}
+                      </p>
+
+                      <p>
+                        Ends:{' '}
+                        {offer.ends_at
+                          ? new Date(
+                              offer.ends_at
+                            ).toLocaleDateString()
+                          : 'No listed end date'}
+                      </p>
+                    </div>
+
+                    {savedOfferIdSet.has(
+                      offer.id
+                    ) ? (
+                      <div className="mt-4 rounded-lg bg-green-50 px-4 py-2 text-center text-sm font-medium text-green-700">
+                        Saved to My Pass
+                      </div>
+                    ) : (
+                      <SaveOfferButton
+                        offerId={offer.id}
+                      />
+                    )}
+                  </article>
+                )
+              }
+            )}
           </div>
         ) : dealView === 'saved' ? (
           <div className="rounded-3xl border border-yellow-100 bg-yellow-50 p-6 text-center shadow-sm">
             <p className="text-sm font-semibold text-yellow-900">
-              No saved deals match these filters.
+              No saved deals match these
+              filters.
             </p>
 
             <p className="mt-2 text-sm text-gray-600">
-              Clear the filters or switch back to
-              All Available to find a deal to save.
+              Clear the filters or switch
+              back to All Available to
+              find a deal to save.
             </p>
 
             <button
@@ -846,12 +1128,14 @@ export default function AvailableOffersSection({
         ) : hasActiveFilters ? (
           <div className="rounded-3xl border border-blue-100 bg-blue-50 p-6 text-center shadow-sm">
             <p className="text-sm font-semibold text-blue-900">
-              No deals match these filters.
+              No deals match these
+              filters.
             </p>
 
             <p className="mt-2 text-sm text-gray-600">
-              Try another business name or clear
-              your current filters.
+              Try another business name
+              or clear your current
+              filters.
             </p>
 
             <button
@@ -865,13 +1149,14 @@ export default function AvailableOffersSection({
         ) : (
           <div className="rounded-3xl border border-yellow-100 bg-yellow-50 p-6 text-center shadow-sm">
             <p className="text-sm font-semibold text-yellow-800">
-              No active local deals are available
-              right now.
+              No active local deals are
+              available right now.
             </p>
 
             <p className="mt-2 text-sm text-gray-600">
-              New participating-business offers
-              will appear here automatically.
+              New participating-business
+              offers will appear here
+              automatically.
             </p>
           </div>
         )}
