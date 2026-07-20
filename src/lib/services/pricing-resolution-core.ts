@@ -58,23 +58,32 @@ export type NormalizedPricingInput = {
 }
 
 export type DemoSeparatedPricingInputs<
-  T extends { isDemo?: boolean }
+  T extends object
 > = {
   productionInputs: T[]
   demoInputs: T[]
 }
 
+function isDemoPricingInput(
+  input: object
+) {
+  return (
+    'isDemo' in input &&
+    input.isDemo === true
+  )
+}
+
 export function separatePricingInputsByDemo<
-  T extends { isDemo?: boolean }
+  T extends object
 >(
   inputs: T[]
 ): DemoSeparatedPricingInputs<T> {
   return {
     productionInputs: inputs.filter(
-      (input) => !input.isDemo
+      (input) => !isDemoPricingInput(input)
     ),
     demoInputs: inputs.filter(
-      (input) => input.isDemo === true
+      isDemoPricingInput
     ),
   }
 }
