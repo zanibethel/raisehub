@@ -387,6 +387,40 @@ Classify every remaining result as one of:
 
 Do not remove pricing-rule `pass_price` fields or purchase snapshot fields. The cleanup target is direct reliance on the legacy campaign-level price.
 
+## Legacy-read audit result
+
+Audit completed against live `main` after centralized pricing-location integration.
+
+### Active runtime result
+
+No active application code was found reading `campaign.pass_price` or `campaigns.pass_price` to determine current pass pricing.
+
+The organization campaign repository explicitly excludes legacy pricing and selects only campaign identity, descriptive, goal, schedule, status, and creation fields.
+
+### Remaining `pass_price` classifications
+
+- Managed pricing-rule `pass_price` fields: retain.
+- Purchase snapshot fields such as `pass_price_charged`: retain.
+- Owner pricing services, actions, and history: retain.
+- Pricing resolver fields: retain.
+- Atomic purchase database function parameters and stored snapshots: retain.
+- Pricing-rule migrations and seeded platform defaults: retain.
+- Generated Supabase database types exposing the legacy campaign column: retain temporarily until the migration sequence updates generated types.
+- Documentation references used for verification and migration safety: retain.
+- Comments that explicitly state legacy pricing is excluded: retain.
+
+### Current gate status
+
+Application-level legacy pricing reads are cleared.
+
+Do not remove the database column yet. The remaining migration gates still include:
+
+- Complete end-to-end Production and Demo verification.
+- Confirm normal and gift purchases preserve pricing snapshots.
+- Confirm fallback behavior.
+- Prepare the column-removal migration and rollback plan.
+- Regenerate database types in the same migration sequence.
+
 ## Migration readiness gate
 
 Do not prepare or apply a migration that removes the legacy campaign price until all are true:
