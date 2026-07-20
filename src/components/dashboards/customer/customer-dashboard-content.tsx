@@ -6,7 +6,9 @@ import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 // Infer section prop types
 // =============================================================================
 
-type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
+type PassesProps = React.ComponentProps<
+  typeof CustomerPassesSection
+>
 
 type SavedDealsProps = React.ComponentProps<
   typeof CustomerSavedDealsSection
@@ -17,14 +19,13 @@ type AvailableDealsProps = React.ComponentProps<
 >
 
 // =============================================================================
-// Component Props
+// Component props
 // =============================================================================
 
 type Props = {
   purchasedPasses: PassesProps['purchasedPasses']
   organizationById: PassesProps['organizationById']
 
-  // Use the richer Available Deals offer type.
   enrichedOffers: AvailableDealsProps['enrichedOffers']
 
   savedOfferIds: SavedDealsProps['savedOfferIds']
@@ -32,7 +33,8 @@ type Props = {
   redemptionDateByOfferId:
     SavedDealsProps['redemptionDateByOfferId']
 
-  hasPurchasedPass: AvailableDealsProps['hasPurchasedPass']
+  hasPurchasedPass:
+    AvailableDealsProps['hasPurchasedPass']
 }
 
 // =============================================================================
@@ -50,9 +52,10 @@ export default function CustomerDashboardContent({
 }: Props) {
   return (
     <div className="mt-8 space-y-8">
-      <CustomerPassesSection
-        purchasedPasses={purchasedPasses}
-        organizationById={organizationById}
+      <CustomerAvailableDealsSection
+        hasPurchasedPass={hasPurchasedPass}
+        enrichedOffers={enrichedOffers}
+        savedOfferIds={savedOfferIds}
       />
 
       <CustomerSavedDealsSection
@@ -63,10 +66,9 @@ export default function CustomerDashboardContent({
         savedOffersCount={savedOfferIds.size}
       />
 
-      <CustomerAvailableDealsSection
-        hasPurchasedPass={hasPurchasedPass}
-        enrichedOffers={enrichedOffers}
-        savedOfferIds={savedOfferIds}
+      <CustomerPassesSection
+        purchasedPasses={purchasedPasses}
+        organizationById={organizationById}
       />
     </div>
   )
