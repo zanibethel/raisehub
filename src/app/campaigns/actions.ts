@@ -5,6 +5,7 @@ import { getCampaignById } from '@/lib/repositories/campaign-repository'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
+import { createPurchasePricingSnapshot } from '@/lib/services/purchase-pricing-snapshot-core'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -257,17 +258,13 @@ export async function purchaseCampaignPassAction(
     }
   }
 
-  const amountPaid = isDonationOnly
-    ? donationAmount
-    : effectivePricing!.totalAmount
-
-  const platformFee = isDonationOnly
-    ? 0
-    : effectivePricing!.platformFeeAmount
-
-  const organizationEarnings = isDonationOnly
-    ? donationAmount
-    : effectivePricing!.organizationTotalEarnings
+  const pricingSnapshot =
+    createPurchasePricingSnapshot({
+      isDonationOnly,
+      donationAmount,
+      effectivePricing,
+      pricingResolvedAt: now,
+    })
 
   const {
     data: purchaseResult,
@@ -285,31 +282,29 @@ export async function purchaseCampaignPassAction(
         input.seller_name,
         120
       ),
-      p_amount_paid: amountPaid,
-      p_platform_fee: platformFee,
+      p_amount_paid: pricingSnapshot.amountPaid,
+      p_platform_fee:
+        pricingSnapshot.platformFee,
       p_organization_earnings:
-        organizationEarnings,
+        pricingSnapshot.organizationEarnings,
       p_is_demo:
         campaignOrganizationProfile.is_demo,
       p_demo_group:
         campaignOrganizationProfile.demo_group,
-      p_grant_entitlement: !isDonationOnly,
+      p_grant_entitlement:
+        pricingSnapshot.grantEntitlement,
       p_pricing_rule_id:
-        effectivePricing?.pricingRuleId ?? null,
+        pricingSnapshot.pricingRuleId,
       p_pricing_scope:
-        effectivePricing?.pricingScope ?? null,
+        pricingSnapshot.pricingScope,
       p_pass_price_charged:
-        effectivePricing?.passPrice ?? null,
+        pricingSnapshot.passPriceCharged,
       p_platform_fee_percent:
-        effectivePricing?.platformFeePercent ??
-        null,
+        pricingSnapshot.platformFeePercent,
       p_organization_pass_earnings:
-        effectivePricing
-          ?.organizationPassEarnings ?? null,
+        pricingSnapshot.organizationPassEarnings,
       p_pricing_resolved_at:
-        effectivePricing
-          ? now.toISOString()
-          : null,
+        pricingSnapshot.pricingResolvedAt,
     }
   )
 
