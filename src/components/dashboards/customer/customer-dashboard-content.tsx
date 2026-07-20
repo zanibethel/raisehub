@@ -90,7 +90,8 @@ export default function CustomerDashboardContent({
     (offer) => isExpiringSoon(offer.ends_at, now)
   ).length
 
-  const availableOffersCount = enrichedOffers.length
+  const availableOffersCount =
+    enrichedOffers.length
 
   return (
     <div className="mt-8 space-y-8">
@@ -111,14 +112,14 @@ export default function CustomerDashboardContent({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            Jump to your saved pass, deals ending soon, or
-            the full local offer list.
+            Choose a shortcut to open the deal list
+            with the right view already selected.
           </p>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <a
-            href="#available-offers"
+            href="#offers-all"
             className="group rounded-2xl border border-green-100 bg-green-50 p-5 transition hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
@@ -139,13 +140,14 @@ export default function CustomerDashboardContent({
             </h3>
 
             <p className="mt-1 text-sm text-gray-600">
-              Browse local deals now. Distance sorting and
-              location access are coming next.
+              Open the local offer list now.
+              Distance sorting will follow location
+              support.
             </p>
           </a>
 
           <a
-            href="#my-pass"
+            href="#offers-saved"
             className="group rounded-2xl border border-yellow-100 bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
@@ -167,17 +169,17 @@ export default function CustomerDashboardContent({
 
             <p className="mt-1 text-sm text-gray-600">
               {savedOffersCount > 0
-                ? `${savedOffersCount} saved ${
+                ? `Show ${savedOffersCount} saved ${
                     savedOffersCount === 1
                       ? 'deal'
                       : 'deals'
-                  } ready to use.`
-                : 'Save favorite deals here for quick access.'}
+                  } in the deal browser.`
+                : 'Save favorite deals for quick access here.'}
             </p>
           </a>
 
           <a
-            href="#available-offers"
+            href="#offers-expiring"
             className="group rounded-2xl border border-orange-100 bg-orange-50 p-5 transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
@@ -199,17 +201,17 @@ export default function CustomerDashboardContent({
 
             <p className="mt-1 text-sm text-gray-600">
               {expiringSoonCount > 0
-                ? `${expiringSoonCount} ${
+                ? `Show ${expiringSoonCount} ${
                     expiringSoonCount === 1
-                      ? 'deal ends'
-                      : 'deals end'
+                      ? 'deal ending'
+                      : 'deals ending'
                   } within ${EXPIRING_SOON_DAYS} days.`
                 : `No deals end within the next ${EXPIRING_SOON_DAYS} days.`}
             </p>
           </a>
 
           <a
-            href="#available-offers"
+            href="#offers-all"
             className="group rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
@@ -230,7 +232,8 @@ export default function CustomerDashboardContent({
             </h3>
 
             <p className="mt-1 text-sm text-gray-600">
-              Browse all {availableOffersCount} active local{' '}
+              Browse all {availableOffersCount} active
+              local{' '}
               {availableOffersCount === 1
                 ? 'offer'
                 : 'offers'}.
@@ -258,6 +261,24 @@ export default function CustomerDashboardContent({
         id="available-offers"
         className="scroll-mt-6"
       >
+        <span
+          id="offers-all"
+          className="block scroll-mt-6"
+          aria-hidden="true"
+        />
+
+        <span
+          id="offers-saved"
+          className="block scroll-mt-6"
+          aria-hidden="true"
+        />
+
+        <span
+          id="offers-expiring"
+          className="block scroll-mt-6"
+          aria-hidden="true"
+        />
+
         <CustomerAvailableDealsSection
           hasPurchasedPass={hasPurchasedPass}
           enrichedOffers={enrichedOffers}
