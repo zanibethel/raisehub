@@ -97,4 +97,29 @@ Use this batch to verify:
 
 Database structure and account setup have been verified.
 
+On July 20, 2026, the committed readiness script was executed against the connected RaiseHub Supabase production project:
+
+```text
+supabase/verification/qa-prelaunch-readiness.sql
+```
+
+Result:
+
+```text
+0 violations
+```
+
+This confirms that:
+
+- All 11 expected QA users exist.
+- No unexpected users are included in the QA batch.
+- Roles, Demo flags, Demo groups, and onboarding states match the intended matrix.
+- Email identities are present and confirmed.
+- Active entitlement counts match the clean-customer and active-pass scenarios.
+- The complete Business entity, membership, and QA offer exist.
+- The complete Organization entity, membership, and QA campaign exist.
+- The dedicated `qa_prelaunch_2026` Demo group exists.
+
+This is the known-good database baseline before interactive checkout testing.
+
 Visual browser login, role routing, checkout interaction, and deployed customer experience remain to be executed and recorded separately.
