@@ -18,6 +18,7 @@ type BusinessProfileCardProps = {
   phone: string
   address: string
   googleMapsUrl: string
+  businessLegacyProfileId?: string | null
   logoUrl?: string
   websiteUrl?: string
   displayName?: string
@@ -83,6 +84,7 @@ export default function BusinessProfileCard({
   phone,
   address,
   googleMapsUrl,
+  businessLegacyProfileId,
   logoUrl = '',
   websiteUrl = '',
   displayName = '',
@@ -111,6 +113,9 @@ export default function BusinessProfileCard({
     let isMounted = true
 
     async function loadBusinessLocation() {
+      setLocationLoadStatus('loading')
+      setBusinessLocation(null)
+
       const supabase = createClient()
 
       const {
@@ -126,6 +131,10 @@ export default function BusinessProfileCard({
         return
       }
 
+      const resolvedBusinessProfileId =
+        businessLegacyProfileId?.trim() ||
+        user.id
+
       const {
         data: business,
         error,
@@ -136,7 +145,7 @@ export default function BusinessProfileCard({
         )
         .eq(
           'legacy_profile_id',
-          user.id
+          resolvedBusinessProfileId
         )
         .maybeSingle()
 
@@ -180,7 +189,7 @@ export default function BusinessProfileCard({
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [businessLegacyProfileId])
 
   if (isEditing) {
     return (
