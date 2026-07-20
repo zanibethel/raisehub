@@ -525,9 +525,40 @@ Automated purchase snapshot tests now verify:
 - Paid pass purchases fail safely when resolved pricing is missing.
 - The live campaign purchase action uses the tested snapshot helper for every pricing-related RPC parameter.
 
+### Persisted database integrity result
+
+On July 20, 2026, the committed read-only verification script was executed against the connected RaiseHub Supabase production project.
+
+Script:
+
+```text
+supabase/verification/managed-pricing-purchase-integrity.sql
+```
+
+Result:
+
+```text
+0 violations
+```
+
+The production database passed every included persisted-data check:
+
+- Snapshot purchases contain all required managed-pricing fields.
+- Amount paid equals pass price plus donation.
+- Platform fees match the persisted fee percentage.
+- Platform fee plus organization pass earnings equals the pass price.
+- Organization earnings equal pass earnings plus donation.
+- Platform fee plus organization earnings equals the amount paid.
+- Production purchases do not carry Demo groups.
+- Every snapshot purchase has a purchased-pass entitlement.
+- Purchase and entitlement Demo flags and Demo groups match.
+- Production entitlements do not carry Demo groups.
+
+This result verifies all existing purchases with a non-null `pricing_resolved_at`. Older historical purchases created before pricing snapshots were introduced remain outside these snapshot-specific checks.
+
 ### Remaining limitation
 
-These automated tests verify deterministic application logic and the payload assembled before the database RPC call. They do not replace the remaining end-to-end checks against real Production and Demo data, successful database writes, entitlement creation, persisted pricing snapshots, or deployed checkout flows.
+Application logic, RPC payload assembly, and existing persisted snapshot integrity are now verified. The remaining end-to-end work is to intentionally complete fresh Production and Demo checkout flows, confirm the newly written purchase and entitlement records, and verify the deployed customer experience before any destructive legacy-column migration.
 
 ## Migration readiness gate
 
