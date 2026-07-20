@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { enrichPricingInputsWithOrganizationLocations } from '@/lib/services/organization-pricing-location-service'
 
 const FALLBACK_PASS_PRICE = 20
 const FALLBACK_PLATFORM_FEE_PERCENT = 20
@@ -449,12 +450,17 @@ export async function resolveEffectiveCampaignPricingBatch(
     ).values(),
   ]
 
+  const locatedInputs =
+    await enrichPricingInputsWithOrganizationLocations(
+      uniqueInputs
+    )
+
   const productionInputs =
-    uniqueInputs.filter(
+    locatedInputs.filter(
       (input) => !input.isDemo
     )
 
-  const demoInputs = uniqueInputs.filter(
+  const demoInputs = locatedInputs.filter(
     (input) => input.isDemo
   )
 
