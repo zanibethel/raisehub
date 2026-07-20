@@ -21,6 +21,9 @@ function paidPricing(
     donationAmount: 5,
     organizationTotalEarnings: 21,
     totalAmount: 25,
+    startsAt: '2026-07-20T00:00:00.000Z',
+    expiresAt: null,
+    reason: null,
     usedFallback: false,
     ...overrides,
   }
