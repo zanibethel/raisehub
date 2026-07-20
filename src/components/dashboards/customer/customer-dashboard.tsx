@@ -1,6 +1,8 @@
 import Link from 'next/link'
+
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
+
 import CustomerDashboardContent from './customer-dashboard-content'
 
 import type {
@@ -25,11 +27,39 @@ type CustomerDashboardProps = {
   customerProfileId?: string | null
 }
 
+type LegacyBusinessProfile = {
+  name: string
+  phone: string
+  address: string
+  map: string
+}
+
+type CanonicalBusinessLocation = {
+  legacy_profile_id: string | null
+  name: string
+  phone: string | null
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+  location_source: string | null
+  google_place_id: string | null
+  google_business_name: string | null
+  google_formatted_address: string | null
+  google_phone: string | null
+  google_website_url: string | null
+  google_maps_url: string | null
+  google_primary_category: string | null
+  google_rating: number | null
+  google_review_count: number | null
+}
+
 // =============================================================================
 // Display helpers
 // =============================================================================
 
-function formatEntitlementType(value: string): string {
+function formatEntitlementType(
+  value: string
+): string {
   return value
     .split('_')
     .map(
@@ -168,7 +198,7 @@ export default async function CustomerDashboard({
     })
 
   // ===========================================================================
-  // Business profiles
+  // Legacy business profiles
   // ===========================================================================
 
   const { data: profiles } = await supabase
@@ -177,7 +207,10 @@ export default async function CustomerDashboard({
       'id, business_name, phone, address, google_maps_url'
     )
 
-  const profileById = new Map(
+  const profileById = new Map<
+    string,
+    LegacyBusinessProfile
+  >(
     (profiles ?? []).map((profile) => [
       profile.id,
       {
@@ -191,6 +224,54 @@ export default async function CustomerDashboard({
       },
     ])
   )
+
+  // ===========================================================================
+  // Canonical business locations
+  // ===========================================================================
+
+  const { data: canonicalBusinessesData } =
+    await supabase
+      .from('businesses')
+      .select(`
+        legacy_profile_id,
+        name,
+        phone,
+        address,
+        latitude,
+        longitude,
+        location_source,
+        google_place_id,
+        google_business_name,
+        google_formatted_address,
+        google_phone,
+        google_website_url,
+        google_maps_url,
+        google_primary_category,
+        google_rating,
+        google_review_count
+      `)
+      .eq('status', 'active')
+
+  const canonicalBusinesses =
+    (canonicalBusinessesData ??
+      []) as unknown as CanonicalBusinessLocation[]
+
+  const canonicalBusinessByLegacyProfileId =
+    new Map<
+      string,
+      CanonicalBusinessLocation
+    >()
+
+  for (const business of canonicalBusinesses) {
+    if (!business.legacy_profile_id) {
+      continue
+    }
+
+    canonicalBusinessByLegacyProfileId.set(
+      business.legacy_profile_id,
+      business
+    )
+  }
 
   // ===========================================================================
   // Saved offers
@@ -248,22 +329,80 @@ export default async function CustomerDashboard({
 
   const enrichedOffers =
     (offers ?? []).map((offer) => {
-      const business =
+      const legacyBusiness =
         profileById.get(
           offer.business_id
         )
 
+      const canonicalBusiness =
+        canonicalBusinessByLegacyProfileId.get(
+          offer.business_id
+        )
+
+      const businessName =
+        canonicalBusiness?.name ||
+        canonicalBusiness
+          ?.google_business_name ||
+        legacyBusiness?.name ||
+        'Local Business'
+
+      const phone =
+        canonicalBusiness?.phone ||
+        canonicalBusiness?.google_phone ||
+        legacyBusiness?.phone ||
+        ''
+
+      const address =
+        canonicalBusiness?.address ||
+        canonicalBusiness
+          ?.google_formatted_address ||
+        legacyBusiness?.address ||
+        ''
+
+      const googleMapsUrl =
+        canonicalBusiness?.google_maps_url ||
+        legacyBusiness?.map ||
+        ''
+
       return {
         ...offer,
-        business_name:
-          business?.name ||
-          'Local Business',
-        phone:
-          business?.phone || '',
-        address:
-          business?.address || '',
-        google_maps_url:
-          business?.map || '',
+        business_name: businessName,
+        phone,
+        address,
+        google_maps_url: googleMapsUrl,
+        business_latitude:
+          canonicalBusiness?.latitude ??
+          null,
+        business_longitude:
+          canonicalBusiness?.longitude ??
+          null,
+        business_location_source:
+          canonicalBusiness
+            ?.location_source ??
+          null,
+        google_place_id:
+          canonicalBusiness
+            ?.google_place_id ??
+          null,
+        google_business_name:
+          canonicalBusiness
+            ?.google_business_name ??
+          null,
+        google_primary_category:
+          canonicalBusiness
+            ?.google_primary_category ??
+          null,
+        google_rating:
+          canonicalBusiness?.google_rating ??
+          null,
+        google_review_count:
+          canonicalBusiness
+            ?.google_review_count ??
+          null,
+        google_website_url:
+          canonicalBusiness
+            ?.google_website_url ??
+          null,
       }
     }) as CustomerDashboardOffer[]
 
