@@ -38,6 +38,25 @@ The hard application fallback must remain available when no active database rule
 
 A missing pricing rule must not make checkout or fundraising estimates unavailable.
 
+## Organization location resolution
+
+Town and State pricing context must come from the campaign or selected organization's canonical `organizations` record.
+
+Verify all of the following:
+
+- Single pricing resolution enriches missing Town and State from the canonical organization ID.
+- Batch pricing resolution enriches missing Town and State from canonical organization IDs.
+- Campaign pages do not need separate organization-location queries.
+- Organization dashboards do not need separate organization-location queries.
+- Normal checkout does not need a separate organization-location query.
+- Gift checkout does not need a separate organization-location query.
+- Signup campaign pricing uses the centralized campaign pricing service.
+- Consumer location never changes the winning price.
+- Consumer location may only affect discovery, sorting, filtering, or proximity notifications.
+- Missing or incomplete organization location safely falls through to Organization, Platform, or hard fallback pricing as applicable.
+- Campaign and Organization rules still outrank Town and State rules.
+- Production and Demo separation remains intact while location enrichment runs.
+
 ## Safety rules
 
 Before testing:
