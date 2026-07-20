@@ -122,4 +122,60 @@ This confirms that:
 
 This is the known-good database baseline before interactive checkout testing.
 
-Visual browser login, role routing, checkout interaction, and deployed customer experience remain to be executed and recorded separately.
+## Authentication smoke-test result
+
+On July 20, 2026, the committed authentication smoke test was executed locally against the connected RaiseHub Supabase project:
+
+```text
+scripts/qa-auth-smoke.ts
+```
+
+The script used the private QA credentials CSV stored outside the repository.
+
+Initial result:
+
+```text
+11 QA logins failed
+Database error querying schema
+```
+
+Supabase Auth logs identified the exact cause:
+
+```text
+confirmation_token was NULL
+```
+
+The temporary QA users had been inserted directly into `auth.users`, and four Auth string fields were `NULL` rather than empty strings.
+
+Only the `qa_prelaunch_2026` batch was normalized:
+
+- `confirmation_token`
+- `recovery_token`
+- `email_change_token_new`
+- `email_change`
+
+After normalization, the same authentication smoke test was rerun.
+
+Final result:
+
+```text
+11 of 11 QA logins passed
+All QA logins and authenticated profile checks passed.
+```
+
+The successful run verified:
+
+- Real email/password authentication through Supabase Auth
+- Authenticated email identity
+- `qa_prelaunch_2026` auth metadata
+- Authenticated profile access
+- Correct Customer, Business, Organization, Admin, and Owner roles
+- Correct Production and Demo classification
+- Correct Demo group
+- Correct complete and incomplete onboarding states
+- Correct active-entitlement counts for customer scenarios
+- Successful sign-out after each account
+
+This confirms the QA accounts are login-capable and ready for role-routing and interactive checkout testing.
+
+Visual role routing, checkout interaction, and the deployed customer experience remain to be executed and recorded separately.
