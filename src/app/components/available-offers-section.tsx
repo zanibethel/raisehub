@@ -38,6 +38,20 @@ type SortOption =
   | 'newest'
   | 'business'
 
+type LocationStatus =
+  | 'idle'
+  | 'requesting'
+  | 'ready'
+  | 'denied'
+  | 'unavailable'
+  | 'timeout'
+  | 'unsupported'
+
+type CustomerLocation = {
+  latitude: number
+  longitude: number
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -122,6 +136,63 @@ function compareBusinessNames(
   return firstName.localeCompare(secondName)
 }
 
+function getLocationErrorStatus(
+  error: GeolocationPositionError
+): LocationStatus {
+  if (
+    error.code ===
+    GeolocationPositionError.PERMISSION_DENIED
+  ) {
+    return 'denied'
+  }
+
+  if (
+    error.code ===
+    GeolocationPositionError.POSITION_UNAVAILABLE
+  ) {
+    return 'unavailable'
+  }
+
+  if (
+    error.code ===
+    GeolocationPositionError.TIMEOUT
+  ) {
+    return 'timeout'
+  }
+
+  return 'unavailable'
+}
+
+function getLocationMessage(
+  status: LocationStatus
+): string {
+  if (status === 'requesting') {
+    return 'Waiting for your browser to share your location.'
+  }
+
+  if (status === 'ready') {
+    return 'Location is ready. Nearby distance sorting will activate once participating business coordinates are connected.'
+  }
+
+  if (status === 'denied') {
+    return 'Location access was denied. You can allow it in your browser settings or continue browsing all offers.'
+  }
+
+  if (status === 'unavailable') {
+    return 'Your current location could not be determined. Check your device location settings and try again.'
+  }
+
+  if (status === 'timeout') {
+    return 'The location request took too long. Try again when your device has a stronger location signal.'
+  }
+
+  if (status === 'unsupported') {
+    return 'This browser does not support location access. You can still search and sort all available offers.'
+  }
+
+  return 'Use your current location to prepare nearby-offer sorting.'
+}
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -144,6 +215,12 @@ export default function AvailableOffersSection({
 
   const [sortOption, setSortOption] =
     useState<SortOption>('recommended')
+
+  const [locationStatus, setLocationStatus] =
+    useState<LocationStatus>('idle')
+
+  const [customerLocation, setCustomerLocation] =
+    useState<CustomerLocation | null>(null)
 
   const savedOfferIdSet = useMemo(
     () => new Set(savedOfferIds),
@@ -344,6 +421,16 @@ export default function AvailableOffersSection({
     endingSoonOnly ||
     sortOption !== 'recommended'
 
+  const locationMessage =
+    getLocationMessage(locationStatus)
+
+  const isRequestingLocation =
+    locationStatus === 'requesting'
+
+  const hasLocation =
+    locationStatus === 'ready' &&
+    customerLocation !== null
+
   function clearFilters() {
     resetToAllDeals()
 
@@ -383,6 +470,38 @@ export default function AvailableOffersSection({
     )
   }
 
+  function requestCustomerLocation() {
+    if (!navigator.geolocation) {
+      setCustomerLocation(null)
+      setLocationStatus('unsupported')
+      return
+    }
+
+    setLocationStatus('requesting')
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCustomerLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+
+        setLocationStatus('ready')
+      },
+      (error) => {
+        setCustomerLocation(null)
+        setLocationStatus(
+          getLocationErrorStatus(error)
+        )
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 5 * 60 * 1000,
+      }
+    )
+  }
+
   return (
     <section
       id="deal-browser"
@@ -418,6 +537,53 @@ export default function AvailableOffersSection({
               ? 'deal'
               : 'deals'}
           </p>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <span
+                aria-hidden="true"
+                className="text-2xl"
+              >
+                📍
+              </span>
+
+              <div>
+                <p className="text-sm font-bold text-green-900">
+                  Nearby Offers
+                </p>
+
+                <p
+                  className="mt-1 text-sm text-green-800"
+                  aria-live="polite"
+                >
+                  {locationMessage}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={requestCustomerLocation}
+              disabled={isRequestingLocation}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-400"
+            >
+              {isRequestingLocation
+                ? 'Finding Location…'
+                : hasLocation
+                  ? 'Refresh Location'
+                  : 'Use My Location'}
+            </button>
+          </div>
+
+          {hasLocation ? (
+            <p className="mt-3 text-xs text-green-700">
+              Your precise coordinates remain in this
+              browser session and are not displayed or
+              saved by this page.
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_190px_220px]">
@@ -563,12 +729,6 @@ export default function AvailableOffersSection({
             {EXPIRING_SOON_DAYS} days.
           </div>
         ) : null}
-
-        <p className="mt-4 text-xs text-gray-500">
-          Nearby sorting will become available after
-          location access and business distances are
-          connected.
-        </p>
       </div>
 
       <div className="mt-6">
