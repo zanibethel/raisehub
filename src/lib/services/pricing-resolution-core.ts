@@ -57,6 +57,28 @@ export type NormalizedPricingInput = {
   stateCode: string | null
 }
 
+export type DemoSeparatedPricingInputs<
+  T extends { isDemo?: boolean }
+> = {
+  productionInputs: T[]
+  demoInputs: T[]
+}
+
+export function separatePricingInputsByDemo<
+  T extends { isDemo?: boolean }
+>(
+  inputs: T[]
+): DemoSeparatedPricingInputs<T> {
+  return {
+    productionInputs: inputs.filter(
+      (input) => !input.isDemo
+    ),
+    demoInputs: inputs.filter(
+      (input) => input.isDemo === true
+    ),
+  }
+}
+
 const SCOPE_PRIORITY: Record<
   Exclude<PricingScope, 'fallback'>,
   number
