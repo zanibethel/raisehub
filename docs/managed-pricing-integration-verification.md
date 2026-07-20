@@ -512,9 +512,22 @@ The live pricing-resolution service now uses the same shared core functions cove
 
 The test suite and TypeScript check passed after correcting the generic input constraint so records without an `isDemo` property are accepted and treated as Production.
 
+### Purchase snapshot coverage
+
+Automated purchase snapshot tests now verify:
+
+- Paid pass purchases preserve every resolved pricing field sent to the atomic purchase function.
+- Fallback purchases preserve the `fallback` scope with no pricing rule ID.
+- Donation-only support records the donation as the full amount paid and organization earnings.
+- Donation-only support records a zero platform fee.
+- Donation-only support does not grant a new pass entitlement.
+- Donation-only support clears all pass-pricing snapshot fields.
+- Paid pass purchases fail safely when resolved pricing is missing.
+- The live campaign purchase action uses the tested snapshot helper for every pricing-related RPC parameter.
+
 ### Remaining limitation
 
-These automated tests verify deterministic application logic. They do not replace the remaining end-to-end checks against real Production and Demo data, purchase creation, pricing snapshots, or deployed checkout flows.
+These automated tests verify deterministic application logic and the payload assembled before the database RPC call. They do not replace the remaining end-to-end checks against real Production and Demo data, successful database writes, entitlement creation, persisted pricing snapshots, or deployed checkout flows.
 
 ## Migration readiness gate
 
