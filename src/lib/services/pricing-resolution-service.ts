@@ -5,6 +5,7 @@ import {
   normalizeMoney,
   normalizePricingInput,
   resolvePricingFromRules,
+  separatePricingInputsByDemo,
   type EffectivePricingInput,
   type EffectivePricingResult,
   type PricingRuleRow,
@@ -159,13 +160,11 @@ export async function resolveEffectiveCampaignPricingBatch(
       uniqueInputs
     )
 
-  const productionInputs =
-    locatedInputs.filter(
-      (input) => !input.isDemo
-    )
-
-  const demoInputs = locatedInputs.filter(
-    (input) => input.isDemo
+  const {
+    productionInputs,
+    demoInputs,
+  } = separatePricingInputsByDemo(
+    locatedInputs
   )
 
   let usedFallback = false
