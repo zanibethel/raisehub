@@ -41,8 +41,6 @@ type CampaignMetrics = {
 
 type CanonicalOrganizationPricingRow = {
   id: string
-  town_name: string | null
-  state_code: string | null
 }
 
 function generateSupporterKey(
@@ -98,7 +96,7 @@ export default async function OrganizationDashboard({
       .maybeSingle(),
     supabase
       .from('organizations')
-      .select('id, town_name, state_code')
+      .select('id')
       .eq('legacy_profile_id', organizationProfileId)
       .maybeSingle<CanonicalOrganizationPricingRow>(),
   ])
@@ -107,10 +105,6 @@ export default async function OrganizationDashboard({
     await resolveEffectivePricing({
       organizationId:
         canonicalOrganization?.id ?? null,
-      townName:
-        canonicalOrganization?.town_name ?? null,
-      stateCode:
-        canonicalOrganization?.state_code ?? null,
       isDemo: organizationProfile?.is_demo ?? false,
     })
 
