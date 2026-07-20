@@ -5,7 +5,6 @@ import { getCampaignById } from '@/lib/repositories/campaign-repository'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
-import { getOrganizationPricingLocation } from '@/lib/services/organization-pricing-location-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -234,25 +233,12 @@ export async function purchaseCampaignPassAction(
     }
   }
 
-  const organizationPricingLocation =
-    isDonationOnly
-      ? null
-      : await getOrganizationPricingLocation(
-          campaignOrganization?.id ?? null
-        )
-
   const effectivePricing = isDonationOnly
     ? null
     : await resolveEffectivePricing({
         campaignId: campaign.id,
         organizationId:
           campaignOrganization?.id ?? null,
-        townName:
-          organizationPricingLocation?.townName ??
-          null,
-        stateCode:
-          organizationPricingLocation?.stateCode ??
-          null,
         donationAmount,
         isDemo:
           campaignOrganizationProfile.is_demo,
