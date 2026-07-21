@@ -396,7 +396,9 @@ export default async function CustomerDashboard({
     <>
       <div className="mt-8">
         <CustomerDigitalPass
-          hasActivePass={hasPurchasedPass}
+          hasActivePass={Boolean(
+            activeEntitlement
+          )}
           entitlementType={
             activeEntitlement?.entitlement_type
           }
