@@ -1,7 +1,9 @@
 import Link from 'next/link'
 
 import {
+  formatCustomerNearbyBusinessRating,
   getCustomerNearbyBusinesses,
+  getCustomerNearbyBusinessMapUrl,
 } from '../customer-nearby-businesses'
 
 import type {
@@ -16,57 +18,6 @@ type Props = {
   enrichedOffers:
     CustomerDashboardOffer[]
   hasActivePass: boolean
-}
-
-// =============================================================================
-// Display helpers
-// =============================================================================
-
-function formatRating({
-  rating,
-  reviewCount,
-}: {
-  rating: number | null
-  reviewCount: number | null
-}): string | null {
-  if (rating === null) {
-    return null
-  }
-
-  if (
-    reviewCount === null ||
-    reviewCount === 0
-  ) {
-    return `${rating.toFixed(1)} rating`
-  }
-
-  return `${rating.toFixed(
-    1
-  )} rating · ${reviewCount.toLocaleString()} ${
-    reviewCount === 1
-      ? 'review'
-      : 'reviews'
-  }`
-}
-
-function getMapUrl({
-  googleMapsUrl,
-  address,
-}: {
-  googleMapsUrl: string | null
-  address: string | null
-}): string | null {
-  if (googleMapsUrl) {
-    return googleMapsUrl
-  }
-
-  if (!address) {
-    return null
-  }
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    address
-  )}`
 }
 
 // =============================================================================
@@ -122,7 +73,7 @@ export default function CustomerNearbyBusinessesSection({
           {nearbyBusinesses.map(
             (business) => {
               const ratingLabel =
-                formatRating({
+                formatCustomerNearbyBusinessRating({
                   rating:
                     business.rating,
                   reviewCount:
@@ -130,7 +81,7 @@ export default function CustomerNearbyBusinessesSection({
                 })
 
               const mapUrl =
-                getMapUrl({
+                getCustomerNearbyBusinessMapUrl({
                   googleMapsUrl:
                     business.googleMapsUrl,
                   address:
