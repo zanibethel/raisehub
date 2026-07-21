@@ -3,6 +3,14 @@
 import { useState } from 'react'
 
 import {
+  getCustomerDealShortcutAriaLabel,
+  getCustomerDealShortcutCardClasses,
+  getCustomerDealShortcutCountClasses,
+  getCustomerDealShortcutHeadingClasses,
+  getCustomerDealShortcutStatus,
+  getCustomerDealShortcutStatusClasses,
+} from './customer-deal-shortcuts'
+import {
   CUSTOMER_DEAL_FILTER_OPTIONS,
   DEFAULT_CUSTOMER_DEAL_FILTER,
   filterCustomerDeals,
@@ -58,114 +66,6 @@ type Props = {
 
   hasPurchasedPass:
     AvailableDealsProps['hasPurchasedPass']
-}
-
-// =============================================================================
-// Display helpers
-// =============================================================================
-
-function getFilterCardClasses({
-  filter,
-  isActive,
-  isDisabled,
-}: {
-  filter: CustomerDealFilter
-  isActive: boolean
-  isDisabled: boolean
-}): string {
-  const interactionClasses =
-    isDisabled
-      ? 'cursor-not-allowed opacity-60'
-      : isActive
-        ? 'ring-2 ring-offset-2 shadow-md -translate-y-0.5'
-        : 'hover:-translate-y-0.5 hover:shadow-md'
-
-  switch (filter) {
-    case 'nearby':
-      return `border-green-100 bg-green-50 ${
-        isDisabled
-          ? ''
-          : 'hover:border-green-200'
-      } ${
-        isActive
-          ? 'ring-green-500'
-          : ''
-      } ${interactionClasses}`
-
-    case 'saved':
-      return `border-yellow-100 bg-yellow-50 ${
-        isDisabled
-          ? ''
-          : 'hover:border-yellow-200'
-      } ${
-        isActive
-          ? 'ring-yellow-500'
-          : ''
-      } ${interactionClasses}`
-
-    case 'expiring':
-      return `border-orange-100 bg-orange-50 ${
-        isDisabled
-          ? ''
-          : 'hover:border-orange-200'
-      } ${
-        isActive
-          ? 'ring-orange-500'
-          : ''
-      } ${interactionClasses}`
-
-    case 'all':
-      return `border-blue-100 bg-blue-50 ${
-        isDisabled
-          ? ''
-          : 'hover:border-blue-200'
-      } ${
-        isActive
-          ? 'ring-blue-500'
-          : ''
-      } ${interactionClasses}`
-  }
-}
-
-function getFilterCountClasses(
-  filter: CustomerDealFilter
-): string {
-  switch (filter) {
-    case 'nearby':
-      return 'text-green-700'
-
-    case 'saved':
-      return 'text-yellow-700'
-
-    case 'expiring':
-      return 'text-orange-700'
-
-    case 'all':
-      return 'text-blue-700'
-  }
-}
-
-function getFilterHeadingClasses(
-  filter: CustomerDealFilter,
-  isDisabled: boolean
-): string {
-  if (isDisabled) {
-    return ''
-  }
-
-  switch (filter) {
-    case 'nearby':
-      return 'group-hover:text-green-700'
-
-    case 'saved':
-      return 'group-hover:text-yellow-700'
-
-    case 'expiring':
-      return 'group-hover:text-orange-700'
-
-    case 'all':
-      return 'group-hover:text-blue-700'
-  }
 }
 
 // =============================================================================
@@ -289,23 +189,31 @@ export default function CustomerDashboardContent({
               const isDisabled =
                 count === 0
 
+              const shortcutStatus =
+                getCustomerDealShortcutStatus({
+                  isActive,
+                  isDisabled,
+                })
+
               return (
                 <button
                   key={option.id}
                   type="button"
                   aria-pressed={isActive}
-                  aria-label={`${option.label}: ${count} ${
-                    count === 1
-                      ? 'deal'
-                      : 'deals'
-                  }`}
+                  aria-label={getCustomerDealShortcutAriaLabel(
+                    {
+                      label:
+                        option.label,
+                      count,
+                    }
+                  )}
                   disabled={isDisabled}
                   onClick={() =>
                     selectDealFilter(
                       option.id
                     )
                   }
-                  className={`group min-h-36 min-w-0 rounded-2xl border p-5 text-left transition ${getFilterCardClasses(
+                  className={`group min-h-36 min-w-0 rounded-2xl border p-5 text-left transition ${getCustomerDealShortcutCardClasses(
                     {
                       filter:
                         option.id,
@@ -323,7 +231,7 @@ export default function CustomerDashboardContent({
                     </span>
 
                     <span
-                      className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getFilterCountClasses(
+                      className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getCustomerDealShortcutCountClasses(
                         option.id
                       )}`}
                     >
@@ -332,9 +240,12 @@ export default function CustomerDashboardContent({
                   </div>
 
                   <h3
-                    className={`mt-4 break-words font-semibold leading-snug text-gray-900 ${getFilterHeadingClasses(
-                      option.id,
-                      isDisabled
+                    className={`mt-4 break-words font-semibold leading-snug text-gray-900 ${getCustomerDealShortcutHeadingClasses(
+                      {
+                        filter:
+                          option.id,
+                        isDisabled,
+                      }
                     )}`}
                   >
                     {option.label}
@@ -344,19 +255,16 @@ export default function CustomerDashboardContent({
                     {option.description}
                   </p>
 
-                  {isActive ? (
-                    <p className="mt-3 text-xs font-semibold text-gray-700">
-                      Showing now
-                    </p>
-                  ) : isDisabled ? (
-                    <p className="mt-3 text-xs font-semibold text-gray-500">
-                      No matches right now
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-xs font-semibold text-gray-600">
-                      Tap to view
-                    </p>
-                  )}
+                  <p
+                    className={`mt-3 text-xs font-semibold ${getCustomerDealShortcutStatusClasses(
+                      {
+                        isActive,
+                        isDisabled,
+                      }
+                    )}`}
+                  >
+                    {shortcutStatus}
+                  </p>
                 </button>
               )
             }
