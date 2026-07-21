@@ -46,11 +46,14 @@ function formatPassDate(
     return null
   }
 
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }
+  )
 }
 
 function getDaysRemaining(
@@ -60,14 +63,20 @@ function getDaysRemaining(
     return null
   }
 
-  const expirationDate = new Date(expiresAt)
+  const expirationDate =
+    new Date(expiresAt)
 
-  if (Number.isNaN(expirationDate.getTime())) {
+  if (
+    Number.isNaN(
+      expirationDate.getTime()
+    )
+  ) {
     return null
   }
 
   const remainingMilliseconds =
-    expirationDate.getTime() - Date.now()
+    expirationDate.getTime() -
+    Date.now()
 
   return Math.max(
     Math.ceil(
@@ -105,7 +114,7 @@ function ActivePass({
       aria-labelledby="customer-digital-pass-title"
       className="overflow-hidden rounded-3xl border border-green-200 bg-gradient-to-br from-green-700 via-green-600 to-blue-700 text-white shadow-xl"
     >
-      <div className="relative p-6 sm:p-8">
+      <div className="relative p-5 sm:p-8">
         <div
           aria-hidden="true"
           className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10"
@@ -116,63 +125,64 @@ function ActivePass({
           className="absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-white/10"
         />
 
-        <div className="relative">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+        <div className="relative min-w-0">
+          <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-100">
                 Active RaiseHub Pass
               </p>
 
               <h2
                 id="customer-digital-pass-title"
-                className="mt-2 text-2xl font-bold sm:text-3xl"
+                className="mt-2 break-words text-2xl font-bold leading-tight sm:text-3xl"
               >
                 Local deals are unlocked
               </h2>
 
               <p className="mt-2 max-w-xl text-sm leading-6 text-green-50">
-                Show this dashboard when using
-                participating offers and keep your
-                pass active through the expiration
-                date below.
+                Use your dashboard to find
+                participating offers, track
+                your verified savings, and
+                keep an eye on your pass
+                expiration.
               </p>
             </div>
 
-            <span className="w-fit rounded-full border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur">
+            <span className="w-fit shrink-0 rounded-full border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur">
               Verified access
             </span>
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+            <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
                 Pass type
               </p>
 
-              <p className="mt-2 font-bold">
+              <p className="mt-2 break-words font-bold">
                 {formatEntitlementType(
                   entitlementType
                 )}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+            <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
                 Started
               </p>
 
-              <p className="mt-2 font-bold">
+              <p className="mt-2 break-words font-bold">
                 {formattedStartDate ??
                   'Start date unavailable'}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+            <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
                 Expires
               </p>
 
-              <p className="mt-2 font-bold">
+              <p className="mt-2 break-words font-bold">
                 {formattedExpirationDate ??
                   'No expiration date'}
               </p>
@@ -191,21 +201,31 @@ function ActivePass({
             </div>
           </div>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <nav
+            aria-label="Customer pass shortcuts"
+            className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
             <Link
-              href="/offers"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
+              href="/dashboard#available-offers"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
             >
-              Browse Local Deals
+              Browse Available Deals
+            </Link>
+
+            <Link
+              href="/dashboard#customer-savings"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-white/40 bg-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/25"
+            >
+              View My Savings
             </Link>
 
             <Link
               href="/campaigns"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/20 sm:col-span-2 lg:col-span-1"
             >
               Support Another Fundraiser
             </Link>
-          </div>
+          </nav>
         </div>
       </div>
     </section>
@@ -220,54 +240,56 @@ function InactivePass() {
   return (
     <section
       aria-labelledby="customer-digital-pass-title"
-      className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-6 shadow-xl sm:p-8"
+      className="overflow-hidden rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-5 shadow-xl sm:p-8"
     >
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
             No Active RaiseHub Pass
           </p>
 
           <h2
             id="customer-digital-pass-title"
-            className="mt-2 text-2xl font-bold text-gray-900"
+            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
           >
-            Unlock local deals by supporting a
-            fundraiser
+            Unlock local deals by
+            supporting a fundraiser
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-            Purchase a pass through a participating
-            campaign to support a local organization
-            and gain access to community business
-            offers.
+            Purchase a pass through a
+            participating campaign to
+            support a local organization
+            and gain access to community
+            business offers.
           </p>
 
           <div className="mt-5 rounded-2xl border border-amber-200 bg-white/80 p-4">
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="break-words text-sm font-semibold text-gray-900">
               What happens next?
             </p>
 
             <p className="mt-1 text-sm leading-6 text-gray-600">
-              Choose a fundraiser, complete your pass
-              purchase, and your customer dashboard
-              will automatically show your active
+              Choose a fundraiser, complete
+              your pass purchase, and your
+              customer dashboard will
+              automatically show your active
               access.
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-3">
+        <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto">
           <Link
             href="/campaigns"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
           >
             Find a Fundraiser
           </Link>
 
           <Link
             href="/offers"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50 sm:w-auto"
           >
             Preview Local Deals
           </Link>
@@ -293,7 +315,9 @@ export default function CustomerDigitalPass({
 
   return (
     <ActivePass
-      entitlementType={entitlementType}
+      entitlementType={
+        entitlementType
+      }
       startsAt={startsAt}
       expiresAt={expiresAt}
     />
