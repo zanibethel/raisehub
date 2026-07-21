@@ -37,7 +37,7 @@ export const CUSTOMER_DEAL_FILTER_OPTIONS:
       id: 'nearby',
       label: 'Nearby Offers',
       description:
-        'Show offers with confirmed business locations.',
+        'Show location-ready businesses, with highly rated options first.',
       icon: '📍',
     },
     {
@@ -51,7 +51,7 @@ export const CUSTOMER_DEAL_FILTER_OPTIONS:
       id: 'expiring',
       label: 'Expiring Soon',
       description:
-        'Show offers ending within the next 14 days.',
+        'Show the most urgent offers ending within the next 14 days.',
       icon: '⏳',
     },
     {
@@ -149,6 +149,92 @@ export function isCustomerOfferExpiringSoon(
 }
 
 // =============================================================================
+// Sorting helpers
+// =============================================================================
+
+function getOfferExpirationTimestamp(
+  offer: CustomerDashboardOffer
+): number {
+  if (!offer.ends_at) {
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  const timestamp =
+    new Date(offer.ends_at).getTime()
+
+  return Number.isNaN(timestamp)
+    ? Number.MAX_SAFE_INTEGER
+    : timestamp
+}
+
+function getOfferRating(
+  offer: CustomerDashboardOffer
+): number {
+  if (
+    offer.google_rating === null ||
+    offer.google_rating === undefined
+  ) {
+    return 0
+  }
+
+  const rating = Number(
+    offer.google_rating
+  )
+
+  return Number.isFinite(rating)
+    ? rating
+    : 0
+}
+
+function getBusinessSortName(
+  offer: CustomerDashboardOffer
+): string {
+  return (
+    offer.business_name ||
+    offer.title ||
+    ''
+  ).trim()
+}
+
+function sortExpiringOffers(
+  offers: CustomerDashboardOffer[]
+): CustomerDashboardOffer[] {
+  return [...offers].sort(
+    (firstOffer, secondOffer) =>
+      getOfferExpirationTimestamp(
+        firstOffer
+      ) -
+        getOfferExpirationTimestamp(
+          secondOffer
+        ) ||
+      getBusinessSortName(
+        firstOffer
+      ).localeCompare(
+        getBusinessSortName(
+          secondOffer
+        )
+      )
+  )
+}
+
+function sortNearbyOffers(
+  offers: CustomerDashboardOffer[]
+): CustomerDashboardOffer[] {
+  return [...offers].sort(
+    (firstOffer, secondOffer) =>
+      getOfferRating(secondOffer) -
+        getOfferRating(firstOffer) ||
+      getBusinessSortName(
+        firstOffer
+      ).localeCompare(
+        getBusinessSortName(
+          secondOffer
+        )
+      )
+  )
+}
+
+// =============================================================================
 // Counts
 // =============================================================================
 
@@ -220,24 +306,36 @@ export function filterCustomerDeals({
 }: FilterCustomerDealsOptions):
   CustomerDashboardOffer[] {
   switch (filter) {
-    case 'nearby':
-      return offers.filter(
-        hasCustomerOfferLocation
+    case 'nearby': {
+      const nearbyOffers =
+        offers.filter(
+          hasCustomerOfferLocation
+        )
+
+      return sortNearbyOffers(
+        nearbyOffers
       )
+    }
 
     case 'saved':
       return offers.filter((offer) =>
         savedOfferIds.has(offer.id)
       )
 
-    case 'expiring':
-      return offers.filter((offer) =>
-        isCustomerOfferExpiringSoon(
-          offer,
-          now,
-          expiringSoonDays
+    case 'expiring': {
+      const expiringOffers =
+        offers.filter((offer) =>
+          isCustomerOfferExpiringSoon(
+            offer,
+            now,
+            expiringSoonDays
+          )
         )
+
+      return sortExpiringOffers(
+        expiringOffers
       )
+    }
 
     case 'all':
       return offers
