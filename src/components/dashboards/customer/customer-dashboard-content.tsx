@@ -12,6 +12,7 @@ import {
   type CustomerDealFilter,
 } from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
+import CustomerNearbyBusinessesSection from './sections/customer-nearby-businesses-section'
 import CustomerNotificationCenter from './sections/customer-notification-center'
 import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerRecommendationsSection from './sections/customer-recommendations-section'
@@ -362,6 +363,20 @@ export default function CustomerDashboardContent({
           )}
         </div>
       </section>
+
+      <div
+        id="nearby-businesses"
+        className="scroll-mt-6"
+      >
+        <CustomerNearbyBusinessesSection
+          enrichedOffers={
+            enrichedOffers
+          }
+          hasActivePass={
+            hasPurchasedPass
+          }
+        />
+      </div>
 
       <div
         id="recommended-deals"
