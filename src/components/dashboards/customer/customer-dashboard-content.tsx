@@ -17,6 +17,7 @@ import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerRecommendationsSection from './sections/customer-recommendations-section'
 import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
+import CustomerSavingsSection from './sections/customer-savings-section'
 
 // =============================================================================
 // Infer section prop types
@@ -395,6 +396,20 @@ export default function CustomerDashboardContent({
           }
           redemptionDateByOfferId={
             redemptionDateByOfferId
+          }
+        />
+      </div>
+
+      <div
+        id="customer-savings"
+        className="scroll-mt-6"
+      >
+        <CustomerSavingsSection
+          enrichedOffers={
+            enrichedOffers
+          }
+          redeemedOfferIds={
+            redeemedOfferIds
           }
         />
       </div>
