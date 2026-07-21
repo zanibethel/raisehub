@@ -88,6 +88,18 @@ function normalizeReviewCount(
   return Math.floor(reviewCount)
 }
 
+function normalizeExternalUrl(
+  value: string | null
+): string | null {
+  if (!value) {
+    return null
+  }
+
+  return value.startsWith('http')
+    ? value
+    : `https://${value}`
+}
+
 // =============================================================================
 // Business identity
 // =============================================================================
@@ -172,6 +184,65 @@ export function hasNearbyBusinessLocation(
 }
 
 // =============================================================================
+// Display helpers
+// =============================================================================
+
+export function formatCustomerNearbyBusinessRating({
+  rating,
+  reviewCount,
+}: {
+  rating: number | null
+  reviewCount: number | null
+}): string | null {
+  if (rating === null) {
+    return null
+  }
+
+  if (
+    reviewCount === null ||
+    reviewCount === 0
+  ) {
+    return `${rating.toFixed(1)} rating`
+  }
+
+  return `${rating.toFixed(
+    1
+  )} rating · ${reviewCount.toLocaleString()} ${
+    reviewCount === 1
+      ? 'review'
+      : 'reviews'
+  }`
+}
+
+export function getCustomerNearbyBusinessMapUrl({
+  googleMapsUrl,
+  address,
+}: {
+  googleMapsUrl: string | null
+  address: string | null
+}): string | null {
+  const normalizedMapUrl =
+    normalizeExternalUrl(
+      normalizeText(googleMapsUrl)
+    )
+
+  if (normalizedMapUrl) {
+    return normalizedMapUrl
+  }
+
+  const normalizedAddress =
+    normalizeText(address)
+
+  if (!normalizedAddress) {
+    return null
+  }
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    normalizedAddress
+  )}`
+}
+
+// =============================================================================
 // Business conversion
 // =============================================================================
 
@@ -203,8 +274,10 @@ function createNearbyBusiness(
         offer.google_maps_url
       ),
     websiteUrl:
-      normalizeText(
-        offer.google_website_url
+      normalizeExternalUrl(
+        normalizeText(
+          offer.google_website_url
+        )
       ),
     rating:
       normalizeRating(
