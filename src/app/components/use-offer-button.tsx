@@ -1,53 +1,102 @@
 'use client'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import {
+  useState,
+} from 'react'
+
+import {
+  createClient,
+} from '@/lib/supabase/client'
+import {
+  getUseOfferGuidance,
+} from './use-offer-guidance'
+
+// =============================================================================
+// Types
+// =============================================================================
 
 type UseOfferButtonProps = {
   offerId: string
 }
 
-export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
-  const supabase = createClient()
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+// =============================================================================
+// Component
+// =============================================================================
+
+export default function UseOfferButton({
+  offerId,
+}: UseOfferButtonProps) {
+  const supabase =
+    createClient()
+
+  const guidance =
+    getUseOfferGuidance()
+
+  const [loading, setLoading] =
+    useState(false)
+
+  const [message, setMessage] =
+    useState('')
 
   async function handleUseOffer() {
-    const confirmed = window.confirm(
-      'Are you sure you want to use this offer now?'
-    )
+    const confirmed =
+      window.confirm(
+        guidance.confirmationMessage
+      )
 
-    if (!confirmed) return
+    if (!confirmed) {
+      return
+    }
 
     setLoading(true)
     setMessage('')
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: {
+        user,
+      },
+    } =
+      await supabase.auth.getUser()
 
     if (!user) {
-      setMessage('Please log in first.')
+      setMessage(
+        guidance.signInRequiredMessage
+      )
       setLoading(false)
       return
     }
 
-    const { error } = await supabase.from('redemptions').insert({
-      offer_id: offerId,
-      user_id: user.id,
-    })
+    const {
+      error,
+    } =
+      await supabase
+        .from('redemptions')
+        .insert({
+          offer_id: offerId,
+          user_id: user.id,
+        })
 
     if (error) {
-      if (error.code === '23505') {
-        setMessage('You already used this offer.')
+      if (
+        error.code === '23505'
+      ) {
+        setMessage(
+          guidance.alreadyUsedMessage
+        )
       } else {
-        setMessage(error.message)
+        setMessage(
+          'We could not redeem this offer. Please try again or ask the business for help.'
+        )
       }
+
       setLoading(false)
       return
     }
 
-    setMessage('Offer used successfully!')
+    setMessage(
+      guidance.successMessage
+    )
+
     setLoading(false)
 
     setTimeout(() => {
@@ -58,15 +107,29 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
   return (
     <div className="mt-4">
       <button
+        type="button"
         onClick={handleUseOffer}
         disabled={loading}
-        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? 'Using...' : 'Use Offer'}
+        {loading
+          ? guidance.loadingLabel
+          : guidance.buttonLabel}
       </button>
 
+      <p className="mt-2 text-center text-xs leading-5 text-gray-500">
+        Redeem only when a staff
+        member is ready to confirm
+        your offer.
+      </p>
+
       {message ? (
-        <p className="mt-2 text-xs text-gray-500">{message}</p>
+        <p
+          aria-live="polite"
+          className="mt-2 text-center text-xs leading-5 text-gray-600"
+        >
+          {message}
+        </p>
       ) : null}
     </div>
   )
