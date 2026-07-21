@@ -65,43 +65,63 @@ type Props = {
 function getFilterCardClasses({
   filter,
   isActive,
+  isDisabled,
 }: {
   filter: CustomerDealFilter
   isActive: boolean
+  isDisabled: boolean
 }): string {
-  const activeClasses =
-    isActive
-      ? 'ring-2 ring-offset-2 shadow-md -translate-y-0.5'
-      : 'hover:-translate-y-0.5 hover:shadow-md'
+  const interactionClasses =
+    isDisabled
+      ? 'cursor-not-allowed opacity-60'
+      : isActive
+        ? 'ring-2 ring-offset-2 shadow-md -translate-y-0.5'
+        : 'hover:-translate-y-0.5 hover:shadow-md'
 
   switch (filter) {
     case 'nearby':
-      return `border-green-100 bg-green-50 hover:border-green-200 ${
+      return `border-green-100 bg-green-50 ${
+        isDisabled
+          ? ''
+          : 'hover:border-green-200'
+      } ${
         isActive
           ? 'ring-green-500'
           : ''
-      } ${activeClasses}`
+      } ${interactionClasses}`
 
     case 'saved':
-      return `border-yellow-100 bg-yellow-50 hover:border-yellow-200 ${
+      return `border-yellow-100 bg-yellow-50 ${
+        isDisabled
+          ? ''
+          : 'hover:border-yellow-200'
+      } ${
         isActive
           ? 'ring-yellow-500'
           : ''
-      } ${activeClasses}`
+      } ${interactionClasses}`
 
     case 'expiring':
-      return `border-orange-100 bg-orange-50 hover:border-orange-200 ${
+      return `border-orange-100 bg-orange-50 ${
+        isDisabled
+          ? ''
+          : 'hover:border-orange-200'
+      } ${
         isActive
           ? 'ring-orange-500'
           : ''
-      } ${activeClasses}`
+      } ${interactionClasses}`
 
     case 'all':
-      return `border-blue-100 bg-blue-50 hover:border-blue-200 ${
+      return `border-blue-100 bg-blue-50 ${
+        isDisabled
+          ? ''
+          : 'hover:border-blue-200'
+      } ${
         isActive
           ? 'ring-blue-500'
           : ''
-      } ${activeClasses}`
+      } ${interactionClasses}`
   }
 }
 
@@ -124,8 +144,13 @@ function getFilterCountClasses(
 }
 
 function getFilterHeadingClasses(
-  filter: CustomerDealFilter
+  filter: CustomerDealFilter,
+  isDisabled: boolean
 ): string {
+  if (isDisabled) {
+    return ''
+  }
+
   switch (filter) {
     case 'nearby':
       return 'group-hover:text-green-700'
@@ -187,6 +212,10 @@ export default function CustomerDashboardContent({
   function selectDealFilter(
     filter: CustomerDealFilter
   ) {
+    if (filterCounts[filter] === 0) {
+      return
+    }
+
     setActiveDealFilter(filter)
 
     window.requestAnimationFrame(() => {
@@ -225,81 +254,91 @@ export default function CustomerDashboardContent({
 
       <section
         aria-labelledby="customer-deal-shortcuts-heading"
-        className="rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+        className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
       >
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             Quick Access
           </p>
 
           <h2
             id="customer-deal-shortcuts-heading"
-            className="mt-2 text-2xl font-bold text-gray-900"
+            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
           >
             Find the deals you need
           </h2>
 
-          <p className="mt-2 text-sm text-gray-600">
-            Choose a filter to update the
-            available deal list below.
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Choose an available filter to
+            update the deal list below.
           </p>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {CUSTOMER_DEAL_FILTER_OPTIONS.map(
             (option) => {
+              const count =
+                filterCounts[option.id]
+
               const isActive =
                 activeDealFilter ===
                 option.id
+
+              const isDisabled =
+                count === 0
 
               return (
                 <button
                   key={option.id}
                   type="button"
                   aria-pressed={isActive}
+                  aria-label={`${option.label}: ${count} ${
+                    count === 1
+                      ? 'deal'
+                      : 'deals'
+                  }`}
+                  disabled={isDisabled}
                   onClick={() =>
                     selectDealFilter(
                       option.id
                     )
                   }
-                  className={`group rounded-2xl border p-5 text-left transition ${getFilterCardClasses(
+                  className={`group min-h-36 min-w-0 rounded-2xl border p-5 text-left transition ${getFilterCardClasses(
                     {
                       filter:
                         option.id,
                       isActive,
+                      isDisabled,
                     }
                   )}`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
                     <span
                       aria-hidden="true"
-                      className="text-2xl"
+                      className="shrink-0 text-2xl"
                     >
                       {option.icon}
                     </span>
 
                     <span
-                      className={`rounded-full bg-white px-2 py-1 text-xs font-semibold ${getFilterCountClasses(
+                      className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getFilterCountClasses(
                         option.id
                       )}`}
                     >
-                      {
-                        filterCounts[
-                          option.id
-                        ]
-                      }
+                      {count}
                     </span>
                   </div>
 
                   <h3
-                    className={`mt-4 font-semibold text-gray-900 ${getFilterHeadingClasses(
-                      option.id
+                    className={`mt-4 break-words font-semibold leading-snug text-gray-900 ${getFilterHeadingClasses(
+                      option.id,
+                      isDisabled
                     )}`}
                   >
                     {option.label}
                   </h3>
 
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 break-words text-sm leading-6 text-gray-600">
                     {option.description}
                   </p>
 
@@ -307,7 +346,15 @@ export default function CustomerDashboardContent({
                     <p className="mt-3 text-xs font-semibold text-gray-700">
                       Showing now
                     </p>
-                  ) : null}
+                  ) : isDisabled ? (
+                    <p className="mt-3 text-xs font-semibold text-gray-500">
+                      No matches right now
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs font-semibold text-gray-600">
+                      Tap to view
+                    </p>
+                  )}
                 </button>
               )
             }
@@ -356,18 +403,22 @@ export default function CustomerDashboardContent({
         id="available-offers"
         className="scroll-mt-6"
       >
-        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex min-w-0 flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
               Current Filter
             </p>
 
-            <p className="mt-1 font-semibold text-gray-900">
+            <p className="mt-1 break-words font-semibold text-gray-900">
               {activeFilterLabel}
             </p>
           </div>
 
-          <p className="text-sm text-gray-600">
+          <p className="shrink-0 text-sm text-gray-600">
             {filteredOffers.length}{' '}
             {filteredOffers.length === 1
               ? 'deal matches'
@@ -388,12 +439,12 @@ export default function CustomerDashboardContent({
             }
           />
         ) : (
-          <section className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-6 shadow-lg sm:p-8">
+          <section className="overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-5 shadow-lg sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
               No Matching Deals
             </p>
 
-            <h2 className="mt-2 text-xl font-bold text-gray-900">
+            <h2 className="mt-2 break-words text-xl font-bold leading-snug text-gray-900">
               {
                 emptyFilterMessage.title
               }
@@ -412,7 +463,7 @@ export default function CustomerDashboardContent({
                 onClick={() =>
                   selectDealFilter('all')
                 }
-                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
+                className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800 sm:w-auto"
               >
                 Show All Available Offers
               </button>
