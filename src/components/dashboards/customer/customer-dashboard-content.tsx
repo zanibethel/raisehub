@@ -14,6 +14,7 @@ import {
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
 import CustomerNotificationCenter from './sections/customer-notification-center'
 import CustomerPassesSection from './sections/customer-passes-section'
+import CustomerRecommendationsSection from './sections/customer-recommendations-section'
 import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 
@@ -313,6 +314,23 @@ export default function CustomerDashboardContent({
           )}
         </div>
       </section>
+
+      <div
+        id="recommended-deals"
+        className="scroll-mt-6"
+      >
+        <CustomerRecommendationsSection
+          enrichedOffers={
+            enrichedOffers
+          }
+          savedOfferIds={
+            savedOfferIds
+          }
+          redeemedOfferIds={
+            redeemedOfferIds
+          }
+        />
+      </div>
 
       <div
         id="my-pass"
