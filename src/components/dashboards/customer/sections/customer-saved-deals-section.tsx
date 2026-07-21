@@ -13,6 +13,11 @@ import {
   removeSavedOfferAction,
 } from '@/app/offers/actions'
 import {
+  getCustomerSavedDealCountLabel,
+  getCustomerSavedDealGuidance,
+  getCustomerUnusedSavedDealCountLabel,
+} from '../customer-saved-deal-guidance'
+import {
   formatCustomerSavedDealEndDate,
   formatCustomerSavedDealRedemptionDate,
   getCustomerSavedDealAddress,
@@ -156,15 +161,32 @@ export default function CustomerSavedDealsSection({
       (deal) => !deal.isRedeemed
     ).length
 
+  const savedDealCountLabel =
+    getCustomerSavedDealCountLabel(
+      savedDeals.length
+    )
+
+  const unusedSavedDealCountLabel =
+    getCustomerUnusedSavedDealCountLabel(
+      unusedSavedDealCount
+    )
+
+  const guidance =
+    getCustomerSavedDealGuidance({
+      savedDealCount:
+        savedDeals.length,
+      unusedSavedDealCount,
+    })
+
   return (
     <section
       aria-labelledby="customer-saved-deals-heading"
     >
       <div className="rounded-3xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-              Quick Access
+              My Pass
             </p>
 
             <h2
@@ -175,27 +197,49 @@ export default function CustomerSavedDealsSection({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Offers you&apos;ve saved for
-              quick access and redemption.
-              Unused deals appear first.
+              Your saved offers stay here
+              for quick access. Unused
+              deals appear first.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <span className="w-fit shrink-0 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-              {savedDeals.length}{' '}
-              {savedDeals.length === 1
-                ? 'saved deal'
-                : 'saved deals'}
+              {savedDealCountLabel}
             </span>
 
             {unusedSavedDealCount > 0 ? (
               <span className="w-fit shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-                {unusedSavedDealCount}{' '}
-                ready to use
+                {
+                  unusedSavedDealCountLabel
+                }
               </span>
             ) : null}
           </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-4 sm:p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+            {guidance.eyebrow}
+          </p>
+
+          <h3 className="mt-2 break-words text-lg font-bold leading-snug text-gray-900">
+            {guidance.title}
+          </h3>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+            {guidance.description}
+          </p>
+
+          {savedDeals.length === 0 ||
+          unusedSavedDealCount === 0 ? (
+            <Link
+              href="#available-offers"
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 sm:w-auto"
+            >
+              Browse Available Deals
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -245,7 +289,7 @@ export default function CustomerSavedDealsSection({
                 return (
                   <article
                     key={offer.id}
-                    className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+                    className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
                   >
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -374,33 +418,7 @@ export default function CustomerSavedDealsSection({
               }
             )}
           </div>
-        ) : (
-          <div className="rounded-3xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-5 shadow-lg sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-              Nothing Saved Yet
-            </p>
-
-            <h3 className="mt-2 break-words text-xl font-bold text-gray-900">
-              Keep your favorite local
-              deals within reach
-            </h3>
-
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              Browse the deals available
-              through your RaiseHub Pass
-              and save the ones you plan
-              to use. They will appear
-              here for quick access.
-            </p>
-
-            <Link
-              href="#available-offers"
-              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 sm:w-auto"
-            >
-              View Available Deals
-            </Link>
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   )
