@@ -36,6 +36,14 @@ export function getCustomerDealShortcutAriaLabel({
   )}`
 }
 
+export function getCustomerDealFilterMatchLabel(
+  count: number
+): string {
+  return count === 1
+    ? '1 matching deal'
+    : `${count} matching deals`
+}
+
 export function getCustomerDealShortcutStatus({
   isActive,
   isDisabled,
