@@ -88,6 +88,8 @@ function buildBusinessNotifications({
       description:
         'Add the business name, phone number, address, and logo so customers can recognize and trust this business.',
       tone: 'warning',
+      href: '#business-profile',
+      actionLabel: 'Complete profile',
     })
   }
 
@@ -98,6 +100,8 @@ function buildBusinessNotifications({
       description:
         'This business does not currently have an active offer. Create or reactivate an offer so supporters can begin sharing it.',
       tone: 'danger',
+      href: '#create-offer',
+      actionLabel: 'Create an offer',
     })
   }
 
@@ -111,6 +115,8 @@ function buildBusinessNotifications({
       description:
         'Review the expiration dates and extend any offers you want supporters and customers to keep using.',
       tone: 'warning',
+      href: '#business-offers',
+      actionLabel: 'Review offers',
     })
   }
 
@@ -124,6 +130,8 @@ function buildBusinessNotifications({
       description:
         'Paused offers are not available to customers. Review them and reactivate any offer that should be visible.',
       tone: 'info',
+      href: '#business-offers',
+      actionLabel: 'Review paused offers',
     })
   }
 
@@ -134,6 +142,8 @@ function buildBusinessNotifications({
       description:
         `This business is using all ${activeOfferLimit} active offer slots. Pause an existing offer or review upgrade options before publishing another.`,
       tone: 'info',
+      href: '#business-offers',
+      actionLabel: 'Manage active offers',
     })
   }
 
@@ -152,6 +162,8 @@ function buildBusinessNotifications({
             : 'redemptions have'
         } been recorded for this offer. Consider using its structure as a guide for future offers.`,
       tone: 'success',
+      href: '#business-performance',
+      actionLabel: 'View performance',
     })
   }
 
@@ -237,31 +249,36 @@ export default function BusinessDashboardContent({
 
   return (
     <div className="mt-8 space-y-10">
-      <BusinessProfileCard
-        businessLegacyProfileId={
-          businessLegacyProfileId
-        }
-        businessName={
-          profile?.business_name ?? ''
-        }
-        phone={profile?.phone ?? ''}
-        address={
-          profile?.address ?? ''
-        }
-        googleMapsUrl={
-          profile?.google_maps_url ??
-          ''
-        }
-        logoUrl={
-          profile?.logo_url ?? ''
-        }
-        websiteUrl={
-          profile?.website_url ?? ''
-        }
-        displayName={
-          profile?.display_name ?? ''
-        }
-      />
+      <section
+        id="business-profile"
+        className="scroll-mt-6"
+      >
+        <BusinessProfileCard
+          businessLegacyProfileId={
+            businessLegacyProfileId
+          }
+          businessName={
+            profile?.business_name ?? ''
+          }
+          phone={profile?.phone ?? ''}
+          address={
+            profile?.address ?? ''
+          }
+          googleMapsUrl={
+            profile?.google_maps_url ??
+            ''
+          }
+          logoUrl={
+            profile?.logo_url ?? ''
+          }
+          websiteUrl={
+            profile?.website_url ?? ''
+          }
+          displayName={
+            profile?.display_name ?? ''
+          }
+        />
+      </section>
 
       <AttentionCenter
         alerts={dashboardAlerts}
@@ -273,41 +290,51 @@ export default function BusinessDashboardContent({
         }
       />
 
-      <BusinessDashboardSnapshot
-        activeOffersCount={
-          activeOffersCount
-        }
-        activeOfferLimit={
-          activeOfferLimit
-        }
-        totalRedemptions={
-          totalRedemptions
-        }
-        topOfferTitle={
-          topOfferTitle
-        }
-        topOfferCount={
-          topOfferCount
-        }
-        publishedOffersCount={
-          offers.length
-        }
-      />
+      <section
+        id="business-performance"
+        className="scroll-mt-6"
+      >
+        <BusinessDashboardSnapshot
+          activeOffersCount={
+            activeOffersCount
+          }
+          activeOfferLimit={
+            activeOfferLimit
+          }
+          totalRedemptions={
+            totalRedemptions
+          }
+          topOfferTitle={
+            topOfferTitle
+          }
+          topOfferCount={
+            topOfferCount
+          }
+          publishedOffersCount={
+            offers.length
+          }
+        />
+      </section>
 
-      <BusinessDashboardCreateOffer
-        activeOffersCount={
-          activeOffersCount
-        }
-        activeOfferLimit={
-          activeOfferLimit
-        }
-        hasReachedLimit={
-          hasReachedLimit
-        }
-        onViewUpgrade={() =>
-          setIsUpgradeOpen(true)
-        }
-      />
+      <section
+        id="create-offer"
+        className="scroll-mt-6"
+      >
+        <BusinessDashboardCreateOffer
+          activeOffersCount={
+            activeOffersCount
+          }
+          activeOfferLimit={
+            activeOfferLimit
+          }
+          hasReachedLimit={
+            hasReachedLimit
+          }
+          onViewUpgrade={() =>
+            setIsUpgradeOpen(true)
+          }
+        />
+      </section>
 
       <BusinessDashboardQuickActions
         hasReachedLimit={
@@ -315,24 +342,29 @@ export default function BusinessDashboardContent({
         }
       />
 
-      <BusinessDashboardOffersSection
-        offers={offers}
-        hasReachedLimit={
-          hasReachedLimit
-        }
-        redemptionCountByOfferId={
-          redemptionCountByOfferId
-        }
-        redemptionsByOfferId={
-          redemptionsByOfferId
-        }
-        profileEmailById={
-          profileEmailById
-        }
-        onBoost={() =>
-          setIsUpgradeOpen(true)
-        }
-      />
+      <section
+        id="business-offers"
+        className="scroll-mt-6"
+      >
+        <BusinessDashboardOffersSection
+          offers={offers}
+          hasReachedLimit={
+            hasReachedLimit
+          }
+          redemptionCountByOfferId={
+            redemptionCountByOfferId
+          }
+          redemptionsByOfferId={
+            redemptionsByOfferId
+          }
+          profileEmailById={
+            profileEmailById
+          }
+          onBoost={() =>
+            setIsUpgradeOpen(true)
+          }
+        />
+      </section>
 
       <UpgradePlanModal
         isOpen={isUpgradeOpen}
