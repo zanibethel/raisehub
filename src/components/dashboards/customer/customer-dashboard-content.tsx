@@ -1,3 +1,16 @@
+'use client'
+
+import { useState } from 'react'
+
+import {
+  CUSTOMER_DEAL_FILTER_OPTIONS,
+  DEFAULT_CUSTOMER_DEAL_FILTER,
+  filterCustomerDeals,
+  getCustomerDealEmptyMessage,
+  getCustomerDealFilterCounts,
+  getCustomerDealFilterLabel,
+  type CustomerDealFilter,
+} from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
 import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
@@ -23,13 +36,18 @@ type AvailableDealsProps = React.ComponentProps<
 // =============================================================================
 
 type Props = {
-  purchasedPasses: PassesProps['purchasedPasses']
-  organizationById: PassesProps['organizationById']
+  purchasedPasses:
+    PassesProps['purchasedPasses']
+  organizationById:
+    PassesProps['organizationById']
 
-  enrichedOffers: AvailableDealsProps['enrichedOffers']
+  enrichedOffers:
+    AvailableDealsProps['enrichedOffers']
 
-  savedOfferIds: SavedDealsProps['savedOfferIds']
-  redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
+  savedOfferIds:
+    SavedDealsProps['savedOfferIds']
+  redeemedOfferIds:
+    SavedDealsProps['redeemedOfferIds']
   redemptionDateByOfferId:
     SavedDealsProps['redemptionDateByOfferId']
 
@@ -38,36 +56,86 @@ type Props = {
 }
 
 // =============================================================================
-// Deal discovery helpers
+// Display helpers
 // =============================================================================
 
-const EXPIRING_SOON_DAYS = 14
+function getFilterCardClasses({
+  filter,
+  isActive,
+}: {
+  filter: CustomerDealFilter
+  isActive: boolean
+}): string {
+  const activeClasses =
+    isActive
+      ? 'ring-2 ring-offset-2 shadow-md -translate-y-0.5'
+      : 'hover:-translate-y-0.5 hover:shadow-md'
 
-function isExpiringSoon(
-  endsAt: string | null | undefined,
-  now: Date
-): boolean {
-  if (!endsAt) {
-    return false
+  switch (filter) {
+    case 'nearby':
+      return `border-green-100 bg-green-50 hover:border-green-200 ${
+        isActive
+          ? 'ring-green-500'
+          : ''
+      } ${activeClasses}`
+
+    case 'saved':
+      return `border-yellow-100 bg-yellow-50 hover:border-yellow-200 ${
+        isActive
+          ? 'ring-yellow-500'
+          : ''
+      } ${activeClasses}`
+
+    case 'expiring':
+      return `border-orange-100 bg-orange-50 hover:border-orange-200 ${
+        isActive
+          ? 'ring-orange-500'
+          : ''
+      } ${activeClasses}`
+
+    case 'all':
+      return `border-blue-100 bg-blue-50 hover:border-blue-200 ${
+        isActive
+          ? 'ring-blue-500'
+          : ''
+      } ${activeClasses}`
   }
+}
 
-  const expirationDate = new Date(endsAt)
+function getFilterCountClasses(
+  filter: CustomerDealFilter
+): string {
+  switch (filter) {
+    case 'nearby':
+      return 'text-green-700'
 
-  if (Number.isNaN(expirationDate.getTime())) {
-    return false
+    case 'saved':
+      return 'text-yellow-700'
+
+    case 'expiring':
+      return 'text-orange-700'
+
+    case 'all':
+      return 'text-blue-700'
   }
+}
 
-  const expirationWindow = new Date(now)
+function getFilterHeadingClasses(
+  filter: CustomerDealFilter
+): string {
+  switch (filter) {
+    case 'nearby':
+      return 'group-hover:text-green-700'
 
-  expirationWindow.setDate(
-    expirationWindow.getDate() +
-      EXPIRING_SOON_DAYS
-  )
+    case 'saved':
+      return 'group-hover:text-yellow-700'
 
-  return (
-    expirationDate >= now &&
-    expirationDate <= expirationWindow
-  )
+    case 'expiring':
+      return 'group-hover:text-orange-700'
+
+    case 'all':
+      return 'group-hover:text-blue-700'
+  }
 }
 
 // =============================================================================
@@ -83,20 +151,52 @@ export default function CustomerDashboardContent({
   redemptionDateByOfferId,
   hasPurchasedPass,
 }: Props) {
-  const now = new Date()
+  const [
+    activeDealFilter,
+    setActiveDealFilter,
+  ] = useState<CustomerDealFilter>(
+    DEFAULT_CUSTOMER_DEAL_FILTER
+  )
 
-  const savedOffersCount =
-    enrichedOffers.filter((offer) =>
-      savedOfferIds.has(offer.id)
-    ).length
+  const filterCounts =
+    getCustomerDealFilterCounts({
+      offers: enrichedOffers,
+      savedOfferIds,
+    })
 
-  const expiringSoonCount =
-    enrichedOffers.filter((offer) =>
-      isExpiringSoon(offer.ends_at, now)
-    ).length
+  const filteredOffers =
+    filterCustomerDeals({
+      offers: enrichedOffers,
+      filter: activeDealFilter,
+      savedOfferIds,
+    })
 
-  const availableOffersCount =
-    enrichedOffers.length
+  const activeFilterLabel =
+    getCustomerDealFilterLabel(
+      activeDealFilter
+    )
+
+  const emptyFilterMessage =
+    getCustomerDealEmptyMessage(
+      activeDealFilter
+    )
+
+  function selectDealFilter(
+    filter: CustomerDealFilter
+  ) {
+    setActiveDealFilter(filter)
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(
+          'available-offers'
+        )
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+    })
+  }
 
   return (
     <div className="mt-8 space-y-8">
@@ -117,134 +217,78 @@ export default function CustomerDashboardContent({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            Choose a shortcut to open the deal
-            list with the right view already
-            selected.
+            Choose a filter to update the
+            available deal list below.
           </p>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <a
-            href="#offers-all"
-            className="group rounded-2xl border border-green-100 bg-green-50 p-5 transition hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span
-                aria-hidden="true"
-                className="text-2xl"
-              >
-                📍
-              </span>
+          {CUSTOMER_DEAL_FILTER_OPTIONS.map(
+            (option) => {
+              const isActive =
+                activeDealFilter ===
+                option.id
 
-              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-green-700">
-                Location next
-              </span>
-            </div>
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() =>
+                    selectDealFilter(
+                      option.id
+                    )
+                  }
+                  className={`group rounded-2xl border p-5 text-left transition ${getFilterCardClasses(
+                    {
+                      filter:
+                        option.id,
+                      isActive,
+                    }
+                  )}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="text-2xl"
+                    >
+                      {option.icon}
+                    </span>
 
-            <h3 className="mt-4 font-semibold text-gray-900 group-hover:text-green-700">
-              Nearby Offers
-            </h3>
+                    <span
+                      className={`rounded-full bg-white px-2 py-1 text-xs font-semibold ${getFilterCountClasses(
+                        option.id
+                      )}`}
+                    >
+                      {
+                        filterCounts[
+                          option.id
+                        ]
+                      }
+                    </span>
+                  </div>
 
-            <p className="mt-1 text-sm text-gray-600">
-              Open the local offer list now.
-              Distance sorting will follow location
-              support.
-            </p>
-          </a>
+                  <h3
+                    className={`mt-4 font-semibold text-gray-900 ${getFilterHeadingClasses(
+                      option.id
+                    )}`}
+                  >
+                    {option.label}
+                  </h3>
 
-          <a
-            href="#offers-saved"
-            className="group rounded-2xl border border-yellow-100 bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span
-                aria-hidden="true"
-                className="text-2xl"
-              >
-                🎟️
-              </span>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {option.description}
+                  </p>
 
-              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-yellow-700">
-                {savedOffersCount}
-              </span>
-            </div>
-
-            <h3 className="mt-4 font-semibold text-gray-900 group-hover:text-yellow-700">
-              My Pass
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-600">
-              {savedOffersCount > 0
-                ? `Show ${savedOffersCount} saved ${
-                    savedOffersCount === 1
-                      ? 'deal'
-                      : 'deals'
-                  } in the deal browser.`
-                : 'Save favorite deals for quick access here.'}
-            </p>
-          </a>
-
-          <a
-            href="#offers-expiring"
-            className="group rounded-2xl border border-orange-100 bg-orange-50 p-5 transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span
-                aria-hidden="true"
-                className="text-2xl"
-              >
-                ⏳
-              </span>
-
-              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-orange-700">
-                {expiringSoonCount}
-              </span>
-            </div>
-
-            <h3 className="mt-4 font-semibold text-gray-900 group-hover:text-orange-700">
-              Expiring Soon
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-600">
-              {expiringSoonCount > 0
-                ? `Show ${expiringSoonCount} ${
-                    expiringSoonCount === 1
-                      ? 'deal ending'
-                      : 'deals ending'
-                  } within ${EXPIRING_SOON_DAYS} days.`
-                : `No deals end within the next ${EXPIRING_SOON_DAYS} days.`}
-            </p>
-          </a>
-
-          <a
-            href="#offers-all"
-            className="group rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span
-                aria-hidden="true"
-                className="text-2xl"
-              >
-                🏷️
-              </span>
-
-              <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-blue-700">
-                {availableOffersCount}
-              </span>
-            </div>
-
-            <h3 className="mt-4 font-semibold text-gray-900 group-hover:text-blue-700">
-              Available Offers
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-600">
-              Browse all {availableOffersCount}{' '}
-              active local{' '}
-              {availableOffersCount === 1
-                ? 'offer'
-                : 'offers'}.
-            </p>
-          </a>
+                  {isActive ? (
+                    <p className="mt-3 text-xs font-semibold text-gray-700">
+                      Showing now
+                    </p>
+                  ) : null}
+                </button>
+              )
+            }
+          )}
         </div>
       </section>
 
@@ -253,9 +297,15 @@ export default function CustomerDashboardContent({
         className="scroll-mt-6"
       >
         <CustomerSavedDealsSection
-          enrichedOffers={enrichedOffers}
-          savedOfferIds={savedOfferIds}
-          redeemedOfferIds={redeemedOfferIds}
+          enrichedOffers={
+            enrichedOffers
+          }
+          savedOfferIds={
+            savedOfferIds
+          }
+          redeemedOfferIds={
+            redeemedOfferIds
+          }
           redemptionDateByOfferId={
             redemptionDateByOfferId
           }
@@ -266,29 +316,69 @@ export default function CustomerDashboardContent({
         id="available-offers"
         className="scroll-mt-6"
       >
-        <span
-          id="offers-all"
-          className="block scroll-mt-6"
-          aria-hidden="true"
-        />
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+              Current Filter
+            </p>
 
-        <span
-          id="offers-saved"
-          className="block scroll-mt-6"
-          aria-hidden="true"
-        />
+            <p className="mt-1 font-semibold text-gray-900">
+              {activeFilterLabel}
+            </p>
+          </div>
 
-        <span
-          id="offers-expiring"
-          className="block scroll-mt-6"
-          aria-hidden="true"
-        />
+          <p className="text-sm text-gray-600">
+            {filteredOffers.length}{' '}
+            {filteredOffers.length === 1
+              ? 'deal matches'
+              : 'deals match'}
+          </p>
+        </div>
 
-        <CustomerAvailableDealsSection
-          hasPurchasedPass={hasPurchasedPass}
-          enrichedOffers={enrichedOffers}
-          savedOfferIds={savedOfferIds}
-        />
+        {filteredOffers.length > 0 ? (
+          <CustomerAvailableDealsSection
+            hasPurchasedPass={
+              hasPurchasedPass
+            }
+            enrichedOffers={
+              filteredOffers
+            }
+            savedOfferIds={
+              savedOfferIds
+            }
+          />
+        ) : (
+          <section className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-6 shadow-lg sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+              No Matching Deals
+            </p>
+
+            <h2 className="mt-2 text-xl font-bold text-gray-900">
+              {
+                emptyFilterMessage.title
+              }
+            </h2>
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+              {
+                emptyFilterMessage.description
+              }
+            </p>
+
+            {activeDealFilter !==
+            'all' ? (
+              <button
+                type="button"
+                onClick={() =>
+                  selectDealFilter('all')
+                }
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
+              >
+                Show All Available Offers
+              </button>
+            ) : null}
+          </section>
+        )}
       </div>
 
       <div
@@ -296,8 +386,12 @@ export default function CustomerDashboardContent({
         className="scroll-mt-6"
       >
         <CustomerPassesSection
-          purchasedPasses={purchasedPasses}
-          organizationById={organizationById}
+          purchasedPasses={
+            purchasedPasses
+          }
+          organizationById={
+            organizationById
+          }
         />
       </div>
     </div>
