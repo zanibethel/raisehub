@@ -11,12 +11,16 @@ import { getOfferStatus } from '@/lib/rules/offer-status'
 import BusinessDashboardCreateOffer from './business-dashboard-create-offer'
 import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
+import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
 
 import type {
   BusinessOffer,
   OfferRedemption,
 } from '@/app/components/business-offer-card'
+import type {
+  BusinessNotification,
+} from './business-notification-center'
 
 // =============================================================================
 // Types
@@ -48,6 +52,110 @@ type BusinessDashboardContentProps = {
     OfferRedemption[]
   >
   profileEmailById: Record<string, string>
+}
+
+// =============================================================================
+// Notification helpers
+// =============================================================================
+
+function buildBusinessNotifications({
+  profileComplete,
+  activeOffersCount,
+  pausedOffersCount,
+  expiringSoonCount,
+  hasReachedLimit,
+  activeOfferLimit,
+  totalRedemptions,
+  topOfferTitle,
+  topOfferCount,
+}: {
+  profileComplete: boolean
+  activeOffersCount: number
+  pausedOffersCount: number
+  expiringSoonCount: number
+  hasReachedLimit: boolean
+  activeOfferLimit: number
+  totalRedemptions: number
+  topOfferTitle: string
+  topOfferCount: number
+}): BusinessNotification[] {
+  const notifications: BusinessNotification[] = []
+
+  if (!profileComplete) {
+    notifications.push({
+      id: 'complete-business-profile',
+      title: 'Complete your business profile',
+      description:
+        'Add the business name, phone number, address, and logo so customers can recognize and trust this business.',
+      tone: 'warning',
+    })
+  }
+
+  if (activeOffersCount === 0) {
+    notifications.push({
+      id: 'publish-first-offer',
+      title: 'Publish an active offer',
+      description:
+        'This business does not currently have an active offer. Create or reactivate an offer so supporters can begin sharing it.',
+      tone: 'danger',
+    })
+  }
+
+  if (expiringSoonCount > 0) {
+    notifications.push({
+      id: 'offers-expiring-soon',
+      title:
+        expiringSoonCount === 1
+          ? 'One offer is expiring soon'
+          : `${expiringSoonCount} offers are expiring soon`,
+      description:
+        'Review the expiration dates and extend any offers you want supporters and customers to keep using.',
+      tone: 'warning',
+    })
+  }
+
+  if (pausedOffersCount > 0) {
+    notifications.push({
+      id: 'paused-offers',
+      title:
+        pausedOffersCount === 1
+          ? 'One offer is paused'
+          : `${pausedOffersCount} offers are paused`,
+      description:
+        'Paused offers are not available to customers. Review them and reactivate any offer that should be visible.',
+      tone: 'info',
+    })
+  }
+
+  if (hasReachedLimit) {
+    notifications.push({
+      id: 'active-offer-limit',
+      title: 'Active offer limit reached',
+      description:
+        `This business is using all ${activeOfferLimit} active offer slots. Pause an existing offer or review upgrade options before publishing another.`,
+      tone: 'info',
+    })
+  }
+
+  if (
+    totalRedemptions > 0 &&
+    topOfferTitle &&
+    topOfferCount > 0
+  ) {
+    notifications.push({
+      id: 'top-performing-offer',
+      title: `${topOfferTitle} is leading redemptions`,
+      description:
+        `${topOfferCount} ${
+          topOfferCount === 1
+            ? 'redemption has'
+            : 'redemptions have'
+        } been recorded for this offer. Consider using its structure as a guide for future offers.`,
+      tone: 'success',
+    })
+  }
+
+  return notifications
 }
 
 // =============================================================================
@@ -114,6 +222,19 @@ export default function BusinessDashboardContent({
       profileComplete,
     })
 
+  const businessNotifications =
+    buildBusinessNotifications({
+      profileComplete,
+      activeOffersCount,
+      pausedOffersCount,
+      expiringSoonCount,
+      hasReachedLimit,
+      activeOfferLimit,
+      totalRedemptions,
+      topOfferTitle,
+      topOfferCount,
+    })
+
   return (
     <div className="mt-8 space-y-10">
       <BusinessProfileCard
@@ -144,6 +265,12 @@ export default function BusinessDashboardContent({
 
       <AttentionCenter
         alerts={dashboardAlerts}
+      />
+
+      <BusinessNotificationCenter
+        notifications={
+          businessNotifications
+        }
       />
 
       <BusinessDashboardSnapshot
