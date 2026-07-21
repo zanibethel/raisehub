@@ -13,6 +13,7 @@ import {
 } from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
 import CustomerPassesSection from './sections/customer-passes-section'
+import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 
 // =============================================================================
@@ -379,6 +380,20 @@ export default function CustomerDashboardContent({
             ) : null}
           </section>
         )}
+      </div>
+
+      <div
+        id="redemption-history"
+        className="scroll-mt-6"
+      >
+        <CustomerRedemptionHistorySection
+          enrichedOffers={
+            enrichedOffers
+          }
+          redemptionDateByOfferId={
+            redemptionDateByOfferId
+          }
+        />
       </div>
 
       <div
