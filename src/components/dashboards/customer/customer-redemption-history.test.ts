@@ -432,7 +432,7 @@ test(
   () => {
     const offer = createOffer({
       id: 'offer-1',
-      google_maps_url: null,
+      google_maps_url: undefined,
       address:
         '  123 Main Street, Lubbock, TX  ',
     })
