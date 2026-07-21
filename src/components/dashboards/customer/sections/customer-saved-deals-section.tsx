@@ -12,6 +12,19 @@ import UseOfferButton from '@/app/components/use-offer-button'
 import {
   removeSavedOfferAction,
 } from '@/app/offers/actions'
+import {
+  formatCustomerSavedDealEndDate,
+  formatCustomerSavedDealRedemptionDate,
+  getCustomerSavedDealAddress,
+  getCustomerSavedDealBenefitLabel,
+  getCustomerSavedDealBusinessName,
+  getCustomerSavedDealDescription,
+  getCustomerSavedDealMapUrl,
+  getCustomerSavedDealPhone,
+  getCustomerSavedDeals,
+  getCustomerSavedDealTitle,
+} from '../customer-saved-deals'
+
 import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
@@ -34,70 +47,6 @@ type Props = {
 type RemoveSavedOfferButtonProps = {
   offerId: string
   offerTitle: string
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function formatRedemptionDate(
-  value: string | undefined
-): string {
-  if (!value) {
-    return 'Date unavailable'
-  }
-
-  const date = new Date(value)
-
-  if (
-    Number.isNaN(date.getTime())
-  ) {
-    return 'Date unavailable'
-  }
-
-  return date.toLocaleString(
-    undefined,
-    {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }
-  )
-}
-
-function formatOfferEndDate(
-  value: string | null | undefined
-): string {
-  if (!value) {
-    return 'No listed end date'
-  }
-
-  const date = new Date(value)
-
-  if (
-    Number.isNaN(date.getTime())
-  ) {
-    return 'Date unavailable'
-  }
-
-  return date.toLocaleDateString(
-    undefined,
-    {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }
-  )
-}
-
-function normalizeExternalUrl(
-  value: string
-): string {
-  return value.startsWith('http')
-    ? value
-    : `https://${value}`
 }
 
 // =============================================================================
@@ -195,10 +144,17 @@ export default function CustomerSavedDealsSection({
   redeemedOfferIds,
   redemptionDateByOfferId,
 }: Props) {
-  const savedOffers =
-    enrichedOffers.filter((offer) =>
-      savedOfferIds.has(offer.id)
-    )
+  const savedDeals =
+    getCustomerSavedDeals({
+      offers: enrichedOffers,
+      savedOfferIds,
+      redeemedOfferIds,
+    })
+
+  const unusedSavedDealCount =
+    savedDeals.filter(
+      (deal) => !deal.isRedeemed
+    ).length
 
   return (
     <section
@@ -221,34 +177,69 @@ export default function CustomerSavedDealsSection({
             <p className="mt-2 text-sm leading-6 text-gray-600">
               Offers you&apos;ve saved for
               quick access and redemption.
+              Unused deals appear first.
             </p>
           </div>
 
-          <span className="w-fit shrink-0 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-            {savedOffers.length}{' '}
-            {savedOffers.length === 1
-              ? 'saved deal'
-              : 'saved deals'}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            <span className="w-fit shrink-0 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+              {savedDeals.length}{' '}
+              {savedDeals.length === 1
+                ? 'saved deal'
+                : 'saved deals'}
+            </span>
+
+            {unusedSavedDealCount > 0 ? (
+              <span className="w-fit shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+                {unusedSavedDealCount}{' '}
+                ready to use
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="mt-5 sm:mt-6">
-        {savedOffers.length > 0 ? (
+        {savedDeals.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {savedOffers.map(
-              (offer) => {
+            {savedDeals.map(
+              ({
+                offer,
+                isRedeemed,
+              }) => {
                 const offerTitle =
-                  offer.title ||
-                  'Local offer'
+                  getCustomerSavedDealTitle(
+                    offer
+                  )
 
                 const businessName =
-                  offer.business_name ||
-                  'Local Business'
+                  getCustomerSavedDealBusinessName(
+                    offer
+                  )
 
-                const isRedeemed =
-                  redeemedOfferIds.has(
-                    offer.id
+                const benefitLabel =
+                  getCustomerSavedDealBenefitLabel(
+                    offer
+                  )
+
+                const description =
+                  getCustomerSavedDealDescription(
+                    offer
+                  )
+
+                const phone =
+                  getCustomerSavedDealPhone(
+                    offer
+                  )
+
+                const address =
+                  getCustomerSavedDealAddress(
+                    offer
+                  )
+
+                const mapUrl =
+                  getCustomerSavedDealMapUrl(
+                    offer
                   )
 
                 return (
@@ -267,23 +258,29 @@ export default function CustomerSavedDealsSection({
                         </h3>
                       </div>
 
-                      <span className="shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-                        Saved
+                      <span
+                        className={
+                          isRedeemed
+                            ? 'shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
+                            : 'shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
+                        }
+                      >
+                        {isRedeemed
+                          ? 'Used'
+                          : 'Saved'}
                       </span>
                     </div>
 
                     <p className="mt-3 break-words font-semibold text-green-700">
-                      {offer.discount ||
-                        'Member benefit available'}
+                      {benefitLabel}
                     </p>
 
                     <p className="mt-2 break-words text-sm leading-6 text-gray-600">
-                      {offer.description ||
-                        'Offer details are available through your RaiseHub Pass.'}
+                      {description}
                     </p>
 
                     <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
-                      {offer.phone ? (
+                      {phone ? (
                         <div>
                           <dt className="font-semibold text-gray-900">
                             Phone
@@ -291,23 +288,23 @@ export default function CustomerSavedDealsSection({
 
                           <dd className="mt-1">
                             <a
-                              href={`tel:${offer.phone}`}
+                              href={`tel:${phone}`}
                               className="break-words font-medium text-blue-700 underline underline-offset-4"
                             >
-                              {offer.phone}
+                              {phone}
                             </a>
                           </dd>
                         </div>
                       ) : null}
 
-                      {offer.address ? (
+                      {address ? (
                         <div>
                           <dt className="font-semibold text-gray-900">
                             Location
                           </dt>
 
                           <dd className="mt-1 break-words leading-6 text-gray-600">
-                            {offer.address}
+                            {address}
                           </dd>
                         </div>
                       ) : null}
@@ -318,18 +315,16 @@ export default function CustomerSavedDealsSection({
                         </dt>
 
                         <dd className="mt-1 text-gray-600">
-                          {formatOfferEndDate(
+                          {formatCustomerSavedDealEndDate(
                             offer.ends_at
                           )}
                         </dd>
                       </div>
                     </dl>
 
-                    {offer.google_maps_url ? (
+                    {mapUrl ? (
                       <a
-                        href={normalizeExternalUrl(
-                          offer.google_maps_url
-                        )}
+                        href={mapUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
@@ -349,12 +344,12 @@ export default function CustomerSavedDealsSection({
                       {isRedeemed ? (
                         <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
                           <p className="text-sm font-semibold text-gray-700">
-                            ✅ Used
+                            Used
                           </p>
 
                           <p className="mt-1 break-words text-xs leading-5 text-gray-500">
                             Used on{' '}
-                            {formatRedemptionDate(
+                            {formatCustomerSavedDealRedemptionDate(
                               redemptionDateByOfferId.get(
                                 offer.id
                               )
