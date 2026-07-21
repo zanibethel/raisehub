@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import {
+  getCustomerDealFilterMatchLabel,
   getCustomerDealShortcutAriaLabel,
   getCustomerDealShortcutCardClasses,
   getCustomerDealShortcutCountClasses,
@@ -104,6 +105,11 @@ export default function CustomerDashboardContent({
   const activeFilterLabel =
     getCustomerDealFilterLabel(
       activeDealFilter
+    )
+
+  const filteredOfferMatchLabel =
+    getCustomerDealFilterMatchLabel(
+      filteredOffers.length
     )
 
   const emptyFilterMessage =
@@ -357,10 +363,7 @@ export default function CustomerDashboardContent({
           </div>
 
           <p className="shrink-0 text-sm text-gray-600">
-            {filteredOffers.length}{' '}
-            {filteredOffers.length === 1
-              ? 'deal matches'
-              : 'deals match'}
+            {filteredOfferMatchLabel}
           </p>
         </div>
 
