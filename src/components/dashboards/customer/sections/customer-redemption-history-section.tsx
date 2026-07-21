@@ -1,5 +1,15 @@
 import Link from 'next/link'
 
+import {
+  formatCustomerRedemptionDate,
+  formatCustomerRedemptionTime,
+  getCustomerRedemptionBenefitLabel,
+  getCustomerRedemptionBusinessName,
+  getCustomerRedemptionHistory,
+  getCustomerRedemptionMapUrl,
+  getCustomerRedemptionOfferTitle,
+} from '../customer-redemption-history'
+
 import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
@@ -17,111 +27,6 @@ type Props = {
   >
 }
 
-type RedemptionHistoryItem = {
-  offer: CustomerDashboardOffer
-  redeemedAt: string
-}
-
-// =============================================================================
-// Date helpers
-// =============================================================================
-
-function getDateTimestamp(
-  value: string
-): number {
-  const timestamp =
-    new Date(value).getTime()
-
-  return Number.isNaN(timestamp)
-    ? 0
-    : timestamp
-}
-
-function formatRedemptionDate(
-  value: string
-): string {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Date unavailable'
-  }
-
-  return date.toLocaleDateString(
-    undefined,
-    {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }
-  )
-}
-
-function formatRedemptionTime(
-  value: string
-): string {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  return date.toLocaleTimeString(
-    undefined,
-    {
-      hour: 'numeric',
-      minute: '2-digit',
-    }
-  )
-}
-
-function normalizeExternalUrl(
-  value: string
-): string {
-  return value.startsWith('http')
-    ? value
-    : `https://${value}`
-}
-
-// =============================================================================
-// History helpers
-// =============================================================================
-
-function getRedemptionHistory({
-  enrichedOffers,
-  redemptionDateByOfferId,
-}: Props): RedemptionHistoryItem[] {
-  return enrichedOffers
-    .flatMap((offer) => {
-      const redeemedAt =
-        redemptionDateByOfferId.get(
-          offer.id
-        )
-
-      if (!redeemedAt) {
-        return []
-      }
-
-      return [
-        {
-          offer,
-          redeemedAt,
-        },
-      ]
-    })
-    .sort(
-      (
-        firstRedemption,
-        secondRedemption
-      ) =>
-        getDateTimestamp(
-          secondRedemption.redeemedAt
-        ) -
-        getDateTimestamp(
-          firstRedemption.redeemedAt
-        )
-    )
-}
-
 // =============================================================================
 // Component
 // =============================================================================
@@ -131,8 +36,8 @@ export default function CustomerRedemptionHistorySection({
   redemptionDateByOfferId,
 }: Props) {
   const redemptionHistory =
-    getRedemptionHistory({
-      enrichedOffers,
+    getCustomerRedemptionHistory({
+      offers: enrichedOffers,
       redemptionDateByOfferId,
     })
 
@@ -179,16 +84,28 @@ export default function CustomerRedemptionHistorySection({
                 redeemedAt,
               }) => {
                 const businessName =
-                  offer.business_name ||
-                  'Local Business'
+                  getCustomerRedemptionBusinessName(
+                    offer
+                  )
 
                 const offerTitle =
-                  offer.title ||
-                  'Local offer'
+                  getCustomerRedemptionOfferTitle(
+                    offer
+                  )
+
+                const benefitLabel =
+                  getCustomerRedemptionBenefitLabel(
+                    offer
+                  )
 
                 const redemptionTime =
-                  formatRedemptionTime(
+                  formatCustomerRedemptionTime(
                     redeemedAt
+                  )
+
+                const mapUrl =
+                  getCustomerRedemptionMapUrl(
+                    offer
                   )
 
                 return (
@@ -213,8 +130,7 @@ export default function CustomerRedemptionHistorySection({
                         </h3>
 
                         <p className="mt-2 break-words font-semibold leading-6 text-green-700">
-                          {offer.discount ||
-                            'RaiseHub member benefit'}
+                          {benefitLabel}
                         </p>
 
                         {offer.description ? (
@@ -232,7 +148,7 @@ export default function CustomerRedemptionHistorySection({
                         </p>
 
                         <p className="mt-1 font-semibold text-gray-900">
-                          {formatRedemptionDate(
+                          {formatCustomerRedemptionDate(
                             redeemedAt
                           )}
                         </p>
@@ -265,11 +181,9 @@ export default function CustomerRedemptionHistorySection({
                         View Deal Details
                       </Link>
 
-                      {offer.google_maps_url ? (
+                      {mapUrl ? (
                         <a
-                          href={normalizeExternalUrl(
-                            offer.google_maps_url
-                          )}
+                          href={mapUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-purple-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-purple-800"
