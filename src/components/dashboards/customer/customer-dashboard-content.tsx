@@ -12,6 +12,7 @@ import {
   type CustomerDealFilter,
 } from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
+import CustomerNotificationCenter from './sections/customer-notification-center'
 import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
@@ -201,6 +202,26 @@ export default function CustomerDashboardContent({
 
   return (
     <div className="mt-8 space-y-8">
+      <div
+        id="customer-updates"
+        className="scroll-mt-6"
+      >
+        <CustomerNotificationCenter
+          hasActivePass={
+            hasPurchasedPass
+          }
+          enrichedOffers={
+            enrichedOffers
+          }
+          savedOfferIds={
+            savedOfferIds
+          }
+          redeemedOfferIds={
+            redeemedOfferIds
+          }
+        />
+      </div>
+
       <section
         aria-labelledby="customer-deal-shortcuts-heading"
         className="rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
