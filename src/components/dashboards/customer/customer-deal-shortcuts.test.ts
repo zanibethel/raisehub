@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  getCustomerDealFilterMatchLabel,
   getCustomerDealShortcutAriaLabel,
   getCustomerDealShortcutCardClasses,
   getCustomerDealShortcutCountClasses,
@@ -78,6 +79,41 @@ test(
         count: 4,
       }),
       'Nearby: 4 deals'
+    )
+  }
+)
+
+// =============================================================================
+// Filter match labels
+// =============================================================================
+
+test(
+  'uses singular matching-deal wording',
+  () => {
+    assert.equal(
+      getCustomerDealFilterMatchLabel(
+        1
+      ),
+      '1 matching deal'
+    )
+  }
+)
+
+test(
+  'uses plural matching-deal wording',
+  () => {
+    assert.equal(
+      getCustomerDealFilterMatchLabel(
+        0
+      ),
+      '0 matching deals'
+    )
+
+    assert.equal(
+      getCustomerDealFilterMatchLabel(
+        8
+      ),
+      '8 matching deals'
     )
   }
 )
