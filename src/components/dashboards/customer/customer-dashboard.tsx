@@ -1,9 +1,8 @@
-import Link from 'next/link'
-
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
 import CustomerDashboardContent from './customer-dashboard-content'
+import CustomerDigitalPass from './customer-digital-pass'
 
 import type {
   CustomerDashboardOffer,
@@ -51,23 +50,6 @@ type CanonicalBusinessLocation = {
   google_primary_category: string | null
   google_rating: number | null
   google_review_count: number | null
-}
-
-// =============================================================================
-// Display helpers
-// =============================================================================
-
-function formatEntitlementType(
-  value: string
-): string {
-  return value
-    .split('_')
-    .map(
-      (word) =>
-        word.charAt(0).toUpperCase() +
-        word.slice(1)
-    )
-    .join(' ')
 }
 
 // =============================================================================
@@ -412,99 +394,20 @@ export default async function CustomerDashboard({
 
   return (
     <>
-      <section className="mt-8 rounded-3xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-6 shadow-xl sm:p-8">
-        {activeEntitlement ? (
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                Active RaiseHub Pass
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-gray-900">
-                Your local deals are
-                unlocked
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-600">
-                Access type:{' '}
-                <span className="font-semibold text-gray-800">
-                  {formatEntitlementType(
-                    activeEntitlement.entitlement_type
-                  )}
-                </span>
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-                <p>
-                  Started:{' '}
-                  <span className="font-medium text-gray-800">
-                    {new Date(
-                      activeEntitlement.starts_at
-                    ).toLocaleDateString()}
-                  </span>
-                </p>
-
-                <p>
-                  Expires:{' '}
-                  <span className="font-medium text-gray-800">
-                    {activeEntitlement.expires_at
-                      ? new Date(
-                          activeEntitlement.expires_at
-                        ).toLocaleDateString()
-                      : 'No expiration date'}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 flex-col gap-3">
-              <Link
-                href="/offers"
-                className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700"
-              >
-                Browse Local Deals
-              </Link>
-
-              <Link
-                href="/campaigns"
-                className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                Support Another
-                Fundraiser
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
-                No Active RaiseHub Pass
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-gray-900">
-                Choose a fundraiser to
-                unlock local deals
-              </h2>
-
-              <p className="mt-2 max-w-2xl text-sm text-gray-600">
-                Your previous support
-                history remains below,
-                but an active pass is
-                required to view full
-                offer details and add
-                deals to My Pass.
-              </p>
-            </div>
-
-            <Link
-              href="/campaigns"
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-white hover:bg-yellow-600"
-            >
-              Choose a Fundraiser
-            </Link>
-          </div>
-        )}
-      </section>
+      <div className="mt-8">
+        <CustomerDigitalPass
+          hasActivePass={hasPurchasedPass}
+          entitlementType={
+            activeEntitlement?.entitlement_type
+          }
+          startsAt={
+            activeEntitlement?.starts_at
+          }
+          expiresAt={
+            activeEntitlement?.expires_at
+          }
+        />
+      </div>
 
       <CustomerDashboardContent
         purchasedPasses={
