@@ -11,6 +11,7 @@ import { getOfferStatus } from '@/lib/rules/offer-status'
 import BusinessDashboardCreateOffer from './business-dashboard-create-offer'
 import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
+import BusinessExportTools from './business-export-tools'
 import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
 
@@ -18,6 +19,9 @@ import type {
   BusinessOffer,
   OfferRedemption,
 } from '@/app/components/business-offer-card'
+import type {
+  BusinessExportRow,
+} from './business-export-tools'
 import type {
   BusinessNotification,
 } from './business-notification-center'
@@ -171,6 +175,66 @@ function buildBusinessNotifications({
 }
 
 // =============================================================================
+// Export helpers
+// =============================================================================
+
+function formatExportDate(value: string): string {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function buildBusinessExportRows({
+  offers,
+  redemptionsByOfferId,
+  profileEmailById,
+}: {
+  offers: BusinessOffer[]
+  redemptionsByOfferId: Record<
+    string,
+    OfferRedemption[]
+  >
+  profileEmailById: Record<string, string>
+}): BusinessExportRow[] {
+  return offers.flatMap((offer) => {
+    const offerStatus = getOfferStatus({
+      startsAt: offer.starts_at,
+      endsAt: offer.ends_at,
+      isActive: offer.is_active,
+    })
+
+    const offerRedemptions =
+      redemptionsByOfferId[offer.id] ?? []
+
+    return offerRedemptions.map(
+      (redemption) => ({
+        offerTitle:
+          offer.title?.trim() ||
+          'Untitled offer',
+        offerStatus: offerStatus.label,
+        customerEmail:
+          profileEmailById[
+            redemption.user_id
+          ] || 'Email unavailable',
+        redeemedAt: formatExportDate(
+          redemption.created_at
+        ),
+      })
+    )
+  })
+}
+
+// =============================================================================
 // Component
 // =============================================================================
 
@@ -247,6 +311,13 @@ export default function BusinessDashboardContent({
       topOfferCount,
     })
 
+  const businessExportRows =
+    buildBusinessExportRows({
+      offers,
+      redemptionsByOfferId,
+      profileEmailById,
+    })
+
   return (
     <div className="mt-8 space-y-10">
       <section
@@ -312,6 +383,18 @@ export default function BusinessDashboardContent({
           }
           publishedOffersCount={
             offers.length
+          }
+        />
+      </section>
+
+      <section
+        id="business-exports"
+        className="scroll-mt-6"
+      >
+        <BusinessExportTools
+          rows={businessExportRows}
+          businessName={
+            profile?.business_name
           }
         />
       </section>
