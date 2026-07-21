@@ -125,6 +125,20 @@ function buildCustomerNotifications({
         )
     )
 
+  const expiringOfferIds = new Set(
+    expiringSavedOffers.map(
+      (offer) => offer.id
+    )
+  )
+
+  const readySavedOffers =
+    unusedSavedOffers.filter(
+      (offer) =>
+        !expiringOfferIds.has(
+          offer.id
+        )
+    )
+
   if (!hasActivePass) {
     notifications.push({
       id: 'pass-required',
@@ -155,7 +169,7 @@ function buildCustomerNotifications({
       } soon`,
       description: `These saved offers end within the next ${EXPIRING_SOON_DAYS} days. Review them before they are gone.`,
       actionLabel:
-        'Review Saved Deals',
+        'Review Expiring Deals',
       actionHref: '#my-pass',
       tone: 'orange',
     })
@@ -163,19 +177,19 @@ function buildCustomerNotifications({
 
   if (
     hasActivePass &&
-    unusedSavedOffers.length > 0
+    readySavedOffers.length > 0
   ) {
     notifications.push({
       id: 'saved-ready',
       icon: '⭐',
       eyebrow: 'Ready to Use',
-      title: `${unusedSavedOffers.length} saved ${
-        unusedSavedOffers.length === 1
+      title: `${readySavedOffers.length} saved ${
+        readySavedOffers.length === 1
           ? 'deal is'
           : 'deals are'
       } waiting`,
       description:
-        'Your saved offers are available in My Pass whenever you are ready to visit a participating business.',
+        'These saved offers are ready whenever you visit a participating local business.',
       actionLabel: 'Open My Pass',
       actionHref: '#my-pass',
       tone: 'yellow',
@@ -302,19 +316,19 @@ function getActionClasses(
 ): string {
   switch (tone) {
     case 'green':
-      return 'text-green-700 hover:text-green-800'
+      return 'border-green-200 text-green-700 hover:bg-green-100'
 
     case 'yellow':
-      return 'text-yellow-700 hover:text-yellow-800'
+      return 'border-yellow-200 text-yellow-800 hover:bg-yellow-100'
 
     case 'orange':
-      return 'text-orange-700 hover:text-orange-800'
+      return 'border-orange-200 text-orange-800 hover:bg-orange-100'
 
     case 'purple':
-      return 'text-purple-700 hover:text-purple-800'
+      return 'border-purple-200 text-purple-700 hover:bg-purple-100'
 
     case 'blue':
-      return 'text-blue-700 hover:text-blue-800'
+      return 'border-blue-200 text-blue-700 hover:bg-blue-100'
   }
 }
 
@@ -339,17 +353,17 @@ export default function CustomerNotificationCenter({
   return (
     <section
       aria-labelledby="customer-notification-center-heading"
-      className="rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+      className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             What Should I Do Next?
           </p>
 
           <h2
             id="customer-notification-center-heading"
-            className="mt-2 text-2xl font-bold text-gray-900"
+            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
           >
             Your RaiseHub Updates
           </h2>
@@ -361,7 +375,7 @@ export default function CustomerNotificationCenter({
           </p>
         </div>
 
-        <span className="w-fit rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+        <span className="w-fit shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
           {notifications.length}{' '}
           {notifications.length === 1
             ? 'update'
@@ -375,21 +389,21 @@ export default function CustomerNotificationCenter({
             (notification) => (
               <article
                 key={notification.id}
-                className={`rounded-2xl border p-5 ${getNotificationClasses(
+                className={`min-w-0 overflow-hidden rounded-2xl border p-5 ${getNotificationClasses(
                   notification.tone
                 )}`}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                   <span
                     aria-hidden="true"
-                    className="text-2xl"
+                    className="shrink-0 text-2xl"
                   >
                     {notification.icon}
                   </span>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p
-                      className={`text-xs font-semibold uppercase tracking-wide ${getEyebrowClasses(
+                      className={`break-words text-xs font-semibold uppercase tracking-wide ${getEyebrowClasses(
                         notification.tone
                       )}`}
                     >
@@ -398,11 +412,11 @@ export default function CustomerNotificationCenter({
                       }
                     </p>
 
-                    <h3 className="mt-2 font-bold text-gray-900">
+                    <h3 className="mt-2 break-words font-bold leading-snug text-gray-900">
                       {notification.title}
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                    <p className="mt-2 break-words text-sm leading-6 text-gray-600">
                       {
                         notification.description
                       }
@@ -412,7 +426,7 @@ export default function CustomerNotificationCenter({
                       href={
                         notification.actionHref
                       }
-                      className={`mt-4 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4 ${getActionClasses(
+                      className={`mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl border bg-white px-4 py-3 text-center text-sm font-semibold transition sm:w-auto ${getActionClasses(
                         notification.tone
                       )}`}
                     >
@@ -428,7 +442,7 @@ export default function CustomerNotificationCenter({
         </div>
       ) : (
         <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-5">
-          <p className="font-semibold text-green-800">
+          <p className="break-words font-semibold text-green-800">
             You&apos;re all caught up
           </p>
 
