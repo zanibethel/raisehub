@@ -261,10 +261,9 @@ export default function CustomerNearbyBusinessesSection({
                         className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:col-span-2"
                       >
                         {hasActivePass
-                          ? business.offerCount ===
-                            1
+                          ? business.offerCount === 1
                             ? 'View Available Offer'
-                            : `View ${business.offerCount} Available Offers`
+                            : 'View a Business Offer'
                           : 'Unlock Offers With a Pass'}
                       </Link>
                     ) : null}
