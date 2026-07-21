@@ -107,17 +107,17 @@ export default function CustomerRecommendationsSection({
   return (
     <section
       aria-labelledby="customer-recommendations-heading"
-      className="rounded-3xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+      className="overflow-hidden rounded-3xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
             Suggested for You
           </p>
 
           <h2
             id="customer-recommendations-heading"
-            className="mt-2 text-2xl font-bold text-gray-900"
+            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
           >
             Local Deals to Discover
           </h2>
@@ -132,7 +132,7 @@ export default function CustomerRecommendationsSection({
         {recommendations.length > 0 ? (
           <Link
             href="#available-offers"
-            className="inline-flex min-h-11 w-fit items-center justify-center text-sm font-semibold text-green-700 underline underline-offset-4 transition hover:text-green-800"
+            className="inline-flex min-h-12 w-full shrink-0 items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50 sm:w-auto"
           >
             View All Available Deals
           </Link>
@@ -140,7 +140,7 @@ export default function CustomerRecommendationsSection({
       </div>
 
       {recommendations.length > 0 ? (
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {recommendations.map(
             ({ offer, reason }) => {
               const businessName =
@@ -157,24 +157,24 @@ export default function CustomerRecommendationsSection({
               return (
                 <article
                   key={offer.id}
-                  className="flex h-full flex-col rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-5"
+                  className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-5"
                 >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">
                         Recommended
                       </span>
 
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <span className="min-w-0 break-words text-xs font-semibold uppercase tracking-wide text-gray-500">
                         {businessName}
                       </span>
                     </div>
 
-                    <h3 className="mt-4 text-lg font-bold text-gray-900">
+                    <h3 className="mt-4 break-words text-lg font-bold leading-snug text-gray-900">
                       {offerTitle}
                     </h3>
 
-                    <p className="mt-1 font-semibold text-green-700">
+                    <p className="mt-2 break-words font-semibold leading-6 text-green-700">
                       {offer.discount ||
                         'RaiseHub member benefit'}
                     </p>
@@ -184,7 +184,7 @@ export default function CustomerRecommendationsSection({
                     </p>
 
                     {offer.description ? (
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-600">
+                      <p className="mt-2 break-words text-sm leading-6 text-gray-600">
                         {
                           offer.description
                         }
@@ -194,16 +194,22 @@ export default function CustomerRecommendationsSection({
 
                   <div className="mt-auto pt-5">
                     {offer.address ? (
-                      <p className="mb-4 text-sm text-gray-500">
-                        📍 {offer.address}
-                      </p>
+                      <div className="mb-4 rounded-xl bg-white/80 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Location
+                        </p>
+
+                        <p className="mt-1 break-words text-sm leading-6 text-gray-600">
+                          {offer.address}
+                        </p>
+                      </div>
                     ) : null}
 
                     <Link
                       href={offerHref}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800"
+                      className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800"
                     >
-                      View Deal
+                      View Deal Details
                     </Link>
                   </div>
                 </article>
@@ -213,7 +219,7 @@ export default function CustomerRecommendationsSection({
         </div>
       ) : (
         <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-5">
-          <p className="font-semibold text-green-800">
+          <p className="break-words font-semibold text-green-800">
             You have reviewed the current
             deal selection
           </p>
@@ -226,7 +232,7 @@ export default function CustomerRecommendationsSection({
 
           <Link
             href="#my-pass"
-            className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-green-800 underline underline-offset-4"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-3 text-center text-sm font-semibold text-green-800 transition hover:bg-green-100 sm:w-auto"
           >
             Review My Saved Deals
           </Link>
