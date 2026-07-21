@@ -405,7 +405,7 @@ test(
       getCustomerNearbyBusinesses([
         createOffer({
           id: 'offer-1',
-          business_name: null,
+          business_name: undefined,
           google_business_name:
             'Google Business Name',
           google_place_id:
