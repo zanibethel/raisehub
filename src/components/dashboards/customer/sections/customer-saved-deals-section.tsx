@@ -55,7 +55,16 @@ function formatRedemptionDate(
     return 'Date unavailable'
   }
 
-  return date.toLocaleString()
+  return date.toLocaleString(
+    undefined,
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }
+  )
 }
 
 function formatOfferEndDate(
@@ -73,7 +82,22 @@ function formatOfferEndDate(
     return 'Date unavailable'
   }
 
-  return date.toLocaleDateString()
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }
+  )
+}
+
+function normalizeExternalUrl(
+  value: string
+): string {
+  return value.startsWith('http')
+    ? value
+    : `https://${value}`
 }
 
 // =============================================================================
@@ -142,7 +166,7 @@ function RemoveSavedOfferButton({
         type="button"
         onClick={handleRemove}
         disabled={isRemoving}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-3 text-center text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isRemoving
           ? 'Removing...'
@@ -180,27 +204,27 @@ export default function CustomerSavedDealsSection({
     <section
       aria-labelledby="customer-saved-deals-heading"
     >
-      <div className="rounded-3xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur sm:p-8">
+      <div className="rounded-3xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
               Quick Access
             </p>
 
             <h2
               id="customer-saved-deals-heading"
-              className="mt-2 text-2xl font-bold text-gray-900"
+              className="mt-2 break-words text-2xl font-bold text-gray-900"
             >
               My Saved Deals
             </h2>
 
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm leading-6 text-gray-600">
               Offers you&apos;ve saved for
-              quick access.
+              quick access and redemption.
             </p>
           </div>
 
-          <span className="w-fit rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+          <span className="w-fit shrink-0 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
             {savedOffers.length}{' '}
             {savedOffers.length === 1
               ? 'saved deal'
@@ -209,7 +233,7 @@ export default function CustomerSavedDealsSection({
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-5 sm:mt-6">
         {savedOffers.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {savedOffers.map(
@@ -217,6 +241,10 @@ export default function CustomerSavedDealsSection({
                 const offerTitle =
                   offer.title ||
                   'Local offer'
+
+                const businessName =
+                  offer.business_name ||
+                  'Local Business'
 
                 const isRedeemed =
                   redeemedOfferIds.has(
@@ -226,77 +254,105 @@ export default function CustomerSavedDealsSection({
                 return (
                   <article
                     key={offer.id}
-                    className="flex h-full flex-col rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur"
+                    className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                          {offer.business_name ||
-                            'Local Business'}
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-xs font-semibold uppercase tracking-wide text-green-700">
+                          {businessName}
                         </p>
 
-                        <h3 className="mt-2 text-lg font-bold text-gray-900">
+                        <h3 className="mt-2 break-words text-lg font-bold leading-snug text-gray-900">
                           {offerTitle}
                         </h3>
                       </div>
 
-                      <span className="rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
+                      <span className="shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
                         Saved
                       </span>
                     </div>
 
-                    <p className="mt-3 font-semibold text-green-700">
+                    <p className="mt-3 break-words font-semibold text-green-700">
                       {offer.discount ||
                         'Member benefit available'}
                     </p>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                    <p className="mt-2 break-words text-sm leading-6 text-gray-600">
                       {offer.description ||
                         'Offer details are available through your RaiseHub Pass.'}
                     </p>
 
-                    <div className="mt-4 space-y-2 text-sm text-gray-600">
+                    <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
                       {offer.phone ? (
-                        <p>
-                          📞 {offer.phone}
-                        </p>
+                        <div>
+                          <dt className="font-semibold text-gray-900">
+                            Phone
+                          </dt>
+
+                          <dd className="mt-1">
+                            <a
+                              href={`tel:${offer.phone}`}
+                              className="break-words font-medium text-blue-700 underline underline-offset-4"
+                            >
+                              {offer.phone}
+                            </a>
+                          </dd>
+                        </div>
                       ) : null}
 
                       {offer.address ? (
-                        <p>
-                          📍 {offer.address}
-                        </p>
+                        <div>
+                          <dt className="font-semibold text-gray-900">
+                            Location
+                          </dt>
+
+                          <dd className="mt-1 break-words leading-6 text-gray-600">
+                            {offer.address}
+                          </dd>
+                        </div>
                       ) : null}
 
-                      {offer.google_maps_url ? (
-                        <a
-                          href={
-                            offer.google_maps_url
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex font-semibold text-green-700 underline underline-offset-2"
-                        >
-                          View Map
-                        </a>
-                      ) : null}
+                      <div>
+                        <dt className="font-semibold text-gray-900">
+                          Offer ends
+                        </dt>
 
-                      <p>
-                        Ends:{' '}
-                        {formatOfferEndDate(
-                          offer.ends_at
+                        <dd className="mt-1 text-gray-600">
+                          {formatOfferEndDate(
+                            offer.ends_at
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {offer.google_maps_url ? (
+                      <a
+                        href={normalizeExternalUrl(
+                          offer.google_maps_url
                         )}
-                      </p>
-                    </div>
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
+                      >
+                        View Map
+                      </a>
+                    ) : null}
 
                     <div className="mt-auto space-y-3 pt-5">
+                      <Link
+                        href={`/offers/${offer.id}`}
+                        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                      >
+                        View Deal Details
+                      </Link>
+
                       {isRedeemed ? (
                         <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
                           <p className="text-sm font-semibold text-gray-700">
                             ✅ Used
                           </p>
 
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
                             Used on{' '}
                             {formatRedemptionDate(
                               redemptionDateByOfferId.get(
@@ -324,12 +380,12 @@ export default function CustomerSavedDealsSection({
             )}
           </div>
         ) : (
-          <div className="rounded-3xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-6 shadow-lg sm:p-8">
+          <div className="rounded-3xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-blue-50 p-5 shadow-lg sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
               Nothing Saved Yet
             </p>
 
-            <h3 className="mt-2 text-xl font-bold text-gray-900">
+            <h3 className="mt-2 break-words text-xl font-bold text-gray-900">
               Keep your favorite local
               deals within reach
             </h3>
@@ -344,7 +400,7 @@ export default function CustomerSavedDealsSection({
 
             <Link
               href="#available-offers"
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800"
+              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 sm:w-auto"
             >
               View Available Deals
             </Link>
