@@ -13,6 +13,11 @@ import {
   removeSavedOfferAction,
 } from '@/app/offers/actions'
 import {
+  getCustomerReadyToUseDealCountLabel,
+  getCustomerSavedDealGroups,
+  getCustomerUsedDealCountLabel,
+} from '../customer-saved-deal-groups'
+import {
   getCustomerSavedDealCountLabel,
   getCustomerSavedDealGuidance,
   getCustomerUnusedSavedDealCountLabel,
@@ -30,6 +35,9 @@ import {
   getCustomerSavedDealTitle,
 } from '../customer-saved-deals'
 
+import type {
+  CustomerSavedDeal,
+} from '../customer-saved-deals'
 import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
@@ -52,6 +60,14 @@ type Props = {
 type RemoveSavedOfferButtonProps = {
   offerId: string
   offerTitle: string
+}
+
+type SavedDealCardProps = {
+  deal: CustomerSavedDeal
+  redemptionDateByOfferId: Map<
+    string,
+    string
+  >
 }
 
 // =============================================================================
@@ -140,6 +156,180 @@ function RemoveSavedOfferButton({
 }
 
 // =============================================================================
+// Saved deal card
+// =============================================================================
+
+function SavedDealCard({
+  deal,
+  redemptionDateByOfferId,
+}: SavedDealCardProps) {
+  const {
+    offer,
+    isRedeemed,
+  } = deal
+
+  const offerTitle =
+    getCustomerSavedDealTitle(
+      offer
+    )
+
+  const businessName =
+    getCustomerSavedDealBusinessName(
+      offer
+    )
+
+  const benefitLabel =
+    getCustomerSavedDealBenefitLabel(
+      offer
+    )
+
+  const description =
+    getCustomerSavedDealDescription(
+      offer
+    )
+
+  const phone =
+    getCustomerSavedDealPhone(
+      offer
+    )
+
+  const address =
+    getCustomerSavedDealAddress(
+      offer
+    )
+
+  const mapUrl =
+    getCustomerSavedDealMapUrl(
+      offer
+    )
+
+  return (
+    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold uppercase tracking-wide text-green-700">
+            {businessName}
+          </p>
+
+          <h3 className="mt-2 break-words text-lg font-bold leading-snug text-gray-900">
+            {offerTitle}
+          </h3>
+        </div>
+
+        <span
+          className={
+            isRedeemed
+              ? 'shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
+              : 'shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
+          }
+        >
+          {isRedeemed
+            ? 'Used'
+            : 'Ready'}
+        </span>
+      </div>
+
+      <p className="mt-3 break-words font-semibold text-green-700">
+        {benefitLabel}
+      </p>
+
+      <p className="mt-2 break-words text-sm leading-6 text-gray-600">
+        {description}
+      </p>
+
+      <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
+        {phone ? (
+          <div>
+            <dt className="font-semibold text-gray-900">
+              Phone
+            </dt>
+
+            <dd className="mt-1">
+              <a
+                href={`tel:${phone}`}
+                className="break-words font-medium text-blue-700 underline underline-offset-4"
+              >
+                {phone}
+              </a>
+            </dd>
+          </div>
+        ) : null}
+
+        {address ? (
+          <div>
+            <dt className="font-semibold text-gray-900">
+              Location
+            </dt>
+
+            <dd className="mt-1 break-words leading-6 text-gray-600">
+              {address}
+            </dd>
+          </div>
+        ) : null}
+
+        <div>
+          <dt className="font-semibold text-gray-900">
+            Offer ends
+          </dt>
+
+          <dd className="mt-1 text-gray-600">
+            {formatCustomerSavedDealEndDate(
+              offer.ends_at
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {mapUrl ? (
+        <a
+          href={mapUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
+        >
+          View Map
+        </a>
+      ) : null}
+
+      <div className="mt-auto space-y-3 pt-5">
+        <Link
+          href={`/offers/${offer.id}`}
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+        >
+          View Deal Details
+        </Link>
+
+        {isRedeemed ? (
+          <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-gray-700">
+              Used
+            </p>
+
+            <p className="mt-1 break-words text-xs leading-5 text-gray-500">
+              Used on{' '}
+              {formatCustomerSavedDealRedemptionDate(
+                redemptionDateByOfferId.get(
+                  offer.id
+                )
+              )}
+            </p>
+          </div>
+        ) : (
+          <UseOfferButton
+            offerId={offer.id}
+          />
+        )}
+
+        <RemoveSavedOfferButton
+          offerId={offer.id}
+          offerTitle={offerTitle}
+        />
+      </div>
+    </article>
+  )
+}
+
+// =============================================================================
 // Component
 // =============================================================================
 
@@ -156,10 +346,15 @@ export default function CustomerSavedDealsSection({
       redeemedOfferIds,
     })
 
+  const {
+    readyToUse,
+    used,
+  } = getCustomerSavedDealGroups(
+    savedDeals
+  )
+
   const unusedSavedDealCount =
-    savedDeals.filter(
-      (deal) => !deal.isRedeemed
-    ).length
+    readyToUse.length
 
   const savedDealCountLabel =
     getCustomerSavedDealCountLabel(
@@ -169,6 +364,16 @@ export default function CustomerSavedDealsSection({
   const unusedSavedDealCountLabel =
     getCustomerUnusedSavedDealCountLabel(
       unusedSavedDealCount
+    )
+
+  const readyToUseCountLabel =
+    getCustomerReadyToUseDealCountLabel(
+      readyToUse.length
+    )
+
+  const usedDealCountLabel =
+    getCustomerUsedDealCountLabel(
+      used.length
     )
 
   const guidance =
@@ -197,9 +402,9 @@ export default function CustomerSavedDealsSection({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Your saved offers stay here
-              for quick access. Unused
-              deals appear first.
+              Ready-to-use deals appear
+              first. Used deals remain
+              available for your records.
             </p>
           </div>
 
@@ -243,183 +448,90 @@ export default function CustomerSavedDealsSection({
         </div>
       </div>
 
-      <div className="mt-5 sm:mt-6">
-        {savedDeals.length > 0 ? (
+      {readyToUse.length > 0 ? (
+        <section
+          aria-labelledby="customer-ready-to-use-deals-heading"
+          className="mt-5 sm:mt-6"
+        >
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                Use Next
+              </p>
+
+              <h3
+                id="customer-ready-to-use-deals-heading"
+                className="mt-1 text-xl font-bold text-gray-900"
+              >
+                Ready to Use
+              </h3>
+            </div>
+
+            <span className="w-fit rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+              {readyToUseCountLabel}
+            </span>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {savedDeals.map(
-              ({
-                offer,
-                isRedeemed,
-              }) => {
-                const offerTitle =
-                  getCustomerSavedDealTitle(
-                    offer
-                  )
-
-                const businessName =
-                  getCustomerSavedDealBusinessName(
-                    offer
-                  )
-
-                const benefitLabel =
-                  getCustomerSavedDealBenefitLabel(
-                    offer
-                  )
-
-                const description =
-                  getCustomerSavedDealDescription(
-                    offer
-                  )
-
-                const phone =
-                  getCustomerSavedDealPhone(
-                    offer
-                  )
-
-                const address =
-                  getCustomerSavedDealAddress(
-                    offer
-                  )
-
-                const mapUrl =
-                  getCustomerSavedDealMapUrl(
-                    offer
-                  )
-
-                return (
-                  <article
-                    key={offer.id}
-                    className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
-                  >
-                    <div className="flex min-w-0 items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="break-words text-xs font-semibold uppercase tracking-wide text-green-700">
-                          {businessName}
-                        </p>
-
-                        <h3 className="mt-2 break-words text-lg font-bold leading-snug text-gray-900">
-                          {offerTitle}
-                        </h3>
-                      </div>
-
-                      <span
-                        className={
-                          isRedeemed
-                            ? 'shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
-                            : 'shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
-                        }
-                      >
-                        {isRedeemed
-                          ? 'Used'
-                          : 'Saved'}
-                      </span>
-                    </div>
-
-                    <p className="mt-3 break-words font-semibold text-green-700">
-                      {benefitLabel}
-                    </p>
-
-                    <p className="mt-2 break-words text-sm leading-6 text-gray-600">
-                      {description}
-                    </p>
-
-                    <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
-                      {phone ? (
-                        <div>
-                          <dt className="font-semibold text-gray-900">
-                            Phone
-                          </dt>
-
-                          <dd className="mt-1">
-                            <a
-                              href={`tel:${phone}`}
-                              className="break-words font-medium text-blue-700 underline underline-offset-4"
-                            >
-                              {phone}
-                            </a>
-                          </dd>
-                        </div>
-                      ) : null}
-
-                      {address ? (
-                        <div>
-                          <dt className="font-semibold text-gray-900">
-                            Location
-                          </dt>
-
-                          <dd className="mt-1 break-words leading-6 text-gray-600">
-                            {address}
-                          </dd>
-                        </div>
-                      ) : null}
-
-                      <div>
-                        <dt className="font-semibold text-gray-900">
-                          Offer ends
-                        </dt>
-
-                        <dd className="mt-1 text-gray-600">
-                          {formatCustomerSavedDealEndDate(
-                            offer.ends_at
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-
-                    {mapUrl ? (
-                      <a
-                        href={mapUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
-                      >
-                        View Map
-                      </a>
-                    ) : null}
-
-                    <div className="mt-auto space-y-3 pt-5">
-                      <Link
-                        href={`/offers/${offer.id}`}
-                        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
-                      >
-                        View Deal Details
-                      </Link>
-
-                      {isRedeemed ? (
-                        <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
-                          <p className="text-sm font-semibold text-gray-700">
-                            Used
-                          </p>
-
-                          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
-                            Used on{' '}
-                            {formatCustomerSavedDealRedemptionDate(
-                              redemptionDateByOfferId.get(
-                                offer.id
-                              )
-                            )}
-                          </p>
-                        </div>
-                      ) : (
-                        <UseOfferButton
-                          offerId={offer.id}
-                        />
-                      )}
-
-                      <RemoveSavedOfferButton
-                        offerId={offer.id}
-                        offerTitle={
-                          offerTitle
-                        }
-                      />
-                    </div>
-                  </article>
-                )
-              }
+            {readyToUse.map(
+              (deal) => (
+                <SavedDealCard
+                  key={deal.offer.id}
+                  deal={deal}
+                  redemptionDateByOfferId={
+                    redemptionDateByOfferId
+                  }
+                />
+              )
             )}
           </div>
-        ) : null}
-      </div>
+        </section>
+      ) : null}
+
+      {used.length > 0 ? (
+        <section
+          aria-labelledby="customer-used-deals-heading"
+          className="mt-8"
+        >
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                History
+              </p>
+
+              <h3
+                id="customer-used-deals-heading"
+                className="mt-1 text-xl font-bold text-gray-900"
+              >
+                Used Deals
+              </h3>
+
+              <p className="mt-1 text-sm leading-6 text-gray-600">
+                These saved deals have
+                already been redeemed.
+              </p>
+            </div>
+
+            <span className="w-fit rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
+              {usedDealCountLabel}
+            </span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {used.map(
+              (deal) => (
+                <SavedDealCard
+                  key={deal.offer.id}
+                  deal={deal}
+                  redemptionDateByOfferId={
+                    redemptionDateByOfferId
+                  }
+                />
+              )
+            )}
+          </div>
+        </section>
+      ) : null}
     </section>
   )
 }
