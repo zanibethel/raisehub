@@ -60,7 +60,8 @@ function isExpiringSoon(
   const expirationWindow = new Date(now)
 
   expirationWindow.setDate(
-    expirationWindow.getDate() + EXPIRING_SOON_DAYS
+    expirationWindow.getDate() +
+      EXPIRING_SOON_DAYS
   )
 
   return (
@@ -84,11 +85,15 @@ export default function CustomerDashboardContent({
 }: Props) {
   const now = new Date()
 
-  const savedOffersCount = savedOfferIds.size
+  const savedOffersCount =
+    enrichedOffers.filter((offer) =>
+      savedOfferIds.has(offer.id)
+    ).length
 
-  const expiringSoonCount = enrichedOffers.filter(
-    (offer) => isExpiringSoon(offer.ends_at, now)
-  ).length
+  const expiringSoonCount =
+    enrichedOffers.filter((offer) =>
+      isExpiringSoon(offer.ends_at, now)
+    ).length
 
   const availableOffersCount =
     enrichedOffers.length
@@ -112,8 +117,9 @@ export default function CustomerDashboardContent({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            Choose a shortcut to open the deal list
-            with the right view already selected.
+            Choose a shortcut to open the deal
+            list with the right view already
+            selected.
           </p>
         </div>
 
@@ -232,8 +238,8 @@ export default function CustomerDashboardContent({
             </h3>
 
             <p className="mt-1 text-sm text-gray-600">
-              Browse all {availableOffersCount} active
-              local{' '}
+              Browse all {availableOffersCount}{' '}
+              active local{' '}
               {availableOffersCount === 1
                 ? 'offer'
                 : 'offers'}.
@@ -253,7 +259,6 @@ export default function CustomerDashboardContent({
           redemptionDateByOfferId={
             redemptionDateByOfferId
           }
-          savedOffersCount={savedOffersCount}
         />
       </div>
 
