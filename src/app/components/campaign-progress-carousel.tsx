@@ -1,6 +1,6 @@
 import CampaignProgressCarouselClient from './campaign-progress-carousel-client'
 import { isDemoMode } from '@/lib/app-mode'
-import { getSellableCampaigns } from '@/lib/repositories/campaign-repository'
+import { getPublicSellableCampaigns } from '@/lib/repositories/public-campaign-repository'
 import type { SelectableCampaignCard } from '@/lib/types/campaigns'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +54,8 @@ const DEMO_SAMPLE_CAMPAIGNS: SelectableCampaignCard[] = [
 ]
 
 export default async function CampaignProgressCarousel() {
-  const { campaigns, error } = await getSellableCampaigns()
+  const { campaigns, error } =
+    await getPublicSellableCampaigns()
 
   if (error) {
     return null
