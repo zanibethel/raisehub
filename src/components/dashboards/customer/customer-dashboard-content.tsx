@@ -57,6 +57,8 @@ type Props = {
 
   enrichedOffers:
     AvailableDealsProps['enrichedOffers']
+  historicalOffers?:
+    AvailableDealsProps['enrichedOffers']
 
   savedOfferIds:
     SavedDealsProps['savedOfferIds']
@@ -77,6 +79,7 @@ export default function CustomerDashboardContent({
   purchasedPasses,
   organizationById,
   enrichedOffers,
+  historicalOffers = [],
   savedOfferIds,
   redeemedOfferIds,
   redemptionDateByOfferId,
@@ -88,6 +91,18 @@ export default function CustomerDashboardContent({
   ] = useState<CustomerDealFilter>(
     DEFAULT_CUSTOMER_DEAL_FILTER
   )
+
+  const customerHistoryOffers = [
+    ...new Map(
+      [
+        ...enrichedOffers,
+        ...historicalOffers,
+      ].map((offer) => [
+        offer.id,
+        offer,
+      ])
+    ).values(),
+  ]
 
   const filterCounts =
     getCustomerDealFilterCounts({
@@ -315,7 +330,7 @@ export default function CustomerDashboardContent({
       >
         <CustomerSavedDealsSection
           enrichedOffers={
-            enrichedOffers
+            customerHistoryOffers
           }
           savedOfferIds={
             savedOfferIds
@@ -335,7 +350,7 @@ export default function CustomerDashboardContent({
       >
         <CustomerSavingsSection
           enrichedOffers={
-            enrichedOffers
+            customerHistoryOffers
           }
           redeemedOfferIds={
             redeemedOfferIds
@@ -419,7 +434,7 @@ export default function CustomerDashboardContent({
       >
         <CustomerRedemptionHistorySection
           enrichedOffers={
-            enrichedOffers
+            customerHistoryOffers
           }
           redemptionDateByOfferId={
             redemptionDateByOfferId
