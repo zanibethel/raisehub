@@ -1,9 +1,4 @@
 import {
-  CheckCircle2,
-  Clock3,
-} from 'lucide-react'
-
-import {
   getBusinessRedemptionSettings,
 } from '@/lib/redemptions/business-redemption-settings'
 
@@ -89,17 +84,14 @@ export function BusinessRedemptionSettingsSection({
                         : 'bg-gray-200 text-gray-700',
                     ].join(' ')}
                   >
-                    {isAvailable ? (
-                      <CheckCircle2
-                        aria-hidden="true"
-                        className="h-3.5 w-3.5"
-                      />
-                    ) : (
-                      <Clock3
-                        aria-hidden="true"
-                        className="h-3.5 w-3.5"
-                      />
-                    )}
+                    <span
+                      aria-hidden="true"
+                      className="font-bold"
+                    >
+                      {isAvailable
+                        ? '✓'
+                        : '○'}
+                    </span>
 
                     {option.statusLabel}
                   </span>
