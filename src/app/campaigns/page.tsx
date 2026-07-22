@@ -1,16 +1,12 @@
 import Link from 'next/link'
 import CampaignCard from '@/app/components/campaign-card'
-import { getSellableCampaigns } from '@/lib/repositories/campaign-repository'
+import { getPublicSellableCampaigns } from '@/lib/repositories/public-campaign-repository'
 
 export default async function CampaignsPage() {
-  const { campaigns, error, errorSource } = await getSellableCampaigns()
+  const { campaigns, error } =
+    await getPublicSellableCampaigns()
 
   if (error) {
-    const message =
-      errorSource === 'progress'
-        ? 'Active campaigns are available, but we could not load fundraising progress right now. Please try again.'
-        : 'We could not load active campaigns right now. Please try again.'
-
     return (
       <main className="min-h-screen bg-slate-50 px-8 py-16">
         <div className="mx-auto max-w-6xl">
@@ -23,7 +19,7 @@ export default async function CampaignsPage() {
           </p>
 
           <div className="mt-8 rounded-2xl border border-blue-100 bg-white p-8 text-sm text-gray-600 shadow">
-            {message}
+            We could not load active campaigns right now. Please try again.
           </div>
         </div>
         <footer className="mx-auto mt-16 max-w-5xl border-t border-blue-100 pt-6 text-center text-sm text-gray-500">
