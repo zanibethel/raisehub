@@ -83,15 +83,45 @@ export async function updateBusinessRedemptionMethodAction(
     }
   }
 
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || !profile) {
+    return {
+      success: false,
+      error:
+        'Could not verify your business profile.',
+    }
+  }
+
+  if (profile.role !== 'business') {
+    return {
+      success: false,
+      error:
+        'Only business accounts can update redemption settings.',
+    }
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({
       redemption_method: value,
     })
     .eq('id', user.id)
+    .eq('role', 'business')
 
   if (error) {
-    if (isMissingRedemptionMethodColumn(error)) {
+    if (
+      isMissingRedemptionMethodColumn(
+        error
+      )
+    ) {
       return {
         success: false,
         error:
