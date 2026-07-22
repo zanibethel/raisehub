@@ -131,14 +131,24 @@ export default function CreateCampaignForm({
         Start a fundraising campaign powered by local business deals.
       </p>
 
+      <p className="mt-3 text-xs font-medium text-gray-600">
+        <span className="font-bold text-red-600" aria-hidden="true">*</span>{' '}
+        Required fields
+      </p>
+
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <input
-          className="w-full rounded-lg border border-gray-300 p-2"
-          placeholder="Campaign name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-        />
+        <label className="block text-sm font-medium text-gray-700">
+          Campaign name{' '}
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>
+          <span className="sr-only"> required</span>
+          <input
+            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+            placeholder="Campaign name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </label>
 
         <textarea
           className="w-full rounded-lg border border-gray-300 p-2"
