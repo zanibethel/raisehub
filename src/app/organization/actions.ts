@@ -2,21 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-// =============================================================================
-// Action contracts
-// =============================================================================
-
 type CampaignActionResult =
-  | {
-      success: true
-      error?: never
-    }
-  | {
-      success?: never
-      error: string
-    }
+  | { success: true; error?: never }
+  | { success?: never; error: string }
 
 type CreateCampaignInput = {
   name: string
@@ -26,26 +17,13 @@ type CreateCampaignInput = {
   ends_at: string
 }
 
-type UpdateCampaignInput = {
+type UpdateCampaignInput = CreateCampaignInput & {
   campaignId: string
-  name: string
-  description: string
-  goal_amount: number
-  starts_at: string
-  ends_at: string
 }
 
 type ParsedCampaignDates =
-  | {
-      error: string
-      startsAt?: never
-      endsAt?: never
-    }
-  | {
-      error?: never
-      startsAt: string | null
-      endsAt: string | null
-    }
+  | { error: string; startsAt?: never; endsAt?: never }
+  | { error?: never; startsAt: string | null; endsAt: string | null }
 
 type CampaignStatus =
   | 'draft'
@@ -54,25 +32,22 @@ type CampaignStatus =
   | 'completed'
   | 'archived'
 
-// =============================================================================
-// Validation
-// =============================================================================
+type OrganizationReadinessRow = {
+  name?: string | null
+  town_name?: string | null
+  state_code?: string | null
+}
 
-const VALID_CAMPAIGN_STATUSES =
-  new Set<CampaignStatus>([
-    'draft',
-    'active',
-    'paused',
-    'completed',
-    'archived',
-  ])
+const VALID_CAMPAIGN_STATUSES = new Set<CampaignStatus>([
+  'draft',
+  'active',
+  'paused',
+  'completed',
+  'archived',
+])
 
-function isCampaignStatus(
-  status: string
-): status is CampaignStatus {
-  return VALID_CAMPAIGN_STATUSES.has(
-    status as CampaignStatus
-  )
+function isCampaignStatus(status: string): status is CampaignStatus {
+  return VALID_CAMPAIGN_STATUSES.has(status as CampaignStatus)
 }
 
 function parseCampaignDates({
@@ -82,24 +57,14 @@ function parseCampaignDates({
   startsAt: string
   endsAt: string
 }): ParsedCampaignDates {
-  const startTimestamp = startsAt
-    ? new Date(startsAt).getTime()
-    : null
-
-  const endTimestamp = endsAt
-    ? new Date(endsAt).getTime()
-    : null
+  const startTimestamp = startsAt ? new Date(startsAt).getTime() : null
+  const endTimestamp = endsAt ? new Date(endsAt).getTime() : null
 
   if (
-    (startTimestamp !== null &&
-      Number.isNaN(startTimestamp)) ||
-    (endTimestamp !== null &&
-      Number.isNaN(endTimestamp))
+    (startTimestamp !== null && Number.isNaN(startTimestamp)) ||
+    (endTimestamp !== null && Number.isNaN(endTimestamp))
   ) {
-    return {
-      error:
-        'Enter valid campaign dates.',
-    }
+    return { error: 'Enter valid campaign dates.' }
   }
 
   if (
@@ -107,10 +72,7 @@ function parseCampaignDates({
     endTimestamp !== null &&
     endTimestamp < startTimestamp
   ) {
-    return {
-      error:
-        'The end date must be after the start date.',
-    }
+    return { error: 'The end date must be after the start date.' }
   }
 
   return {
@@ -119,90 +81,85 @@ function parseCampaignDates({
   }
 }
 
-// =============================================================================
-// Cache revalidation
-// =============================================================================
-
-function revalidateCampaignPaths(
-  campaignId?: string
-) {
+function revalidateCampaignPaths(campaignId?: string) {
   revalidatePath('/dashboard')
   revalidatePath('/')
   revalidatePath('/campaigns')
 
   if (campaignId) {
-    revalidatePath(
-      `/campaigns/${campaignId}`
-    )
+    revalidatePath(`/campaigns/${campaignId}`)
   }
 }
 
-// =============================================================================
-// Create campaign
-// =============================================================================
+async function organizationSetupIsComplete(userId: string) {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('organizations')
+    .select('*')
+    .eq('legacy_profile_id', userId)
+    .maybeSingle()
+
+  if (error || !data) {
+    return false
+  }
+
+  const organization = data as OrganizationReadinessRow
+  const stateCode = organization.state_code?.trim().toUpperCase() ?? ''
+
+  return Boolean(
+    organization.name?.trim() &&
+      organization.town_name?.trim() &&
+      /^[A-Z]{2}$/.test(stateCode)
+  )
+}
 
 export async function createCampaignAction(
   input: CreateCampaignInput
 ): Promise<CampaignActionResult> {
-  const supabase =
-    await createClient()
-
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
+    return { error: 'You must be signed in to create a campaign.' }
+  }
+
+  if (!(await organizationSetupIsComplete(user.id))) {
     return {
       error:
-        'You must be signed in to create a campaign.',
+        'Complete your organization name, town, and state before creating a campaign.',
     }
   }
 
   if (!input.name.trim()) {
-    return {
-      error:
-        'Campaign name is required.',
-    }
+    return { error: 'Campaign name is required.' }
   }
 
-  const goalAmount =
-    Number(input.goal_amount)
+  const goalAmount = Number(input.goal_amount)
 
-  if (
-    !Number.isFinite(goalAmount) ||
-    goalAmount < 0
-  ) {
-    return {
-      error:
-        'Enter a valid fundraising goal.',
-    }
+  if (!Number.isFinite(goalAmount) || goalAmount < 0) {
+    return { error: 'Enter a valid fundraising goal.' }
   }
 
-  const dates =
-    parseCampaignDates({
-      startsAt: input.starts_at,
-      endsAt: input.ends_at,
-    })
+  const dates = parseCampaignDates({
+    startsAt: input.starts_at,
+    endsAt: input.ends_at,
+  })
 
   if (dates.error) {
-    return {
-      error: dates.error,
-    }
+    return { error: dates.error }
   }
 
-  const { error } = await supabase
-    .from('campaigns')
-    .insert({
-      organization_id: user.id,
-      name: input.name.trim(),
-      description:
-        input.description.trim() ||
-        null,
-      goal_amount: goalAmount,
-      starts_at: dates.startsAt,
-      ends_at: dates.endsAt,
-      status: 'active',
-    })
+  const { error } = await supabase.from('campaigns').insert({
+    organization_id: user.id,
+    name: input.name.trim(),
+    description: input.description.trim() || null,
+    goal_amount: goalAmount,
+    starts_at: dates.startsAt,
+    ends_at: dates.endsAt,
+    status: 'active',
+  })
 
   if (error) {
     return {
@@ -212,81 +169,51 @@ export async function createCampaignAction(
   }
 
   revalidateCampaignPaths()
-
-  return {
-    success: true,
-  }
+  return { success: true }
 }
-
-// =============================================================================
-// Update campaign
-// =============================================================================
 
 export async function updateCampaignAction(
   input: UpdateCampaignInput
 ): Promise<CampaignActionResult> {
-  const supabase =
-    await createClient()
-
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return {
-      error:
-        'You must be signed in to update a campaign.',
-    }
+    return { error: 'You must be signed in to update a campaign.' }
   }
 
   if (!input.name.trim()) {
-    return {
-      error:
-        'Campaign name is required.',
-    }
+    return { error: 'Campaign name is required.' }
   }
 
-  const goalAmount =
-    Number(input.goal_amount)
+  const goalAmount = Number(input.goal_amount)
 
-  if (
-    !Number.isFinite(goalAmount) ||
-    goalAmount < 0
-  ) {
-    return {
-      error:
-        'Enter a valid fundraising goal.',
-    }
+  if (!Number.isFinite(goalAmount) || goalAmount < 0) {
+    return { error: 'Enter a valid fundraising goal.' }
   }
 
-  const dates =
-    parseCampaignDates({
-      startsAt: input.starts_at,
-      endsAt: input.ends_at,
-    })
+  const dates = parseCampaignDates({
+    startsAt: input.starts_at,
+    endsAt: input.ends_at,
+  })
 
   if (dates.error) {
-    return {
-      error: dates.error,
-    }
+    return { error: dates.error }
   }
 
   const { error } = await supabase
     .from('campaigns')
     .update({
       name: input.name.trim(),
-      description:
-        input.description.trim() ||
-        null,
+      description: input.description.trim() || null,
       goal_amount: goalAmount,
       starts_at: dates.startsAt,
       ends_at: dates.endsAt,
     })
     .eq('id', input.campaignId)
-    .eq(
-      'organization_id',
-      user.id
-    )
+    .eq('organization_id', user.id)
 
   if (error) {
     return {
@@ -295,67 +222,37 @@ export async function updateCampaignAction(
     }
   }
 
-  revalidateCampaignPaths(
-    input.campaignId
-  )
-
-  return {
-    success: true,
-  }
+  revalidateCampaignPaths(input.campaignId)
+  return { success: true }
 }
-
-// =============================================================================
-// Update campaign status
-// =============================================================================
 
 export async function updateCampaignStatusAction(
   campaignId: string,
   status: string
 ): Promise<CampaignActionResult> {
-  const supabase =
-    await createClient()
-
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return {
-      error:
-        'You must be signed in to update a campaign.',
-    }
+    return { error: 'You must be signed in to update a campaign.' }
   }
 
   if (!isCampaignStatus(status)) {
-    return {
-      error:
-        'Invalid campaign status.',
-    }
+    return { error: 'Invalid campaign status.' }
   }
 
   const { error } = await supabase
     .from('campaigns')
-    .update({
-      status,
-    })
+    .update({ status })
     .eq('id', campaignId)
-    .eq(
-      'organization_id',
-      user.id
-    )
+    .eq('organization_id', user.id)
 
   if (error) {
-    return {
-      error:
-        'The campaign status could not be updated. Try again.',
-    }
+    return { error: 'The campaign status could not be updated. Try again.' }
   }
 
-  revalidateCampaignPaths(
-    campaignId
-  )
-
-  return {
-    success: true,
-  }
+  revalidateCampaignPaths(campaignId)
+  return { success: true }
 }
