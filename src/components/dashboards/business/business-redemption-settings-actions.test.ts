@@ -228,7 +228,7 @@ test(
 
     const updateIndex =
       actionSource.indexOf(
-        ".update({"
+        '.update({'
       )
 
     assert.notEqual(
@@ -273,6 +273,31 @@ test(
 )
 
 test(
+  'requests the saved redemption method from the update',
+  () => {
+    assert.match(
+      actionSource,
+      /\.select\('redemption_method'\)/
+    )
+
+    assert.match(
+      actionSource,
+      /\.maybeSingle\(\)/
+    )
+  }
+)
+
+test(
+  'captures the updated profile returned by Supabase',
+  () => {
+    assert.match(
+      actionSource,
+      /data: updatedProfile/
+    )
+  }
+)
+
+test(
   'does not insert or upsert profile records',
   () => {
     assert.doesNotMatch(
@@ -283,6 +308,55 @@ test(
     assert.doesNotMatch(
       actionSource,
       /\.upsert\(/
+    )
+  }
+)
+
+// =============================================================================
+// Persistence confirmation
+// =============================================================================
+
+test(
+  'rejects a missing or mismatched updated profile',
+  () => {
+    assert.match(
+      actionSource,
+      /!updatedProfile \|\|\s*updatedProfile\.redemption_method !==\s*value/
+    )
+
+    assert.match(
+      actionSource,
+      /Could not confirm your redemption method update\. Please try again\./
+    )
+  }
+)
+
+test(
+  'confirms persistence before revalidating the dashboard',
+  () => {
+    const confirmationIndex =
+      actionSource.indexOf(
+        '!updatedProfile ||'
+      )
+
+    const revalidationIndex =
+      actionSource.indexOf(
+        "revalidatePath('/dashboard')"
+      )
+
+    assert.notEqual(
+      confirmationIndex,
+      -1
+    )
+
+    assert.notEqual(
+      revalidationIndex,
+      -1
+    )
+
+    assert.equal(
+      confirmationIndex < revalidationIndex,
+      true
     )
   }
 )
@@ -346,7 +420,7 @@ test(
 // =============================================================================
 
 test(
-  'revalidates the dashboard after a successful update',
+  'revalidates the dashboard after a confirmed update',
   () => {
     assert.match(
       actionSource,
