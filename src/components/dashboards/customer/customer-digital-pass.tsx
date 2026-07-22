@@ -13,6 +13,7 @@ type CustomerDigitalPassProps = {
     string | null
   supportedCampaignName?:
     string | null
+  availableOfferCount?: number | null
 }
 
 // =============================================================================
@@ -91,6 +92,34 @@ function getDaysRemaining(
   )
 }
 
+function normalizeOfferCount(
+  value: number | null | undefined
+): number | null {
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value)
+  ) {
+    return null
+  }
+
+  return Math.max(
+    Math.floor(value),
+    0
+  )
+}
+
+function formatOfferCount(
+  value: number
+): string {
+  if (value === 0) {
+    return 'No active deals today'
+  }
+
+  return `${value} active ${
+    value === 1 ? 'deal' : 'deals'
+  }`
+}
+
 // =============================================================================
 // Active pass
 // =============================================================================
@@ -101,6 +130,7 @@ function ActivePass({
   expiresAt,
   supportedOrganizationName,
   supportedCampaignName,
+  availableOfferCount,
 }: {
   entitlementType?: string | null
   startsAt?: string | null
@@ -109,6 +139,7 @@ function ActivePass({
     string | null
   supportedCampaignName?:
     string | null
+  availableOfferCount?: number | null
 }) {
   const formattedStartDate =
     formatPassDate(startsAt)
@@ -118,6 +149,11 @@ function ActivePass({
 
   const daysRemaining =
     getDaysRemaining(expiresAt)
+
+  const normalizedOfferCount =
+    normalizeOfferCount(
+      availableOfferCount
+    )
 
   const hasSupportedOrganization =
     Boolean(
@@ -172,9 +208,20 @@ function ActivePass({
               </p>
             </div>
 
-            <span className="w-fit shrink-0 rounded-full border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur">
-              Verified access
-            </span>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:max-w-52 sm:justify-end">
+              <span className="w-fit rounded-full border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur">
+                Verified access
+              </span>
+
+              {normalizedOfferCount !==
+              null ? (
+                <span className="w-fit rounded-full border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold backdrop-blur">
+                  {formatOfferCount(
+                    normalizedOfferCount
+                  )}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -361,6 +408,7 @@ export default function CustomerDigitalPass({
   expiresAt,
   supportedOrganizationName,
   supportedCampaignName,
+  availableOfferCount,
 }: CustomerDigitalPassProps) {
   if (!hasActivePass) {
     return <InactivePass />
@@ -378,6 +426,9 @@ export default function CustomerDigitalPass({
       }
       supportedCampaignName={
         supportedCampaignName
+      }
+      availableOfferCount={
+        availableOfferCount
       }
     />
   )
