@@ -48,9 +48,13 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
     attempt = data as CheckoutAttempt | null
   }
 
-  const paid = attempt?.status === 'paid' && Boolean(attempt.purchase_id)
-  const stillConfirming = attempt?.status === 'open' || attempt?.status === 'created'
-  const campaignHref = attempt ? `/campaigns/${attempt.campaign_id}` : '/campaigns'
+  const paidAttempt =
+    attempt?.status === 'paid' && attempt.purchase_id ? attempt : null
+  const stillConfirming =
+    attempt?.status === 'open' || attempt?.status === 'created'
+  const campaignHref = attempt
+    ? `/campaigns/${attempt.campaign_id}`
+    : '/campaigns'
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-2xl items-center px-4 py-12">
@@ -59,21 +63,29 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           Secure checkout
         </p>
 
-        {paid ? (
+        {paidAttempt ? (
           <>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
               Payment confirmed
             </h1>
             <p className="mt-3 text-slate-600">
-              Your {attempt?.grant_entitlement ? 'RaiseHub Pass and support' : 'support'} have been recorded successfully.
+              Your{' '}
+              {paidAttempt.grant_entitlement
+                ? 'RaiseHub Pass and support'
+                : 'support'}{' '}
+              have been recorded successfully.
             </p>
             <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
               <p className="font-semibold">
-                Total paid: {currencyFromCents(attempt.expected_amount_cents)}
+                Total paid:{' '}
+                {currencyFromCents(paidAttempt.expected_amount_cents)}
               </p>
-              {attempt.donation_amount > 0 ? (
+              {paidAttempt.donation_amount > 0 ? (
                 <p className="mt-1 text-sm">
-                  Donation included: {currencyFromCents(Math.round(attempt.donation_amount * 100))}
+                  Donation included:{' '}
+                  {currencyFromCents(
+                    Math.round(paidAttempt.donation_amount * 100)
+                  )}
                 </p>
               ) : null}
             </div>
@@ -84,10 +96,12 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               Payment received — confirming access
             </h1>
             <p className="mt-3 text-slate-600">
-              Stripe returned you successfully. RaiseHub is waiting for the signed payment confirmation before adding pass access.
+              Stripe returned you successfully. RaiseHub is waiting for the
+              signed payment confirmation before adding pass access.
             </p>
             <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-              This usually completes quickly. Refresh this page or check your dashboard in a moment.
+              This usually completes quickly. Refresh this page or check your
+              dashboard in a moment.
             </div>
           </>
         ) : (
@@ -96,7 +110,8 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               We could not confirm this checkout yet
             </h1>
             <p className="mt-3 text-slate-600">
-              No pass access is granted from this page. Check your dashboard before trying another payment.
+              No pass access is granted from this page. Check your dashboard
+              before trying another payment.
             </p>
           </>
         )}
