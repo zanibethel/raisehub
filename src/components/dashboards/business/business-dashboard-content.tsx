@@ -14,6 +14,7 @@ import BusinessDashboardSnapshot from './business-dashboard-snapshot'
 import BusinessExportTools from './business-export-tools'
 import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
+import BusinessRedemptionSettingsSection from './sections/business-redemption-settings-section'
 
 import type {
   BusinessOffer,
@@ -360,6 +361,13 @@ export default function BusinessDashboardContent({
           businessNotifications
         }
       />
+
+      <section
+        id="business-redemption-settings"
+        className="scroll-mt-6"
+      >
+        <BusinessRedemptionSettingsSection />
+      </section>
 
       <section
         id="business-performance"
