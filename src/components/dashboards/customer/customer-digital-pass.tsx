@@ -11,6 +11,8 @@ type CustomerDigitalPassProps = {
   expiresAt?: string | null
   supportedOrganizationName?:
     string | null
+  supportedCampaignName?:
+    string | null
 }
 
 // =============================================================================
@@ -98,11 +100,14 @@ function ActivePass({
   startsAt,
   expiresAt,
   supportedOrganizationName,
+  supportedCampaignName,
 }: {
   entitlementType?: string | null
   startsAt?: string | null
   expiresAt?: string | null
   supportedOrganizationName?:
+    string | null
+  supportedCampaignName?:
     string | null
 }) {
   const formattedStartDate =
@@ -113,6 +118,20 @@ function ActivePass({
 
   const daysRemaining =
     getDaysRemaining(expiresAt)
+
+  const hasSupportedOrganization =
+    Boolean(
+      supportedOrganizationName?.trim()
+    )
+
+  const hasSupportedCampaign =
+    Boolean(
+      supportedCampaignName?.trim()
+    )
+
+  const hasSupportDetails =
+    hasSupportedOrganization ||
+    hasSupportedCampaign
 
   return (
     <section
@@ -205,17 +224,30 @@ function ActivePass({
               ) : null}
             </div>
 
-            {supportedOrganizationName?.trim() ? (
+            {hasSupportDetails ? (
               <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
                 <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
                   Supporting
                 </p>
 
-                <p className="mt-2 break-words font-bold">
-                  {
-                    supportedOrganizationName
-                  }
-                </p>
+                {hasSupportedOrganization ? (
+                  <p className="mt-2 break-words font-bold">
+                    {
+                      supportedOrganizationName
+                    }
+                  </p>
+                ) : null}
+
+                {hasSupportedCampaign ? (
+                  <p className="mt-1 break-words text-xs leading-5 text-green-100">
+                    Fundraiser:{' '}
+                    <span className="font-semibold text-white">
+                      {
+                        supportedCampaignName
+                      }
+                    </span>
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -328,6 +360,7 @@ export default function CustomerDigitalPass({
   startsAt,
   expiresAt,
   supportedOrganizationName,
+  supportedCampaignName,
 }: CustomerDigitalPassProps) {
   if (!hasActivePass) {
     return <InactivePass />
@@ -342,6 +375,9 @@ export default function CustomerDigitalPass({
       expiresAt={expiresAt}
       supportedOrganizationName={
         supportedOrganizationName
+      }
+      supportedCampaignName={
+        supportedCampaignName
       }
     />
   )
