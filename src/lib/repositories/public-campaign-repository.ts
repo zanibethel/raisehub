@@ -29,6 +29,7 @@ type ProfileRow = {
   display_name: string | null
   business_name: string | null
   logo_url: string | null
+  is_demo: boolean
 }
 
 type ProgressRow = {
@@ -154,7 +155,9 @@ export async function getPublicSellableCampaigns(
       .in('legacy_profile_id', legacyOrganizationIds),
     admin
       .from('profiles')
-      .select('id, display_name, business_name, logo_url')
+      .select(
+        'id, display_name, business_name, logo_url, is_demo'
+      )
       .in('id', legacyOrganizationIds)
       .eq('role', 'organization'),
     admin.rpc('get_public_campaign_progress', {
@@ -199,10 +202,14 @@ export async function getPublicSellableCampaigns(
       organizationByLegacyId.get(
         campaign.organization_id
       )
+    const profile = profileById.get(
+      campaign.organization_id
+    )
 
     return {
       campaignId: campaign.id,
       organizationId: organization?.id ?? null,
+      isDemo: profile?.is_demo ?? false,
     }
   })
 
