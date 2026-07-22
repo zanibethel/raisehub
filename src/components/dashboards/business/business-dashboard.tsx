@@ -18,6 +18,46 @@ type BusinessDashboardProps = {
   businessLegacyProfileId?: string | null
 }
 
+type BusinessProfile = {
+  business_name: string | null
+  phone: string | null
+  address: string | null
+  google_maps_url: string | null
+  logo_url: string | null
+  website_url: string | null
+  display_name: string | null
+  redemption_method: string | null
+}
+
+type ProfileQueryError = {
+  code?: string | null
+  message?: string | null
+}
+
+// =============================================================================
+// Profile helpers
+// =============================================================================
+
+const BUSINESS_PROFILE_FIELDS =
+  'business_name, phone, address, google_maps_url, logo_url, website_url, display_name'
+
+const BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION =
+  `${BUSINESS_PROFILE_FIELDS}, redemption_method`
+
+function isMissingRedemptionMethodError(
+  error: ProfileQueryError | null
+): boolean {
+  if (!error) return false
+
+  return (
+    error.code === '42703' ||
+    error.code === 'PGRST204' ||
+    error.message
+      ?.toLowerCase()
+      .includes('redemption_method') === true
+  )
+}
+
 // =============================================================================
 // Dashboard loader
 // =============================================================================
@@ -40,13 +80,39 @@ export default async function BusinessDashboard({
   // 🏪 FETCH BUSINESS PROFILE
   // =========================================
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select(
-      'business_name, phone, address, google_maps_url, logo_url, website_url, display_name'
+  const profileWithRedemptionMethod =
+    await supabase
+      .from('profiles')
+      .select(
+        BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION
+      )
+      .eq('id', businessProfileId)
+      .single()
+
+  let profile =
+    profileWithRedemptionMethod.data as
+      | BusinessProfile
+      | null
+
+  if (
+    isMissingRedemptionMethodError(
+      profileWithRedemptionMethod.error
     )
-    .eq('id', businessProfileId)
-    .single()
+  ) {
+    const { data: legacyProfile } =
+      await supabase
+        .from('profiles')
+        .select(BUSINESS_PROFILE_FIELDS)
+        .eq('id', businessProfileId)
+        .single()
+
+    profile = legacyProfile
+      ? {
+          ...legacyProfile,
+          redemption_method: null,
+        }
+      : null
+  }
 
   // =========================================
   // 📦 FETCH OFFERS
