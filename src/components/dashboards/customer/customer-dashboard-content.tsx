@@ -162,7 +162,7 @@ export default function CustomerDashboardContent({
 
       <section
         aria-labelledby="customer-deal-shortcuts-heading"
-        className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+        className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-4 shadow-xl backdrop-blur sm:p-6"
       >
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -182,7 +182,7 @@ export default function CustomerDashboardContent({
           </p>
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {CUSTOMER_DEAL_FILTER_OPTIONS.map(
             (option) => {
               const count =
@@ -219,7 +219,7 @@ export default function CustomerDashboardContent({
                       option.id
                     )
                   }
-                  className={`group min-h-36 min-w-0 rounded-2xl border p-5 text-left transition ${getCustomerDealShortcutCardClasses(
+                  className={`group min-h-32 min-w-0 rounded-2xl border p-4 text-left transition sm:min-h-36 sm:p-5 ${getCustomerDealShortcutCardClasses(
                     {
                       filter:
                         option.id,
@@ -231,7 +231,7 @@ export default function CustomerDashboardContent({
                   <div className="flex min-w-0 items-start justify-between gap-3">
                     <span
                       aria-hidden="true"
-                      className="shrink-0 text-2xl"
+                      className="shrink-0 text-xl sm:text-2xl"
                     >
                       {option.icon}
                     </span>
@@ -246,7 +246,7 @@ export default function CustomerDashboardContent({
                   </div>
 
                   <h3
-                    className={`mt-4 break-words font-semibold leading-snug text-gray-900 ${getCustomerDealShortcutHeadingClasses(
+                    className={`mt-3 break-words text-sm font-semibold leading-snug text-gray-900 sm:mt-4 sm:text-base ${getCustomerDealShortcutHeadingClasses(
                       {
                         filter:
                           option.id,
@@ -257,7 +257,7 @@ export default function CustomerDashboardContent({
                     {option.label}
                   </h3>
 
-                  <p className="mt-1 break-words text-sm leading-6 text-gray-600">
+                  <p className="mt-1 hidden break-words text-sm leading-6 text-gray-600 sm:block">
                     {option.description}
                   </p>
 
