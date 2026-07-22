@@ -38,6 +38,36 @@ test(
   }
 )
 
+test(
+  'uses responsive saved deal grids',
+  () => {
+    const responsiveGridOccurrences =
+      sectionSource.match(
+        /className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"/g
+      ) ?? []
+
+    assert.equal(
+      responsiveGridOccurrences.length,
+      2
+    )
+  }
+)
+
+test(
+  'stacks saved deal group headings on narrow screens',
+  () => {
+    const stackedHeadingOccurrences =
+      sectionSource.match(
+        /className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"/g
+      ) ?? []
+
+    assert.equal(
+      stackedHeadingOccurrences.length,
+      2
+    )
+  }
+)
+
 // =============================================================================
 // Saved deal heading and status
 // =============================================================================
@@ -148,6 +178,50 @@ test(
 )
 
 // =============================================================================
+// Mobile action layout
+// =============================================================================
+
+test(
+  'keeps saved deal actions aligned at the bottom of each card',
+  () => {
+    assert.match(
+      sectionSource,
+      /<div className="mt-auto space-y-3 pt-5">/
+    )
+  }
+)
+
+test(
+  'uses a full-width mobile map touch target',
+  () => {
+    assert.match(
+      sectionSource,
+      /className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl/
+    )
+  }
+)
+
+test(
+  'uses a full-width mobile deal detail touch target',
+  () => {
+    assert.match(
+      sectionSource,
+      /className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200/
+    )
+  }
+)
+
+test(
+  'uses a full-width mobile remove touch target',
+  () => {
+    assert.match(
+      sectionSource,
+      /className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-red-200/
+    )
+  }
+)
+
+// =============================================================================
 // Deal actions
 // =============================================================================
 
@@ -175,6 +249,10 @@ test(
     assert.match(
       sectionSource,
       /target="_blank"/
+    )
+    assert.match(
+      sectionSource,
+      /rel="noreferrer"/
     )
     assert.match(
       sectionSource,
@@ -211,6 +289,28 @@ test(
     assert.match(
       sectionSource,
       /window\.confirm/
+    )
+  }
+)
+
+test(
+  'preserves removal progress and customer feedback',
+  () => {
+    assert.match(
+      sectionSource,
+      /disabled=\{isRemoving\}/
+    )
+    assert.match(
+      sectionSource,
+      /\? 'Removing\.\.\.'/
+    )
+    assert.match(
+      sectionSource,
+      /aria-live="polite"/
+    )
+    assert.match(
+      sectionSource,
+      /Removed from My Pass\./
     )
   }
 )
@@ -253,6 +353,10 @@ test(
     )
     assert.match(
       sectionSource,
+      /Use Next/
+    )
+    assert.match(
+      sectionSource,
       /Ready to Use/
     )
     assert.match(
@@ -268,6 +372,10 @@ test(
     assert.match(
       sectionSource,
       /used\.map/
+    )
+    assert.match(
+      sectionSource,
+      /History/
     )
     assert.match(
       sectionSource,
@@ -312,6 +420,16 @@ test(
     assert.match(
       sectionSource,
       /Browse Available Deals/
+    )
+  }
+)
+
+test(
+  'uses a full-width mobile guidance action',
+  () => {
+    assert.match(
+      sectionSource,
+      /className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-green-700[^"]*sm:w-auto"/
     )
   }
 )
