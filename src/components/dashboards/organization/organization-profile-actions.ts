@@ -63,6 +63,7 @@ export async function updateOrganizationProfileAction(
     return { error: 'This account is not authorized to manage an organization.' }
   }
 
+  const now = new Date().toISOString()
   const payload = {
     legacy_profile_id: user.id,
     name,
@@ -75,7 +76,7 @@ export async function updateOrganizationProfileAction(
     state_code: stateCode,
     status: 'active',
     created_by: user.id,
-    updated_at: new Date().toISOString(),
+    updated_at: now,
   }
 
   // The database migration already includes town_name and state_code, but the
@@ -91,22 +92,47 @@ export async function updateOrganizationProfileAction(
     return { error: 'Your organization details could not be saved. Please try again.' }
   }
 
-  const { error: membershipError } = await admin
+  const { data: existingMembership, error: membershipLookupError } = await admin
     .from('organization_memberships')
-    .upsert(
-      {
+    .select('id')
+    .eq('organization_id', organization.id)
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (membershipLookupError) {
+    return {
+      error:
+        'Organization details were saved, but access setup could not be confirmed.',
+    }
+  }
+
+  const membershipMutation = existingMembership
+    ? admin
+        .from('organization_memberships')
+        .update({
+          membership_role: 'admin',
+          status: 'active',
+          accepted_at: now,
+          updated_at: now,
+        })
+        .eq('id', existingMembership.id)
+    : admin.from('organization_memberships').insert({
         organization_id: organization.id,
         user_id: user.id,
         membership_role: 'admin',
         status: 'active',
-        accepted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'organization_id,user_id' }
-    )
+        accepted_at: now,
+        updated_at: now,
+      })
+
+  const { error: membershipError } = await membershipMutation
 
   if (membershipError) {
-    return { error: 'Organization details were saved, but access setup could not be completed.' }
+    return {
+      error:
+        'Organization details were saved, but access setup could not be completed.',
+    }
   }
 
   await admin
