@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { updateOrganizationProfileAction } from '../organization-profile-actions'
 
 type OrganizationProfile = {
@@ -26,12 +26,52 @@ export default function OrganizationProfileSetupSection({
   const [form, setForm] = useState(profile)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const townInputRef = useRef<HTMLInputElement>(null)
+  const stateInputRef = useRef<HTMLInputElement>(null)
 
   function updateField(
     field: keyof OrganizationProfile,
     value: string
   ) {
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  function returnToForm(errorMessage: string) {
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+
+      if (!form.name.trim()) {
+        nameInputRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      if (!form.townName.trim()) {
+        townInputRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      if (!/^[A-Za-z]{2}$/.test(form.stateCode.trim())) {
+        stateInputRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      if (errorMessage.toLowerCase().includes('state')) {
+        stateInputRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      if (errorMessage.toLowerCase().includes('town')) {
+        townInputRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      nameInputRef.current?.focus({ preventScroll: true })
+    })
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -41,13 +81,22 @@ export default function OrganizationProfileSetupSection({
 
     try {
       const result = await updateOrganizationProfileAction(form)
+
+      if (result.error) {
+        setMessage(result.error)
+        returnToForm(result.error)
+        return
+      }
+
       setMessage(
-        result.error ?? 'Organization profile saved. You can now create and manage fundraisers.'
+        'Organization profile saved. You can now create and manage fundraisers.'
       )
     } finally {
       setLoading(false)
     }
   }
+
+  const isSuccess = message.startsWith('Organization profile saved')
 
   return (
     <section
@@ -83,10 +132,29 @@ export default function OrganizationProfileSetupSection({
         </span>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className="mt-6 scroll-mt-24 grid gap-4 sm:grid-cols-2"
+      >
+        {message ? (
+          <div
+            role={isSuccess ? 'status' : 'alert'}
+            aria-live="polite"
+            className={`rounded-xl border px-4 py-3 text-sm font-medium sm:col-span-2 ${
+              isSuccess
+                ? 'border-green-200 bg-green-50 text-green-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+            }`}
+          >
+            {message}
+          </div>
+        ) : null}
+
         <label className="text-sm font-medium text-gray-700 sm:col-span-2">
           Organization name
           <input
+            ref={nameInputRef}
             value={form.name}
             onChange={(event) => updateField('name', event.target.value)}
             className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500"
@@ -127,6 +195,7 @@ export default function OrganizationProfileSetupSection({
         <label className="text-sm font-medium text-gray-700">
           Town or city
           <input
+            ref={townInputRef}
             value={form.townName}
             onChange={(event) => updateField('townName', event.target.value)}
             className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500"
@@ -138,6 +207,7 @@ export default function OrganizationProfileSetupSection({
         <label className="text-sm font-medium text-gray-700">
           State
           <input
+            ref={stateInputRef}
             value={form.stateCode}
             onChange={(event) =>
               updateField('stateCode', event.target.value.toUpperCase().slice(0, 2))
@@ -190,18 +260,6 @@ export default function OrganizationProfileSetupSection({
           >
             {loading ? 'Saving organization...' : 'Save Organization Details'}
           </button>
-
-          {message ? (
-            <p
-              className={`mt-3 text-sm ${
-                message.startsWith('Organization profile saved')
-                  ? 'text-green-700'
-                  : 'text-red-700'
-              }`}
-            >
-              {message}
-            </p>
-          ) : null}
         </div>
       </form>
     </section>
