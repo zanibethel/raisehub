@@ -2,6 +2,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationProfileSetupSection from './sections/organization-profile-setup-section'
 
+type OrganizationSetupRecord = {
+  name: string
+  organization_type: string | null
+  description: string | null
+  phone: string | null
+  email: string | null
+  website_url: string | null
+  town_name: string | null
+  state_code: string | null
+}
+
 export default async function OrganizationProfileSetupLoader() {
   const supabase = await createClient()
   const {
@@ -13,22 +24,29 @@ export default async function OrganizationProfileSetupLoader() {
   }
 
   const admin = createAdminClient()
-  const [{ data: profile }, { data: organization }] = await Promise.all([
-    admin
-      .from('profiles')
-      .select(
-        'business_name, display_name, business_description, phone, email, website_url, role'
-      )
-      .eq('id', user.id)
-      .maybeSingle(),
-    admin
-      .from('organizations')
-      .select(
-        'name, organization_type, description, phone, email, website_url, town_name, state_code'
-      )
-      .eq('legacy_profile_id', user.id)
-      .maybeSingle(),
+  const profileRequest = admin
+    .from('profiles')
+    .select(
+      'business_name, display_name, business_description, phone, email, website_url, role'
+    )
+    .eq('id', user.id)
+    .maybeSingle()
+
+  // The live schema includes town_name and state_code. The checked-in generated
+  // Supabase types predate those columns, so keep this compatibility cast local
+  // until the generated type file is refreshed from the live project.
+  const organizationRequest = (admin.from('organizations') as any)
+    .select(
+      'name, organization_type, description, phone, email, website_url, town_name, state_code'
+    )
+    .eq('legacy_profile_id', user.id)
+    .maybeSingle()
+
+  const [{ data: profile }, { data: organizationResult }] = await Promise.all([
+    profileRequest,
+    organizationRequest,
   ])
+  const organization = organizationResult as OrganizationSetupRecord | null
 
   if (profile?.role !== 'organization') {
     return null
