@@ -137,6 +137,11 @@ export default function OrganizationProfileSetupSection({
         onSubmit={handleSubmit}
         className="mt-6 scroll-mt-24 grid gap-4 sm:grid-cols-2"
       >
+        <p className="text-xs font-medium text-gray-600 sm:col-span-2">
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>{' '}
+          Required fields
+        </p>
+
         {message ? (
           <div
             role={isSuccess ? 'status' : 'alert'}
@@ -152,7 +157,9 @@ export default function OrganizationProfileSetupSection({
         ) : null}
 
         <label className="text-sm font-medium text-gray-700 sm:col-span-2">
-          Organization name
+          Organization name{' '}
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>
+          <span className="sr-only"> required</span>
           <input
             ref={nameInputRef}
             value={form.name}
@@ -193,7 +200,9 @@ export default function OrganizationProfileSetupSection({
         </label>
 
         <label className="text-sm font-medium text-gray-700">
-          Town or city
+          Town or city{' '}
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>
+          <span className="sr-only"> required</span>
           <input
             ref={townInputRef}
             value={form.townName}
@@ -205,7 +214,9 @@ export default function OrganizationProfileSetupSection({
         </label>
 
         <label className="text-sm font-medium text-gray-700">
-          State
+          State{' '}
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>
+          <span className="sr-only"> required</span>
           <input
             ref={stateInputRef}
             value={form.stateCode}
