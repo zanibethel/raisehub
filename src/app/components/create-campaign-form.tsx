@@ -14,12 +14,39 @@ type CreateCampaignFormProps = {
   }
 }
 
+const ORGANIZATION_SETUP_ERROR =
+  'Complete your organization name, town, and state before creating a campaign.'
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function returnToOrganizationSetup() {
+  const setupSection = document.getElementById('organization-setup')
+
+  if (!setupSection) {
+    return
+  }
+
+  setupSection.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+
+  window.setTimeout(() => {
+    const missingField = setupSection.querySelector<HTMLElement>(
+      'input:invalid, select:invalid, textarea:invalid'
+    )
+    const fallbackField = setupSection.querySelector<HTMLElement>(
+      'input, select, textarea'
+    )
+
+    ;(missingField ?? fallbackField)?.focus({ preventScroll: true })
+  }, 450)
 }
 
 export default function CreateCampaignForm({
@@ -35,22 +62,14 @@ export default function CreateCampaignForm({
   const [loading, setLoading] = useState(false)
 
   const goalNumber = Number(goalAmount) || 0
-
   const passesNeeded =
-    goalNumber > 0 &&
-    pricing.organizationPassEarnings > 0
-      ? Math.ceil(
-          goalNumber /
-            pricing.organizationPassEarnings
-        )
+    goalNumber > 0 && pricing.organizationPassEarnings > 0
+      ? Math.ceil(goalNumber / pricing.organizationPassEarnings)
       : 0
-
   const projectedOrganizationEarnings =
     passesNeeded * pricing.organizationPassEarnings
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
     setMessage('')
@@ -80,6 +99,11 @@ export default function CreateCampaignForm({
 
       if (result.error) {
         setMessage(result.error)
+
+        if (result.error === ORGANIZATION_SETUP_ERROR) {
+          returnToOrganizationSetup()
+        }
+
         return
       }
 
@@ -107,27 +131,30 @@ export default function CreateCampaignForm({
         Start a fundraising campaign powered by local business deals.
       </p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-4 space-y-4"
-      >
-        <input
-          className="w-full rounded-lg border border-gray-300 p-2"
-          placeholder="Campaign name"
-          value={name}
-          onChange={(event) =>
-            setName(event.target.value)
-          }
-          required
-        />
+      <p className="mt-3 text-xs font-medium text-gray-600">
+        <span className="font-bold text-red-600" aria-hidden="true">*</span>{' '}
+        Required fields
+      </p>
+
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <label className="block text-sm font-medium text-gray-700">
+          Campaign name{' '}
+          <span className="font-bold text-red-600" aria-hidden="true">*</span>
+          <span className="sr-only"> required</span>
+          <input
+            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+            placeholder="Campaign name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </label>
 
         <textarea
           className="w-full rounded-lg border border-gray-300 p-2"
           placeholder="Short description"
           value={description}
-          onChange={(event) =>
-            setDescription(event.target.value)
-          }
+          onChange={(event) => setDescription(event.target.value)}
         />
 
         <div>
@@ -141,9 +168,7 @@ export default function CreateCampaignForm({
             min="0"
             step="0.01"
             value={goalAmount}
-            onChange={(event) =>
-              setGoalAmount(event.target.value)
-            }
+            onChange={(event) => setGoalAmount(event.target.value)}
           />
 
           <p className="mt-1 text-xs text-gray-500">
@@ -157,7 +182,6 @@ export default function CreateCampaignForm({
               <p className="text-sm font-semibold text-blue-800">
                 Fundraising Estimate
               </p>
-
               <p className="mt-1 text-xs text-blue-700">
                 Calculated from RaiseHub-managed pricing.
               </p>
@@ -176,18 +200,14 @@ export default function CreateCampaignForm({
 
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div className="rounded-lg bg-white/70 p-3">
-              <dt className="text-blue-700">
-                Current pass price
-              </dt>
+              <dt className="text-blue-700">Current pass price</dt>
               <dd className="mt-1 font-semibold text-blue-900">
                 {formatCurrency(pricing.passPrice)}
               </dd>
             </div>
 
             <div className="rounded-lg bg-white/70 p-3">
-              <dt className="text-blue-700">
-                RaiseHub fee
-              </dt>
+              <dt className="text-blue-700">RaiseHub fee</dt>
               <dd className="mt-1 font-semibold text-blue-900">
                 {pricing.platformFeePercent}%
               </dd>
@@ -198,20 +218,14 @@ export default function CreateCampaignForm({
                 Organization earns per pass
               </dt>
               <dd className="mt-1 font-semibold text-blue-900">
-                {formatCurrency(
-                  pricing.organizationPassEarnings
-                )}
+                {formatCurrency(pricing.organizationPassEarnings)}
               </dd>
             </div>
 
             <div className="rounded-lg bg-white/70 p-3">
-              <dt className="text-blue-700">
-                Estimated amount raised
-              </dt>
+              <dt className="text-blue-700">Estimated amount raised</dt>
               <dd className="mt-1 font-semibold text-blue-900">
-                {formatCurrency(
-                  projectedOrganizationEarnings
-                )}
+                {formatCurrency(projectedOrganizationEarnings)}
               </dd>
             </div>
           </dl>
@@ -226,14 +240,11 @@ export default function CreateCampaignForm({
             <label className="mb-1 block text-sm font-medium text-gray-600">
               Starts on
             </label>
-
             <input
               className="w-full rounded-lg border border-gray-300 p-2"
               type="date"
               value={startsAt}
-              onChange={(event) =>
-                setStartsAt(event.target.value)
-              }
+              onChange={(event) => setStartsAt(event.target.value)}
             />
           </div>
 
@@ -241,14 +252,11 @@ export default function CreateCampaignForm({
             <label className="mb-1 block text-sm font-medium text-gray-600">
               Ends on
             </label>
-
             <input
               className="w-full rounded-lg border border-gray-300 p-2"
               type="date"
               value={endsAt}
-              onChange={(event) =>
-                setEndsAt(event.target.value)
-              }
+              onChange={(event) => setEndsAt(event.target.value)}
             />
           </div>
         </div>
@@ -258,9 +266,7 @@ export default function CreateCampaignForm({
           disabled={loading}
           className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading
-            ? 'Creating...'
-            : 'Create Campaign'}
+          {loading ? 'Creating...' : 'Create Campaign'}
         </button>
       </form>
 

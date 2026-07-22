@@ -97,7 +97,7 @@ export default function OrganizationSignupPage() {
                     number: '2',
                     title: 'Build your first fundraiser',
                     description:
-                      'Set your campaign name, fundraising goal, pass price, important dates, and organization details.',
+                      'Set your campaign name, fundraising goal, important dates, and organization details. RaiseHub applies the current managed pass price automatically.',
                   },
                   {
                     number: '3',
