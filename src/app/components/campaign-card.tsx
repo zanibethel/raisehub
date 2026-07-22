@@ -22,6 +22,20 @@ function formatCurrency(value: number | null) {
   }).format(value)
 }
 
+function getPassPrice(
+  campaign: SelectableCampaignCard
+): number | null {
+  if (!('passPrice' in campaign)) {
+    return null
+  }
+
+  const price = Number(campaign.passPrice)
+
+  return Number.isFinite(price) && price > 0
+    ? price
+    : null
+}
+
 function formatDate(value: string | null) {
   if (!value) {
     return 'No end date'
@@ -55,6 +69,7 @@ export default function CampaignCard({
 }: CampaignCardProps) {
   const goalLabel = formatCurrency(campaign.goalAmount)
   const amountRemainingLabel = formatCurrency(campaign.amountRemaining)
+  const passPrice = getPassPrice(campaign)
   const percentageLabel =
     campaign.goalPercentage === null
       ? 'Open goal'
@@ -104,6 +119,27 @@ export default function CampaignCard({
               </span>
             ) : null}
           </div>
+
+          {passPrice !== null ? (
+            <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-yellow-900">
+                  RaiseHub Pass
+                </span>
+                <span className="text-lg font-bold text-yellow-800">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(passPrice)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-yellow-800">
+                Optional donation can be added at checkout.
+              </p>
+            </div>
+          ) : null}
 
           <div>
             <div className="flex items-center justify-between text-sm">
@@ -160,6 +196,9 @@ export default function CampaignCard({
       <span className="sr-only">
         {campaign.organizationName ?? 'Organization'} campaign ending{' '}
         {formatDate(campaign.endsAt)}.
+        {passPrice !== null
+          ? ` Pass price ${passPrice.toFixed(2)} dollars.`
+          : ''}
       </span>
     </>
   )
