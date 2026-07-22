@@ -162,7 +162,7 @@ export default async function CustomerDashboard({
   )
 
   // ===========================================================================
-  // Active pass organization
+  // Active pass support details
   // ===========================================================================
 
   const activePassPurchase =
@@ -186,6 +186,10 @@ export default async function CustomerDashboard({
   const supportedOrganizationName =
     activePassOrganization?.display_name ||
     activePassOrganization?.business_name ||
+    null
+
+  const supportedCampaignName =
+    activePassPurchase?.campaigns?.name ||
     null
 
   // ===========================================================================
@@ -477,6 +481,9 @@ export default async function CustomerDashboard({
           }
           supportedOrganizationName={
             supportedOrganizationName
+          }
+          supportedCampaignName={
+            supportedCampaignName
           }
         />
       </div>
