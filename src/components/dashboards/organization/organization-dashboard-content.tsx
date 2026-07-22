@@ -1,6 +1,6 @@
 import OrganizationAnalyticsSection from './sections/organization-analytics-section'
 import OrganizationCampaignsSection from './sections/organization-campaigns-section'
-import OrganizationProfileSetupSection from './sections/organization-profile-setup-section'
+import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
 import OrganizationReportSection from './sections/organization-report-section'
 import OrganizationSummarySection from './sections/organization-summary-section'
 import OrganizationTopSellersSection from './sections/organization-top-sellers-section'
@@ -29,10 +29,6 @@ type AnalyticsProps = React.ComponentProps<
   typeof OrganizationAnalyticsSection
 >
 
-type ProfileSetupProps = React.ComponentProps<
-  typeof OrganizationProfileSetupSection
->
-
 // =============================================================================
 // Component Props
 // =============================================================================
@@ -41,8 +37,7 @@ type Props = SummaryProps &
   ReportProps &
   TopSellersProps &
   CampaignsProps &
-  AnalyticsProps &
-  ProfileSetupProps
+  AnalyticsProps
 
 // =============================================================================
 // Component
@@ -53,54 +48,38 @@ export default function OrganizationDashboardContent(
 ) {
   return (
     <div className="mt-8 space-y-8">
-      <OrganizationProfileSetupSection
-        profile={props.profile}
-        isComplete={props.isComplete}
+      <OrganizationProfileSetupLoader />
+
+      <OrganizationSummarySection
+        activeCampaigns={props.activeCampaigns}
+        totalFundsRaised={props.totalFundsRaised}
+        totalSellers={props.totalSellers}
+        totalSupporters={props.totalSupporters}
       />
 
-      {props.isComplete ? (
-        <>
-          <OrganizationSummarySection
-            activeCampaigns={props.activeCampaigns}
-            totalFundsRaised={props.totalFundsRaised}
-            totalSellers={props.totalSellers}
-            totalSupporters={props.totalSupporters}
-          />
+      <OrganizationAnalyticsSection
+        totalCampaigns={props.totalCampaigns}
+        activeSellerCount={props.activeSellerCount}
+      />
 
-          <OrganizationAnalyticsSection
-            totalCampaigns={props.totalCampaigns}
-            activeSellerCount={props.activeSellerCount}
-          />
+      <OrganizationReportSection
+        grossRevenue={props.grossRevenue}
+        totalFees={props.totalFees}
+        totalEarnings={props.totalEarnings}
+        totalPassesSold={props.totalPassesSold}
+      />
 
-          <OrganizationReportSection
-            grossRevenue={props.grossRevenue}
-            totalFees={props.totalFees}
-            totalEarnings={props.totalEarnings}
-            totalPassesSold={props.totalPassesSold}
-          />
+      <OrganizationTopSellersSection
+        sellers={props.sellers}
+      />
 
-          <OrganizationTopSellersSection
-            sellers={props.sellers}
-          />
-
-          <OrganizationCampaignsSection
-            campaigns={props.campaigns}
-            metricsByCampaign={props.metricsByCampaign}
-            campaignCreationPricing={
-              props.campaignCreationPricing
-            }
-          />
-        </>
-      ) : (
-        <section className="rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-6 text-sm leading-6 text-blue-900">
-          <h2 className="text-lg font-bold">Your next step</h2>
-          <p className="mt-2">
-            Save your organization name, town, and state above. RaiseHub will then
-            unlock campaign creation, apply the correct managed pricing, and show
-            your fundraising tools.
-          </p>
-        </section>
-      )}
+      <OrganizationCampaignsSection
+        campaigns={props.campaigns}
+        metricsByCampaign={props.metricsByCampaign}
+        campaignCreationPricing={
+          props.campaignCreationPricing
+        }
+      />
     </div>
   )
 }
