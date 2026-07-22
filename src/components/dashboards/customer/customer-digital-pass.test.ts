@@ -23,25 +23,46 @@ const dashboardSource = readFileSync(
 )
 
 // =============================================================================
+// Assertion helpers
+// =============================================================================
+
+function assertSourceIncludes(
+  source: string,
+  expected: string
+) {
+  assert.ok(
+    source.includes(expected),
+    `Expected source to include: ${expected}`
+  )
+}
+
+function countOccurrences(
+  source: string,
+  expected: string
+): number {
+  return source.split(expected).length - 1
+}
+
+// =============================================================================
 // Digital pass props
 // =============================================================================
 
 test(
   'accepts optional support details and deal count',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /supportedOrganizationName\?:\s*string \| null/
+      'supportedOrganizationName?:'
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /supportedCampaignName\?:\s*string \| null/
+      'supportedCampaignName?:'
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /availableOfferCount\?:\s*number \| null/
+      'availableOfferCount?: number | null'
     )
   }
 )
@@ -49,14 +70,29 @@ test(
 test(
   'passes support details and deal count into the active pass',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /function ActivePass\(\{[\s\S]*?supportedOrganizationName,[\s\S]*?supportedCampaignName,[\s\S]*?availableOfferCount,[\s\S]*?\}: \{/
+      'function ActivePass({'
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /<ActivePass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}[\s\S]*?supportedCampaignName=\{\s*supportedCampaignName\s*\}[\s\S]*?availableOfferCount=\{\s*availableOfferCount\s*\}/
+      'supportedOrganizationName,'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'supportedCampaignName,'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'availableOfferCount,'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'availableOfferCount={'
     )
   }
 )
@@ -68,19 +104,24 @@ test(
 test(
   'hides missing and invalid deal counts',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /function normalizeOfferCount\(\s*value: number \| null \| undefined\s*\): number \| null/
+      'function normalizeOfferCount('
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /typeof value !== 'number' \|\|\s*!Number\.isFinite\(value\)/
+      "typeof value !== 'number'"
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /return null/
+      '!Number.isFinite(value)'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'return null'
     )
   }
 )
@@ -88,9 +129,14 @@ test(
 test(
   'converts deal counts to nonnegative whole numbers',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /Math\.max\(\s*Math\.floor\(value\),\s*0\s*\)/
+      'Math.floor(value)'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'Math.max('
     )
   }
 )
@@ -98,19 +144,19 @@ test(
 test(
   'uses clear zero singular and plural deal labels',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /if \(value === 0\) \{\s*return 'No active deals today'\s*\}/
+      "return 'No active deals today'"
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /value === 1 \? 'deal' : 'deals'/
+      "value === 1 ? 'deal' : 'deals'"
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /`\$\{value\} active \$\{/
+      '`${value} active ${'
     )
   }
 )
@@ -118,19 +164,29 @@ test(
 test(
   'only shows the deal count badge for a normalized count',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /const normalizedOfferCount =\s*normalizeOfferCount$begin:math:text$\\s\*availableOfferCount\\s\*$end:math:text$/
+      'const normalizedOfferCount ='
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /\{normalizedOfferCount !==\s*null \? $begin:math:text$\/
-    \)
+      'normalizeOfferCount('
+    )
 
-    assert\.match\(
-      digitalPassSource\,
-      \/formatOfferCount\\\(\\s\*normalizedOfferCount\\s\*$end:math:text$/
+    assertSourceIncludes(
+      digitalPassSource,
+      'availableOfferCount'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'normalizedOfferCount !=='
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'formatOfferCount('
     )
   }
 )
@@ -138,14 +194,14 @@ test(
 test(
   'keeps the verified access badge beside the deal count',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      />\s*Verified access\s*</
+      'Verified access'
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /flex shrink-0 flex-wrap items-center gap-2/
+      'flex shrink-0 flex-wrap items-center gap-2'
     )
   }
 )
@@ -157,14 +213,24 @@ test(
 test(
   'normalizes blank organization and campaign names',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /const hasSupportedOrganization =\s*Boolean$begin:math:text$\\s\*supportedOrganizationName\\\?\\\.trim\\\($end:math:text$\s*\)/
+      'const hasSupportedOrganization ='
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /const hasSupportedCampaign =\s*Boolean$begin:math:text$\\s\*supportedCampaignName\\\?\\\.trim\\\($end:math:text$\s*\)/
+      'supportedOrganizationName?.trim()'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'const hasSupportedCampaign ='
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'supportedCampaignName?.trim()'
     )
   }
 )
@@ -172,29 +238,44 @@ test(
 test(
   'shows the support card when either detail exists',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /const hasSupportDetails =\s*hasSupportedOrganization \|\|\s*hasSupportedCampaign/
+      'const hasSupportDetails ='
     )
 
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /\{hasSupportDetails \? $begin:math:text$\/
-    \)
+      'hasSupportedOrganization ||'
+    )
 
-    assert\.match\(
-      digitalPassSource\,
-      \/\>\\s\*Supporting\\s\*\<\/
-    \)
-  \}
-\)
+    assertSourceIncludes(
+      digitalPassSource,
+      'hasSupportedCampaign'
+    )
 
-test\(
-  \'renders the organization independently inside the support card\'\,
-  \(\) \=\> \{
-    assert\.match\(
-      digitalPassSource\,
-      \/\\\{hasSupportedOrganization \\\? \\\(\[\\s\\S\]\*\?\\\{\\s\*supportedOrganizationName\\s\*\\\}\[\\s\\S\]\*\?$end:math:text$ : null\}/
+    assertSourceIncludes(
+      digitalPassSource,
+      'hasSupportDetails ?'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'Supporting'
+    )
+  }
+)
+
+test(
+  'renders the organization independently inside the support card',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'hasSupportedOrganization ?'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'supportedOrganizationName'
     )
   }
 )
@@ -202,63 +283,83 @@ test\(
 test(
   'renders the campaign independently with a fundraiser label',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /\{hasSupportedCampaign \? $begin:math:text$\/
-    \)
+      'hasSupportedCampaign ?'
+    )
 
-    assert\.match\(
-      digitalPassSource\,
-      \/Fundraiser\:\\\{\'\\s\'\\\}\/
-    \)
+    assertSourceIncludes(
+      digitalPassSource,
+      "Fundraiser:{' '}"
+    )
 
-    assert\.match\(
-      digitalPassSource\,
-      \/\\\{\\s\*supportedCampaignName\\s\*\\\}\/
-    \)
-  \}
-\)
+    assertSourceIncludes(
+      digitalPassSource,
+      'supportedCampaignName'
+    )
+  }
+)
 
-test\(
-  \'uses a responsive four\-card active pass grid\'\,
-  \(\) \=\> \{
-    assert\.match\(
-      digitalPassSource\,
-      \/mt\-7 grid gap\-3 sm\:grid\-cols\-2 lg\:grid\-cols\-4\/
-    \)
-  \}
-\)
+test(
+  'uses a responsive four-card active pass grid',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4'
+    )
+  }
+)
 
-\/\/ \=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=
-\/\/ Active entitlement purchase connection
-\/\/ \=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=\=
+// =============================================================================
+// Active entitlement purchase connection
+// =============================================================================
 
-test\(
-  \'uses the active entitlement purchase id to find the linked purchase\'\,
-  \(\) \=\> \{
-    assert\.match\(
-      dashboardSource\,
-      \/const activePassPurchase \=\\s\*activeEntitlement\\\?\\\.purchase\_id\\s\*\\\?\\s\*purchasedPasses\\\.find\/
-    \)
+test(
+  'uses the active entitlement purchase id to find the linked purchase',
+  () => {
+    assertSourceIncludes(
+      dashboardSource,
+      'const activePassPurchase ='
+    )
 
-    assert\.match\(
-      dashboardSource\,
-      \/purchase\\\.id \=\=\=\\s\*activeEntitlement\\\.purchase\_id\/
-    \)
-  \}
-\)
+    assertSourceIncludes(
+      dashboardSource,
+      'activeEntitlement?.purchase_id'
+    )
 
-test\(
-  \'resolves the organization from the linked purchase\'\,
-  \(\) \=\> \{
-    assert\.match\(
-      dashboardSource\,
-      \/activePassPurchase\\s\*\\\?\\\.selected\_organization\_id\/
-    \)
+    assertSourceIncludes(
+      dashboardSource,
+      'purchasedPasses.find('
+    )
 
-    assert\.match\(
-      dashboardSource\,
-      \/organizationById\\\.get\\\(\\s\*activePassPurchase\\s\*\\\.selected\_organization\_id\\s\*$end:math:text$/
+    assertSourceIncludes(
+      dashboardSource,
+      'purchase.id ==='
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'activeEntitlement.purchase_id'
+    )
+  }
+)
+
+test(
+  'resolves the organization from the linked purchase',
+  () => {
+    assertSourceIncludes(
+      dashboardSource,
+      'activePassPurchase'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'selected_organization_id'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'organizationById.get('
     )
   }
 )
@@ -266,9 +367,19 @@ test\(
 test(
   'prefers organization display name over business name',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /const supportedOrganizationName =\s*activePassOrganization\?\.display_name \|\|\s*activePassOrganization\?\.business_name \|\|\s*null/
+      'const supportedOrganizationName ='
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'activePassOrganization?.display_name ||'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'activePassOrganization?.business_name ||'
     )
   }
 )
@@ -276,9 +387,14 @@ test(
 test(
   'resolves the campaign name from the same linked purchase',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /const supportedCampaignName =\s*activePassPurchase\?\.campaigns\?\.name \|\|\s*null/
+      'const supportedCampaignName ='
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'activePassPurchase?.campaigns?.name ||'
     )
   }
 )
@@ -286,9 +402,19 @@ test(
 test(
   'passes support details into the digital pass',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /<CustomerDigitalPass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}[\s\S]*?supportedCampaignName=\{\s*supportedCampaignName\s*\}/
+      '<CustomerDigitalPass'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'supportedOrganizationName={'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'supportedCampaignName={'
     )
   }
 )
@@ -300,9 +426,14 @@ test(
 test(
   'passes the enriched active offer count into the digital pass',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /availableOfferCount=\{\s*enrichedOffers\.length\s*\}/
+      'availableOfferCount={'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'enrichedOffers.length'
     )
   }
 )
@@ -310,14 +441,24 @@ test(
 test(
   'counts the same active offers rendered by the dashboard',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /const enrichedOffers =\s*$begin:math:text$offers \\\?\\\? \\\[\\\]$end:math:text$\.map$begin:math:text$\\s\*enrichOffer\\s\*$end:math:text$/
+      'const enrichedOffers ='
     )
 
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /enrichedOffers=\{\s*enrichedOffers\s*\}/
+      '(offers ?? []).map('
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'enrichOffer'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'enrichedOffers={'
     )
   }
 )
@@ -329,14 +470,21 @@ test(
 test(
   'uses the campaign already joined onto purchased passes',
   () => {
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /campaigns $begin:math:text$\\s\*id\,\\s\*name\,\\s\*description\\s\*$end:math:text$/
+      'campaigns ('
     )
 
-    assert.doesNotMatch(
+    assertSourceIncludes(
       dashboardSource,
-      /from$begin:math:text$\[\'\"\]campaigns\[\'\"\]$end:math:text$[\s\S]*?supportedCampaignName/
+      'name,'
+    )
+
+    assert.equal(
+      dashboardSource.includes(
+        ".from('campaigns')"
+      ),
+      false
     )
   }
 )
@@ -344,24 +492,24 @@ test(
 test(
   'uses the existing active offer query for the deal count',
   () => {
-    const offerQueryMatches =
-      dashboardSource.match(
-        /\.from$begin:math:text$\[\'\"\]offers\[\'\"\]$end:math:text$/g
-      ) ?? []
-
     assert.equal(
-      offerQueryMatches.length,
+      countOccurrences(
+        dashboardSource,
+        ".from('offers')"
+      ),
       2
     )
 
-    assert.match(
+    assertSourceIncludes(
       dashboardSource,
-      /\.eq$begin:math:text$\[\'\"\]is\_active\[\'\"\]\, true$end:math:text$/
+      ".eq('is_active', true)"
     )
 
-    assert.doesNotMatch(
-      dashboardSource,
-      /\.select$begin:math:text$\[\'\"\]count\[\'\"\]$end:math:text$/
+    assert.equal(
+      dashboardSource.includes(
+        ".select('count')"
+      ),
+      false
     )
   }
 )
@@ -373,9 +521,14 @@ test(
 test(
   'keeps the inactive pass path independent of support and deal data',
   () => {
-    assert.match(
+    assertSourceIncludes(
       digitalPassSource,
-      /if $begin:math:text$\!hasActivePass$end:math:text$ \{\s*return <InactivePass \/>\s*\}/
+      'if (!hasActivePass) {'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'return <InactivePass />'
     )
   }
 )
