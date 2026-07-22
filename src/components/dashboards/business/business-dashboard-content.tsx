@@ -39,6 +39,7 @@ type BusinessProfile = {
   logo_url?: string | null
   website_url?: string | null
   display_name?: string | null
+  redemption_method?: string | null
 }
 
 type BusinessDashboardContentProps = {
@@ -366,7 +367,11 @@ export default function BusinessDashboardContent({
         id="business-redemption-settings"
         className="scroll-mt-6"
       >
-        <BusinessRedemptionSettingsSection />
+        <BusinessRedemptionSettingsSection
+          redemptionMethod={
+            profile?.redemption_method
+          }
+        />
       </section>
 
       <section
