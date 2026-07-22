@@ -14,6 +14,38 @@ const dashboardSource = readFileSync(
   'utf8'
 )
 
+const historicalSectionStart =
+  dashboardSource.indexOf(
+    '// Historical redeemed offers'
+  )
+
+const renderSectionStart =
+  dashboardSource.indexOf(
+    '// Render'
+  )
+
+assert.notEqual(
+  historicalSectionStart,
+  -1
+)
+
+assert.notEqual(
+  renderSectionStart,
+  -1
+)
+
+assert.equal(
+  historicalSectionStart <
+    renderSectionStart,
+  true
+)
+
+const historicalLoaderSource =
+  dashboardSource.slice(
+    historicalSectionStart,
+    renderSectionStart
+  )
+
 // =============================================================================
 // Active offer tracking
 // =============================================================================
@@ -21,9 +53,60 @@ const dashboardSource = readFileSync(
 test(
   'collects active offer ids before loading history',
   () => {
+    const activeIdsIndex =
+      dashboardSource.indexOf(
+        'const activeOfferIds'
+      )
+
+    assert.notEqual(
+      activeIdsIndex,
+      -1
+    )
+
+    assert.equal(
+      activeIdsIndex <
+        historicalSectionStart,
+      true
+    )
+
     assert.match(
       dashboardSource,
       /const activeOfferIds = new Set\(\s*\(offers \?\? \[\]\)\.map\(\s*\(offer\) => offer\.id\s*\)\s*\)/
+    )
+  }
+)
+
+// =============================================================================
+// Redemption ordering
+// =============================================================================
+
+test(
+  'loads redemption data before calculating historical offer ids',
+  () => {
+    const redemptionsIndex =
+      dashboardSource.indexOf(
+        ".from('redemptions')"
+      )
+
+    const historicalIdsIndex =
+      dashboardSource.indexOf(
+        'const historicalOfferIds'
+      )
+
+    assert.notEqual(
+      redemptionsIndex,
+      -1
+    )
+
+    assert.notEqual(
+      historicalIdsIndex,
+      -1
+    )
+
+    assert.equal(
+      redemptionsIndex <
+        historicalIdsIndex,
+      true
     )
   }
 )
@@ -36,7 +119,7 @@ test(
   'selects only redeemed offers missing from the active set',
   () => {
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /const historicalOfferIds = \[\s*\.\.\.redeemedOfferIds,\s*\]\.filter\(\s*\(offerId\) =>\s*!activeOfferIds\.has\(offerId\)\s*\)/
     )
   }
@@ -46,12 +129,12 @@ test(
   'skips the historical query when no missing redeemed offers exist',
   () => {
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /historicalOfferIds\.length > 0\s*\?\s*await supabase/
     )
 
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /:\s*\{\s*data: \[\]\s*\}/
     )
   }
@@ -65,13 +148,44 @@ test(
   'loads historical offers by their redeemed offer ids',
   () => {
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /\.from\('offers'\)\s+\.select\('\*'\)\s+\.in\('id', historicalOfferIds\)/
     )
 
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /\.order\('created_at', \{\s*ascending: false,\s*\}\)/
+    )
+  }
+)
+
+test(
+  'keeps the historical query before offer enrichment',
+  () => {
+    const historicalQueryIndex =
+      dashboardSource.indexOf(
+        'const { data: historicalOffersData }'
+      )
+
+    const enrichmentIndex =
+      dashboardSource.indexOf(
+        'function enrichOffer'
+      )
+
+    assert.notEqual(
+      historicalQueryIndex,
+      -1
+    )
+
+    assert.notEqual(
+      enrichmentIndex,
+      -1
+    )
+
+    assert.equal(
+      historicalQueryIndex <
+        enrichmentIndex,
+      true
     )
   }
 )
@@ -84,17 +198,17 @@ test(
   'uses one enrichment function for active and historical offers',
   () => {
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /function enrichOffer\(\s*offer: OfferRow\s*\): CustomerDashboardOffer/
     )
 
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /const enrichedOffers =\s*\(offers \?\? \[\]\)\.map\(\s*enrichOffer\s*\)/
     )
 
     assert.match(
-      dashboardSource,
+      historicalLoaderSource,
       /const historicalOffers =\s*\(historicalOffersData \?\? \[\]\)\.map\(\s*enrichOffer\s*\)/
     )
   }
@@ -107,31 +221,31 @@ test(
 test(
   'passes historical offers separately to dashboard content',
   () => {
+    const renderSource =
+      dashboardSource.slice(
+        renderSectionStart
+      )
+
     assert.match(
-      dashboardSource,
+      renderSource,
       /<CustomerDashboardContent/
     )
 
     assert.match(
-      dashboardSource,
+      renderSource,
       /enrichedOffers=\{\s*enrichedOffers\s*\}/
     )
 
     assert.match(
-      dashboardSource,
+      renderSource,
       /historicalOffers=\{\s*historicalOffers\s*\}/
     )
   }
 )
 
 test(
-  'keeps the historical loader after redemption data is available',
+  'keeps historical loading before dashboard rendering',
   () => {
-    const redemptionsIndex =
-      dashboardSource.indexOf(
-        ".from('redemptions')"
-      )
-
     const historicalIdsIndex =
       dashboardSource.indexOf(
         'const historicalOfferIds'
@@ -143,11 +257,6 @@ test(
       )
 
     assert.notEqual(
-      redemptionsIndex,
-      -1
-    )
-
-    assert.notEqual(
       historicalIdsIndex,
       -1
     )
@@ -155,12 +264,6 @@ test(
     assert.notEqual(
       renderIndex,
       -1
-    )
-
-    assert.equal(
-      redemptionsIndex <
-        historicalIdsIndex,
-      true
     )
 
     assert.equal(
