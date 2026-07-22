@@ -176,11 +176,6 @@ test(
 
     assertSourceIncludes(
       digitalPassSource,
-      'availableOfferCount'
-    )
-
-    assertSourceIncludes(
-      digitalPassSource,
       'normalizedOfferCount !=='
     )
 
@@ -202,6 +197,132 @@ test(
     assertSourceIncludes(
       digitalPassSource,
       'flex shrink-0 flex-wrap items-center gap-2'
+    )
+  }
+)
+
+// =============================================================================
+// Zero-deal guidance
+// =============================================================================
+
+test(
+  'only activates zero-deal guidance for an exact normalized zero',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'const hasNoActiveOffers ='
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'normalizedOfferCount === 0'
+    )
+
+    assert.equal(
+      digitalPassSource.includes(
+        '!normalizedOfferCount'
+      ),
+      false
+    )
+  }
+)
+
+test(
+  'shows an accessible status panel when no deals are active',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'hasNoActiveOffers ?'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'role="status"'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'Your pass is active and ready.'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'There are no participating'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'deals available right now.'
+    )
+  }
+)
+
+test(
+  'explains that offers may be added while the pass remains active',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'Businesses can add new offers'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'at any time, so check back'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'Your pass remains active'
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'until its expiration date.'
+    )
+  }
+)
+
+test(
+  'changes the primary shortcut for the zero-deal state',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      "?'Check for New Deals'"
+        .replace("?'", "? '")
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      ": 'Browse Available Deals'"
+    )
+
+    assertSourceIncludes(
+      digitalPassSource,
+      'href="/dashboard#available-offers"'
+    )
+  }
+)
+
+test(
+  'does not use the zero-deal panel for missing count data',
+  () => {
+    assertSourceIncludes(
+      digitalPassSource,
+      'normalizedOfferCount === 0'
+    )
+
+    assert.equal(
+      digitalPassSource.includes(
+        'normalizedOfferCount == null'
+      ),
+      false
+    )
+
+    assert.equal(
+      digitalPassSource.includes(
+        'availableOfferCount === 0'
+      ),
+      false
     )
   }
 )
