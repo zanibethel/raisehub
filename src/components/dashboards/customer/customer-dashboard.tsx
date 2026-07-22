@@ -179,6 +179,12 @@ export default async function CustomerDashboard({
       ascending: false,
     })
 
+  const activeOfferIds = new Set(
+    (offers ?? []).map(
+      (offer) => offer.id
+    )
+  )
+
   // ===========================================================================
   // Legacy business profiles
   // ===========================================================================
@@ -306,87 +312,123 @@ export default async function CustomerDashboard({
     )
 
   // ===========================================================================
-  // Enriched offers
+  // Historical redeemed offers
   // ===========================================================================
 
+  const historicalOfferIds = [
+    ...redeemedOfferIds,
+  ].filter(
+    (offerId) =>
+      !activeOfferIds.has(offerId)
+  )
+
+  const { data: historicalOffersData } =
+    historicalOfferIds.length > 0
+      ? await supabase
+          .from('offers')
+          .select('*')
+          .in('id', historicalOfferIds)
+          .order('created_at', {
+            ascending: false,
+          })
+      : { data: [] }
+
+  // ===========================================================================
+  // Offer enrichment
+  // ===========================================================================
+
+  type OfferRow =
+    NonNullable<typeof offers>[number]
+
+  function enrichOffer(
+    offer: OfferRow
+  ): CustomerDashboardOffer {
+    const legacyBusiness =
+      profileById.get(
+        offer.business_id
+      )
+
+    const canonicalBusiness =
+      canonicalBusinessByLegacyProfileId.get(
+        offer.business_id
+      )
+
+    const businessName =
+      canonicalBusiness?.name ||
+      canonicalBusiness
+        ?.google_business_name ||
+      legacyBusiness?.name ||
+      'Local Business'
+
+    const phone =
+      canonicalBusiness?.phone ||
+      canonicalBusiness?.google_phone ||
+      legacyBusiness?.phone ||
+      ''
+
+    const address =
+      canonicalBusiness?.address ||
+      canonicalBusiness
+        ?.google_formatted_address ||
+      legacyBusiness?.address ||
+      ''
+
+    const googleMapsUrl =
+      canonicalBusiness?.google_maps_url ||
+      legacyBusiness?.map ||
+      ''
+
+    return {
+      ...offer,
+      business_name: businessName,
+      phone,
+      address,
+      google_maps_url: googleMapsUrl,
+      business_latitude:
+        canonicalBusiness?.latitude ??
+        null,
+      business_longitude:
+        canonicalBusiness?.longitude ??
+        null,
+      business_location_source:
+        canonicalBusiness
+          ?.location_source ??
+        null,
+      google_place_id:
+        canonicalBusiness
+          ?.google_place_id ??
+        null,
+      google_business_name:
+        canonicalBusiness
+          ?.google_business_name ??
+        null,
+      google_primary_category:
+        canonicalBusiness
+          ?.google_primary_category ??
+        null,
+      google_rating:
+        canonicalBusiness?.google_rating ??
+        null,
+      google_review_count:
+        canonicalBusiness
+          ?.google_review_count ??
+        null,
+      google_website_url:
+        canonicalBusiness
+          ?.google_website_url ??
+        null,
+    }
+  }
+
   const enrichedOffers =
-    (offers ?? []).map((offer) => {
-      const legacyBusiness =
-        profileById.get(
-          offer.business_id
-        )
+    (offers ?? []).map(
+      enrichOffer
+    )
 
-      const canonicalBusiness =
-        canonicalBusinessByLegacyProfileId.get(
-          offer.business_id
-        )
-
-      const businessName =
-        canonicalBusiness?.name ||
-        canonicalBusiness
-          ?.google_business_name ||
-        legacyBusiness?.name ||
-        'Local Business'
-
-      const phone =
-        canonicalBusiness?.phone ||
-        canonicalBusiness?.google_phone ||
-        legacyBusiness?.phone ||
-        ''
-
-      const address =
-        canonicalBusiness?.address ||
-        canonicalBusiness
-          ?.google_formatted_address ||
-        legacyBusiness?.address ||
-        ''
-
-      const googleMapsUrl =
-        canonicalBusiness?.google_maps_url ||
-        legacyBusiness?.map ||
-        ''
-
-      return {
-        ...offer,
-        business_name: businessName,
-        phone,
-        address,
-        google_maps_url: googleMapsUrl,
-        business_latitude:
-          canonicalBusiness?.latitude ??
-          null,
-        business_longitude:
-          canonicalBusiness?.longitude ??
-          null,
-        business_location_source:
-          canonicalBusiness
-            ?.location_source ??
-          null,
-        google_place_id:
-          canonicalBusiness
-            ?.google_place_id ??
-          null,
-        google_business_name:
-          canonicalBusiness
-            ?.google_business_name ??
-          null,
-        google_primary_category:
-          canonicalBusiness
-            ?.google_primary_category ??
-          null,
-        google_rating:
-          canonicalBusiness?.google_rating ??
-          null,
-        google_review_count:
-          canonicalBusiness
-            ?.google_review_count ??
-          null,
-        google_website_url:
-          canonicalBusiness
-            ?.google_website_url ??
-          null,
-      }
-    }) as CustomerDashboardOffer[]
+  const historicalOffers =
+    (historicalOffersData ?? []).map(
+      enrichOffer
+    )
 
   // ===========================================================================
   // Render
@@ -418,6 +460,9 @@ export default async function CustomerDashboard({
         }
         enrichedOffers={
           enrichedOffers
+        }
+        historicalOffers={
+          historicalOffers
         }
         savedOfferIds={savedOfferIds}
         redeemedOfferIds={
