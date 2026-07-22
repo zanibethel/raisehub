@@ -14,6 +14,21 @@ const actionsSource = readFileSync(
   'utf8'
 )
 
+const removeActionStart =
+  actionsSource.indexOf(
+    'export async function removeSavedOfferAction'
+  )
+
+assert.notEqual(
+  removeActionStart,
+  -1
+)
+
+const removeActionSource =
+  actionsSource.slice(
+    removeActionStart
+  )
+
 // =============================================================================
 // Remove action structure
 // =============================================================================
@@ -22,17 +37,17 @@ test(
   'preserves the saved-offer lookup before removal',
   () => {
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.from\('saved_offers'\)\s+\.select\('id'\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.eq\('user_id', user\.id\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.eq\(\s*'offer_id',\s*normalizedOfferId\s*\)/
     )
   }
@@ -42,13 +57,13 @@ test(
   'checks redemption history before deleting a saved offer',
   () => {
     const redemptionLookupIndex =
-      actionsSource.indexOf(
+      removeActionSource.indexOf(
         ".from('redemptions')"
       )
 
     const deleteIndex =
-      actionsSource.indexOf(
-        ".from('saved_offers')\n      .delete()"
+      removeActionSource.search(
+        /\.from\('saved_offers'\)\s+\.delete\(\)/
       )
 
     assert.notEqual(
@@ -77,17 +92,17 @@ test(
   'checks the authenticated customer redemption record',
   () => {
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.from\('redemptions'\)\s+\.select\('offer_id'\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.eq\('user_id', user\.id\)\s+\.eq\(\s*'offer_id',\s*normalizedOfferId\s*\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.limit\(1\)\s+\.maybeSingle\(\)/
     )
   }
@@ -97,12 +112,12 @@ test(
   'handles redemption lookup failures safely',
   () => {
     assert.match(
-      actionsSource,
+      removeActionSource,
       /if \(redemptionError\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /We could not verify this offer’s redemption history\. Please try again\./
     )
   }
@@ -112,12 +127,12 @@ test(
   'blocks removal when a redemption exists',
   () => {
     assert.match(
-      actionsSource,
+      removeActionSource,
       /if \(redemption\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /Used deals are kept in My Pass as part of your redemption history\./
     )
   }
@@ -131,19 +146,19 @@ test(
   'returns before the delete query when a redemption exists',
   () => {
     const redeemedGuardIndex =
-      actionsSource.indexOf(
+      removeActionSource.indexOf(
         'if (redemption)'
       )
 
     const redeemedMessageIndex =
-      actionsSource.indexOf(
+      removeActionSource.indexOf(
         'Used deals are kept in My Pass',
         redeemedGuardIndex
       )
 
     const deleteIndex =
-      actionsSource.indexOf(
-        ".from('saved_offers')\n      .delete()"
+      removeActionSource.search(
+        /\.from\('saved_offers'\)\s+\.delete\(\)/
       )
 
     assert.notEqual(
@@ -179,17 +194,17 @@ test(
   'preserves saved-offer deletion for unused deals',
   () => {
     assert.match(
-      actionsSource,
+      removeActionSource,
       /\.from\('saved_offers'\)\s+\.delete\(\)\s+\.eq\('id', savedOffer\.id\)\s+\.eq\('user_id', user\.id\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /revalidateCustomerOfferPaths\(\s*normalizedOfferId\s*\)/
     )
 
     assert.match(
-      actionsSource,
+      removeActionSource,
       /return \{\s*status: 'success',\s*\}/
     )
   }
