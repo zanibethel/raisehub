@@ -90,7 +90,7 @@ function normalizeDonationAmount(value: number | undefined) {
     return 0
   }
 
-  return Math.max(0, normalized)
+  return Math.round(Math.max(0, normalized) * 100) / 100
 }
 
 function createClaimToken() {
@@ -203,7 +203,7 @@ export async function purchaseGiftPassAction(
     error: organizationProfileError,
   } = await admin
     .from('profiles')
-    .select('id, role, is_demo')
+    .select('id, role')
     .eq('id', selectedOrganizationId)
     .eq('role', 'organization')
     .maybeSingle()
@@ -219,28 +219,47 @@ export async function purchaseGiftPassAction(
     }
   }
 
-  const {
-    data: organizationRecord,
-    error: organizationRecordError,
-  } = await admin
-    .from('organizations')
-    .select('id')
-    .eq('legacy_profile_id', selectedOrganizationId)
-    .maybeSingle()
+  const [
+    {
+      data: campaignOrganizationRecord,
+      error: campaignOrganizationRecordError,
+    },
+    {
+      data: campaignOrganizationProfile,
+      error: campaignOrganizationProfileError,
+    },
+  ] = await Promise.all([
+    admin
+      .from('organizations')
+      .select('id')
+      .eq('legacy_profile_id', campaign.organization_id)
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('id, is_demo')
+      .eq('id', campaign.organization_id)
+      .eq('role', 'organization')
+      .maybeSingle(),
+  ])
 
-  if (organizationRecordError) {
+  if (
+    campaignOrganizationRecordError ||
+    campaignOrganizationProfileError ||
+    !campaignOrganizationProfile
+  ) {
     return {
       status: 'error',
       message:
-        'We could not confirm organization pricing. Please try again.',
+        'We could not confirm campaign pricing. Please try again.',
     }
   }
 
   const pricing = await resolveEffectivePricing({
     campaignId: campaign.id,
-    organizationId: organizationRecord?.id ?? null,
+    organizationId:
+      campaignOrganizationRecord?.id ?? null,
     donationAmount,
-    isDemo: selectedOrganizationProfile.is_demo,
+    isDemo: campaignOrganizationProfile.is_demo,
     now,
   })
 
@@ -317,7 +336,7 @@ export async function purchaseGiftPassAction(
       status: 'purchased',
       claim_token_hash: claimTokenHash,
       claim_expires_at: claimExpiresAt,
-      is_demo: selectedOrganizationProfile.is_demo,
+      is_demo: campaignOrganizationProfile.is_demo,
     })
     .select('id')
     .single()
