@@ -485,6 +485,9 @@ export default async function CustomerDashboard({
           supportedCampaignName={
             supportedCampaignName
           }
+          availableOfferCount={
+            enrichedOffers.length
+          }
         />
       </div>
 
