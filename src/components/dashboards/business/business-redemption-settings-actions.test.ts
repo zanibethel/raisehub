@@ -170,11 +170,90 @@ test(
 )
 
 // =============================================================================
+// Business authorization
+// =============================================================================
+
+test(
+  'reads the authenticated profile role',
+  () => {
+    assert.match(
+      actionSource,
+      /\.from\('profiles'\)\s*\.select\('role'\)/
+    )
+
+    assert.match(
+      actionSource,
+      /\.eq\('id', user\.id\)\s*\.single\(\)/
+    )
+  }
+)
+
+test(
+  'fails safely when the business profile cannot be verified',
+  () => {
+    assert.match(
+      actionSource,
+      /if \(profileError \|\| !profile\)/
+    )
+
+    assert.match(
+      actionSource,
+      /Could not verify your business profile\./
+    )
+  }
+)
+
+test(
+  'rejects profiles that are not businesses',
+  () => {
+    assert.match(
+      actionSource,
+      /if \(profile\.role !== 'business'\)/
+    )
+
+    assert.match(
+      actionSource,
+      /Only business accounts can update redemption settings\./
+    )
+  }
+)
+
+test(
+  'checks the business role before updating the profile',
+  () => {
+    const roleCheckIndex =
+      actionSource.indexOf(
+        "if (profile.role !== 'business')"
+      )
+
+    const updateIndex =
+      actionSource.indexOf(
+        ".update({"
+      )
+
+    assert.notEqual(
+      roleCheckIndex,
+      -1
+    )
+
+    assert.notEqual(
+      updateIndex,
+      -1
+    )
+
+    assert.equal(
+      roleCheckIndex < updateIndex,
+      true
+    )
+  }
+)
+
+// =============================================================================
 // Database write
 // =============================================================================
 
 test(
-  'updates only the authenticated profile',
+  'updates only the authenticated business profile',
   () => {
     assert.match(
       actionSource,
@@ -188,7 +267,7 @@ test(
 
     assert.match(
       actionSource,
-      /\.eq\('id', user\.id\)/
+      /\.eq\('id', user\.id\)\s*\.eq\('role', 'business'\)/
     )
   }
 )
@@ -253,6 +332,11 @@ test(
     assert.doesNotMatch(
       actionSource,
       /error:\s*error\.message/
+    )
+
+    assert.doesNotMatch(
+      actionSource,
+      /error:\s*profileError\.message/
     )
   }
 )
