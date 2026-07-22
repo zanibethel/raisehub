@@ -108,13 +108,18 @@ export async function updateBusinessRedemptionMethodAction(
     }
   }
 
-  const { error } = await supabase
+  const {
+    data: updatedProfile,
+    error,
+  } = await supabase
     .from('profiles')
     .update({
       redemption_method: value,
     })
     .eq('id', user.id)
     .eq('role', 'business')
+    .select('redemption_method')
+    .maybeSingle()
 
   if (error) {
     if (
@@ -133,6 +138,18 @@ export async function updateBusinessRedemptionMethodAction(
       success: false,
       error:
         'Could not update your redemption method. Please try again.',
+    }
+  }
+
+  if (
+    !updatedProfile ||
+    updatedProfile.redemption_method !==
+      value
+  ) {
+    return {
+      success: false,
+      error:
+        'Could not confirm your redemption method update. Please try again.',
     }
   }
 
