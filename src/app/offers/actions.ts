@@ -225,6 +225,36 @@ export async function removeSavedOfferAction(
     }
   }
 
+  const {
+    data: redemption,
+    error: redemptionError,
+  } = await supabase
+    .from('redemptions')
+    .select('offer_id')
+    .eq('user_id', user.id)
+    .eq(
+      'offer_id',
+      normalizedOfferId
+    )
+    .limit(1)
+    .maybeSingle()
+
+  if (redemptionError) {
+    return {
+      status: 'error',
+      message:
+        'We could not verify this offer’s redemption history. Please try again.',
+    }
+  }
+
+  if (redemption) {
+    return {
+      status: 'error',
+      message:
+        'Used deals are kept in My Pass as part of your redemption history.',
+    }
+  }
+
   const { error: deleteError } =
     await supabase
       .from('saved_offers')
