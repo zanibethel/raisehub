@@ -55,7 +55,7 @@ export async function updateOrganizationProfileAction(
   const admin = createAdminClient()
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .select('id, role')
+    .select('id, role, is_demo')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -63,7 +63,6 @@ export async function updateOrganizationProfileAction(
     return { error: 'This account is not authorized to manage an organization.' }
   }
 
-  const now = new Date().toISOString()
   const payload = {
     legacy_profile_id: user.id,
     name,
@@ -76,12 +75,15 @@ export async function updateOrganizationProfileAction(
     state_code: stateCode,
     status: 'active',
     created_by: user.id,
-    updated_at: now,
+    updated_at: new Date().toISOString(),
   }
 
+  // The database migration already includes town_name and state_code, but the
+  // checked-in generated Supabase types predate those columns. Keep the cast
+  // isolated here until database.types.ts is regenerated from the live schema.
   const { data: organization, error: organizationError } = await admin
     .from('organizations')
-    .upsert(payload, { onConflict: 'legacy_profile_id' })
+    .upsert(payload as never, { onConflict: 'legacy_profile_id' })
     .select('id')
     .single()
 
@@ -89,38 +91,19 @@ export async function updateOrganizationProfileAction(
     return { error: 'Your organization details could not be saved. Please try again.' }
   }
 
-  const { data: existingMembership, error: membershipLookupError } = await admin
+  const { error: membershipError } = await admin
     .from('organization_memberships')
-    .select('id')
-    .eq('organization_id', organization.id)
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .maybeSingle()
-
-  if (membershipLookupError) {
-    return { error: 'Organization details were saved, but access setup could not be confirmed.' }
-  }
-
-  const membershipMutation = existingMembership
-    ? admin
-        .from('organization_memberships')
-        .update({
-          membership_role: 'admin',
-          status: 'active',
-          accepted_at: now,
-          updated_at: now,
-        })
-        .eq('id', existingMembership.id)
-    : admin.from('organization_memberships').insert({
+    .upsert(
+      {
         organization_id: organization.id,
         user_id: user.id,
         membership_role: 'admin',
         status: 'active',
-        accepted_at: now,
-        updated_at: now,
-      })
-
-  const { error: membershipError } = await membershipMutation
+        accepted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'organization_id,user_id' }
+    )
 
   if (membershipError) {
     return { error: 'Organization details were saved, but access setup could not be completed.' }
