@@ -155,6 +155,9 @@ function ActivePass({
       availableOfferCount
     )
 
+  const hasNoActiveOffers =
+    normalizedOfferCount === 0
+
   const hasSupportedOrganization =
     Boolean(
       supportedOrganizationName?.trim()
@@ -223,6 +226,26 @@ function ActivePass({
               ) : null}
             </div>
           </div>
+
+          {hasNoActiveOffers ? (
+            <div
+              role="status"
+              className="mt-6 rounded-2xl border border-white/25 bg-white/15 p-4 backdrop-blur"
+            >
+              <p className="text-sm font-bold text-white">
+                Your pass is active and ready.
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-green-50">
+                There are no participating
+                deals available right now.
+                Businesses can add new offers
+                at any time, so check back
+                soon. Your pass remains active
+                until its expiration date.
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
@@ -307,7 +330,9 @@ function ActivePass({
               href="/dashboard#available-offers"
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
             >
-              Browse Available Deals
+              {hasNoActiveOffers
+                ? 'Check for New Deals'
+                : 'Browse Available Deals'}
             </Link>
 
             <Link
