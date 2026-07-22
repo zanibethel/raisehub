@@ -316,6 +316,74 @@ test(
 )
 
 // =============================================================================
+// Redemption history protection
+// =============================================================================
+
+test(
+  'only allows ready deals to be removed from My Pass',
+  () => {
+    assert.match(
+      sectionSource,
+      /\{!isRedeemed \? \(/
+    )
+    assert.match(
+      sectionSource,
+      /<RemoveSavedOfferButton\s+offerId=\{offer\.id\}\s+offerTitle=\{offerTitle\}/
+    )
+  }
+)
+
+test(
+  'keeps redeemed deals in My Pass history',
+  () => {
+    assert.match(
+      sectionSource,
+      /Kept in My Pass as part of\s+your redemption history\./
+    )
+  }
+)
+
+test(
+  'pairs redeemed status with the history retention message',
+  () => {
+    const redeemedConditionIndex =
+      sectionSource.indexOf(
+        '{!isRedeemed ? ('
+      )
+
+    const removalButtonIndex =
+      sectionSource.indexOf(
+        '<RemoveSavedOfferButton',
+        redeemedConditionIndex
+      )
+
+    const historyMessageIndex =
+      sectionSource.indexOf(
+        'Kept in My Pass as part of',
+        redeemedConditionIndex
+      )
+
+    assert.notEqual(
+      redeemedConditionIndex,
+      -1
+    )
+    assert.notEqual(
+      removalButtonIndex,
+      -1
+    )
+    assert.notEqual(
+      historyMessageIndex,
+      -1
+    )
+    assert.equal(
+      removalButtonIndex <
+        historyMessageIndex,
+      true
+    )
+  }
+)
+
+// =============================================================================
 // Saved deal organization
 // =============================================================================
 
