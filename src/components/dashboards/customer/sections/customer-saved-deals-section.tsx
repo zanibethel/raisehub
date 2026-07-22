@@ -320,10 +320,17 @@ function SavedDealCard({
           />
         )}
 
-        <RemoveSavedOfferButton
-          offerId={offer.id}
-          offerTitle={offerTitle}
-        />
+        {!isRedeemed ? (
+          <RemoveSavedOfferButton
+            offerId={offer.id}
+            offerTitle={offerTitle}
+          />
+        ) : (
+          <p className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-xs leading-5 text-gray-600">
+            Kept in My Pass as part of
+            your redemption history.
+          </p>
+        )}
       </div>
     </article>
   )
