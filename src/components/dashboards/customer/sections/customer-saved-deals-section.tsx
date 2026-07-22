@@ -204,8 +204,8 @@ function SavedDealCard({
     )
 
   return (
-    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6">
-      <div className="flex min-w-0 items-start justify-between gap-3">
+    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-4 shadow-xl backdrop-blur sm:p-6">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="break-words text-xs font-semibold uppercase tracking-wide text-green-700">
             {businessName}
@@ -219,8 +219,8 @@ function SavedDealCard({
         <span
           className={
             isRedeemed
-              ? 'shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
-              : 'shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
+              ? 'w-fit shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
+              : 'w-fit shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
           }
         >
           {isRedeemed
@@ -237,9 +237,9 @@ function SavedDealCard({
         {description}
       </p>
 
-      <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
+      <dl className="mt-4 grid gap-4 rounded-2xl bg-gray-50 p-4 text-sm sm:grid-cols-2">
         {phone ? (
-          <div>
+          <div className="min-w-0">
             <dt className="font-semibold text-gray-900">
               Phone
             </dt>
@@ -256,7 +256,7 @@ function SavedDealCard({
         ) : null}
 
         {address ? (
-          <div>
+          <div className="min-w-0">
             <dt className="font-semibold text-gray-900">
               Location
             </dt>
@@ -267,7 +267,7 @@ function SavedDealCard({
           </div>
         ) : null}
 
-        <div>
+        <div className="min-w-0">
           <dt className="font-semibold text-gray-900">
             Offer ends
           </dt>
@@ -387,7 +387,7 @@ export default function CustomerSavedDealsSection({
     <section
       aria-labelledby="customer-saved-deals-heading"
     >
-      <div className="rounded-3xl border border-green-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-8">
+      <div className="rounded-3xl border border-green-100 bg-white/90 p-4 shadow-xl backdrop-blur sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
