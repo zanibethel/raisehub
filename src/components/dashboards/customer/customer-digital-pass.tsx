@@ -9,6 +9,8 @@ type CustomerDigitalPassProps = {
   entitlementType?: string | null
   startsAt?: string | null
   expiresAt?: string | null
+  supportedOrganizationName?:
+    string | null
 }
 
 // =============================================================================
@@ -95,10 +97,13 @@ function ActivePass({
   entitlementType,
   startsAt,
   expiresAt,
+  supportedOrganizationName,
 }: {
   entitlementType?: string | null
   startsAt?: string | null
   expiresAt?: string | null
+  supportedOrganizationName?:
+    string | null
 }) {
   const formattedStartDate =
     formatPassDate(startsAt)
@@ -153,7 +158,7 @@ function ActivePass({
             </span>
           </div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
                 Pass type
@@ -199,6 +204,20 @@ function ActivePass({
                 </p>
               ) : null}
             </div>
+
+            {supportedOrganizationName?.trim() ? (
+              <div className="min-w-0 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
+                  Supporting
+                </p>
+
+                <p className="mt-2 break-words font-bold">
+                  {
+                    supportedOrganizationName
+                  }
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <nav
@@ -308,6 +327,7 @@ export default function CustomerDigitalPass({
   entitlementType,
   startsAt,
   expiresAt,
+  supportedOrganizationName,
 }: CustomerDigitalPassProps) {
   if (!hasActivePass) {
     return <InactivePass />
@@ -320,6 +340,9 @@ export default function CustomerDigitalPass({
       }
       startsAt={startsAt}
       expiresAt={expiresAt}
+      supportedOrganizationName={
+        supportedOrganizationName
+      }
     />
   )
 }
