@@ -162,6 +162,33 @@ export default async function CustomerDashboard({
   )
 
   // ===========================================================================
+  // Active pass organization
+  // ===========================================================================
+
+  const activePassPurchase =
+    activeEntitlement?.purchase_id
+      ? purchasedPasses.find(
+          (purchase) =>
+            purchase.id ===
+            activeEntitlement.purchase_id
+        ) ?? null
+      : null
+
+  const activePassOrganization =
+    activePassPurchase
+      ?.selected_organization_id
+      ? organizationById.get(
+          activePassPurchase
+            .selected_organization_id
+        )
+      : undefined
+
+  const supportedOrganizationName =
+    activePassOrganization?.display_name ||
+    activePassOrganization?.business_name ||
+    null
+
+  // ===========================================================================
   // Active offers
   // ===========================================================================
 
@@ -447,6 +474,9 @@ export default async function CustomerDashboard({
           }
           expiresAt={
             activeEntitlement?.expires_at
+          }
+          supportedOrganizationName={
+            supportedOrganizationName
           }
         />
       </div>
