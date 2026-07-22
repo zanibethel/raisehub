@@ -22,6 +22,7 @@ import {
 } from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
 import CustomerNearbyBusinessesSection from './sections/customer-nearby-businesses-section'
+import CustomerNextStepSection from './sections/customer-next-step-section'
 import CustomerNotificationCenter from './sections/customer-notification-center'
 import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerRecommendationsSection from './sections/customer-recommendations-section'
@@ -132,6 +133,13 @@ export default function CustomerDashboardContent({
       activeDealFilter
     )
 
+  const readyToUseDealCount = [
+    ...savedOfferIds,
+  ].filter(
+    (offerId) =>
+      !redeemedOfferIds.has(offerId)
+  ).length
+
   function selectDealFilter(
     filter: CustomerDealFilter
   ) {
@@ -174,6 +182,22 @@ export default function CustomerDashboardContent({
           }
         />
       </div>
+
+      <CustomerNextStepSection
+        hasActivePass={hasPurchasedPass}
+        availableOfferCount={
+          enrichedOffers.length
+        }
+        savedDealCount={
+          savedOfferIds.size
+        }
+        readyToUseDealCount={
+          readyToUseDealCount
+        }
+        purchaseCount={
+          purchasedPasses.length
+        }
+      />
 
       <section
         aria-labelledby="customer-deal-shortcuts-heading"
