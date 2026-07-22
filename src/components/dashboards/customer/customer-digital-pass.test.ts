@@ -23,59 +23,104 @@ const dashboardSource = readFileSync(
 )
 
 // =============================================================================
-// Digital pass prop
+// Digital pass props
 // =============================================================================
 
 test(
-  'accepts an optional supported organization name',
+  'accepts optional organization and campaign names',
   () => {
     assert.match(
       digitalPassSource,
       /supportedOrganizationName\?:\s*string \| null/
     )
+
+    assert.match(
+      digitalPassSource,
+      /supportedCampaignName\?:\s*string \| null/
+    )
   }
 )
 
 test(
-  'passes the organization name into the active pass',
+  'passes support details into the active pass',
   () => {
     assert.match(
       digitalPassSource,
-      /function ActivePass\(\{[\s\S]*?supportedOrganizationName,[\s\S]*?\}: \{[\s\S]*?supportedOrganizationName\?:\s*string \| null/
+      /function ActivePass\(\{[\s\S]*?supportedOrganizationName,[\s\S]*?supportedCampaignName,[\s\S]*?\}: \{/
     )
 
     assert.match(
       digitalPassSource,
-      /<ActivePass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}/
+      /<ActivePass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}[\s\S]*?supportedCampaignName=\{\s*supportedCampaignName\s*\}/
     )
   }
 )
 
 // =============================================================================
-// Organization card
+// Support details card
 // =============================================================================
 
 test(
-  'shows the supported organization only when a nonblank name exists',
+  'normalizes blank organization and campaign names',
   () => {
     assert.match(
       digitalPassSource,
-      /supportedOrganizationName\?\.trim\(\)\s*\?\s*\(/
+      /const hasSupportedOrganization =\s*Boolean\(\s*supportedOrganizationName\?\.trim\(\)\s*\)/
+    )
+
+    assert.match(
+      digitalPassSource,
+      /const hasSupportedCampaign =\s*Boolean\(\s*supportedCampaignName\?\.trim\(\)\s*\)/
+    )
+  }
+)
+
+test(
+  'shows the support card when either detail exists',
+  () => {
+    assert.match(
+      digitalPassSource,
+      /const hasSupportDetails =\s*hasSupportedOrganization \|\|\s*hasSupportedCampaign/
+    )
+
+    assert.match(
+      digitalPassSource,
+      /\{hasSupportDetails \? \(/
     )
 
     assert.match(
       digitalPassSource,
       />\s*Supporting\s*</
     )
+  }
+)
 
+test(
+  'renders the organization independently inside the support card',
+  () => {
     assert.match(
       digitalPassSource,
-      /\{\s*supportedOrganizationName\s*\}/
+      /\{hasSupportedOrganization \? \([\s\S]*?\{\s*supportedOrganizationName\s*\}[\s\S]*?\) : null\}/
+    )
+  }
+)
+
+test(
+  'renders the campaign independently with a fundraiser label',
+  () => {
+    assert.match(
+      digitalPassSource,
+      /\{hasSupportedCampaign \? \(/
     )
 
     assert.match(
       digitalPassSource,
-      /\)\s*:\s*null/
+      /Fundraiser:\{'\s'\}/
+    )
+
+    assert.match(
+      digitalPassSource,
+      /\{\s*supportedCampaignName\s*\}/
     )
   }
 )
@@ -135,11 +180,40 @@ test(
 )
 
 test(
-  'passes the resolved organization name into the digital pass',
+  'resolves the campaign name from the same linked purchase',
   () => {
     assert.match(
       dashboardSource,
-      /<CustomerDigitalPass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}/
+      /const supportedCampaignName =\s*activePassPurchase\?\.campaigns\?\.name \|\|\s*null/
+    )
+  }
+)
+
+test(
+  'passes both support details into the digital pass',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerDigitalPass[\s\S]*?supportedOrganizationName=\{\s*supportedOrganizationName\s*\}[\s\S]*?supportedCampaignName=\{\s*supportedCampaignName\s*\}/
+    )
+  }
+)
+
+// =============================================================================
+// Query efficiency
+// =============================================================================
+
+test(
+  'uses the campaign already joined onto purchased passes',
+  () => {
+    assert.match(
+      dashboardSource,
+      /campaigns \(\s*id,\s*name,\s*description\s*\)/
+    )
+
+    assert.doesNotMatch(
+      dashboardSource,
+      /from\(['"]campaigns['"]\)[\s\S]*?supportedCampaignName/
     )
   }
 )
@@ -149,7 +223,7 @@ test(
 // =============================================================================
 
 test(
-  'keeps the inactive pass path independent of organization data',
+  'keeps the inactive pass path independent of support details',
   () => {
     assert.match(
       digitalPassSource,
