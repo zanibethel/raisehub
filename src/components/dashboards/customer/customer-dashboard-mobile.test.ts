@@ -199,6 +199,109 @@ test(
 )
 
 // =============================================================================
+// Historical offer preparation
+// =============================================================================
+
+test(
+  'accepts historical offers separately from active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /historicalOffers\?:\s*AvailableDealsProps\['enrichedOffers'\]/
+    )
+
+    assert.match(
+      dashboardSource,
+      /historicalOffers = \[\]/
+    )
+  }
+)
+
+test(
+  'combines active and historical offers without duplicate ids',
+  () => {
+    assert.match(
+      dashboardSource,
+      /const customerHistoryOffers = \[\s*\.\.\.new Map\(/
+    )
+
+    assert.match(
+      dashboardSource,
+      /\.\.\.enrichedOffers,\s*\.\.\.historicalOffers,/
+    )
+
+    assert.match(
+      dashboardSource,
+      /\.map\(\(offer\) => \[\s*offer\.id,\s*offer,\s*\]\)/
+    )
+
+    assert.match(
+      dashboardSource,
+      /\.values\(\)/
+    )
+  }
+)
+
+// =============================================================================
+// Active marketplace separation
+// =============================================================================
+
+test(
+  'keeps deal filters limited to active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /getCustomerDealFilterCounts\(\{\s*offers: enrichedOffers,\s*savedOfferIds,/
+    )
+
+    assert.match(
+      dashboardSource,
+      /filterCustomerDeals\(\{\s*offers: enrichedOffers,\s*filter: activeDealFilter,/
+    )
+  }
+)
+
+test(
+  'keeps notifications limited to active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerNotificationCenter[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'keeps nearby businesses limited to active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerNearbyBusinessesSection[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'keeps recommendations limited to active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerRecommendationsSection[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'keeps available deals limited to filtered active offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerAvailableDealsSection[\s\S]*?enrichedOffers=\{\s*filteredOffers\s*\}/
+    )
+  }
+)
+
+// =============================================================================
 // My Pass customer flow
 // =============================================================================
 
@@ -218,6 +321,26 @@ test(
 )
 
 test(
+  'uses customer history offers in My Pass',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerSavedDealsSection[\s\S]*?enrichedOffers=\{\s*customerHistoryOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'uses customer history offers for savings',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerSavingsSection[\s\S]*?enrichedOffers=\{\s*customerHistoryOffers\s*\}/
+    )
+  }
+)
+
+test(
   'preserves redemption history in the customer flow',
   () => {
     assert.match(
@@ -228,6 +351,16 @@ test(
     assert.match(
       dashboardSource,
       /<CustomerRedemptionHistorySection/
+    )
+  }
+)
+
+test(
+  'uses customer history offers in redemption history',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerRedemptionHistorySection[\s\S]*?enrichedOffers=\{\s*customerHistoryOffers\s*\}/
     )
   }
 )
