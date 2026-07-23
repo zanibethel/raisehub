@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createOfferAction } from '@/app/dashboard/actions'
+import { buildRecommendedOffers } from '@/lib/ai/recommendation-engine'
 import OfferWizardProgress from './components/progress'
 import GoalStep, { type OfferGoal } from './components/goal-step'
 import SuggestionStep, {
@@ -17,6 +18,8 @@ import DetailsStep, {
 import ReviewStep from './components/review-step'
 
 const TOTAL_STEPS = 4
+const OFFER_LIMIT_MESSAGE =
+  'You have reached the free limit of 3 active offers. Upgrade to add more.'
 
 const businessCategories = [
   'Restaurant / Food',
@@ -69,6 +72,26 @@ const emptyDraft: OfferDraft = {
   estimatedBusinessCost: 3,
 }
 
+function isOfferDraft(value: unknown): value is OfferDraft {
+  if (!value || typeof value !== 'object') return false
+
+  const draft = value as Partial<OfferDraft>
+  return (
+    typeof draft.title === 'string' &&
+    typeof draft.memberBenefit === 'string' &&
+    typeof draft.qualifyingPurchase === 'string' &&
+    typeof draft.description === 'string' &&
+    typeof draft.startsAt === 'string' &&
+    typeof draft.endsAt === 'string' &&
+    typeof draft.limitOnePerMember === 'boolean' &&
+    typeof draft.validEveryDay === 'boolean' &&
+    typeof draft.requiresPurchase === 'boolean' &&
+    typeof draft.exclusivity === 'string' &&
+    typeof draft.estimatedRetailValue === 'number' &&
+    typeof draft.estimatedBusinessCost === 'number'
+  )
+}
+
 export default function NewOfferPage() {
   const router = useRouter()
 
@@ -76,6 +99,7 @@ export default function NewOfferPage() {
   const [publishing, setPublishing] = useState(false)
   const [step, setStep] = useState(1)
   const [message, setMessage] = useState('')
+  const [offerLimitReached, setOfferLimitReached] = useState(false)
 
   const [businessName, setBusinessName] = useState('')
   const [businessCategory, setBusinessCategory] = useState('')
@@ -118,10 +142,35 @@ export default function NewOfferPage() {
       }
 
       const category = profile.business_category ?? ''
-
       setBusinessName(profile.business_name ?? '')
       setBusinessCategory(category)
       setDraftCategory(category)
+
+      const { data: savedDraft } = await supabase
+        .from('business_offer_drafts')
+        .select('selected_goal, selected_suggestion_id, draft')
+        .eq('business_id', user.id)
+        .maybeSingle()
+
+      if (savedDraft && isOfferDraft(savedDraft.draft)) {
+        const goal = savedDraft.selected_goal as OfferGoal | null
+        setOfferDraft(savedDraft.draft)
+        setSelectedGoal(goal)
+        setStep(4)
+        setMessage('Your saved offer draft has been restored.')
+
+        if (goal && category) {
+          const suggestions = buildRecommendedOffers({
+            businessCategory: category,
+            goal,
+          })
+          const suggestion = suggestions.find(
+            (item) => item.id === savedDraft.selected_suggestion_id
+          )
+          setSelectedSuggestion(suggestion ?? null)
+        }
+      }
+
       setCheckingProfile(false)
     }
 
@@ -133,13 +182,13 @@ export default function NewOfferPage() {
     setSelectedSuggestion(null)
     setOfferDraft(emptyDraft)
     setMessage('')
+    setOfferLimitReached(false)
   }
 
   function handleSuggestionSelect(suggestion: OfferSuggestion) {
     const { startsAt, endsAt } = getDefaultOfferDates()
 
     setSelectedSuggestion(suggestion)
-
     setOfferDraft({
       title: suggestion.title,
       memberBenefit: suggestion.discount,
@@ -156,8 +205,8 @@ export default function NewOfferPage() {
       estimatedRetailValue: suggestion.estimatedRetailValue,
       estimatedBusinessCost: suggestion.estimatedBusinessCost,
     })
-
     setMessage('')
+    setOfferLimitReached(false)
   }
 
   async function saveBusinessCategory() {
@@ -209,6 +258,7 @@ export default function NewOfferPage() {
 
   function handleContinue() {
     setMessage('')
+    setOfferLimitReached(false)
 
     if (step === 1 && !selectedGoal) {
       setMessage('Choose a business goal before continuing.')
@@ -258,14 +308,35 @@ export default function NewOfferPage() {
 
   function handleBack() {
     setMessage('')
+    setOfferLimitReached(false)
     setStep((current) => Math.max(current - 1, 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function saveDraft() {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return { error: 'You must be logged in to save this draft.' }
+
+    const { error } = await supabase.from('business_offer_drafts').upsert({
+      business_id: user.id,
+      selected_goal: selectedGoal,
+      selected_suggestion_id: selectedSuggestion?.id ?? null,
+      draft: offerDraft,
+      updated_at: new Date().toISOString(),
+    })
+
+    return { error: error?.message ?? null }
   }
 
   async function publishOffer() {
     if (publishing) return
     setPublishing(true)
     setMessage('')
+    setOfferLimitReached(false)
 
     const completeDescription = [
       offerDraft.description.trim(),
@@ -287,10 +358,29 @@ export default function NewOfferPage() {
       })
 
       if (result.error) {
+        if (result.error === OFFER_LIMIT_MESSAGE) {
+          const saved = await saveDraft()
+          if (saved.error) {
+            setMessage(
+              `${result.error} We could not save your draft: ${saved.error}`
+            )
+          } else {
+            setMessage(
+              'You have reached the free limit of 3 active offers. Your proposed offer was saved so you can upgrade or manage existing offers without losing it.'
+            )
+            setOfferLimitReached(true)
+          }
+          return
+        }
+
         setMessage(result.error)
         return
       }
 
+      const supabase = createClient()
+      await supabase.from('business_offer_drafts').delete().eq('business_id', (
+        await supabase.auth.getUser()
+      ).data.user?.id ?? '')
       router.replace('/dashboard?offerCreated=true')
     } catch {
       setMessage('An unexpected error occurred. Please try again.')
@@ -324,10 +414,7 @@ export default function NewOfferPage() {
         </div>
 
         <div className="mt-4">
-          <OfferWizardProgress
-            currentStep={step}
-            totalSteps={TOTAL_STEPS}
-          />
+          <OfferWizardProgress currentStep={step} totalSteps={TOTAL_STEPS} />
         </div>
 
         <div className="mt-6 rounded-3xl border border-white/70 bg-white/95 p-6 shadow-xl sm:p-9">
@@ -337,21 +424,18 @@ export default function NewOfferPage() {
                 <p className="text-sm font-bold text-blue-800">
                   Change business type
                 </p>
-
                 <select
                   value={draftCategory}
                   onChange={(event) => setDraftCategory(event.target.value)}
                   className="mt-3 w-full rounded-xl border border-blue-200 bg-white p-3"
                 >
                   <option value="">Select a business type</option>
-
                   {businessCategories.map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>
                   ))}
                 </select>
-
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
@@ -361,7 +445,6 @@ export default function NewOfferPage() {
                   >
                     {savingCategory ? 'Saving...' : 'Save Business Type'}
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setEditingCategory(false)}
@@ -377,12 +460,10 @@ export default function NewOfferPage() {
                   <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
                     Current business type
                   </p>
-
                   <p className="mt-1 font-semibold text-gray-900">
                     {businessCategory || 'Not selected'}
                   </p>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -433,12 +514,32 @@ export default function NewOfferPage() {
           ) : null}
 
           {message ? (
-            <p
+            <div
               role="alert"
-              className="mt-6 rounded-xl bg-red-50 p-3 text-sm text-red-700"
+              className={`mt-6 rounded-xl p-4 text-sm ${
+                offerLimitReached
+                  ? 'border border-blue-200 bg-blue-50 text-blue-900'
+                  : 'bg-red-50 text-red-700'
+              }`}
             >
-              {message}
-            </p>
+              <p>{message}</p>
+              {offerLimitReached ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Link
+                    href="/upgrade"
+                    className="rounded-xl bg-blue-600 px-5 py-3 text-center font-bold text-white hover:bg-blue-700"
+                  >
+                    Upgrade Plan
+                  </Link>
+                  <Link
+                    href="/dashboard#business-offers"
+                    className="rounded-xl border border-blue-300 bg-white px-5 py-3 text-center font-bold text-blue-700"
+                  >
+                    Manage Offers
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
