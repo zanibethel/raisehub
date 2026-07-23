@@ -314,7 +314,7 @@ export default function AccountMenu({
             <div className="space-y-1">
               {!hasBusinessWorkspace ? (
                 <Link
-                  href="/onboarding/workspace/business"
+                  href="/workspace/new/business"
                   className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
                 >
                   <span>Join RaiseHub Partners</span>
@@ -323,7 +323,7 @@ export default function AccountMenu({
               ) : null}
               {!hasOrganizationWorkspace ? (
                 <Link
-                  href="/onboarding/workspace/organization"
+                  href="/workspace/new/organization"
                   className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
                 >
                   <span>Raise Funds for Your Organization</span>
