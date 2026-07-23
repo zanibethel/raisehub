@@ -53,13 +53,34 @@ export async function updateOrganizationProfileAction(
   }
 
   const admin = createAdminClient()
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('id, role, is_demo')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [{ data: profile }, { data: existingOrganization }] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('id, role, is_demo')
+      .eq('id', user.id)
+      .maybeSingle(),
+    admin
+      .from('organizations')
+      .select('id')
+      .eq('legacy_profile_id', user.id)
+      .maybeSingle(),
+  ])
 
-  if (profileError || profile?.role !== 'organization') {
+  let hasOrganizationAccess = profile?.role === 'organization'
+
+  if (existingOrganization?.id) {
+    const { data: membership } = await admin
+      .from('organization_memberships')
+      .select('id')
+      .eq('organization_id', existingOrganization.id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    hasOrganizationAccess = hasOrganizationAccess || Boolean(membership)
+  }
+
+  if (!hasOrganizationAccess) {
     return { error: 'This account is not authorized to manage an organization.' }
   }
 
