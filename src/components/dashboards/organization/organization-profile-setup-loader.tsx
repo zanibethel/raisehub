@@ -1,8 +1,12 @@
+import { cookies } from 'next/headers'
+
+import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationProfileSetupSection from './sections/organization-profile-setup-section'
 
 type OrganizationSetupRecord = {
+  id: string
   name: string
   organization_type: string | null
   description: string | null
@@ -13,6 +17,8 @@ type OrganizationSetupRecord = {
   state_code: string | null
 }
 
+const WORKSPACE_PREFERENCE_COOKIE = 'raisehub-selected-workspace'
+
 export default async function OrganizationProfileSetupLoader() {
   const supabase = await createClient()
   const {
@@ -20,6 +26,22 @@ export default async function OrganizationProfileSetupLoader() {
   } = await supabase.auth.getUser()
 
   if (!user) {
+    return null
+  }
+
+  const workspaceResult = await getAuthenticatedWorkspaces()
+  const selectedWorkspaceKey =
+    (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || ''
+  const selectedWorkspace = workspaceResult.success
+    ? workspaceResult.workspaces.find(
+        (workspace) =>
+          workspace.key === selectedWorkspaceKey &&
+          (workspace.kind === 'organization' || workspace.kind === 'fundraising')
+      )
+    : null
+  const selectedOrganizationId = selectedWorkspace?.workspaceId ?? null
+
+  if (!selectedOrganizationId) {
     return null
   }
 
@@ -37,9 +59,9 @@ export default async function OrganizationProfileSetupLoader() {
   // until the generated type file is refreshed from the live project.
   const organizationRequest = (admin.from('organizations') as any)
     .select(
-      'name, organization_type, description, phone, email, website_url, town_name, state_code'
+      'id, name, organization_type, description, phone, email, website_url, town_name, state_code'
     )
-    .eq('legacy_profile_id', user.id)
+    .eq('id', selectedOrganizationId)
     .maybeSingle()
 
   const [{ data: profile }, { data: organizationResult }] = await Promise.all([
@@ -48,9 +70,6 @@ export default async function OrganizationProfileSetupLoader() {
   ])
   const organization = organizationResult as OrganizationSetupRecord | null
 
-  // Multi-role accounts may keep a legacy Supporter role while owning an
-  // Organization workspace. The organization record and active membership are
-  // the source of truth for rendering this editor, not profiles.role.
   if (!organization) {
     return null
   }
@@ -82,6 +101,7 @@ export default async function OrganizationProfileSetupLoader() {
 
   return (
     <OrganizationProfileSetupSection
+      organizationId={organization.id}
       profile={profileData}
       isComplete={isComplete}
     />
