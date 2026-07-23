@@ -1,8 +1,7 @@
-import Link from 'next/link'
+'use client'
 
-// =============================================================================
-// Types
-// =============================================================================
+import Link from 'next/link'
+import { useState } from 'react'
 
 export type BusinessNotificationTone =
   | 'info'
@@ -26,93 +25,52 @@ type BusinessNotificationCenterProps = {
   description?: string
 }
 
-// =============================================================================
-// Presentation helpers
-// =============================================================================
-
-function getToneClasses(
-  tone: BusinessNotificationTone
-): {
-  container: string
-  icon: string
-  label: string
-} {
+function getToneClasses(tone: BusinessNotificationTone) {
   if (tone === 'success') {
     return {
-      container:
-        'border-green-200 bg-green-50',
+      container: 'border-green-200 bg-green-50',
       icon: 'bg-green-100 text-green-700',
       label: 'Update',
+      symbol: '✓',
     }
   }
 
   if (tone === 'warning') {
     return {
-      container:
-        'border-amber-200 bg-amber-50',
+      container: 'border-amber-200 bg-amber-50',
       icon: 'bg-amber-100 text-amber-700',
       label: 'Attention',
+      symbol: '!',
     }
   }
 
   if (tone === 'danger') {
     return {
-      container:
-        'border-red-200 bg-red-50',
+      container: 'border-red-200 bg-red-50',
       icon: 'bg-red-100 text-red-700',
       label: 'Action needed',
+      symbol: '×',
     }
   }
 
   return {
-    container:
-      'border-blue-200 bg-blue-50',
+    container: 'border-blue-200 bg-blue-50',
     icon: 'bg-blue-100 text-blue-700',
     label: 'Information',
+    symbol: 'i',
   }
 }
 
-function getToneIcon(
-  tone: BusinessNotificationTone
-): string {
-  if (tone === 'success') {
-    return '✓'
-  }
-
-  if (tone === 'warning') {
-    return '!'
-  }
-
-  if (tone === 'danger') {
-    return '×'
-  }
-
-  return 'i'
-}
-
-function formatNotificationDate(
-  value: string | null | undefined
-): string | null {
-  if (!value) {
-    return null
-  }
-
+function formatNotificationDate(value: string | null | undefined) {
+  if (!value) return null
   const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-
+  if (Number.isNaN(date.getTime())) return null
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
 }
-
-// =============================================================================
-// Notification item
-// =============================================================================
 
 function NotificationItem({
   notification,
@@ -121,22 +79,16 @@ function NotificationItem({
 }) {
   const tone = notification.tone ?? 'info'
   const toneClasses = getToneClasses(tone)
-
-  const formattedDate =
-    formatNotificationDate(
-      notification.createdAt
-    )
+  const formattedDate = formatNotificationDate(notification.createdAt)
 
   return (
-    <article
-      className={`rounded-2xl border p-4 ${toneClasses.container}`}
-    >
+    <article className={`rounded-2xl border p-4 ${toneClasses.container}`}>
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${toneClasses.icon}`}
         >
-          {getToneIcon(tone)}
+          {toneClasses.symbol}
         </span>
 
         <div className="min-w-0 flex-1">
@@ -145,7 +97,6 @@ function NotificationItem({
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 {toneClasses.label}
               </p>
-
               <h3 className="mt-1 font-semibold text-gray-900">
                 {notification.title}
               </h3>
@@ -153,10 +104,7 @@ function NotificationItem({
 
             {formattedDate ? (
               <time
-                dateTime={
-                  notification.createdAt ??
-                  undefined
-                }
+                dateTime={notification.createdAt ?? undefined}
                 className="text-xs text-gray-500"
               >
                 {formattedDate}
@@ -173,8 +121,7 @@ function NotificationItem({
               href={notification.href}
               className="mt-3 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
             >
-              {notification.actionLabel ??
-                'View details'}
+              {notification.actionLabel ?? 'View details'}
             </Link>
           ) : null}
         </div>
@@ -183,78 +130,69 @@ function NotificationItem({
   )
 }
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export default function BusinessNotificationCenter({
   notifications,
   title = 'Notification Center',
   description = 'Important updates and recommended actions for this business.',
 }: BusinessNotificationCenterProps) {
+  const [expanded, setExpanded] = useState(false)
+
   return (
     <section
       aria-labelledby="business-notification-center-title"
-      className="rounded-2xl border border-gray-200 bg-white/90 p-6 shadow-xl backdrop-blur"
+      className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5"
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-4 text-left"
+      >
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             Business updates
           </p>
-
           <h2
             id="business-notification-center-title"
-            className="mt-1 text-xl font-bold text-gray-900"
+            className="mt-1 text-lg font-bold text-gray-900"
           >
             {title}
           </h2>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-            {description}
+          <p className="mt-1 text-sm text-gray-600">
+            {notifications.length > 0
+              ? `${notifications.length} ${notifications.length === 1 ? 'update' : 'updates'} waiting`
+              : 'You’re all caught up'}
           </p>
         </div>
 
-        {notifications.length > 0 ? (
-          <span className="w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-            {notifications.length}{' '}
-            {notifications.length === 1
-              ? 'update'
-              : 'updates'}
-          </span>
-        ) : null}
-      </div>
+        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+          {expanded ? 'Hide' : 'View'}
+        </span>
+      </button>
 
-      {notifications.length > 0 ? (
-        <div className="mt-5 space-y-3">
-          {notifications.map(
-            (notification) => (
-              <NotificationItem
-                key={notification.id}
-                notification={notification}
-              />
-            )
+      {expanded ? (
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="text-sm leading-6 text-gray-600">{description}</p>
+
+          {notifications.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {notifications.map((notification) => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
+              <p className="font-semibold text-gray-900">You’re all caught up</p>
+              <p className="mt-1 text-sm text-gray-600">
+                New business activity and important recommendations will appear here.
+              </p>
+            </div>
           )}
         </div>
-      ) : (
-        <div className="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-          <div
-            aria-hidden="true"
-            className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-lg font-bold text-green-700"
-          >
-            ✓
-          </div>
-
-          <h3 className="mt-3 font-semibold text-gray-900">
-            You’re all caught up
-          </h3>
-
-          <p className="mt-1 text-sm text-gray-600">
-            New business activity and important
-            recommendations will appear here.
-          </p>
-        </div>
-      )}
+      ) : null}
     </section>
   )
 }
