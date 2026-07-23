@@ -181,7 +181,6 @@ export default async function BusinessDashboard({
 
   return (
     <BusinessDashboardContent
-      businessLegacyProfileId={businessProfileId}
       profile={profile}
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}
