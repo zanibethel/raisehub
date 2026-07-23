@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 
-import BusinessProfileCard from '@/app/components/business-profile-card'
 import UpgradePlanModal from '@/app/components/upgrade-plan-modal'
 import AttentionCenter from '@/components/dashboard/attention-center'
 import { getDashboardAlerts } from '@/lib/rules/dashboard-alerts'
@@ -34,7 +33,6 @@ type BusinessProfile = {
 }
 
 type BusinessDashboardContentProps = {
-  businessLegacyProfileId?: string | null
   profile: BusinessProfile | null
   offers: BusinessOffer[]
   totalRedemptions: number
@@ -157,7 +155,6 @@ function buildBusinessNotifications({
 
 function formatExportDate(value: string): string {
   const date = new Date(value)
-
   if (Number.isNaN(date.getTime())) return value
 
   return date.toLocaleString(undefined, {
@@ -197,7 +194,6 @@ function buildBusinessExportRows({
 }
 
 export default function BusinessDashboardContent({
-  businessLegacyProfileId,
   profile,
   offers,
   totalRedemptions,
@@ -270,19 +266,6 @@ export default function BusinessDashboardContent({
 
   return (
     <div className="mt-6 space-y-10">
-      <section id="business-profile" className="scroll-mt-6">
-        <BusinessProfileCard
-          businessLegacyProfileId={businessLegacyProfileId}
-          businessName={profile?.business_name ?? ''}
-          phone={profile?.phone ?? ''}
-          address={profile?.address ?? ''}
-          googleMapsUrl={profile?.google_maps_url ?? ''}
-          logoUrl={profile?.logo_url ?? ''}
-          websiteUrl={profile?.website_url ?? ''}
-          displayName={profile?.display_name ?? ''}
-        />
-      </section>
-
       <section className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm sm:p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
           Customer activity
@@ -291,21 +274,28 @@ export default function BusinessDashboardContent({
         <div className="mt-3 grid grid-cols-3 divide-x divide-gray-200">
           <div className="px-2 text-center sm:px-4">
             <p className="text-xs font-semibold text-blue-700 sm:text-sm">Views</p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{viewCount}</p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
+              {viewCount}
+            </p>
           </div>
           <div className="px-2 text-center sm:px-4">
             <p className="text-xs font-semibold text-green-700 sm:text-sm">Clicks</p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{clickCount}</p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
+              {clickCount}
+            </p>
           </div>
           <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-amber-700 sm:text-sm">Conversion</p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{conversionRate}%</p>
+            <p className="text-xs font-semibold text-amber-700 sm:text-sm">
+              Conversion
+            </p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
+              {conversionRate}%
+            </p>
           </div>
         </div>
       </section>
 
       <AttentionCenter alerts={dashboardAlerts} />
-
       <BusinessNotificationCenter notifications={businessNotifications} />
 
       <BusinessDashboardQuickActions
