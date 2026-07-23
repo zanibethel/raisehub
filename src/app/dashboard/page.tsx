@@ -261,11 +261,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               >
                 {theme.badge}
               </div>
-              <AccountMenu
-                email={accountEmail}
-                workspaces={availableWorkspaces}
-                selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
-              />
+              <div
+                className={
+                  experienceRole === 'customer'
+                    ? 'supporter-account-menu'
+                    : undefined
+                }
+              >
+                <AccountMenu
+                  email={accountEmail}
+                  workspaces={availableWorkspaces}
+                  selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
+                />
+              </div>
             </div>
             <div className="mt-5 min-w-0">
               <h1 className={`break-words text-3xl font-bold ${theme.headingClass}`}>
@@ -282,6 +290,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           {renderDashboard(experienceRole, selectedWorkspace)}
         </div>
       </div>
+
+      {experienceRole === 'customer' ? (
+        <style>{`
+          .supporter-account-menu summary > span:first-child {
+            font-size: 0;
+          }
+
+          .supporter-account-menu summary > span:first-child::after {
+            content: 'S';
+            font-size: 0.875rem;
+          }
+        `}</style>
+      ) : null}
     </main>
   )
 }
