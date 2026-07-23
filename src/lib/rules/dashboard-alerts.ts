@@ -82,7 +82,7 @@ export function getDashboardAlerts(
       type: 'danger',
       title: 'Complete your business profile',
       description:
-        'A complete profile helps customers trust your business.',
+        'Add the business name, phone number, address, and logo so customers can recognize and trust this business.',
       action: 'Finish Profile',
     })
   }
