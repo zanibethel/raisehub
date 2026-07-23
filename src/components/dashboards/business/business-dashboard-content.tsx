@@ -11,7 +11,6 @@ import { getOfferStatus } from '@/lib/rules/offer-status'
 import BusinessDashboardCreateOffer from './business-dashboard-create-offer'
 import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
-import BusinessExportTools from './business-export-tools'
 import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
 import BusinessRedemptionSettingsSection from './sections/business-redemption-settings-section'
@@ -306,13 +305,6 @@ export default function BusinessDashboardContent({
         />
       </section>
 
-      <section id="business-exports" className="scroll-mt-6">
-        <BusinessExportTools
-          rows={businessExportRows}
-          businessName={profile?.business_name}
-        />
-      </section>
-
       <section id="create-offer" className="scroll-mt-6">
         <BusinessDashboardCreateOffer
           activeOffersCount={activeOffersCount}
@@ -329,6 +321,8 @@ export default function BusinessDashboardContent({
           redemptionCountByOfferId={redemptionCountByOfferId}
           redemptionsByOfferId={redemptionsByOfferId}
           profileEmailById={profileEmailById}
+          exportRows={businessExportRows}
+          businessName={profile?.business_name}
           onBoost={() => setIsUpgradeOpen(true)}
         />
       </section>
