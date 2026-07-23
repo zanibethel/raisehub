@@ -27,7 +27,7 @@ export default async function OrganizationProfileSetupLoader() {
   const profileRequest = admin
     .from('profiles')
     .select(
-      'business_name, display_name, business_description, phone, email, website_url, role'
+      'business_name, display_name, business_description, phone, email, website_url'
     )
     .eq('id', user.id)
     .maybeSingle()
@@ -48,27 +48,30 @@ export default async function OrganizationProfileSetupLoader() {
   ])
   const organization = organizationResult as OrganizationSetupRecord | null
 
-  if (profile?.role !== 'organization') {
+  // Multi-role accounts may keep a legacy Supporter role while owning an
+  // Organization workspace. The organization record and active membership are
+  // the source of truth for rendering this editor, not profiles.role.
+  if (!organization) {
     return null
   }
 
   const profileData = {
     name:
-      organization?.name ||
-      profile.business_name ||
-      profile.display_name ||
+      organization.name ||
+      profile?.business_name ||
+      profile?.display_name ||
       '',
-    organizationType: organization?.organization_type || '',
+    organizationType: organization.organization_type || '',
     description:
-      organization?.description ||
-      profile.business_description ||
+      organization.description ||
+      profile?.business_description ||
       '',
-    phone: organization?.phone || profile.phone || '',
-    email: organization?.email || profile.email || user.email || '',
+    phone: organization.phone || profile?.phone || '',
+    email: organization.email || profile?.email || user.email || '',
     websiteUrl:
-      organization?.website_url || profile.website_url || '',
-    townName: organization?.town_name || '',
-    stateCode: organization?.state_code || '',
+      organization.website_url || profile?.website_url || '',
+    townName: organization.town_name || '',
+    stateCode: organization.state_code || '',
   }
 
   const isComplete = Boolean(
