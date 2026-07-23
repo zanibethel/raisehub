@@ -16,10 +16,6 @@ type SuggestionStepProps = {
   onSelect: (suggestion: OfferSuggestion) => void
 }
 
-function renderStars(score: number) {
-  return '★'.repeat(score) + '☆'.repeat(5 - score)
-}
-
 export default function SuggestionStep({
   businessName,
   businessCategory,
@@ -77,149 +73,118 @@ export default function SuggestionStep({
   return (
     <div>
       <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
-        Recommended for your business
+        Recommended for {businessName || 'your business'}
       </p>
 
-      <h1 className="mt-3 text-3xl font-bold text-blue-700 sm:text-4xl">
-        Review one offer idea at a time
+      <h1 className="mt-2 text-2xl font-bold text-blue-700 sm:text-3xl">
+        Pick a starting idea
       </h1>
 
-      <p className="mt-4 max-w-2xl leading-7 text-gray-600">
-        These suggestions are tailored for{' '}
-        <span className="font-semibold text-gray-900">
-          {businessName || 'your business'}
-        </span>{' '}
-        and balance strong member value with sustainable business cost.
+      <p className="mt-2 text-sm leading-6 text-gray-600">
+        You will edit the title, benefit, description, dates, and fine print on
+        the next screen.
       </p>
 
-      <div className="mt-7 flex items-center justify-between gap-4">
-        <p
-          className="text-sm font-semibold text-gray-700"
-          aria-live="polite"
+      <div className="mt-5 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={showPrevious}
+          disabled={isFirst}
+          aria-label="Show previous recommendation"
+          className="min-h-11 rounded-xl border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Recommendation {currentIndex + 1} of {suggestions.length}
-        </p>
-        <div
-          className="h-2 min-w-28 flex-1 overflow-hidden rounded-full bg-gray-100 sm:max-w-xs"
-          role="progressbar"
-          aria-label="Recommendation progress"
-          aria-valuemin={1}
-          aria-valuemax={suggestions.length}
-          aria-valuenow={currentIndex + 1}
-        >
+          Previous
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-center text-sm font-semibold text-gray-700" aria-live="polite">
+            {currentIndex + 1} of {suggestions.length}
+          </p>
           <div
-            className="h-full rounded-full bg-blue-600 transition-[width]"
-            style={{
-              width: `${((currentIndex + 1) / suggestions.length) * 100}%`,
-            }}
-          />
+            className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100"
+            role="progressbar"
+            aria-label="Recommendation progress"
+            aria-valuemin={1}
+            aria-valuemax={suggestions.length}
+            aria-valuenow={currentIndex + 1}
+          >
+            <div
+              className="h-full rounded-full bg-blue-600 transition-[width]"
+              style={{
+                width: `${((currentIndex + 1) / suggestions.length) * 100}%`,
+              }}
+            />
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={showNext}
+          disabled={isLast}
+          aria-label="Show next recommendation"
+          className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
       </div>
 
-      <article className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {currentSuggestion.title}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              {currentSuggestion.description}
-            </p>
-          </div>
-
-          <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
-            Estimated value: ${currentSuggestion.estimatedRetailValue}
+      <article className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-bold leading-tight text-gray-900">
+            {currentSuggestion.title}
+          </h2>
+          <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-sm font-bold text-green-800">
+            {currentSuggestion.score.total}/100
           </span>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl bg-green-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-              RaiseHub Score
+        <p className="mt-3 text-sm leading-6 text-gray-600">
+          {currentSuggestion.description}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-xl bg-blue-50 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+              Customer value
             </p>
-            <p className="mt-1 text-2xl font-bold text-green-800">
-              {currentSuggestion.score.total}/100
-            </p>
-            <p className="mt-1 text-xs font-semibold text-green-700">
-              {currentSuggestion.score.recommendation}
+            <p className="mt-1 font-bold text-blue-900">
+              ${currentSuggestion.estimatedRetailValue}
             </p>
           </div>
-
-          <div className="rounded-xl bg-slate-50 p-4">
-            <div className="space-y-2 text-xs text-gray-700">
-              <p>
-                Member value:{' '}
-                <span className="font-semibold">
-                  {renderStars(currentSuggestion.score.memberValue)}
-                </span>
-              </p>
-              <p>
-                Business sustainability:{' '}
-                <span className="font-semibold">
-                  {renderStars(currentSuggestion.score.businessSustainability)}
-                </span>
-              </p>
-              <p>
-                Exclusivity:{' '}
-                <span className="font-semibold">
-                  {renderStars(currentSuggestion.score.exclusivity)}
-                </span>
-              </p>
-              <p>
-                Growth potential:{' '}
-                <span className="font-semibold">
-                  {renderStars(currentSuggestion.score.growthPotential)}
-                </span>
-              </p>
-            </div>
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Est. business cost
+            </p>
+            <p className="mt-1 font-bold text-slate-900">
+              ${currentSuggestion.estimatedBusinessCost}
+            </p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl bg-yellow-50 p-3">
-          <p className="text-xs font-semibold leading-5 text-yellow-900">
-            RaiseHub Coach: {currentSuggestion.coachNote}
-          </p>
-        </div>
-
-        <div className="mt-3 text-xs text-gray-500">
-          <p>
-            Estimated business cost: ${currentSuggestion.estimatedBusinessCost}
-          </p>
-          <p className="mt-1">Exclusive to RaiseHub members</p>
-        </div>
+        <p className="mt-4 rounded-xl bg-yellow-50 p-3 text-xs font-semibold leading-5 text-yellow-900">
+          RaiseHub Coach: {currentSuggestion.coachNote}
+        </p>
 
         <button
           type="button"
           onClick={() => onSelect(currentSuggestion)}
           aria-pressed={selected}
-          className={`mt-6 min-h-11 w-full rounded-xl px-5 py-3 font-semibold transition sm:w-auto ${
+          className={`mt-5 min-h-11 w-full rounded-xl px-5 py-3 font-semibold transition ${
             selected
               ? 'bg-green-700 text-white ring-2 ring-green-200'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {selected ? 'Selected ✓' : 'Choose this recommendation'}
+          {selected ? 'Selected — continue to customize' : 'Use this idea'}
         </button>
-      </article>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={showPrevious}
-          disabled={isFirst}
-          className="min-h-11 rounded-xl border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          onClick={showNext}
-          disabled={isLast}
-          className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
+        {selected ? (
+          <p className="mt-3 text-center text-sm font-semibold text-green-800" aria-live="polite">
+            This is only a starting point. Select Continue below to edit every
+            offer detail before publishing.
+          </p>
+        ) : null}
+      </article>
     </div>
   )
 }
