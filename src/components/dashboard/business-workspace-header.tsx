@@ -1,0 +1,112 @@
+'use client'
+
+import { useState } from 'react'
+
+import AccountMenu from '@/app/components/account-menu'
+import BusinessProfileForm from '@/app/components/business-profile-form'
+import type { SelectableWorkspace } from '@/lib/types/identity-access'
+
+type BusinessWorkspaceHeaderProps = {
+  businessLegacyProfileId?: string | null
+  businessName: string
+  displayName: string
+  phone: string
+  address: string
+  googleMapsUrl: string
+  logoUrl: string
+  websiteUrl: string
+  subtitle: string
+  badgeClass: string
+  headingClass: string
+  panelClass: string
+  email: string | null
+  workspaces: SelectableWorkspace[]
+  selectedWorkspaceKey: string | null
+}
+
+export default function BusinessWorkspaceHeader({
+  businessLegacyProfileId,
+  businessName,
+  displayName,
+  phone,
+  address,
+  googleMapsUrl,
+  logoUrl,
+  websiteUrl,
+  subtitle,
+  badgeClass,
+  headingClass,
+  panelClass,
+  email,
+  workspaces,
+  selectedWorkspaceKey,
+}: BusinessWorkspaceHeaderProps) {
+  const [editing, setEditing] = useState(false)
+  const publicName = displayName || businessName || 'Business Dashboard'
+
+  return (
+    <header
+      id="business-profile"
+      className={`relative z-50 rounded-3xl p-6 sm:p-8 ${panelClass}`}
+    >
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${badgeClass}`}>
+            Business
+          </div>
+
+          <div className="mt-5 flex items-center gap-4">
+            <img
+              src={logoUrl || '/default-business-logo.png'}
+              alt={`${publicName} logo`}
+              className="h-16 w-16 shrink-0 rounded-2xl border border-gray-200 object-cover shadow-sm"
+            />
+
+            <div className="min-w-0">
+              <h1 className={`truncate text-3xl font-bold ${headingClass}`}>
+                {publicName}
+              </h1>
+              <p className="mt-1 text-gray-600">{subtitle}</p>
+              {address ? (
+                <p className="mt-1 truncate text-sm text-gray-500">{address}</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:items-end sm:pt-1">
+          <AccountMenu
+            email={email}
+            workspaces={workspaces}
+            selectedWorkspaceKey={selectedWorkspaceKey}
+          />
+
+          <button
+            type="button"
+            onClick={() => setEditing((current) => !current)}
+            aria-expanded={editing}
+            className="inline-flex items-center justify-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
+          >
+            {editing ? 'Close details' : 'Edit details'}
+          </button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="mt-6 border-t border-green-100 pt-6">
+          <BusinessProfileForm
+            businessLegacyProfileId={businessLegacyProfileId}
+            initialBusinessName={businessName}
+            initialDisplayName={displayName}
+            initialPhone={phone}
+            initialAddress={address}
+            initialGoogleMapsUrl={googleMapsUrl}
+            initialLogoUrl={logoUrl}
+            initialWebsiteUrl={websiteUrl}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      ) : null}
+    </header>
+  )
+}
