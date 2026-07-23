@@ -48,6 +48,15 @@ The same production customer completed both paths against the production deploym
 
 This verifies the database-level distinction between a first pass purchase and a donation made by a customer who already has an active pass.
 
+### Customer persistence check
+
+After signing out and signing back in on production, the customer confirmed:
+
+- the active pass remained visible
+- the displayed expiration date looked correct
+- saved offers and purchase history loaded
+- campaign support remained donation-only instead of offering a second pass
+
 ## Customer QA matrix
 
 ### A. Authentication and routing
@@ -67,7 +76,7 @@ This verifies the database-level distinction between a first pass purchase and a
 - [ ] Canceling Stripe Checkout returns to the dedicated recovery page.
 - [x] Returning from successful checkout shows a clear confirmation state.
 - [x] Pass appears on the customer dashboard without a manual support action.
-- [ ] Pass start and expiration dates are correct.
+- [x] Pass start and expiration dates are correct.
 
 ### C. Active-pass donation
 
@@ -81,7 +90,7 @@ This verifies the database-level distinction between a first pass purchase and a
 ### D. Pass access and account isolation
 
 - [x] My Pass displays the correct active pass.
-- [ ] Pass remains available after signing out and back in.
+- [x] Pass remains available after signing out and back in.
 - [ ] A different customer account cannot see the first customer’s pass, purchases, saved offers, or redemption history.
 - [ ] Expired-pass behavior is clear and does not grant offer access.
 
