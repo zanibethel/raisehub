@@ -80,7 +80,7 @@ export default function BusinessWorkspaceHeader({
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6 flex items-start gap-4">
         <img
           src={logoUrl || '/default-business-logo.png'}
           alt={`${publicName} logo`}
@@ -88,12 +88,16 @@ export default function BusinessWorkspaceHeader({
         />
 
         <div className="min-w-0 flex-1">
-          <h1 className={`truncate text-3xl font-bold ${headingClass}`}>
+          <h1
+            className={`break-words text-2xl font-bold leading-tight sm:text-3xl ${headingClass}`}
+          >
             {publicName}
           </h1>
-          <p className="mt-1 text-gray-600">{subtitle}</p>
+          <p className="mt-2 text-gray-600">{subtitle}</p>
           {address ? (
-            <p className="mt-1 truncate text-sm text-gray-500">{address}</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-500">
+              {address}
+            </p>
           ) : null}
         </div>
       </div>
