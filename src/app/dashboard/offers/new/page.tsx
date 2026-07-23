@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -274,10 +275,21 @@ export default function NewOfferPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
       <section className="mx-auto max-w-5xl">
-        <OfferWizardProgress
-          currentStep={step}
-          totalSteps={TOTAL_STEPS}
-        />
+        <div className="flex justify-end">
+          <Link
+            href="/dashboard"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+
+        <div className="mt-4">
+          <OfferWizardProgress
+            currentStep={step}
+            totalSteps={TOTAL_STEPS}
+          />
+        </div>
 
         <div className="mt-6 rounded-3xl border border-white/70 bg-white/95 p-6 shadow-xl sm:p-9">
           <div className="mb-7 rounded-2xl border border-blue-100 bg-blue-50 p-4">
