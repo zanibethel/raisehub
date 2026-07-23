@@ -2,27 +2,19 @@ import Link from 'next/link'
 
 import { createClient } from '@/lib/supabase/server'
 
+import BusinessOfferPreview from './business-offer-preview'
+
 type BusinessOfferPreviewPageProps = {
   params: Promise<{ offerId: string }>
 }
 
 type PreviewOffer = {
   id: string
+  title: string | null
+  discount: string | null
+  description: string | null
   starts_at: string | null
   ends_at: string | null
-}
-
-function formatOfferDate(value: string | null): string {
-  if (!value) return 'No published end date'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Date unavailable'
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function isCurrentlyAvailable(offer: PreviewOffer): boolean {
@@ -47,12 +39,15 @@ export default async function BusinessOfferPreviewPage({
   const { offerId } = await params
   const supabase = await createClient()
 
-  const { data: anchorOffer } = await supabase
-    .from('offers')
-    .select('business_id')
-    .eq('id', offerId)
-    .eq('is_active', true)
-    .maybeSingle()
+  const [{ data: anchorOffer }, { data: authData }] = await Promise.all([
+    supabase
+      .from('offers')
+      .select('business_id')
+      .eq('id', offerId)
+      .eq('is_active', true)
+      .maybeSingle(),
+    supabase.auth.getUser(),
+  ])
 
   if (!anchorOffer?.business_id) {
     return (
@@ -78,7 +73,7 @@ export default async function BusinessOfferPreviewPage({
   const [{ data: offers }, { data: profile }] = await Promise.all([
     supabase
       .from('offers')
-      .select('id, starts_at, ends_at')
+      .select('id, title, discount, description, starts_at, ends_at')
       .eq('business_id', anchorOffer.business_id)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
@@ -92,6 +87,7 @@ export default async function BusinessOfferPreviewPage({
   const availableOffers = (offers ?? []).filter(isCurrentlyAvailable)
   const businessName =
     profile?.display_name || profile?.business_name || 'Local Business'
+  const canReveal = authData.user?.id === anchorOffer.business_id
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-blue-50 px-4 py-8 sm:px-8 sm:py-16">
@@ -135,60 +131,15 @@ export default async function BusinessOfferPreviewPage({
               </p>
             </div>
             <p className="max-w-sm text-right text-sm leading-6 text-gray-600">
-              Offer details stay hidden until a customer has an active RaiseHub Pass.
+              Customer access remains locked until they have an active RaiseHub Pass.
             </p>
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2">
-          {availableOffers.length > 0 ? (
-            availableOffers.map((offer, index) => (
-              <article
-                key={offer.id}
-                className="rounded-3xl border border-yellow-100 bg-white/95 p-5 shadow-lg"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-yellow-700">
-                    Exclusive Local Deal {index + 1}
-                  </p>
-                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">
-                    Locked
-                  </span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-center">
-                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-yellow-100 text-lg">
-                    🔒
-                  </div>
-                  <h2 className="mt-3 text-lg font-bold text-gray-900">
-                    Deal details require a RaiseHub Pass
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">
-                    Support a participating fundraiser to reveal this offer.
-                  </p>
-                </div>
-
-                <div className="mt-4 rounded-2xl bg-gray-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                    Valid until
-                  </p>
-                  <p className="mt-1 font-semibold text-gray-800">
-                    {formatOfferDate(offer.ends_at)}
-                  </p>
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 text-center sm:col-span-2">
-              <h2 className="font-bold text-gray-900">
-                No customer offers are currently available
-              </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Check back after this business publishes or reactivates an offer.
-              </p>
-            </div>
-          )}
-        </section>
+        <BusinessOfferPreview
+          offers={availableOffers}
+          canReveal={canReveal}
+        />
       </div>
     </main>
   )
