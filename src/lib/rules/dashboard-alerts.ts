@@ -27,12 +27,16 @@ type DashboardAlertInput = {
   profileComplete: boolean
 }
 
+const FREE_ACTIVE_OFFER_LIMIT = 3
+
 export function getDashboardAlerts(
   input: DashboardAlertInput
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
+  const hasOpenOfferSlot =
+    input.activeOffers < FREE_ACTIVE_OFFER_LIMIT
 
-  if (input.activeOffers < 3) {
+  if (hasOpenOfferSlot) {
     alerts.push({
       id: 'offer-slots',
       type: 'info',
@@ -43,7 +47,10 @@ export function getDashboardAlerts(
     })
   }
 
-  if (input.pausedOffers > 0) {
+  if (
+    input.pausedOffers > 0 &&
+    hasOpenOfferSlot
+  ) {
     alerts.push({
       id: 'paused',
       type: 'warning',
