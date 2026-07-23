@@ -57,6 +57,14 @@ After signing out and signing back in on production, the customer confirmed:
 - saved offers and purchase history loaded
 - campaign support remained donation-only instead of offering a second pass
 
+### Saved offer preview check
+
+On the PR #16 preview, the customer confirmed on mobile that:
+
+- the Save Deal control appeared on an eligible offer
+- saving persisted after refresh and appeared in My Saved Deals
+- removing the deal persisted after refresh
+
 ## Customer QA matrix
 
 ### A. Authentication and routing
@@ -96,11 +104,13 @@ After signing out and signing back in on production, the customer confirmed:
 
 ### E. Offer discovery and saving
 
-- [ ] Customer can browse active offers.
-- [ ] Offer detail pages load on mobile and desktop.
-- [ ] Active-pass access requirements are enforced consistently.
-- [ ] Customer can save and remove offers.
-- [ ] Saved offers persist after refresh and re-login.
+- [x] Customer can browse active offers.
+- [x] Offer detail pages load on mobile.
+- [x] Active-pass access requirements are enforced consistently for saving.
+- [x] Customer can save and remove offers.
+- [x] Saved-offer state persists after refresh.
+- [ ] Saved offers persist after a fresh re-login.
+- [ ] Offer detail pages load on desktop.
 - [ ] Demo and production offers remain clearly separated.
 
 ### F. Redemption journey
