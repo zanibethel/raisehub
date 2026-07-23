@@ -32,6 +32,9 @@ export default async function OrganizationProfileSetupLoader() {
   const workspaceResult = await getAuthenticatedWorkspaces()
   const selectedWorkspaceKey =
     (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || ''
+
+  // Resolve the exact selected workspace so accounts can manage more than one
+  // organization without mixing profile details between them.
   const selectedWorkspace = workspaceResult.success
     ? workspaceResult.workspaces.find(
         (workspace) =>
