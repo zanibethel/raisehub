@@ -155,9 +155,7 @@ function buildBusinessNotifications({
 function formatExportDate(value: string): string {
   const date = new Date(value)
 
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
+  if (Number.isNaN(date.getTime())) return value
 
   return date.toLocaleString(undefined, {
     year: 'numeric',
@@ -265,8 +263,11 @@ export default function BusinessDashboardContent({
   })
 
   return (
-    <div className="mt-8 space-y-10">
-      <section id="business-profile" className="scroll-mt-6">
+    <div className="space-y-10">
+      <section
+        id="business-profile"
+        className="relative -mt-px scroll-mt-6 [&>section]:rounded-t-none [&>section]:border-t-0 [&>section]:px-6 [&>section]:pb-6 [&>section]:pt-4 sm:[&>section]:px-8"
+      >
         <BusinessProfileCard
           businessLegacyProfileId={businessLegacyProfileId}
           businessName={profile?.business_name ?? ''}
