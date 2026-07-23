@@ -180,58 +180,22 @@ export default async function BusinessDashboard({
   }
 
   return (
-    <>
-      <section className="mt-6 rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm sm:p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-          Customer activity
-        </p>
-
-        <div className="mt-3 grid grid-cols-3 divide-x divide-gray-200">
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-blue-700 sm:text-sm">
-              Views
-            </p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {viewCount}
-            </p>
-          </div>
-
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-green-700 sm:text-sm">
-              Clicks
-            </p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {clickCount}
-            </p>
-          </div>
-
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-amber-700 sm:text-sm">
-              Conversion
-            </p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {conversionRate}%
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <BusinessDashboardContent
-        businessLegacyProfileId={businessProfileId}
-        profile={profile}
-        offers={offers ?? []}
-        totalRedemptions={totalRedemptions}
-        activeOffersCount={activeOffers.length}
-        activeOfferLimit={ACTIVE_OFFER_LIMIT}
-        hasReachedLimit={hasReachedLimit}
-        topOfferTitle={topOffer?.title || ''}
-        topOfferCount={topOfferCount}
-        redemptionCountByOfferId={Object.fromEntries(
-          redemptionCountByOfferId
-        )}
-        redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
-        profileEmailById={profileEmailById}
-      />
-    </>
+    <BusinessDashboardContent
+      businessLegacyProfileId={businessProfileId}
+      profile={profile}
+      offers={offers ?? []}
+      totalRedemptions={totalRedemptions}
+      activeOffersCount={activeOffers.length}
+      activeOfferLimit={ACTIVE_OFFER_LIMIT}
+      hasReachedLimit={hasReachedLimit}
+      topOfferTitle={topOffer?.title || ''}
+      topOfferCount={topOfferCount}
+      redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
+      redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
+      profileEmailById={profileEmailById}
+      viewCount={viewCount}
+      clickCount={clickCount}
+      conversionRate={conversionRate}
+    />
   )
 }
