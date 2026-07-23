@@ -46,6 +46,9 @@ type BusinessDashboardContentProps = {
   redemptionCountByOfferId: Record<string, number>
   redemptionsByOfferId: Record<string, OfferRedemption[]>
   profileEmailById: Record<string, string>
+  viewCount: number
+  clickCount: number
+  conversionRate: string
 }
 
 function buildBusinessNotifications({
@@ -206,6 +209,9 @@ export default function BusinessDashboardContent({
   redemptionCountByOfferId,
   redemptionsByOfferId,
   profileEmailById,
+  viewCount,
+  clickCount,
+  conversionRate,
 }: BusinessDashboardContentProps) {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
 
@@ -263,11 +269,8 @@ export default function BusinessDashboardContent({
   })
 
   return (
-    <div className="space-y-10">
-      <section
-        id="business-profile"
-        className="relative -mt-px scroll-mt-6 [&>section]:rounded-t-none [&>section]:border-t-0 [&>section]:px-6 [&>section]:pb-6 [&>section]:pt-4 sm:[&>section]:px-8"
-      >
+    <div className="mt-6 space-y-10">
+      <section id="business-profile" className="scroll-mt-6">
         <BusinessProfileCard
           businessLegacyProfileId={businessLegacyProfileId}
           businessName={profile?.business_name ?? ''}
@@ -278,6 +281,27 @@ export default function BusinessDashboardContent({
           websiteUrl={profile?.website_url ?? ''}
           displayName={profile?.display_name ?? ''}
         />
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm sm:p-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+          Customer activity
+        </p>
+
+        <div className="mt-3 grid grid-cols-3 divide-x divide-gray-200">
+          <div className="px-2 text-center sm:px-4">
+            <p className="text-xs font-semibold text-blue-700 sm:text-sm">Views</p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{viewCount}</p>
+          </div>
+          <div className="px-2 text-center sm:px-4">
+            <p className="text-xs font-semibold text-green-700 sm:text-sm">Clicks</p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{clickCount}</p>
+          </div>
+          <div className="px-2 text-center sm:px-4">
+            <p className="text-xs font-semibold text-amber-700 sm:text-sm">Conversion</p>
+            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">{conversionRate}%</p>
+          </div>
+        </div>
       </section>
 
       <AttentionCenter alerts={dashboardAlerts} />
