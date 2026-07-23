@@ -99,12 +99,13 @@ export default function DetailsStep({
                 Offer name
               </span>
 
-              <input
+              <textarea
                 value={draft.title}
                 onChange={(event) =>
                   updateDraft('title', event.target.value)
                 }
-                className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                rows={2}
+                className="mt-2 w-full resize-y rounded-xl border border-gray-300 p-3 leading-6 outline-none focus:border-blue-500"
                 placeholder="Example: VIP Lunch Combo"
               />
             </label>
@@ -121,12 +122,13 @@ export default function DetailsStep({
                 discounted.
               </p>
 
-              <input
+              <textarea
                 value={draft.memberBenefit}
                 onChange={(event) =>
                   updateDraft('memberBenefit', event.target.value)
                 }
-                className="mt-3 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                rows={2}
+                className="mt-3 w-full resize-y rounded-xl border border-gray-300 p-3 leading-6 outline-none focus:border-blue-500"
                 placeholder="Example: Free loaded fries"
               />
             </label>
