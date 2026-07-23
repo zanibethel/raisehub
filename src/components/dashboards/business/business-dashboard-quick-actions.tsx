@@ -26,9 +26,11 @@ export default function BusinessDashboardQuickActions({
     },
     {
       title: 'Public View',
-      href: publicOfferId ? `/offers/${publicOfferId}` : '#business-offers',
+      href: publicOfferId
+        ? `/offers/business/${publicOfferId}`
+        : '#business-offers',
       detail: publicOfferId
-        ? 'Open the customer-facing view of an active offer.'
+        ? 'Preview every active offer as locked customer cards.'
         : 'Publish an active offer to enable customer view.',
       external: Boolean(publicOfferId),
     },
