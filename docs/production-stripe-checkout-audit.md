@@ -51,3 +51,34 @@
 3. Signed webhook fulfillment.
 4. Success/cancel UX and customer status recovery.
 5. Automated tests, preview validation, and Stripe test-mode end-to-end verification.
+
+## Preview and production configuration
+
+Required server-side environment variables:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+For a Vercel Preview deployment protected by Vercel Authentication, Stripe cannot reach the webhook route unless the project has a Protection Bypass for Automation secret. Add that secret to the Stripe preview webhook destination as the `x-vercel-protection-bypass` query parameter. Never commit or document the secret itself.
+
+Example protected preview destination shape:
+
+```text
+https://<preview-host>/api/stripe/webhook?x-vercel-protection-bypass=<secret>
+```
+
+Production uses its own live Stripe secret key, live webhook endpoint, and endpoint-specific webhook signing secret. The preview bypass is not needed for an unprotected production domain.
+
+## Test-mode validation completed
+
+Validated against the PR #15 Vercel preview and the RaiseHub Supabase project on July 22, 2026:
+
+- Stripe Checkout Session creation succeeded using server-calculated pricing.
+- A declined test card remained unfulfilled and granted no pass.
+- A successful test payment returned to `/checkout/success`.
+- The signed `checkout.session.completed` webhook reached `/api/stripe/webhook` and returned HTTP `200`.
+- The checkout attempt changed from `open` to `paid`.
+- One paid campaign purchase was created.
+- One active `purchased_pass` entitlement was created with the expected six-month term.
+- Re-sending the same Stripe event returned HTTP `200` without creating a duplicate purchase or entitlement.
+- Browser return alone did not grant access before webhook confirmation.
