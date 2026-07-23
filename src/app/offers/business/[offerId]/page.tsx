@@ -33,13 +33,6 @@ function isCurrentlyAvailable(offer: PreviewOffer): boolean {
   return true
 }
 
-function normalizeWebsiteUrl(value: string | null | undefined): string | null {
-  const website = value?.trim()
-  if (!website) return null
-
-  return /^https?:\/\//i.test(website) ? website : `https://${website}`
-}
-
 export default async function BusinessOfferPreviewPage({
   params,
 }: BusinessOfferPreviewPageProps) {
@@ -86,7 +79,9 @@ export default async function BusinessOfferPreviewPage({
       .order('created_at', { ascending: false }),
     supabase
       .from('profiles')
-      .select('business_name, display_name, logo_url, address, website_url')
+      .select(
+        'business_name, display_name, logo_url, phone, address, website_url, google_maps_url'
+      )
       .eq('id', anchorOffer.business_id)
       .maybeSingle(),
   ])
@@ -94,7 +89,6 @@ export default async function BusinessOfferPreviewPage({
   const availableOffers = (offers ?? []).filter(isCurrentlyAvailable)
   const businessName =
     profile?.display_name || profile?.business_name || 'Local Business'
-  const websiteUrl = normalizeWebsiteUrl(profile?.website_url)
   const canReveal = authData.user?.id === anchorOffer.business_id
 
   return (
@@ -108,38 +102,13 @@ export default async function BusinessOfferPreviewPage({
         </Link>
 
         <section className="mt-4 rounded-3xl border border-yellow-100 bg-white/95 p-5 shadow-xl sm:mt-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <img
-              src={profile?.logo_url || '/default-business-logo.png'}
-              alt={`${businessName} logo`}
-              className="h-16 w-16 shrink-0 rounded-xl border border-gray-200 object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
-                Community Partner
-              </p>
-              <h1 className="mt-1 break-words text-2xl font-bold text-gray-900 sm:text-3xl">
-                {businessName}
-              </h1>
-              {profile?.address ? (
-                <p className="mt-2 break-words text-sm text-gray-600">
-                  {profile.address}
-                </p>
-              ) : null}
-              {websiteUrl ? (
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-flex text-sm font-semibold text-blue-700 underline underline-offset-4"
-                >
-                  Visit Website
-                </a>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-6 flex items-center justify-between gap-4 border-t border-gray-100 pt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
+            Customer experience preview
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl">
+            {businessName}
+          </h1>
+          <div className="mt-5 flex items-center justify-between gap-4 border-t border-gray-100 pt-5">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
                 Available offers
@@ -149,7 +118,7 @@ export default async function BusinessOfferPreviewPage({
               </p>
             </div>
             <p className="max-w-sm text-right text-sm leading-6 text-gray-600">
-              Customer access remains locked until they have an active RaiseHub Pass.
+              Each card below mirrors the customer-facing offer layout.
             </p>
           </div>
         </section>
@@ -157,6 +126,14 @@ export default async function BusinessOfferPreviewPage({
         <BusinessOfferPreview
           offers={availableOffers}
           canReveal={canReveal}
+          business={{
+            name: businessName,
+            logoUrl: profile?.logo_url ?? null,
+            address: profile?.address ?? null,
+            phone: profile?.phone ?? null,
+            websiteUrl: profile?.website_url ?? null,
+            googleMapsUrl: profile?.google_maps_url ?? null,
+          }}
         />
       </div>
     </main>
