@@ -124,7 +124,23 @@ export default function BusinessDashboardSnapshot({
         </button>
       </div>
 
-      <div className="mt-5 grid grid-cols-4 divide-x divide-gray-200 text-center">
+      <div className="mt-5 rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700 sm:text-xs">
+          Top offer
+        </p>
+        <div className="mt-1 flex items-end justify-between gap-4">
+          <p className="min-w-0 flex-1 break-words text-base font-bold leading-6 text-amber-900 sm:text-lg">
+            {topOfferTitle || 'No leading offer yet'}
+          </p>
+          <p className="shrink-0 text-sm font-semibold text-amber-800">
+            {topOfferTitle
+              ? `${topOfferCount} use${topOfferCount === 1 ? '' : 's'}`
+              : '0 uses'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 divide-x divide-gray-200 rounded-xl border border-gray-200 bg-slate-50/70 py-3 text-center">
         <div className="px-2">
           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">
             Active
@@ -141,20 +157,6 @@ export default function BusinessDashboardSnapshot({
           <p className="mt-1 text-lg font-bold text-blue-700 sm:text-2xl">
             {totalRedemptions}
           </p>
-        </div>
-
-        <div className="min-w-0 px-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">
-            Top offer
-          </p>
-          <p className="mt-1 truncate text-sm font-bold text-amber-700 sm:text-base">
-            {topOfferTitle || 'None yet'}
-          </p>
-          {topOfferTitle ? (
-            <p className="text-[10px] text-gray-500">
-              {topOfferCount} use{topOfferCount === 1 ? '' : 's'}
-            </p>
-          ) : null}
         </div>
 
         <div className="px-2">
