@@ -55,8 +55,7 @@ export default async function OrganizationProfileSetupLoader() {
     .maybeSingle()
 
   // The live schema includes town_name and state_code. The checked-in generated
-  // Supabase types predate those columns, so keep this compatibility cast local
-  // until the generated type file is refreshed from the live project.
+  // Supabase types predate those columns, so keep this compatibility cast local.
   const organizationRequest = (admin.from('organizations') as any)
     .select(
       'id, name, organization_type, description, phone, email, website_url, town_name, state_code'
@@ -101,6 +100,7 @@ export default async function OrganizationProfileSetupLoader() {
 
   return (
     <OrganizationProfileSetupSection
+      organizationId={organization.id}
       profile={profileData}
       isComplete={isComplete}
     />
