@@ -29,8 +29,8 @@ function formatOfferDate(value: string | null): string {
 }
 
 export default function BusinessOfferPreview({ offers, canReveal }: Props) {
-  const [showOwnerView, setShowOwnerView] = useState(false)
-  const revealed = canReveal && showOwnerView
+  const [showUnlockedView, setShowUnlockedView] = useState(false)
+  const revealed = canReveal && showUnlockedView
 
   return (
     <>
@@ -39,7 +39,7 @@ export default function BusinessOfferPreview({ offers, canReveal }: Props) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                Business preview controls
+                Preview controls
               </p>
               <p className="mt-1 text-sm text-slate-600">
                 Switch views without changing what customers can access.
@@ -47,11 +47,11 @@ export default function BusinessOfferPreview({ offers, canReveal }: Props) {
             </div>
             <button
               type="button"
-              onClick={() => setShowOwnerView((current) => !current)}
-              aria-pressed={showOwnerView}
+              onClick={() => setShowUnlockedView((current) => !current)}
+              aria-pressed={showUnlockedView}
               className="shrink-0 rounded-full bg-blue-700 px-4 py-2 text-sm font-bold text-white"
             >
-              {showOwnerView ? 'Show locked view' : 'Reveal owner view'}
+              {showUnlockedView ? 'Locked View' : 'Unlocked View'}
             </button>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default function BusinessOfferPreview({ offers, canReveal }: Props) {
                     ? 'bg-green-100 text-green-800'
                     : 'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {revealed ? 'Owner preview' : 'Locked'}
+                  {revealed ? 'Unlocked' : 'Locked'}
                 </span>
               </div>
 
