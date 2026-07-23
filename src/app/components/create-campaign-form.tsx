@@ -16,6 +16,7 @@ type CreateCampaignFormProps = {
 
 const ORGANIZATION_SETUP_ERROR =
   'Complete your organization name, town, and state before creating a campaign.'
+const DEFAULT_CAMPAIGN_LENGTH_DAYS = 42
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -23,6 +24,29 @@ function formatCurrency(value: number) {
     currency: 'USD',
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+function formatDateInputValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function addDays(dateValue: string, days: number) {
+  const [year, month, day] = dateValue.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + days)
+  return formatDateInputValue(date)
+}
+
+function getDefaultCampaignDates() {
+  const startsAt = formatDateInputValue(new Date())
+  return {
+    startsAt,
+    endsAt: addDays(startsAt, DEFAULT_CAMPAIGN_LENGTH_DAYS),
+  }
 }
 
 function returnToOrganizationSetup() {
@@ -56,8 +80,9 @@ export default function CreateCampaignForm({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [goalAmount, setGoalAmount] = useState('1000')
-  const [startsAt, setStartsAt] = useState('')
-  const [endsAt, setEndsAt] = useState('')
+  const [defaultDates] = useState(getDefaultCampaignDates)
+  const [startsAt, setStartsAt] = useState(defaultDates.startsAt)
+  const [endsAt, setEndsAt] = useState(defaultDates.endsAt)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -68,6 +93,18 @@ export default function CreateCampaignForm({
       : 0
   const projectedOrganizationEarnings =
     passesNeeded * pricing.organizationPassEarnings
+
+  function handleStartDateChange(nextStartDate: string) {
+    setStartsAt(nextStartDate)
+
+    if (!nextStartDate) {
+      return
+    }
+
+    if (!endsAt || endsAt < nextStartDate) {
+      setEndsAt(addDays(nextStartDate, DEFAULT_CAMPAIGN_LENGTH_DAYS))
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -84,6 +121,12 @@ export default function CreateCampaignForm({
       setMessage(
         'Enter a valid fundraising goal before creating the campaign.'
       )
+      setLoading(false)
+      return
+    }
+
+    if (startsAt && endsAt && endsAt < startsAt) {
+      setMessage('Campaign end date must be on or after the start date.')
       setLoading(false)
       return
     }
@@ -107,12 +150,13 @@ export default function CreateCampaignForm({
         return
       }
 
+      const nextDefaults = getDefaultCampaignDates()
       setMessage('Campaign created!')
       setName('')
       setDescription('')
       setGoalAmount('1000')
-      setStartsAt('')
-      setEndsAt('')
+      setStartsAt(nextDefaults.startsAt)
+      setEndsAt(nextDefaults.endsAt)
     } finally {
       setLoading(false)
     }
@@ -243,8 +287,9 @@ export default function CreateCampaignForm({
             <input
               className="w-full rounded-lg border border-gray-300 p-2"
               type="date"
+              min={defaultDates.startsAt}
               value={startsAt}
-              onChange={(event) => setStartsAt(event.target.value)}
+              onChange={(event) => handleStartDateChange(event.target.value)}
             />
           </div>
 
@@ -255,11 +300,16 @@ export default function CreateCampaignForm({
             <input
               className="w-full rounded-lg border border-gray-300 p-2"
               type="date"
+              min={startsAt || defaultDates.startsAt}
               value={endsAt}
               onChange={(event) => setEndsAt(event.target.value)}
             />
           </div>
         </div>
+
+        <p className="text-xs text-gray-500">
+          Campaigns default to six weeks. You can adjust either date before publishing.
+        </p>
 
         <button
           type="submit"

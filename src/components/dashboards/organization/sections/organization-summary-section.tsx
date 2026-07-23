@@ -22,32 +22,32 @@ export default function OrganizationSummarySection({
   totalSupporters,
 }: OrganizationSummarySectionProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-4">
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <MetricCard
         label="Active Campaigns"
         value={activeCampaigns}
-        description="Currently running campaigns"
+        description="Running now"
         tone="blue"
       />
 
       <MetricCard
         label="Recorded Earnings"
         value={`$${totalFundsRaised.toLocaleString()}`}
-        description="Organization earnings across recorded purchases"
+        description="Across recorded purchases"
         tone="green"
       />
 
       <MetricCard
-        label="Sellers With Recorded Sales"
+        label="Active Sellers"
         value={totalSellers}
-        description="Distinct seller names on recorded purchases"
+        description="With recorded sales"
         tone="yellow"
       />
 
       <MetricCard
-        label="Supporters With Recorded Purchases"
+        label="Supporters"
         value={totalSupporters}
-        description="Distinct buyers across recorded purchases"
+        description="Distinct recorded buyers"
       />
     </section>
   )
