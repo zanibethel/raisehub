@@ -11,7 +11,6 @@ type GoalOption = {
   value: OfferGoal
   title: string
   description: string
-  bestFor: string
 }
 
 type GoalStepProps = {
@@ -24,51 +23,37 @@ const goals: GoalOption[] = [
   {
     value: 'new-customers',
     title: 'Attract New Customers',
-    description:
-      'Give first-time visitors a strong reason to try your business.',
-    bestFor: 'First-visit discounts and welcome offers',
+    description: 'Welcome and first-visit offers',
   },
   {
     value: 'repeat-customers',
     title: 'Bring Customers Back',
-    description:
-      'Encourage previous customers to return sooner or visit more often.',
-    bestFor: 'Loyalty rewards and return-visit offers',
+    description: 'Loyalty and return-visit offers',
   },
   {
     value: 'slow-day',
     title: 'Increase Slow-Day Traffic',
-    description:
-      'Create demand during quieter days, hours, or service periods.',
-    bestFor: 'Midweek, lunch-hour, and limited-time offers',
+    description: 'Quieter days and limited-time offers',
   },
   {
     value: 'new-product',
-    title: 'Promote a Product or Service',
-    description:
-      'Introduce customers to something new or underused.',
-    bestFor: 'New menu items, services, packages, and upgrades',
+    title: 'Promote Something New',
+    description: 'Products, services, packages, or upgrades',
   },
   {
     value: 'average-purchase',
-    title: 'Increase Average Purchase',
-    description:
-      'Encourage customers to add more items or choose a larger package.',
-    bestFor: 'Bundles, minimum-purchase discounts, and free add-ons',
+    title: 'Increase Purchase Size',
+    description: 'Bundles, add-ons, and minimum purchases',
   },
   {
     value: 'appointments',
     title: 'Fill Open Appointments',
-    description:
-      'Use targeted promotions to fill cancellations or open service times.',
-    bestFor: 'Salons, wellness providers, and appointment businesses',
+    description: 'Open times and last-minute availability',
   },
   {
     value: 'event-traffic',
-    title: 'Boost Event or Location Traffic',
-    description:
-      'Bring customers to a food-truck stop, pop-up, festival, or event.',
-    bestFor: 'Food trucks, mobile businesses, and event vendors',
+    title: 'Boost Event Traffic',
+    description: 'Pop-ups, festivals, stops, and events',
   },
 ]
 
@@ -98,55 +83,55 @@ export default function GoalStep({
         Start with your goal
       </p>
 
-      <h1 className="mt-3 text-3xl font-bold text-blue-700 sm:text-4xl">
-        What would you like this offer to accomplish?
+      <h1 className="mt-2 text-2xl font-bold text-blue-700 sm:text-4xl">
+        What should this offer accomplish?
       </h1>
 
-      <p className="mt-4 max-w-2xl leading-7 text-gray-600">
-        RaiseHub will use your goal and business category to recommend
-        promotions that fit your business.
+      <p className="mt-3 text-sm leading-6 text-gray-600 sm:max-w-2xl sm:text-base">
+        Choose one goal. RaiseHub will recommend offers you can customize next.
       </p>
 
       {businessCategory ? (
-        <div className="mt-5 inline-flex rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-          Suggestions tailored for: {businessCategory}
-        </div>
+        <p className="mt-3 text-xs font-semibold text-blue-700">
+          Tailored for {businessCategory}
+        </p>
       ) : null}
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-2">
-        {orderedGoals.map((goal) => {
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {orderedGoals.map((goal, index) => {
           const selected = selectedGoal === goal.value
+          const isLastOddCard =
+            orderedGoals.length % 2 === 1 && index === orderedGoals.length - 1
 
           return (
             <button
               key={goal.value}
               type="button"
               onClick={() => onSelect(goal.value)}
-              className={`rounded-2xl border p-5 text-left transition ${
+              aria-pressed={selected}
+              className={`min-h-32 rounded-2xl border p-3 text-left transition sm:min-h-36 sm:p-5 ${
+                isLastOddCard ? 'col-span-2 sm:col-span-1' : ''
+              } ${
                 selected
                   ? 'border-green-500 bg-green-50 ring-2 ring-green-100'
                   : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="font-bold text-gray-900">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-sm font-bold leading-5 text-gray-900 sm:text-base">
                   {selected ? '✓ ' : ''}
                   {goal.title}
                 </h2>
 
                 {goal.value === 'event-traffic' && isFoodTruck ? (
-                  <span className="rounded-full bg-yellow-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-yellow-800">
-                    Recommended
+                  <span className="shrink-0 rounded-full bg-yellow-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-yellow-800">
+                    Best fit
                   </span>
                 ) : null}
               </div>
 
-              <p className="mt-2 text-sm leading-6 text-gray-600">
+              <p className="mt-2 text-xs leading-5 text-gray-600 sm:text-sm">
                 {goal.description}
-              </p>
-
-              <p className="mt-4 text-xs font-semibold text-blue-600">
-                Best for: {goal.bestFor}
               </p>
             </button>
           )
