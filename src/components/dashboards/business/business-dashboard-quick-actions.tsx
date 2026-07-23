@@ -22,9 +22,9 @@ export default function BusinessDashboardQuickActions({
         : 'Open the guided offer builder.',
     },
     {
-      title: 'Public Profile',
-      href: '/businesses',
-      detail: 'View the customer-facing business experience.',
+      title: 'Business Details',
+      href: '#business-profile',
+      detail: 'Review and update profile and location information.',
     },
     {
       title: 'Offer Reports',
