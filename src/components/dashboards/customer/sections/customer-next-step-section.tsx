@@ -62,7 +62,7 @@ export function getCustomerNextStep({
         'Your pass is active and these deals are ready to redeem. Open My Pass before visiting the business.',
       actionLabel: 'Open My Pass',
       actionHref: '#my-pass',
-      secondaryLabel: 'View Redemption History',
+      secondaryLabel: 'Redemption History',
       secondaryHref: '#redemption-history',
     }
   }
@@ -76,9 +76,9 @@ export function getCustomerNextStep({
       title: 'Save a deal for later',
       description:
         'Browse participating offers and add the ones you plan to use to My Pass for quick access.',
-      actionLabel: 'Browse Available Deals',
+      actionLabel: 'Browse Deals',
       actionHref: '#available-offers',
-      secondaryLabel: 'Explore Nearby Businesses',
+      secondaryLabel: 'Nearby Businesses',
       secondaryHref: '#nearby-businesses',
     }
   }
@@ -88,9 +88,9 @@ export function getCustomerNextStep({
     title: 'Your pass is active',
     description:
       'There are no participating offers available right now. Your pass remains active, so check again as businesses add new deals.',
-    actionLabel: 'Check Customer Updates',
+    actionLabel: 'Customer Updates',
     actionHref: '#customer-updates',
-    secondaryLabel: 'Review Purchase History',
+    secondaryLabel: 'Purchase History',
     secondaryHref: '#support-history',
   }
 }
@@ -107,9 +107,9 @@ export default function CustomerNextStepSection(
   return (
     <section
       aria-labelledby="customer-next-step-heading"
-      className="overflow-hidden rounded-3xl border border-yellow-200 bg-gradient-to-br from-yellow-50 via-white to-green-50 p-5 shadow-xl sm:p-7"
+      className="overflow-hidden rounded-2xl border border-yellow-200 bg-gradient-to-r from-yellow-50 via-white to-green-50 p-4 shadow-lg sm:p-5"
     >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
             {guidance.eyebrow}
@@ -117,20 +117,20 @@ export default function CustomerNextStepSection(
 
           <h2
             id="customer-next-step-heading"
-            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
+            className="mt-1 break-words text-xl font-bold leading-tight text-gray-900 sm:text-2xl"
           >
             {guidance.title}
           </h2>
 
-          <p className="mt-3 text-sm leading-6 text-gray-600">
+          <p className="mt-2 text-sm leading-6 text-gray-600">
             {guidance.description}
           </p>
         </div>
 
-        <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row lg:flex-col">
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
           <Link
             href={guidance.actionHref}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
           >
             {guidance.actionLabel}
           </Link>
@@ -139,7 +139,7 @@ export default function CustomerNextStepSection(
           guidance.secondaryHref ? (
             <Link
               href={guidance.secondaryHref}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-5 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50 sm:w-auto"
             >
               {guidance.secondaryLabel}
             </Link>
