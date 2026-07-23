@@ -89,7 +89,7 @@ function buildCustomerNotifications({
       title: 'Activate your RaiseHub Pass',
       description:
         'A current pass is required to save and redeem participating local offers.',
-      actionLabel: 'View Pass Options',
+      actionLabel: 'View Options',
       actionHref: '#support-history',
       tone: 'blue',
     })
@@ -106,7 +106,7 @@ function buildCustomerNotifications({
           : 'deals expire'
       } soon`,
       description: `These saved offers end within the next ${EXPIRING_SOON_DAYS} days.`,
-      actionLabel: 'Review Deals',
+      actionLabel: 'Review',
       actionHref: '#my-pass',
       tone: 'orange',
     })
@@ -123,7 +123,7 @@ function buildCustomerNotifications({
           : 'deals are'
       } waiting`,
       description: 'Open My Pass when you are ready to visit the business.',
-      actionLabel: 'Open My Pass',
+      actionLabel: 'Open Pass',
       actionHref: '#my-pass',
       tone: 'yellow',
     })
@@ -136,26 +136,9 @@ function buildCustomerNotifications({
       eyebrow: 'Build Your Pass',
       title: 'Save your first local deal',
       description: 'Keep useful offers together for quick access later.',
-      actionLabel: 'Browse Deals',
+      actionLabel: 'Browse',
       actionHref: '#available-offers',
       tone: 'green',
-    })
-  }
-
-  if (redeemedOfferIds.size > 0) {
-    notifications.push({
-      id: 'redemption-history',
-      icon: '✅',
-      eyebrow: 'Pass Activity',
-      title: `${redeemedOfferIds.size} ${
-        redeemedOfferIds.size === 1
-          ? 'offer has'
-          : 'offers have'
-      } been redeemed`,
-      description: 'Review completed activity in Redemption History.',
-      actionLabel: 'View History',
-      actionHref: '#redemption-history',
-      tone: 'purple',
     })
   }
 
@@ -170,9 +153,26 @@ function buildCustomerNotifications({
           : 'offers are'
       } available`,
       description: 'Browse current participating-business offers.',
-      actionLabel: 'Explore Deals',
+      actionLabel: 'Explore',
       actionHref: '#available-offers',
       tone: 'blue',
+    })
+  }
+
+  if (redeemedOfferIds.size > 0) {
+    notifications.push({
+      id: 'redemption-history',
+      icon: '✅',
+      eyebrow: 'Pass Activity',
+      title: `${redeemedOfferIds.size} ${
+        redeemedOfferIds.size === 1
+          ? 'offer has'
+          : 'offers have'
+      } been redeemed`,
+      description: 'Review completed activity in Redemption History.',
+      actionLabel: 'History',
+      actionHref: '#redemption-history',
+      tone: 'purple',
     })
   }
 
@@ -248,7 +248,7 @@ export default function CustomerNotificationCenter({
       aria-labelledby="customer-notification-center-heading"
       className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-4 shadow-lg backdrop-blur sm:p-6"
     >
-      <div className="flex min-w-0 items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
             What Should I Do Next?
@@ -267,32 +267,29 @@ export default function CustomerNotificationCenter({
       </div>
 
       {notifications.length > 0 ? (
-        <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100">
+        <div className="mt-3 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100">
           {notifications.map((notification) => (
             <article
               key={notification.id}
-              className={`min-w-0 p-3.5 sm:p-4 ${getNotificationClasses(
+              className={`min-w-0 px-3 py-3 ${getNotificationClasses(
                 notification.tone
               )}`}
             >
-              <div className="flex min-w-0 items-start gap-3">
-                <span aria-hidden="true" className="shrink-0 text-xl">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span aria-hidden="true" className="shrink-0 text-lg">
                   {notification.icon}
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <p
-                    className={`text-[11px] font-semibold uppercase tracking-wide ${getEyebrowClasses(
+                    className={`text-[10px] font-semibold uppercase tracking-wide ${getEyebrowClasses(
                       notification.tone
                     )}`}
                   >
                     {notification.eyebrow}
                   </p>
-                  <h3 className="mt-1 break-words text-sm font-bold leading-snug text-gray-900 sm:text-base">
+                  <p className="truncate text-sm font-bold text-gray-900 sm:text-base">
                     {notification.title}
-                  </h3>
-                  <p className="mt-1 break-words text-xs leading-5 text-gray-600 sm:text-sm">
-                    {notification.description}
                   </p>
                 </div>
 
@@ -306,6 +303,16 @@ export default function CustomerNotificationCenter({
                   {notification.actionLabel}
                 </Link>
               </div>
+
+              <details className="group mt-1 pl-7">
+                <summary className="w-fit cursor-pointer list-none text-[11px] font-semibold text-gray-500 hover:text-gray-700">
+                  <span className="group-open:hidden">Details +</span>
+                  <span className="hidden group-open:inline">Hide details −</span>
+                </summary>
+                <p className="mt-1 pr-2 text-xs leading-5 text-gray-600">
+                  {notification.description}
+                </p>
+              </details>
             </article>
           ))}
         </div>
