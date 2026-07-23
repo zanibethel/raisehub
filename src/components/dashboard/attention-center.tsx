@@ -41,15 +41,15 @@ const alertStyles: Record<
 function getActionHref(alert: DashboardAlert) {
   switch (alert.id) {
     case 'offer-slots':
-      return '/dashboard/offers/new'
+      return '#create-offer'
 
     case 'paused':
     case 'expiring':
     case 'review':
-      return '#my-offers'
+      return '#business-offers'
 
     case 'profile':
-      return '/dashboard/profile'
+      return '#business-profile'
 
     default:
       return '/dashboard'
