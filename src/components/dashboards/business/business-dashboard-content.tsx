@@ -20,16 +20,8 @@ import type {
   BusinessOffer,
   OfferRedemption,
 } from '@/app/components/business-offer-card'
-import type {
-  BusinessExportRow,
-} from './business-export-tools'
-import type {
-  BusinessNotification,
-} from './business-notification-center'
-
-// =============================================================================
-// Types
-// =============================================================================
+import type { BusinessExportRow } from './business-export-tools'
+import type { BusinessNotification } from './business-notification-center'
 
 type BusinessProfile = {
   business_name: string | null
@@ -53,16 +45,9 @@ type BusinessDashboardContentProps = {
   topOfferTitle: string
   topOfferCount: number
   redemptionCountByOfferId: Record<string, number>
-  redemptionsByOfferId: Record<
-    string,
-    OfferRedemption[]
-  >
+  redemptionsByOfferId: Record<string, OfferRedemption[]>
   profileEmailById: Record<string, string>
 }
-
-// =============================================================================
-// Notification helpers
-// =============================================================================
 
 function buildBusinessNotifications({
   profileComplete,
@@ -145,28 +130,20 @@ function buildBusinessNotifications({
     notifications.push({
       id: 'active-offer-limit',
       title: 'Active offer limit reached',
-      description:
-        `This business is using all ${activeOfferLimit} active offer slots. Pause an existing offer or review upgrade options before publishing another.`,
+      description: `This business is using all ${activeOfferLimit} active offer slots. Pause an existing offer or review upgrade options before publishing another.`,
       tone: 'info',
       href: '#business-offers',
       actionLabel: 'Manage active offers',
     })
   }
 
-  if (
-    totalRedemptions > 0 &&
-    topOfferTitle &&
-    topOfferCount > 0
-  ) {
+  if (totalRedemptions > 0 && topOfferTitle && topOfferCount > 0) {
     notifications.push({
       id: 'top-performing-offer',
       title: `${topOfferTitle} is leading redemptions`,
-      description:
-        `${topOfferCount} ${
-          topOfferCount === 1
-            ? 'redemption has'
-            : 'redemptions have'
-        } been recorded for this offer. Consider using its structure as a guide for future offers.`,
+      description: `${topOfferCount} ${
+        topOfferCount === 1 ? 'redemption has' : 'redemptions have'
+      } been recorded for this offer. Consider using its structure as a guide for future offers.`,
       tone: 'success',
       href: '#business-performance',
       actionLabel: 'View performance',
@@ -175,10 +152,6 @@ function buildBusinessNotifications({
 
   return notifications
 }
-
-// =============================================================================
-// Export helpers
-// =============================================================================
 
 function formatExportDate(value: string): string {
   const date = new Date(value)
@@ -202,10 +175,7 @@ function buildBusinessExportRows({
   profileEmailById,
 }: {
   offers: BusinessOffer[]
-  redemptionsByOfferId: Record<
-    string,
-    OfferRedemption[]
-  >
+  redemptionsByOfferId: Record<string, OfferRedemption[]>
   profileEmailById: Record<string, string>
 }): BusinessExportRow[] {
   return offers.flatMap((offer) => {
@@ -214,31 +184,17 @@ function buildBusinessExportRows({
       endsAt: offer.ends_at,
       isActive: offer.is_active,
     })
+    const offerRedemptions = redemptionsByOfferId[offer.id] ?? []
 
-    const offerRedemptions =
-      redemptionsByOfferId[offer.id] ?? []
-
-    return offerRedemptions.map(
-      (redemption) => ({
-        offerTitle:
-          offer.title?.trim() ||
-          'Untitled offer',
-        offerStatus: offerStatus.label,
-        customerEmail:
-          profileEmailById[
-            redemption.user_id
-          ] || 'Email unavailable',
-        redeemedAt: formatExportDate(
-          redemption.created_at
-        ),
-      })
-    )
+    return offerRedemptions.map((redemption) => ({
+      offerTitle: offer.title?.trim() || 'Untitled offer',
+      offerStatus: offerStatus.label,
+      customerEmail:
+        profileEmailById[redemption.user_id] || 'Email unavailable',
+      redeemedAt: formatExportDate(redemption.created_at),
+    }))
   })
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function BusinessDashboardContent({
   businessLegacyProfileId,
@@ -254,32 +210,27 @@ export default function BusinessDashboardContent({
   redemptionsByOfferId,
   profileEmailById,
 }: BusinessDashboardContentProps) {
-  const [
-    isUpgradeOpen,
-    setIsUpgradeOpen,
-  ] = useState(false)
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
 
-  const offerStatuses = offers.map(
-    (offer) =>
-      getOfferStatus({
-        startsAt: offer.starts_at,
-        endsAt: offer.ends_at,
-        isActive: offer.is_active,
-      })
+  const offerStatuses = offers.map((offer) =>
+    getOfferStatus({
+      startsAt: offer.starts_at,
+      endsAt: offer.ends_at,
+      isActive: offer.is_active,
+    })
   )
 
-  const pausedOffersCount =
-    offerStatuses.filter(
-      (status) =>
-        status.status === 'paused'
-    ).length
-
-  const expiringSoonCount =
-    offerStatuses.filter(
-      (status) =>
-        status.status ===
-        'expiring-soon'
-    ).length
+  const pausedOffersCount = offerStatuses.filter(
+    (status) => status.status === 'paused'
+  ).length
+  const expiringSoonCount = offerStatuses.filter(
+    (status) => status.status === 'expiring-soon'
+  ).length
+  const publicOfferId =
+    offers.find((offer, index) => {
+      const status = offerStatuses[index]?.status
+      return status === 'active' || status === 'expiring-soon'
+    })?.id ?? null
 
   const profileComplete = Boolean(
     profile?.business_name &&
@@ -288,185 +239,103 @@ export default function BusinessDashboardContent({
       profile?.logo_url
   )
 
-  const dashboardAlerts =
-    getDashboardAlerts({
-      activeOffers:
-        activeOffersCount,
-      pausedOffers:
-        pausedOffersCount,
-      expiringSoon:
-        expiringSoonCount,
-      reviewRecommended: 0,
-      profileComplete,
-    })
+  const dashboardAlerts = getDashboardAlerts({
+    activeOffers: activeOffersCount,
+    pausedOffers: hasReachedLimit ? 0 : pausedOffersCount,
+    expiringSoon: expiringSoonCount,
+    reviewRecommended: 0,
+    profileComplete,
+  })
 
-  const businessNotifications =
-    buildBusinessNotifications({
-      profileComplete,
-      activeOffersCount,
-      pausedOffersCount,
-      expiringSoonCount,
-      hasReachedLimit,
-      activeOfferLimit,
-      totalRedemptions,
-      topOfferTitle,
-      topOfferCount,
-    })
+  const businessNotifications = buildBusinessNotifications({
+    profileComplete,
+    activeOffersCount,
+    pausedOffersCount,
+    expiringSoonCount,
+    hasReachedLimit,
+    activeOfferLimit,
+    totalRedemptions,
+    topOfferTitle,
+    topOfferCount,
+  })
 
-  const businessExportRows =
-    buildBusinessExportRows({
-      offers,
-      redemptionsByOfferId,
-      profileEmailById,
-    })
+  const businessExportRows = buildBusinessExportRows({
+    offers,
+    redemptionsByOfferId,
+    profileEmailById,
+  })
 
   return (
     <div className="mt-8 space-y-10">
-      <section
-        id="business-profile"
-        className="scroll-mt-6"
-      >
+      <section id="business-profile" className="scroll-mt-6">
         <BusinessProfileCard
-          businessLegacyProfileId={
-            businessLegacyProfileId
-          }
-          businessName={
-            profile?.business_name ?? ''
-          }
+          businessLegacyProfileId={businessLegacyProfileId}
+          businessName={profile?.business_name ?? ''}
           phone={profile?.phone ?? ''}
-          address={
-            profile?.address ?? ''
-          }
-          googleMapsUrl={
-            profile?.google_maps_url ??
-            ''
-          }
-          logoUrl={
-            profile?.logo_url ?? ''
-          }
-          websiteUrl={
-            profile?.website_url ?? ''
-          }
-          displayName={
-            profile?.display_name ?? ''
-          }
+          address={profile?.address ?? ''}
+          googleMapsUrl={profile?.google_maps_url ?? ''}
+          logoUrl={profile?.logo_url ?? ''}
+          websiteUrl={profile?.website_url ?? ''}
+          displayName={profile?.display_name ?? ''}
         />
       </section>
 
-      <AttentionCenter
-        alerts={dashboardAlerts}
-      />
+      <AttentionCenter alerts={dashboardAlerts} />
 
-      <BusinessNotificationCenter
-        notifications={
-          businessNotifications
-        }
-      />
-
-      <section
-        id="business-redemption-settings"
-        className="scroll-mt-6"
-      >
-        <BusinessRedemptionSettingsSection
-          redemptionMethod={
-            profile?.redemption_method
-          }
-        />
-      </section>
-
-      <section
-        id="business-performance"
-        className="scroll-mt-6"
-      >
-        <BusinessDashboardSnapshot
-          activeOffersCount={
-            activeOffersCount
-          }
-          activeOfferLimit={
-            activeOfferLimit
-          }
-          totalRedemptions={
-            totalRedemptions
-          }
-          topOfferTitle={
-            topOfferTitle
-          }
-          topOfferCount={
-            topOfferCount
-          }
-          publishedOffersCount={
-            offers.length
-          }
-        />
-      </section>
-
-      <section
-        id="business-exports"
-        className="scroll-mt-6"
-      >
-        <BusinessExportTools
-          rows={businessExportRows}
-          businessName={
-            profile?.business_name
-          }
-        />
-      </section>
-
-      <section
-        id="create-offer"
-        className="scroll-mt-6"
-      >
-        <BusinessDashboardCreateOffer
-          activeOffersCount={
-            activeOffersCount
-          }
-          activeOfferLimit={
-            activeOfferLimit
-          }
-          hasReachedLimit={
-            hasReachedLimit
-          }
-          onViewUpgrade={() =>
-            setIsUpgradeOpen(true)
-          }
-        />
-      </section>
+      <BusinessNotificationCenter notifications={businessNotifications} />
 
       <BusinessDashboardQuickActions
-        hasReachedLimit={
-          hasReachedLimit
-        }
+        hasReachedLimit={hasReachedLimit}
+        publicOfferId={publicOfferId}
       />
 
-      <section
-        id="business-offers"
-        className="scroll-mt-6"
-      >
+      <section id="business-redemption-settings" className="scroll-mt-6">
+        <BusinessRedemptionSettingsSection
+          redemptionMethod={profile?.redemption_method}
+        />
+      </section>
+
+      <section id="business-performance" className="scroll-mt-6">
+        <BusinessDashboardSnapshot
+          activeOffersCount={activeOffersCount}
+          activeOfferLimit={activeOfferLimit}
+          totalRedemptions={totalRedemptions}
+          topOfferTitle={topOfferTitle}
+          topOfferCount={topOfferCount}
+          publishedOffersCount={offers.length}
+        />
+      </section>
+
+      <section id="business-exports" className="scroll-mt-6">
+        <BusinessExportTools
+          rows={businessExportRows}
+          businessName={profile?.business_name}
+        />
+      </section>
+
+      <section id="create-offer" className="scroll-mt-6">
+        <BusinessDashboardCreateOffer
+          activeOffersCount={activeOffersCount}
+          activeOfferLimit={activeOfferLimit}
+          hasReachedLimit={hasReachedLimit}
+          onViewUpgrade={() => setIsUpgradeOpen(true)}
+        />
+      </section>
+
+      <section id="business-offers" className="scroll-mt-6">
         <BusinessDashboardOffersSection
           offers={offers}
-          hasReachedLimit={
-            hasReachedLimit
-          }
-          redemptionCountByOfferId={
-            redemptionCountByOfferId
-          }
-          redemptionsByOfferId={
-            redemptionsByOfferId
-          }
-          profileEmailById={
-            profileEmailById
-          }
-          onBoost={() =>
-            setIsUpgradeOpen(true)
-          }
+          hasReachedLimit={hasReachedLimit}
+          redemptionCountByOfferId={redemptionCountByOfferId}
+          redemptionsByOfferId={redemptionsByOfferId}
+          profileEmailById={profileEmailById}
+          onBoost={() => setIsUpgradeOpen(true)}
         />
       </section>
 
       <UpgradePlanModal
         isOpen={isUpgradeOpen}
-        onClose={() =>
-          setIsUpgradeOpen(false)
-        }
+        onClose={() => setIsUpgradeOpen(false)}
       />
     </div>
   )
