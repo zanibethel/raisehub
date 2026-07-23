@@ -1,39 +1,29 @@
 import { NextResponse } from 'next/server'
+import type Stripe from 'stripe'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  verifyStripeWebhook,
-  type StripeWebhookEvent,
-} from '@/lib/stripe/server'
+import { verifyStripeWebhook } from '@/lib/stripe/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type CheckoutSessionObject = {
-  id?: string
-  payment_intent?: string | { id?: string } | null
-  amount_total?: number | null
-  currency?: string | null
-  payment_status?: string | null
-}
-
-function paymentIntentId(
-  value: CheckoutSessionObject['payment_intent']
-) {
-  if (typeof value === 'string') return value
-  return value?.id ?? null
-}
-
-function isFulfillmentEvent(event: StripeWebhookEvent) {
+function isFulfillmentEvent(event: Stripe.Event) {
   return (
     event.type === 'checkout.session.completed' ||
     event.type === 'checkout.session.async_payment_succeeded'
   )
 }
 
+function paymentIntentId(
+  value: Stripe.Checkout.Session['payment_intent']
+) {
+  if (typeof value === 'string') return value
+  return value?.id ?? null
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
-  let event: StripeWebhookEvent
+  let event: Stripe.Event
 
   try {
     event = verifyStripeWebhook(
@@ -52,15 +42,18 @@ export async function POST(request: Request) {
   const admin = createAdminClient() as any
   const { data: existingEvent } = await admin
     .from('stripe_webhook_events')
-    .select('processing_status')
+    .select('processing_status, attempt_count')
     .eq('stripe_event_id', event.id)
     .maybeSingle()
 
-  if (existingEvent?.processing_status === 'processed' ||
-      existingEvent?.processing_status === 'ignored') {
+  if (
+    existingEvent?.processing_status === 'processed' ||
+    existingEvent?.processing_status === 'ignored'
+  ) {
     return NextResponse.json({ received: true, duplicate: true })
   }
 
+  const attemptCount = Number(existingEvent?.attempt_count ?? 0) + 1
   const { error: eventInsertError } = await admin
     .from('stripe_webhook_events')
     .upsert(
@@ -70,7 +63,7 @@ export async function POST(request: Request) {
         livemode: event.livemode,
         payload: event,
         processing_status: 'processing',
-        attempt_count: 1,
+        attempt_count: attemptCount,
         last_error: null,
         updated_at: new Date().toISOString(),
       },
@@ -99,11 +92,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, ignored: true })
   }
 
-  const session = event.data.object as CheckoutSessionObject
+  const session = event.data.object as Stripe.Checkout.Session
 
   try {
+    const attemptId = session.metadata?.checkout_attempt_id?.trim()
+
+    if (!attemptId) {
+      throw new Error('Checkout attempt metadata is missing')
+    }
+
     if (!session.id) {
       throw new Error('Checkout Session ID is missing')
+    }
+
+    const { data: attempt, error: attemptLookupError } = await admin
+      .from('checkout_attempts')
+      .select('id, stripe_checkout_session_id')
+      .eq('id', attemptId)
+      .maybeSingle()
+
+    if (attemptLookupError || !attempt) {
+      throw new Error('Checkout attempt could not be matched')
+    }
+
+    if (attempt.stripe_checkout_session_id !== session.id) {
+      throw new Error('Checkout Session does not match the stored attempt')
     }
 
     const { error: fulfillmentError } = await admin.rpc(
