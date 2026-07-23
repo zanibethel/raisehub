@@ -101,7 +101,6 @@ export default async function OrganizationProfileSetupLoader() {
 
   return (
     <OrganizationProfileSetupSection
-      organizationId={organization.id}
       profile={profileData}
       isComplete={isComplete}
     />
