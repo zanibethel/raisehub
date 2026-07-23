@@ -5,10 +5,6 @@ import { useEffect, useState } from 'react'
 import InsightCard from '@/components/dashboard/insight-card'
 import { createClient } from '@/lib/supabase/client'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 type BusinessDashboardCreateOfferProps = {
   activeOffersCount: number
   activeOfferLimit: number
@@ -20,10 +16,6 @@ type SavedDraftSummary = {
   title: string
   updatedAt: string | null
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function BusinessDashboardCreateOffer({
   activeOffersCount,
@@ -69,20 +61,19 @@ export default function BusinessDashboardCreateOffer({
   }, [])
 
   const resumeCard = savedDraft ? (
-    <section className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-        Saved offer draft
-      </p>
-      <h2 className="mt-2 text-lg font-bold text-blue-950">
-        {savedDraft.title}
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-blue-800">
-        Your proposed offer is saved to this business account. Resume it when
-        you are ready to publish or make changes.
-      </p>
+    <section className="fixed inset-x-4 bottom-4 z-40 rounded-2xl border border-blue-200 bg-white p-3 shadow-2xl sm:static sm:mb-5 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:bg-blue-50 sm:p-4 sm:shadow-sm">
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">
+          Saved offer ready
+        </p>
+        <h2 className="mt-1 truncate text-sm font-bold text-blue-950 sm:text-base">
+          {savedDraft.title}
+        </h2>
+      </div>
+
       <Link
         href="/dashboard/offers/new"
-        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700 sm:w-auto"
+        className="mt-3 inline-flex w-full shrink-0 items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 sm:mt-0 sm:w-auto"
       >
         Resume Saved Offer
       </Link>
@@ -93,15 +84,14 @@ export default function BusinessDashboardCreateOffer({
     return (
       <div>
         {resumeCard}
-        <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6">
+        <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5">
           <h2 className="font-bold text-yellow-900">
             You are using all {activeOfferLimit} free active offers
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-yellow-800">
-            You can pause an existing offer to create another one. Paid plans
-            will later support additional active offers, priority placement, and
-            AI marketing credits.
+            Pause an existing offer or review upgrade options before publishing
+            another.
           </p>
 
           <button
@@ -109,7 +99,7 @@ export default function BusinessDashboardCreateOffer({
             onClick={onViewUpgrade}
             className="mt-4 rounded-xl bg-yellow-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-yellow-700"
           >
-            View Future Upgrade Options
+            View Upgrade Options
           </button>
         </section>
       </div>
@@ -129,14 +119,10 @@ export default function BusinessDashboardCreateOffer({
         }
         description={
           activeOffersCount === 0
-            ? 'Use the guided RaiseHub wizard to choose a business goal, review tailored ideas, protect your margins, and publish a members-only offer.'
-            : 'A broader mix of strong exclusive offers gives members more reasons to visit your business and increases the value of every fundraiser pass.'
-        }
-        recommendation={
-          activeOffersCount === 0
-            ? 'Start with one high-perceived-value offer that costs relatively little to fulfill.'
+            ? 'Use the guided RaiseHub wizard to create a members-only offer.'
             : 'Create an offer aimed at a different customer goal than your existing promotions.'
         }
+        recommendation="Choose one high-value offer that stays inexpensive to fulfill."
         tone="green"
       />
 
