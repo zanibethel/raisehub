@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import AccountMenu from '@/app/components/account-menu'
+import BusinessWorkspaceHeader from '@/components/dashboard/business-workspace-header'
 import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
@@ -18,14 +19,20 @@ import type {
   SelectableWorkspace,
 } from '@/lib/types/identity-access'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 type Profile = {
   id: string
   email: string | null
   role: LegacyProfileRole
+}
+
+type BusinessHeaderProfile = {
+  business_name: string | null
+  display_name: string | null
+  phone: string | null
+  address: string | null
+  google_maps_url: string | null
+  logo_url: string | null
+  website_url: string | null
 }
 
 type DashboardPageProps = {
@@ -43,122 +50,76 @@ type RoleTheme = {
   intro: string
 }
 
-// =============================================================================
-// Workspace preference
-// =============================================================================
+const WORKSPACE_PREFERENCE_COOKIE = 'raisehub-selected-workspace'
 
-const WORKSPACE_PREFERENCE_COOKIE =
-  'raisehub-selected-workspace'
-
-function hasRequestedWorkspace(
-  value?: string | string[]
-): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0
-  }
-
-  return value !== undefined
+function hasRequestedWorkspace(value?: string | string[]): boolean {
+  return Array.isArray(value) ? value.length > 0 : value !== undefined
 }
 
-// =============================================================================
-// Role presentation
-// =============================================================================
-
-function getRoleTheme(
-  role: DashboardExperienceRole
-): RoleTheme {
+function getRoleTheme(role: DashboardExperienceRole): RoleTheme {
   switch (role) {
     case 'business':
       return {
         title: 'Business Dashboard',
         badge: 'Business',
-        badgeClass:
-          'border border-green-200 bg-green-50 text-green-700',
+        badgeClass: 'border border-green-200 bg-green-50 text-green-700',
         headingClass: 'text-green-700',
-        panelClass:
-          'border border-green-100 bg-white/90 shadow-xl backdrop-blur',
-        intro:
-          'Manage offers, track redemptions, and grow local visibility.',
+        panelClass: 'border border-green-100 bg-white/90 shadow-xl backdrop-blur',
+        intro: 'Manage offers, track redemptions, and grow local visibility.',
       }
-
     case 'organization':
       return {
         title: 'Organization Dashboard',
         badge: 'Organization',
-        badgeClass:
-          'border border-blue-200 bg-blue-50 text-blue-700',
+        badgeClass: 'border border-blue-200 bg-blue-50 text-blue-700',
         headingClass: 'text-blue-700',
-        panelClass:
-          'border border-blue-100 bg-white/90 shadow-xl backdrop-blur',
-        intro:
-          'Track fundraising progress, supporters, and business partners.',
+        panelClass: 'border border-blue-100 bg-white/90 shadow-xl backdrop-blur',
+        intro: 'Track fundraising progress, supporters, and business partners.',
       }
-
     case 'admin':
       return {
         title: 'Admin Dashboard',
         badge: 'Admin',
-        badgeClass:
-          'border border-gray-300 bg-gray-100 text-gray-800',
+        badgeClass: 'border border-gray-300 bg-gray-100 text-gray-800',
         headingClass: 'text-gray-800',
-        panelClass:
-          'border border-gray-200 bg-white/90 shadow-xl backdrop-blur',
-        intro:
-          'Manage platform activity, users, and campaigns.',
+        panelClass: 'border border-gray-200 bg-white/90 shadow-xl backdrop-blur',
+        intro: 'Manage platform activity, users, and campaigns.',
       }
-
     case 'owner':
       return {
         title: 'RaiseHub Platform Console',
         badge: 'Owner',
-        badgeClass:
-          'border border-slate-700 bg-slate-950 text-blue-200',
+        badgeClass: 'border border-slate-700 bg-slate-950 text-blue-200',
         headingClass: 'text-slate-950',
-        panelClass:
-          'border border-slate-200 bg-white/95 shadow-xl backdrop-blur',
-        intro:
-          'Run the platform, test role experiences, and assist RaiseHub clients.',
+        panelClass: 'border border-slate-200 bg-white/95 shadow-xl backdrop-blur',
+        intro: 'Run the platform, test role experiences, and assist RaiseHub clients.',
       }
-
     case 'customer':
     default:
       return {
         title: 'Customer Dashboard',
         badge: 'Customer',
-        badgeClass:
-          'border border-yellow-200 bg-yellow-50 text-yellow-700',
+        badgeClass: 'border border-yellow-200 bg-yellow-50 text-yellow-700',
         headingClass: 'text-yellow-600',
-        panelClass:
-          'border border-yellow-100 bg-white/90 shadow-xl backdrop-blur',
-        intro:
-          'View your passes, savings, and favorite local businesses.',
+        panelClass: 'border border-yellow-100 bg-white/90 shadow-xl backdrop-blur',
+        intro: 'View your passes, savings, and favorite local businesses.',
       }
   }
 }
 
-// =============================================================================
-// Dashboard selection
-// =============================================================================
-
-function WorkspaceUnavailable({
-  workspace,
-}: {
-  workspace: SelectableWorkspace
-}) {
+function WorkspaceUnavailable({ workspace }: { workspace: SelectableWorkspace }) {
   return (
     <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6">
       <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
         Workspace unavailable
       </p>
-
       <h2 className="mt-2 text-xl font-bold text-gray-900">
         {workspace.name} is not connected yet
       </h2>
-
       <p className="mt-2 text-sm leading-6 text-gray-600">
-        Your access is recognized, but this workspace does not yet
-        have the legacy account connection required by the current
-        dashboard. No unrelated account data was loaded.
+        Your access is recognized, but this workspace does not yet have the legacy
+        account connection required by the current dashboard. No unrelated account
+        data was loaded.
       </p>
     </section>
   )
@@ -171,18 +132,13 @@ function renderDashboard(
   switch (role) {
     case 'owner':
       return <OwnerDashboard />
-
     case 'business':
       if (
         selectedWorkspace &&
         selectedWorkspace.kind === 'business' &&
         !selectedWorkspace.legacyProfileId
       ) {
-        return (
-          <WorkspaceUnavailable
-            workspace={selectedWorkspace}
-          />
-        )
+        return <WorkspaceUnavailable workspace={selectedWorkspace} />
       }
 
       return (
@@ -194,7 +150,6 @@ function renderDashboard(
           }
         />
       )
-
     case 'organization':
       if (
         selectedWorkspace &&
@@ -202,11 +157,7 @@ function renderDashboard(
           selectedWorkspace.kind === 'fundraising') &&
         !selectedWorkspace.legacyProfileId
       ) {
-        return (
-          <WorkspaceUnavailable
-            workspace={selectedWorkspace}
-          />
-        )
+        return <WorkspaceUnavailable workspace={selectedWorkspace} />
       }
 
       return (
@@ -219,61 +170,38 @@ function renderDashboard(
           }
         />
       )
-
     case 'admin':
       return <AdminDashboard />
-
     case 'customer':
     default:
       return <CustomerDashboard />
   }
 }
 
-// =============================================================================
-// Route
-// =============================================================================
-
-export default async function DashboardPage({
-  searchParams,
-}: DashboardPageProps) {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
-  const resolvedSearchParams = searchParams
-    ? await searchParams
-    : undefined
-
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
   const cookieStore = await cookies()
-
   const savedWorkspaceKey =
-    cookieStore
-      .get(WORKSPACE_PREFERENCE_COOKIE)
-      ?.value
-      .trim() || undefined
+    cookieStore.get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || undefined
+  const requestedWorkspace = hasRequestedWorkspace(resolvedSearchParams?.workspace)
+    ? resolvedSearchParams?.workspace
+    : savedWorkspaceKey
 
-  const requestedWorkspace =
-    hasRequestedWorkspace(
-      resolvedSearchParams?.workspace
-    )
-      ? resolvedSearchParams?.workspace
-      : savedWorkspaceKey
-
-  const [{ data: profile }, authenticatedWorkspacesResult] =
-    await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, email, role')
-        .eq('id', user.id)
-        .single<Profile>(),
-      getAuthenticatedWorkspaces(),
-    ])
+  const [{ data: profile }, authenticatedWorkspacesResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, email, role')
+      .eq('id', user.id)
+      .single<Profile>(),
+    getAuthenticatedWorkspaces(),
+  ])
 
   if (!authenticatedWorkspacesResult.success) {
     console.error(
@@ -282,91 +210,102 @@ export default async function DashboardPage({
     )
   }
 
-  const availableWorkspaces =
-    authenticatedWorkspacesResult.success
-      ? authenticatedWorkspacesResult.workspaces
-      : []
-
-  const legacyRole =
-    profile?.role ?? 'customer'
-
-  const workspaceSelection =
-    resolveWorkspaceSelection({
-      requestedWorkspace,
-      workspaces: availableWorkspaces,
-      legacyRole,
-    })
-
-  const selectedWorkspace =
-    workspaceSelection.selectedWorkspace
-
-  const experienceRole =
-    workspaceSelection.experienceRole
-
+  const availableWorkspaces = authenticatedWorkspacesResult.success
+    ? authenticatedWorkspacesResult.workspaces
+    : []
+  const legacyRole = profile?.role ?? 'customer'
+  const workspaceSelection = resolveWorkspaceSelection({
+    requestedWorkspace,
+    workspaces: availableWorkspaces,
+    legacyRole,
+  })
+  const selectedWorkspace = workspaceSelection.selectedWorkspace
+  const experienceRole = workspaceSelection.experienceRole
   const theme = getRoleTheme(experienceRole)
+
+  const businessLegacyProfileId =
+    experienceRole === 'business'
+      ? selectedWorkspace?.kind === 'business'
+        ? selectedWorkspace.legacyProfileId
+        : user.id
+      : null
+
+  let businessHeaderProfile: BusinessHeaderProfile | null = null
+
+  if (experienceRole === 'business' && businessLegacyProfileId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select(
+        'business_name, display_name, phone, address, google_maps_url, logo_url, website_url'
+      )
+      .eq('id', businessLegacyProfileId)
+      .maybeSingle<BusinessHeaderProfile>()
+
+    businessHeaderProfile = data
+  }
+
+  const accountEmail = user.email ?? profile?.email ?? null
 
   return (
     <main
       className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8"
-      data-available-workspace-count={
-        availableWorkspaces.length
-      }
-      data-selected-workspace-key={
-        selectedWorkspace?.key ?? ''
-      }
+      data-available-workspace-count={availableWorkspaces.length}
+      data-selected-workspace-key={selectedWorkspace?.key ?? ''}
     >
       <div
         className={`mx-auto ${
-          experienceRole === 'owner'
-            ? 'max-w-7xl'
-            : 'max-w-5xl'
+          experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
         }`}
       >
-        <header
-          className={`relative z-50 rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div
-                className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${theme.badgeClass}`}
-              >
-                {theme.badge}
+        {experienceRole === 'business' && businessHeaderProfile ? (
+          <BusinessWorkspaceHeader
+            businessLegacyProfileId={businessLegacyProfileId}
+            businessName={businessHeaderProfile.business_name ?? ''}
+            displayName={businessHeaderProfile.display_name ?? ''}
+            phone={businessHeaderProfile.phone ?? ''}
+            address={businessHeaderProfile.address ?? ''}
+            googleMapsUrl={businessHeaderProfile.google_maps_url ?? ''}
+            logoUrl={businessHeaderProfile.logo_url ?? ''}
+            websiteUrl={businessHeaderProfile.website_url ?? ''}
+            subtitle={selectedWorkspace?.subtitle ?? theme.intro}
+            badgeClass={theme.badgeClass}
+            headingClass={theme.headingClass}
+            panelClass={theme.panelClass}
+            email={accountEmail}
+            workspaces={availableWorkspaces}
+            selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
+          />
+        ) : (
+          <header
+            className={`relative z-50 rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div
+                  className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${theme.badgeClass}`}
+                >
+                  {theme.badge}
+                </div>
+                <h1 className={`mt-4 text-3xl font-bold ${theme.headingClass}`}>
+                  {selectedWorkspace?.name ?? theme.title}
+                </h1>
+                <p className="mt-2 text-gray-600">
+                  {selectedWorkspace?.subtitle ?? theme.intro}
+                </p>
               </div>
-
-              <h1
-                className={`mt-4 text-3xl font-bold ${theme.headingClass}`}
-              >
-                {selectedWorkspace?.name ??
-                  theme.title}
-              </h1>
-
-              <p className="mt-2 text-gray-600">
-                {selectedWorkspace?.subtitle ??
-                  theme.intro}
-              </p>
+              <div className="relative sm:pt-1">
+                <AccountMenu
+                  email={accountEmail}
+                  workspaces={availableWorkspaces}
+                  selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
+                />
+              </div>
             </div>
-
-            <div className="relative sm:pt-1">
-              <AccountMenu
-                email={
-                  user.email ??
-                  profile?.email ??
-                  null
-                }
-                workspaces={availableWorkspaces}
-                selectedWorkspaceKey={
-                  workspaceSelection.selectedWorkspaceKey
-                }
-              />
-            </div>
-          </div>
-        </header>
+          </header>
+        )}
 
         <div className="relative z-0">
-          {renderDashboard(
-            experienceRole,
-            selectedWorkspace
-          )}
+          {renderDashboard(experienceRole, selectedWorkspace)}
         </div>
       </div>
     </main>
