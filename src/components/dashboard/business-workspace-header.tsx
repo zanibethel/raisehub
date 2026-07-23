@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import AccountMenu from '@/app/components/account-menu'
 import BusinessProfileForm from '@/app/components/business-profile-form'
@@ -44,10 +44,25 @@ export default function BusinessWorkspaceHeader({
   const [editing, setEditing] = useState(false)
   const publicName = displayName || businessName || 'Business Dashboard'
 
+  useEffect(() => {
+    function openProfileFromHash() {
+      if (window.location.hash === '#business-profile') {
+        setEditing(true)
+      }
+    }
+
+    openProfileFromHash()
+    window.addEventListener('hashchange', openProfileFromHash)
+
+    return () => {
+      window.removeEventListener('hashchange', openProfileFromHash)
+    }
+  }, [])
+
   return (
     <header
       id="business-profile"
-      className={`relative z-50 rounded-3xl p-6 sm:p-8 ${panelClass}`}
+      className={`relative z-50 scroll-mt-6 rounded-3xl p-6 sm:p-8 ${panelClass}`}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
