@@ -178,6 +178,14 @@ export default function NewOfferPage() {
     setStep(1)
   }
 
+  function focusField(selector: string) {
+    window.requestAnimationFrame(() => {
+      const field = document.querySelector<HTMLElement>(selector)
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      field?.focus({ preventScroll: true })
+    })
+  }
+
   function handleContinue() {
     setMessage('')
 
@@ -191,26 +199,36 @@ export default function NewOfferPage() {
       return
     }
 
-    if (
-      step === 3 &&
-      (!offerDraft.title.trim() ||
-        !offerDraft.memberBenefit.trim() ||
-        !offerDraft.description.trim())
-    ) {
-      setMessage(
-        'Add an offer name, member benefit, and description before continuing.'
-      )
-      return
-    }
+    if (step === 3) {
+      if (!offerDraft.title.trim()) {
+        setMessage('Add an offer name before continuing.')
+        focusField('textarea[placeholder="Example: VIP Lunch Combo"]')
+        return
+      }
 
-    if (
-      step === 3 &&
-      offerDraft.startsAt &&
-      offerDraft.endsAt &&
-      offerDraft.endsAt < offerDraft.startsAt
-    ) {
-      setMessage('The end date must be after the start date.')
-      return
+      if (!offerDraft.memberBenefit.trim()) {
+        setMessage('Add a member benefit before continuing.')
+        focusField('textarea[placeholder="Example: Free loaded fries"]')
+        return
+      }
+
+      if (!offerDraft.description.trim()) {
+        setMessage('Add a customer-facing description before continuing.')
+        focusField(
+          'textarea[placeholder="Explain why members will enjoy this exclusive offer."]'
+        )
+        return
+      }
+
+      if (
+        offerDraft.startsAt &&
+        offerDraft.endsAt &&
+        offerDraft.endsAt < offerDraft.startsAt
+      ) {
+        setMessage('The end date must be after the start date.')
+        focusField('input[type="date"]:last-of-type')
+        return
+      }
     }
 
     setStep((current) => Math.min(current + 1, TOTAL_STEPS))
@@ -394,7 +412,10 @@ export default function NewOfferPage() {
           ) : null}
 
           {message ? (
-            <p className="mt-6 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+            <p
+              role="alert"
+              className="mt-6 rounded-xl bg-red-50 p-3 text-sm text-red-700"
+            >
               {message}
             </p>
           ) : null}
