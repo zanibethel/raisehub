@@ -232,7 +232,7 @@ export async function createCampaignCheckoutAction(
       customerEmail: user.email ?? null,
       campaignName: campaign.name,
       successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${origin}/campaigns/${campaign.id}?checkout=canceled`,
+      cancelUrl: `${origin}/checkout/canceled?attempt=${encodeURIComponent(attempt.id)}&campaign=${encodeURIComponent(campaign.id)}`,
     })
 
     if (!session.url) {
