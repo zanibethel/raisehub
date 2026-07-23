@@ -35,6 +35,25 @@ const businessCategories = [
   'Other',
 ]
 
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function getDefaultOfferDates() {
+  const startsAt = new Date()
+  const endsAt = new Date(startsAt)
+  endsAt.setFullYear(endsAt.getFullYear() + 1)
+
+  return {
+    startsAt: formatLocalDate(startsAt),
+    endsAt: formatLocalDate(endsAt),
+  }
+}
+
 const emptyDraft: OfferDraft = {
   title: '',
   memberBenefit: '',
@@ -117,6 +136,8 @@ export default function NewOfferPage() {
   }
 
   function handleSuggestionSelect(suggestion: OfferSuggestion) {
+    const { startsAt, endsAt } = getDefaultOfferDates()
+
     setSelectedSuggestion(suggestion)
 
     setOfferDraft({
@@ -126,8 +147,8 @@ export default function NewOfferPage() {
         ? 'a qualifying purchase'
         : '',
       description: suggestion.description,
-      startsAt: '',
-      endsAt: '',
+      startsAt,
+      endsAt,
       limitOnePerMember: true,
       validEveryDay: true,
       requiresPurchase: suggestion.requiresPurchase,
