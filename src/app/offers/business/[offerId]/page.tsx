@@ -33,6 +33,13 @@ function isCurrentlyAvailable(offer: PreviewOffer): boolean {
   return true
 }
 
+function normalizeWebsiteUrl(value: string | null | undefined): string | null {
+  const website = value?.trim()
+  if (!website) return null
+
+  return /^https?:\/\//i.test(website) ? website : `https://${website}`
+}
+
 export default async function BusinessOfferPreviewPage({
   params,
 }: BusinessOfferPreviewPageProps) {
@@ -79,7 +86,7 @@ export default async function BusinessOfferPreviewPage({
       .order('created_at', { ascending: false }),
     supabase
       .from('profiles')
-      .select('business_name, display_name, logo_url, address')
+      .select('business_name, display_name, logo_url, address, website_url')
       .eq('id', anchorOffer.business_id)
       .maybeSingle(),
   ])
@@ -87,6 +94,7 @@ export default async function BusinessOfferPreviewPage({
   const availableOffers = (offers ?? []).filter(isCurrentlyAvailable)
   const businessName =
     profile?.display_name || profile?.business_name || 'Local Business'
+  const websiteUrl = normalizeWebsiteUrl(profile?.website_url)
   const canReveal = authData.user?.id === anchorOffer.business_id
 
   return (
@@ -106,7 +114,7 @@ export default async function BusinessOfferPreviewPage({
               alt={`${businessName} logo`}
               className="h-16 w-16 shrink-0 rounded-xl border border-gray-200 object-cover"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
                 Community Partner
               </p>
@@ -117,6 +125,16 @@ export default async function BusinessOfferPreviewPage({
                 <p className="mt-2 break-words text-sm text-gray-600">
                   {profile.address}
                 </p>
+              ) : null}
+              {websiteUrl ? (
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex text-sm font-semibold text-blue-700 underline underline-offset-4"
+                >
+                  Visit Website
+                </a>
               ) : null}
             </div>
           </div>
