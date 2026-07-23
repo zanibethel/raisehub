@@ -1,17 +1,10 @@
 import Link from 'next/link'
 
-import type {
-  CustomerDashboardOffer,
-} from '@/types/customer-dashboard'
-
-// =============================================================================
-// Types
-// =============================================================================
+import type { CustomerDashboardOffer } from '@/types/customer-dashboard'
 
 type Props = {
   hasActivePass: boolean
-  enrichedOffers:
-    CustomerDashboardOffer[]
+  enrichedOffers: CustomerDashboardOffer[]
   savedOfferIds: Set<string>
   redeemedOfferIds: Set<string>
 }
@@ -34,38 +27,22 @@ type CustomerNotification = {
   tone: CustomerNotificationTone
 }
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const EXPIRING_SOON_DAYS = 14
 const MAX_VISIBLE_NOTIFICATIONS = 4
-
-// =============================================================================
-// Date helpers
-// =============================================================================
 
 function getDateTimestamp(
   value: string | null | undefined
 ): number | null {
-  if (!value) {
-    return null
-  }
-
-  const timestamp =
-    new Date(value).getTime()
-
-  return Number.isNaN(timestamp)
-    ? null
-    : timestamp
+  if (!value) return null
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
 }
 
 function isOfferExpiringSoon(
   offer: CustomerDashboardOffer,
   now: number
 ): boolean {
-  const expirationTimestamp =
-    getDateTimestamp(offer.ends_at)
+  const expirationTimestamp = getDateTimestamp(offer.ends_at)
 
   if (
     expirationTimestamp === null ||
@@ -74,23 +51,11 @@ function isOfferExpiringSoon(
     return false
   }
 
-  const expirationWindow =
-    now +
-    EXPIRING_SOON_DAYS *
-      24 *
-      60 *
-      60 *
-      1000
-
   return (
     expirationTimestamp <=
-    expirationWindow
+    now + EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000
   )
 }
-
-// =============================================================================
-// Notification helpers
-// =============================================================================
 
 function buildCustomerNotifications({
   hasActivePass,
@@ -98,54 +63,30 @@ function buildCustomerNotifications({
   savedOfferIds,
   redeemedOfferIds,
 }: Props): CustomerNotification[] {
-  const notifications:
-    CustomerNotification[] = []
-
+  const notifications: CustomerNotification[] = []
   const now = Date.now()
-
-  const savedOffers =
-    enrichedOffers.filter((offer) =>
-      savedOfferIds.has(offer.id)
-    )
-
-  const unusedSavedOffers =
-    savedOffers.filter(
-      (offer) =>
-        !redeemedOfferIds.has(
-          offer.id
-        )
-    )
-
-  const expiringSavedOffers =
-    unusedSavedOffers.filter(
-      (offer) =>
-        isOfferExpiringSoon(
-          offer,
-          now
-        )
-    )
-
-  const expiringOfferIds = new Set(
-    expiringSavedOffers.map(
-      (offer) => offer.id
-    )
+  const savedOffers = enrichedOffers.filter((offer) =>
+    savedOfferIds.has(offer.id)
   )
-
-  const readySavedOffers =
-    unusedSavedOffers.filter(
-      (offer) =>
-        !expiringOfferIds.has(
-          offer.id
-        )
-    )
+  const unusedSavedOffers = savedOffers.filter(
+    (offer) => !redeemedOfferIds.has(offer.id)
+  )
+  const expiringSavedOffers = unusedSavedOffers.filter((offer) =>
+    isOfferExpiringSoon(offer, now)
+  )
+  const expiringOfferIds = new Set(
+    expiringSavedOffers.map((offer) => offer.id)
+  )
+  const readySavedOffers = unusedSavedOffers.filter(
+    (offer) => !expiringOfferIds.has(offer.id)
+  )
 
   if (!hasActivePass) {
     notifications.push({
       id: 'pass-required',
       icon: '🎟️',
       eyebrow: 'Pass Access',
-      title:
-        'Activate your RaiseHub Pass',
+      title: 'Activate your RaiseHub Pass',
       description:
         'A current pass is required to save and redeem participating local offers.',
       actionLabel: 'View Pass Options',
@@ -154,10 +95,7 @@ function buildCustomerNotifications({
     })
   }
 
-  if (
-    hasActivePass &&
-    expiringSavedOffers.length > 0
-  ) {
+  if (hasActivePass && expiringSavedOffers.length > 0) {
     notifications.push({
       id: 'saved-expiring',
       icon: '⏳',
@@ -167,18 +105,14 @@ function buildCustomerNotifications({
           ? 'deal expires'
           : 'deals expire'
       } soon`,
-      description: `These saved offers end within the next ${EXPIRING_SOON_DAYS} days. Review them before they are gone.`,
-      actionLabel:
-        'Review Expiring Deals',
+      description: `These saved offers end within the next ${EXPIRING_SOON_DAYS} days.`,
+      actionLabel: 'Review Deals',
       actionHref: '#my-pass',
       tone: 'orange',
     })
   }
 
-  if (
-    hasActivePass &&
-    readySavedOffers.length > 0
-  ) {
+  if (hasActivePass && readySavedOffers.length > 0) {
     notifications.push({
       id: 'saved-ready',
       icon: '⭐',
@@ -188,30 +122,22 @@ function buildCustomerNotifications({
           ? 'deal is'
           : 'deals are'
       } waiting`,
-      description:
-        'These saved offers are ready whenever you visit a participating local business.',
+      description: 'Open My Pass when you are ready to visit the business.',
       actionLabel: 'Open My Pass',
       actionHref: '#my-pass',
       tone: 'yellow',
     })
   }
 
-  if (
-    hasActivePass &&
-    savedOffers.length === 0
-  ) {
+  if (hasActivePass && savedOffers.length === 0) {
     notifications.push({
       id: 'save-first-deal',
       icon: '📌',
       eyebrow: 'Build Your Pass',
-      title:
-        'Save your first local deal',
-      description:
-        'Add useful offers to My Pass so they are easy to find when you are ready to redeem them.',
-      actionLabel:
-        'Browse Available Deals',
-      actionHref:
-        '#available-offers',
+      title: 'Save your first local deal',
+      description: 'Keep useful offers together for quick access later.',
+      actionLabel: 'Browse Deals',
+      actionHref: '#available-offers',
       tone: 'green',
     })
   }
@@ -226,20 +152,14 @@ function buildCustomerNotifications({
           ? 'offer has'
           : 'offers have'
       } been redeemed`,
-      description:
-        'Your completed offer activity is available in Redemption History for easy reference.',
-      actionLabel:
-        'View Redemption History',
-      actionHref:
-        '#redemption-history',
+      description: 'Review completed activity in Redemption History.',
+      actionLabel: 'View History',
+      actionHref: '#redemption-history',
       tone: 'purple',
     })
   }
 
-  if (
-    hasActivePass &&
-    enrichedOffers.length > 0
-  ) {
+  if (hasActivePass && enrichedOffers.length > 0) {
     notifications.push({
       id: 'discover-deals',
       icon: '📍',
@@ -249,25 +169,15 @@ function buildCustomerNotifications({
           ? 'offer is'
           : 'offers are'
       } available`,
-      description:
-        'Browse current participating-business offers and use the dashboard filters to find the best match.',
-      actionLabel:
-        'Explore Local Deals',
-      actionHref:
-        '#available-offers',
+      description: 'Browse current participating-business offers.',
+      actionLabel: 'Explore Deals',
+      actionHref: '#available-offers',
       tone: 'blue',
     })
   }
 
-  return notifications.slice(
-    0,
-    MAX_VISIBLE_NOTIFICATIONS
-  )
+  return notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS)
 }
-
-// =============================================================================
-// Style helpers
-// =============================================================================
 
 function getNotificationClasses(
   tone: CustomerNotificationTone
@@ -275,16 +185,12 @@ function getNotificationClasses(
   switch (tone) {
     case 'green':
       return 'border-green-100 bg-green-50'
-
     case 'yellow':
       return 'border-yellow-100 bg-yellow-50'
-
     case 'orange':
       return 'border-orange-100 bg-orange-50'
-
     case 'purple':
       return 'border-purple-100 bg-purple-50'
-
     case 'blue':
       return 'border-blue-100 bg-blue-50'
   }
@@ -296,16 +202,12 @@ function getEyebrowClasses(
   switch (tone) {
     case 'green':
       return 'text-green-700'
-
     case 'yellow':
       return 'text-yellow-700'
-
     case 'orange':
       return 'text-orange-700'
-
     case 'purple':
       return 'text-purple-700'
-
     case 'blue':
       return 'text-blue-700'
   }
@@ -317,24 +219,16 @@ function getActionClasses(
   switch (tone) {
     case 'green':
       return 'border-green-200 text-green-700 hover:bg-green-100'
-
     case 'yellow':
       return 'border-yellow-200 text-yellow-800 hover:bg-yellow-100'
-
     case 'orange':
       return 'border-orange-200 text-orange-800 hover:bg-orange-100'
-
     case 'purple':
       return 'border-purple-200 text-purple-700 hover:bg-purple-100'
-
     case 'blue':
       return 'border-blue-200 text-blue-700 hover:bg-blue-100'
   }
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function CustomerNotificationCenter({
   hasActivePass,
@@ -342,114 +236,84 @@ export default function CustomerNotificationCenter({
   savedOfferIds,
   redeemedOfferIds,
 }: Props) {
-  const notifications =
-    buildCustomerNotifications({
-      hasActivePass,
-      enrichedOffers,
-      savedOfferIds,
-      redeemedOfferIds,
-    })
+  const notifications = buildCustomerNotifications({
+    hasActivePass,
+    enrichedOffers,
+    savedOfferIds,
+    redeemedOfferIds,
+  })
 
   return (
     <section
       aria-labelledby="customer-notification-center-heading"
-      className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-6"
+      className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-4 shadow-lg backdrop-blur sm:p-6"
     >
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
             What Should I Do Next?
           </p>
-
           <h2
             id="customer-notification-center-heading"
-            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
+            className="mt-1 break-words text-xl font-bold leading-tight text-gray-900 sm:text-2xl"
           >
             Your RaiseHub Updates
           </h2>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-            Timely pass reminders and
-            suggested actions based on
-            your current account activity.
-          </p>
         </div>
 
-        <span className="w-fit shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-          {notifications.length}{' '}
-          {notifications.length === 1
-            ? 'update'
-            : 'updates'}
+        <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+          {notifications.length}
         </span>
       </div>
 
       {notifications.length > 0 ? (
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {notifications.map(
-            (notification) => (
-              <article
-                key={notification.id}
-                className={`min-w-0 overflow-hidden rounded-2xl border p-5 ${getNotificationClasses(
-                  notification.tone
-                )}`}
-              >
-                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 text-2xl"
+        <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100">
+          {notifications.map((notification) => (
+            <article
+              key={notification.id}
+              className={`min-w-0 p-3.5 sm:p-4 ${getNotificationClasses(
+                notification.tone
+              )}`}
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <span aria-hidden="true" className="shrink-0 text-xl">
+                  {notification.icon}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${getEyebrowClasses(
+                      notification.tone
+                    )}`}
                   >
-                    {notification.icon}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`break-words text-xs font-semibold uppercase tracking-wide ${getEyebrowClasses(
-                        notification.tone
-                      )}`}
-                    >
-                      {
-                        notification.eyebrow
-                      }
-                    </p>
-
-                    <h3 className="mt-2 break-words font-bold leading-snug text-gray-900">
-                      {notification.title}
-                    </h3>
-
-                    <p className="mt-2 break-words text-sm leading-6 text-gray-600">
-                      {
-                        notification.description
-                      }
-                    </p>
-
-                    <Link
-                      href={
-                        notification.actionHref
-                      }
-                      className={`mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl border bg-white px-4 py-3 text-center text-sm font-semibold transition sm:w-auto ${getActionClasses(
-                        notification.tone
-                      )}`}
-                    >
-                      {
-                        notification.actionLabel
-                      }
-                    </Link>
-                  </div>
+                    {notification.eyebrow}
+                  </p>
+                  <h3 className="mt-1 break-words text-sm font-bold leading-snug text-gray-900 sm:text-base">
+                    {notification.title}
+                  </h3>
+                  <p className="mt-1 break-words text-xs leading-5 text-gray-600 sm:text-sm">
+                    {notification.description}
+                  </p>
                 </div>
-              </article>
-            )
-          )}
+
+                <Link
+                  href={notification.actionHref}
+                  aria-label={notification.actionLabel}
+                  className={`shrink-0 rounded-lg border bg-white px-3 py-2 text-xs font-semibold transition ${getActionClasses(
+                    notification.tone
+                  )}`}
+                >
+                  {notification.actionLabel}
+                </Link>
+              </div>
+            </article>
+          ))}
         </div>
       ) : (
-        <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-5">
-          <p className="break-words font-semibold text-green-800">
-            You&apos;re all caught up
-          </p>
-
-          <p className="mt-2 text-sm leading-6 text-green-700">
-            There are no urgent pass
-            actions requiring your
-            attention right now.
+        <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-4">
+          <p className="font-semibold text-green-800">You&apos;re all caught up</p>
+          <p className="mt-1 text-sm leading-6 text-green-700">
+            There are no urgent pass actions requiring your attention.
           </p>
         </div>
       )}
