@@ -15,11 +15,13 @@ type OrganizationProfile = {
 }
 
 type Props = {
+  organizationId: string
   profile: OrganizationProfile
   isComplete: boolean
 }
 
 export default function OrganizationProfileSetupSection({
+  organizationId,
   profile,
   isComplete,
 }: Props) {
@@ -80,7 +82,10 @@ export default function OrganizationProfileSetupSection({
     setMessage('')
 
     try {
-      const result = await updateOrganizationProfileAction(form)
+      const result = await updateOrganizationProfileAction({
+        organizationId,
+        ...form,
+      })
 
       if (result.error) {
         setMessage(result.error)
