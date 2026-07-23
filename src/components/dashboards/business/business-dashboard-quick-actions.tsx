@@ -1,48 +1,66 @@
-import QuickActionCard from '@/components/dashboard/quick-action-card'
-import SectionHeader from '@/components/dashboard/section-header'
+import Link from 'next/link'
 
 type BusinessDashboardQuickActionsProps = {
   hasReachedLimit: boolean
 }
 
+type QuickAction = {
+  title: string
+  href: string
+  detail: string
+}
+
 export default function BusinessDashboardQuickActions({
   hasReachedLimit,
 }: BusinessDashboardQuickActionsProps) {
+  const actions: QuickAction[] = [
+    {
+      title: hasReachedLimit ? 'Manage Offer Limit' : 'Create Offer',
+      href: hasReachedLimit ? '#create-offer' : '/dashboard/offers/new',
+      detail: hasReachedLimit
+        ? 'Review active offers or upgrade options.'
+        : 'Open the guided offer builder.',
+    },
+    {
+      title: 'Public Profile',
+      href: '/businesses',
+      detail: 'View the customer-facing business experience.',
+    },
+    {
+      title: 'Offer Reports',
+      href: '#business-offers',
+      detail: 'Review offer details and redemption activity.',
+    },
+  ]
+
   return (
-    <section>
-      <SectionHeader
-        title="Quick Actions"
-        description="Manage the most important parts of your Community Partner account."
-      />
+    <section className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Business tools
+          </p>
+          <h2 className="mt-1 text-base font-bold text-gray-950">
+            Quick actions
+          </h2>
+        </div>
+      </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <QuickActionCard
-          title="Create an Offer"
-          description="Build a high-value, RaiseHub-exclusive promotion using tailored recommendations."
-          href="/dashboard/offers/new"
-          label={
-            hasReachedLimit
-              ? 'Review Offer Limit'
-              : 'Open Offer Wizard'
-          }
-          tone="green"
-        />
-
-        <QuickActionCard
-          title="View Public Profile"
-          description="See how members and organizations experience your business."
-          href="/businesses"
-          label="View Businesses"
-          tone="blue"
-        />
-
-        <QuickActionCard
-          title="Review Redemptions"
-          description="See which exclusive offers members are using most often."
-          href="#my-offers"
-          label="View Offer Reports"
-          tone="yellow"
-        />
+      <div className="mt-4 grid grid-cols-3 divide-x divide-gray-200 overflow-hidden rounded-xl border border-gray-200 bg-white">
+        {actions.map((action) => (
+          <Link
+            key={action.title}
+            href={action.href}
+            className="min-w-0 px-2 py-3 text-center transition hover:bg-gray-50 sm:px-4"
+          >
+            <span className="block text-xs font-bold leading-4 text-blue-700 sm:text-sm">
+              {action.title}
+            </span>
+            <span className="mt-1 hidden text-xs leading-4 text-gray-500 sm:block">
+              {action.detail}
+            </span>
+          </Link>
+        ))}
       </div>
     </section>
   )
