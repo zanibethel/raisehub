@@ -176,6 +176,7 @@ export async function startOrganizationStripeOnboardingAction(
             product_description: 'Fundraising proceeds distributed through RaiseHub',
           },
           capabilities: {
+            card_payments: { requested: true },
             transfers: { requested: true },
           },
           metadata: {
