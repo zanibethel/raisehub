@@ -43,18 +43,21 @@ export default async function OrganizationPayoutPage({
   if (!membership) notFound()
 
   const admin = createAdminClient()
-  const [{ data: organization }, { data: stripeAccount }] = await Promise.all([
+  const untypedAdmin = admin as any
+  const [{ data: organization }, stripeAccountResult] = await Promise.all([
     admin
       .from('organizations')
       .select('id, name')
       .eq('id', organizationId)
       .maybeSingle<OrganizationRow>(),
-    admin
+    untypedAdmin
       .from('organization_stripe_accounts')
       .select('onboarding_status, payouts_enabled, details_submitted')
       .eq('organization_id', organizationId)
-      .maybeSingle<StripeAccountRow>(),
+      .maybeSingle(),
   ])
+
+  const stripeAccount = stripeAccountResult.data as StripeAccountRow | null
 
   if (!organization) notFound()
 
