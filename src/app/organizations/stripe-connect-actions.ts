@@ -81,6 +81,7 @@ export async function startOrganizationStripeOnboardingAction(
   }
 
   const admin = createAdminClient()
+  const untypedAdmin = admin as any
   const { data: organization, error: organizationError } = await admin
     .from('organizations')
     .select('id, name, email')
@@ -91,11 +92,11 @@ export async function startOrganizationStripeOnboardingAction(
     return { status: 'error', message: 'Organization workspace was not found.' }
   }
 
-  const { data: existingAccount, error: existingAccountError } = await admin
+  const { data: existingAccount, error: existingAccountError } = await untypedAdmin
     .from('organization_stripe_accounts')
     .select('stripe_account_id')
     .eq('organization_id', organization.id)
-    .maybeSingle<StripeAccountRow>()
+    .maybeSingle() as { data: StripeAccountRow | null; error: { message: string } | null }
 
   if (existingAccountError) {
     return { status: 'error', message: 'We could not check payout setup.' }
@@ -129,7 +130,7 @@ export async function startOrganizationStripeOnboardingAction(
 
       accountId = account.id
 
-      const { error: insertError } = await admin
+      const { error: insertError } = await untypedAdmin
         .from('organization_stripe_accounts')
         .insert({
           organization_id: organization.id,
@@ -160,7 +161,7 @@ export async function startOrganizationStripeOnboardingAction(
       return_url: `${origin}/dashboard?${workspaceQuery}&connect=return`,
     })
 
-    await admin
+    await untypedAdmin
       .from('organization_stripe_accounts')
       .update({
         onboarding_status: 'in_progress',
