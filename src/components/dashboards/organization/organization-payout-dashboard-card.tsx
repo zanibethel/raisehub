@@ -23,16 +23,11 @@ export default function OrganizationPayoutDashboardCard() {
   async function handleOnboarding() {
     if (loading) return
 
-    if (!organizationId) {
-      setMessage('Select an organization workspace before setting up payouts.')
-      return
-    }
-
     setLoading(true)
     setMessage('')
 
     const result = await startOrganizationStripeOnboardingAction(
-      organizationId
+      organizationId ?? ''
     )
 
     if (result.status === 'onboarding-ready') {
