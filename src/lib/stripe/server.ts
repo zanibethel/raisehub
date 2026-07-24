@@ -28,7 +28,7 @@ function requireTestSecretKey() {
   const key = requireEnvironmentValue('STRIPE_SECRET_KEY')
 
   if (!key.startsWith('sk_test_')) {
-    throw new Error('Stripe must remain in test mode during this sprint')
+    throw new Error('RaiseHub Stripe live mode is disabled until payment QA is complete')
   }
 
   return key
@@ -117,7 +117,7 @@ export function verifyStripeWebhook(
   )
 
   if (event.livemode) {
-    throw new Error('Live-mode Stripe events are disabled during this sprint')
+    throw new Error('RaiseHub rejected a live-mode Stripe event while live payments are disabled')
   }
 
   return event
