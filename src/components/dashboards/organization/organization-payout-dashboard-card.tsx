@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 import { startOrganizationStripeOnboardingAction } from '@/app/organizations/stripe-connect-actions'
 import { getOrganizationStripeStatusAction } from '@/app/organizations/stripe-connect-status-actions'
@@ -11,13 +10,6 @@ type StripeStatus = {
   payoutsEnabled: boolean
   detailsSubmitted: boolean
   chargesEnabled: boolean
-}
-
-function getSelectedOrganizationId(workspaceKey: string | null) {
-  if (!workspaceKey?.startsWith('organization:')) return null
-
-  const organizationId = workspaceKey.slice('organization:'.length).trim()
-  return organizationId || null
 }
 
 function getStatusCopy(status: StripeStatus | null, checking: boolean) {
@@ -77,10 +69,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
 }
 
 export default function OrganizationPayoutDashboardCard() {
-  const searchParams = useSearchParams()
-  const organizationId = getSelectedOrganizationId(
-    searchParams.get('workspace')
-  )
+  const [organizationId, setOrganizationId] = useState('')
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
@@ -94,19 +83,12 @@ export default function OrganizationPayoutDashboardCard() {
       setChecking(true)
       setMessage('')
 
-      if (!organizationId) {
-        if (!cancelled) {
-          setStripeStatus(null)
-          setChecking(false)
-        }
-        return
-      }
-
-      const result = await getOrganizationStripeStatusAction(organizationId)
+      const result = await getOrganizationStripeStatusAction()
 
       if (cancelled) return
 
       if (result.status === 'ok') {
+        setOrganizationId(result.organizationId)
         setStripeStatus({
           onboardingStatus: result.onboardingStatus,
           payoutsEnabled: result.payoutsEnabled,
@@ -114,6 +96,7 @@ export default function OrganizationPayoutDashboardCard() {
           chargesEnabled: result.chargesEnabled,
         })
       } else {
+        setOrganizationId('')
         setStripeStatus(null)
         setMessage(result.message)
       }
@@ -126,7 +109,7 @@ export default function OrganizationPayoutDashboardCard() {
     return () => {
       cancelled = true
     }
-  }, [organizationId])
+  }, [])
 
   async function handleOnboarding() {
     if (loading || checking) return
@@ -134,9 +117,7 @@ export default function OrganizationPayoutDashboardCard() {
     setLoading(true)
     setMessage('')
 
-    const result = await startOrganizationStripeOnboardingAction(
-      organizationId ?? ''
-    )
+    const result = await startOrganizationStripeOnboardingAction(organizationId)
 
     if (result.status === 'onboarding-ready') {
       window.location.assign(result.url)
@@ -192,7 +173,7 @@ export default function OrganizationPayoutDashboardCard() {
         <button
           type="button"
           onClick={handleOnboarding}
-          disabled={loading || checking}
+          disabled={loading || checking || !organizationId}
           className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {loading ? 'Opening secure Stripe setup…' : copy.button}
