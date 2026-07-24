@@ -6,12 +6,12 @@ Ship a production-safe Stripe foundation for RaiseHub while keeping every Stripe
 
 ## Merge decision
 
-This sprint is being prepared for deployment to the production RaiseHub site so Stripe integration work can continue against the stable production hostname. Stripe remains strictly in test mode. No live keys, live connected accounts, real transfers, or real subscription charges are enabled.
+This sprint is prepared for deployment to the production RaiseHub site so Stripe integration work can continue against the stable production hostname. Stripe remains strictly in test mode. No live keys, live connected accounts, real transfers, or real subscription charges are enabled.
 
 ## Guardrails
 
 - Stripe test mode only.
-- Server startup and Stripe requests reject any secret key that is not prefixed with `sk_test_`.
+- Server-side Stripe requests reject any secret key that is not prefixed with `sk_test_`.
 - Signed webhook processing rejects all live-mode Stripe events.
 - Never grant access from a success-page redirect alone.
 - Webhooks are the source of truth for payment state.
