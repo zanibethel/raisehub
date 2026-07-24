@@ -1,9 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { startOrganizationStripeOnboardingAction } from '@/app/organizations/stripe-connect-actions'
+import { getOrganizationStripeStatusAction } from '@/app/organizations/stripe-connect-status-actions'
+
+type StripeStatus = {
+  onboardingStatus: string
+  payoutsEnabled: boolean
+  detailsSubmitted: boolean
+  chargesEnabled: boolean
+}
 
 function getSelectedOrganizationId(workspaceKey: string | null) {
   if (!workspaceKey?.startsWith('organization:')) return null
@@ -12,16 +20,116 @@ function getSelectedOrganizationId(workspaceKey: string | null) {
   return organizationId || null
 }
 
+function getStatusCopy(status: StripeStatus | null, checking: boolean) {
+  if (checking) {
+    return {
+      badge: 'Checking status',
+      badgeClassName: 'bg-gray-100 text-gray-700',
+      title: 'Checking payout readiness',
+      body: 'RaiseHub is loading the latest Stripe verification status.',
+      button: 'Open Stripe',
+    }
+  }
+
+  if (
+    status?.onboardingStatus === 'enabled' &&
+    status.detailsSubmitted &&
+    status.payoutsEnabled
+  ) {
+    return {
+      badge: 'Payouts ready',
+      badgeClassName: 'bg-green-50 text-green-700',
+      title: 'Payout account connected',
+      body: status.chargesEnabled
+        ? 'Stripe verification is complete. This organization can receive campaign proceeds.'
+        : 'Stripe verification is complete and payouts are enabled for this organization.',
+      button: 'Review payout details',
+    }
+  }
+
+  if (status?.detailsSubmitted) {
+    return {
+      badge: 'Under review',
+      badgeClassName: 'bg-amber-50 text-amber-700',
+      title: 'Stripe is reviewing payout details',
+      body: 'Open Stripe to review any remaining requirements or update account information.',
+      button: 'Continue in Stripe',
+    }
+  }
+
+  if (status?.onboardingStatus === 'in_progress') {
+    return {
+      badge: 'Setup in progress',
+      badgeClassName: 'bg-amber-50 text-amber-700',
+      title: 'Finish secure campaign payout setup',
+      body: 'Complete Stripe verification before campaign proceeds can be transferred.',
+      button: 'Continue payout setup',
+    }
+  }
+
+  return {
+    badge: 'Setup required',
+    badgeClassName: 'bg-amber-50 text-amber-700',
+    title: 'Set up secure campaign payouts',
+    body: 'Connect and verify your organization with Stripe before campaign proceeds can be transferred.',
+    button: 'Set up payouts with Stripe',
+  }
+}
+
 export default function OrganizationPayoutDashboardCard() {
   const searchParams = useSearchParams()
   const organizationId = getSelectedOrganizationId(
     searchParams.get('workspace')
   )
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null)
+  const copy = getStatusCopy(stripeStatus, checking)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadStatus() {
+      setChecking(true)
+      setMessage('')
+
+      if (!organizationId) {
+        if (!cancelled) {
+          setStripeStatus(null)
+          setChecking(false)
+        }
+        return
+      }
+
+      const result = await getOrganizationStripeStatusAction(organizationId)
+
+      if (cancelled) return
+
+      if (result.status === 'ok') {
+        setStripeStatus({
+          onboardingStatus: result.onboardingStatus,
+          payoutsEnabled: result.payoutsEnabled,
+          detailsSubmitted: result.detailsSubmitted,
+          chargesEnabled: result.chargesEnabled,
+        })
+      } else {
+        setStripeStatus(null)
+        setMessage(result.message)
+      }
+
+      setChecking(false)
+    }
+
+    void loadStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [organizationId])
 
   async function handleOnboarding() {
-    if (loading) return
+    if (loading || checking) return
 
     setLoading(true)
     setMessage('')
@@ -47,8 +155,10 @@ export default function OrganizationPayoutDashboardCard() {
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
               Organization payouts
             </p>
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-              Setup required
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}
+            >
+              {copy.badge}
             </span>
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
               Stripe test mode
@@ -56,10 +166,10 @@ export default function OrganizationPayoutDashboardCard() {
           </div>
 
           <h2 className="mt-2 text-xl font-bold text-gray-900">
-            Set up secure campaign payouts
+            {copy.title}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-            Connect and verify your organization with Stripe before campaign proceeds can be transferred.
+            {copy.body}
           </p>
         </div>
 
@@ -82,10 +192,10 @@ export default function OrganizationPayoutDashboardCard() {
         <button
           type="button"
           onClick={handleOnboarding}
-          disabled={loading}
+          disabled={loading || checking}
           className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {loading ? 'Opening secure Stripe setup…' : 'Set up payouts with Stripe'}
+          {loading ? 'Opening secure Stripe setup…' : copy.button}
         </button>
 
         {message ? (
