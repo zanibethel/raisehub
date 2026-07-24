@@ -135,7 +135,7 @@ export async function startOrganizationStripeOnboardingAction(
         .insert({
           organization_id: organization.id,
           stripe_account_id: account.id,
-          livemode: account.livemode,
+          livemode: false,
           onboarding_status: onboardingStatus(account),
           details_submitted: account.details_submitted,
           charges_enabled: account.charges_enabled,
