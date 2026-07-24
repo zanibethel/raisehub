@@ -11,6 +11,8 @@ This sprint is being prepared for deployment to the production RaiseHub site so 
 ## Guardrails
 
 - Stripe test mode only.
+- Server startup and Stripe requests reject any secret key that is not prefixed with `sk_test_`.
+- Signed webhook processing rejects all live-mode Stripe events.
 - Never grant access from a success-page redirect alone.
 - Webhooks are the source of truth for payment state.
 - Webhook processing must remain signed and idempotent.
