@@ -50,6 +50,9 @@ export default function OrganizationPayoutDashboardCard() {
             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
               Setup required
             </span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+              Stripe test mode
+            </span>
           </div>
 
           <h2 className="mt-2 text-xl font-bold text-gray-900">
@@ -72,8 +75,8 @@ export default function OrganizationPayoutDashboardCard() {
         <p className="text-sm leading-6 text-gray-600">
           Stripe securely verifies the organization and bank account used to receive campaign proceeds.
         </p>
-        <p className="mt-2 text-xs text-gray-500">
-          Test mode only. No real funds will move during this QA sprint.
+        <p className="mt-2 text-xs font-medium text-blue-700">
+          Production-site QA is using Stripe test mode. No real funds or live connected accounts will be created.
         </p>
 
         <button
@@ -86,7 +89,9 @@ export default function OrganizationPayoutDashboardCard() {
         </button>
 
         {message ? (
-          <p className="mt-4 text-sm font-medium text-red-600">{message}</p>
+          <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">
+            {message}
+          </p>
         ) : null}
       </div>
     </details>
