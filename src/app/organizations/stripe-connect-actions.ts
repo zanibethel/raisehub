@@ -20,6 +20,10 @@ type StripeAccountRow = {
   stripe_account_id: string
 }
 
+type OrganizationMembershipRow = {
+  organization_id: string
+}
+
 async function resolveOrigin() {
   const requestHeaders = await headers()
   const origin = requestHeaders.get('origin')?.trim()
@@ -50,11 +54,6 @@ function onboardingStatus(account: {
 export async function startOrganizationStripeOnboardingAction(
   organizationId: string
 ): Promise<ConnectResult> {
-  const cleanOrganizationId = organizationId.trim()
-  if (!cleanOrganizationId) {
-    return { status: 'error', message: 'Organization workspace is required.' }
-  }
-
   const supabase = await createClient()
   const {
     data: { user },
@@ -62,6 +61,41 @@ export async function startOrganizationStripeOnboardingAction(
 
   if (!user) {
     return { status: 'error', message: 'Log in before connecting payouts.' }
+  }
+
+  let cleanOrganizationId = organizationId.trim()
+
+  if (!cleanOrganizationId) {
+    const { data: legacyOrganization } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('legacy_profile_id', user.id)
+      .maybeSingle<{ id: string }>()
+
+    cleanOrganizationId = legacyOrganization?.id ?? ''
+  }
+
+  if (!cleanOrganizationId) {
+    const { data: memberships } = await supabase
+      .from('organization_memberships')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .in('membership_role', ['admin', 'manager'])
+      .limit(2)
+
+    const eligibleMemberships = (memberships ?? []) as OrganizationMembershipRow[]
+
+    if (eligibleMemberships.length === 1) {
+      cleanOrganizationId = eligibleMemberships[0].organization_id
+    }
+  }
+
+  if (!cleanOrganizationId) {
+    return {
+      status: 'error',
+      message: 'Choose an Organization workspace, then try payout setup again.',
+    }
   }
 
   const { data: membership } = await supabase
@@ -129,7 +163,6 @@ export async function startOrganizationStripeOnboardingAction(
       )
 
       accountId = account.id
-
       const { error: insertError } = await untypedAdmin
         .from('organization_stripe_accounts')
         .insert({
