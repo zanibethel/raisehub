@@ -184,7 +184,7 @@ export async function startOrganizationStripeOnboardingAction(
           },
         },
         {
-          idempotencyKey: `raisehub-connect-account-${organization.id}`,
+          idempotencyKey: `raisehub-connect-account-v2-${organization.id}`,
         }
       )
 
