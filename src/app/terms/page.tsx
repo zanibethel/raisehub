@@ -1,9 +1,15 @@
 import Link from 'next/link'
 
+import PolicyReturnButton from '@/app/components/policy-return-button'
+
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-16 text-gray-900">
       <div className="mx-auto max-w-3xl rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-6">
+          <PolicyReturnButton />
+        </div>
+
         <h1 className="text-3xl font-bold text-blue-700">Terms of Use</h1>
         <p className="mt-2 text-sm text-gray-500">Last updated July 23, 2026</p>
 
@@ -98,6 +104,10 @@ export default function TermsPage() {
               Read the Fundraising and Payout Policy →
             </Link>
           </section>
+
+          <div className="border-t border-slate-200 pt-6">
+            <PolicyReturnButton />
+          </div>
         </div>
       </div>
     </main>
