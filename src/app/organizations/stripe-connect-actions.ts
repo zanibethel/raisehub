@@ -51,6 +51,28 @@ function onboardingStatus(account: {
   return 'not_started'
 }
 
+function connectErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+
+  if (message.includes("only create new accounts if you've signed up for Connect")) {
+    return 'Stripe Connect has not finished activating API-created test accounts for RaiseHub yet. Complete or confirm the platform review in Stripe, then try again.'
+  }
+
+  if (message.includes('STRIPE_SECRET_KEY is not configured')) {
+    return 'Stripe test-mode credentials are not configured for this deployment.'
+  }
+
+  if (message.includes('Stripe must remain in test mode')) {
+    return 'RaiseHub blocked this request because the configured Stripe key is not a test-mode key.'
+  }
+
+  if (message.toLowerCase().includes('account link')) {
+    return 'The connected account was found, but Stripe could not create a secure onboarding link. Please try again.'
+  }
+
+  return 'Stripe payout setup could not be opened. Please try again. The failure was recorded for review.'
+}
+
 export async function startOrganizationStripeOnboardingAction(
   organizationId: string
 ): Promise<ConnectResult> {
@@ -204,10 +226,14 @@ export async function startOrganizationStripeOnboardingAction(
 
     return { status: 'onboarding-ready', url: accountLink.url }
   } catch (error) {
-    console.error('Stripe Connect onboarding could not start', error)
+    console.error('Stripe Connect onboarding could not start', {
+      organizationId: organization.id,
+      error,
+    })
+
     return {
       status: 'error',
-      message: 'Stripe payout setup could not be opened. Please try again.',
+      message: connectErrorMessage(error),
     }
   }
 }
