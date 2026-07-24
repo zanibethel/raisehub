@@ -1,6 +1,6 @@
 import OrganizationAnalyticsSection from './sections/organization-analytics-section'
 import OrganizationCampaignsSection from './sections/organization-campaigns-section'
-import OrganizationPayoutSetupCard from './organization-payout-setup-card'
+import OrganizationPayoutDashboardCard from './organization-payout-dashboard-card'
 import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
 import OrganizationReportSection from './sections/organization-report-section'
 import OrganizationSummarySection from './sections/organization-summary-section'
@@ -26,18 +26,11 @@ type AnalyticsProps = React.ComponentProps<
   typeof OrganizationAnalyticsSection
 >
 
-type PayoutProps = {
-  payoutSetup: React.ComponentProps<
-    typeof OrganizationPayoutSetupCard
-  > | null
-}
-
 type Props = SummaryProps &
   ReportProps &
   TopSellersProps &
   CampaignsProps &
-  AnalyticsProps &
-  PayoutProps
+  AnalyticsProps
 
 export default function OrganizationDashboardContent(
   props: Props
@@ -46,21 +39,7 @@ export default function OrganizationDashboardContent(
     <div className="mt-8 space-y-8">
       <OrganizationProfileSetupLoader />
 
-      {props.payoutSetup ? (
-        <OrganizationPayoutSetupCard {...props.payoutSetup} />
-      ) : (
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-            Organization payouts
-          </p>
-          <h2 className="mt-1 text-xl font-bold text-gray-900">
-            Finish Organization setup first
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-gray-700">
-            RaiseHub needs a connected Organization workspace before Stripe payout setup can begin.
-          </p>
-        </section>
-      )}
+      <OrganizationPayoutDashboardCard />
 
       <OrganizationCampaignsSection
         campaigns={props.campaigns}
