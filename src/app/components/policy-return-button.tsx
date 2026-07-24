@@ -14,11 +14,6 @@ export default function PolicyReturnButton({
   const router = useRouter()
 
   function handleReturn() {
-    if (window.history.length > 1) {
-      router.back()
-      return
-    }
-
     router.push(fallbackHref)
   }
 
