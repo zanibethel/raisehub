@@ -21,6 +21,71 @@ function paymentIntentId(
   return value?.id ?? null
 }
 
+function connectOnboardingStatus(account: Stripe.Account) {
+  if (account.charges_enabled && account.payouts_enabled) return 'enabled'
+  if (account.requirements?.disabled_reason) return 'restricted'
+  if (account.details_submitted) return 'in_progress'
+  return 'not_started'
+}
+
+async function markWebhookEvent(
+  admin: any,
+  eventId: string,
+  processingStatus: 'processed' | 'ignored' | 'failed',
+  lastError: string | null = null
+) {
+  await admin
+    .from('stripe_webhook_events')
+    .update({
+      processing_status: processingStatus,
+      processed_at: processingStatus === 'failed' ? null : new Date().toISOString(),
+      last_error: lastError,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('stripe_event_id', eventId)
+}
+
+async function synchronizeConnectedAccount(
+  admin: any,
+  event: Stripe.Event
+) {
+  const account = event.data.object as Stripe.Account
+
+  if (!account.id?.startsWith('acct_')) {
+    throw new Error('Stripe connected account ID is missing')
+  }
+
+  const { data: existingAccount, error: lookupError } = await admin
+    .from('organization_stripe_accounts')
+    .select('organization_id')
+    .eq('stripe_account_id', account.id)
+    .maybeSingle()
+
+  if (lookupError || !existingAccount) {
+    throw new Error('Stripe connected account could not be matched')
+  }
+
+  const { error: updateError } = await admin
+    .from('organization_stripe_accounts')
+    .update({
+      onboarding_status: connectOnboardingStatus(account),
+      details_submitted: Boolean(account.details_submitted),
+      charges_enabled: Boolean(account.charges_enabled),
+      payouts_enabled: Boolean(account.payouts_enabled),
+      requirements_currently_due: account.requirements?.currently_due ?? [],
+      requirements_eventually_due: account.requirements?.eventually_due ?? [],
+      requirements_past_due: account.requirements?.past_due ?? [],
+      disabled_reason: account.requirements?.disabled_reason ?? null,
+      country: account.country ?? null,
+      default_currency: account.default_currency ?? null,
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('stripe_account_id', account.id)
+
+  if (updateError) throw updateError
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   let event: Stripe.Event
@@ -79,22 +144,19 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!isFulfillmentEvent(event)) {
-    await admin
-      .from('stripe_webhook_events')
-      .update({
-        processing_status: 'ignored',
-        processed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('stripe_event_id', event.id)
-
-    return NextResponse.json({ received: true, ignored: true })
-  }
-
-  const session = event.data.object as Stripe.Checkout.Session
-
   try {
+    if (event.type === 'account.updated') {
+      await synchronizeConnectedAccount(admin, event)
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true })
+    }
+
+    if (!isFulfillmentEvent(event)) {
+      await markWebhookEvent(admin, event.id, 'ignored')
+      return NextResponse.json({ received: true, ignored: true })
+    }
+
+    const session = event.data.object as Stripe.Checkout.Session
     const attemptId = session.metadata?.checkout_attempt_id?.trim()
 
     if (!attemptId) {
@@ -132,38 +194,24 @@ export async function POST(request: Request) {
       }
     )
 
-    if (fulfillmentError) {
-      throw fulfillmentError
-    }
+    if (fulfillmentError) throw fulfillmentError
 
-    await admin
-      .from('stripe_webhook_events')
-      .update({
-        processing_status: 'processed',
-        processed_at: new Date().toISOString(),
-        last_error: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('stripe_event_id', event.id)
-
+    await markWebhookEvent(admin, event.id, 'processed')
     return NextResponse.json({ received: true })
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown webhook error'
 
-    console.error('Stripe webhook fulfillment failed', error)
-
-    await admin
-      .from('stripe_webhook_events')
-      .update({
-        processing_status: 'failed',
-        last_error: message.slice(0, 1000),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('stripe_event_id', event.id)
+    console.error('Stripe webhook processing failed', error)
+    await markWebhookEvent(
+      admin,
+      event.id,
+      'failed',
+      message.slice(0, 1000)
+    )
 
     return NextResponse.json(
-      { error: 'Webhook fulfillment failed' },
+      { error: 'Webhook processing failed' },
       { status: 500 }
     )
   }
