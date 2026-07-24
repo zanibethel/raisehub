@@ -35,9 +35,12 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Refresh dependency lock metadata
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
       - name: Install dependencies
         id: install
-        run: npm ci
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Check TypeScript
         id: typecheck
