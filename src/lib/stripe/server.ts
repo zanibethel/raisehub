@@ -34,6 +34,13 @@ function requireTestSecretKey() {
   return key
 }
 
+function configuredWebhookSecrets() {
+  return [
+    process.env.STRIPE_WEBHOOK_SECRET?.trim(),
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim(),
+  ].filter((secret): secret is string => Boolean(secret?.startsWith('whsec_')))
+}
+
 export function stripeIsConfigured() {
   const secretKey = process.env.STRIPE_SECRET_KEY?.trim()
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim()
@@ -106,19 +113,37 @@ export function verifyStripeWebhook(
     throw new Error('Missing Stripe-Signature header')
   }
 
-  const webhookSecret = requireEnvironmentValue('STRIPE_WEBHOOK_SECRET')
-  const stripe = getStripeClient()
+  const webhookSecrets = configuredWebhookSecrets()
 
-  const event = stripe.webhooks.constructEvent(
-    rawBody,
-    signatureHeader,
-    webhookSecret,
-    SIGNATURE_TOLERANCE_SECONDS
-  )
-
-  if (event.livemode) {
-    throw new Error('RaiseHub rejected a live-mode Stripe event while live payments are disabled')
+  if (webhookSecrets.length === 0) {
+    throw new Error('No Stripe webhook signing secret is configured')
   }
 
-  return event
+  const stripe = getStripeClient()
+  let verificationError: unknown
+
+  for (const webhookSecret of webhookSecrets) {
+    try {
+      const event = stripe.webhooks.constructEvent(
+        rawBody,
+        signatureHeader,
+        webhookSecret,
+        SIGNATURE_TOLERANCE_SECONDS
+      )
+
+      if (event.livemode) {
+        throw new Error(
+          'RaiseHub rejected a live-mode Stripe event while live payments are disabled'
+        )
+      }
+
+      return event
+    } catch (error) {
+      verificationError = error
+    }
+  }
+
+  throw verificationError instanceof Error
+    ? verificationError
+    : new Error('Stripe webhook signature verification failed')
 }
