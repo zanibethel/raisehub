@@ -208,14 +208,14 @@ export default function AccountMenu({
   return (
     <details
       ref={detailsRef}
-      className="group relative ml-auto w-fit self-end"
+      className="group relative ml-0 w-full max-w-full self-stretch sm:ml-auto sm:w-fit sm:self-end"
     >
-      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50">
+      <summary className="flex w-full min-w-0 cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50 sm:w-fit sm:max-w-full">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
           {(email?.trim().charAt(0) || 'A').toUpperCase()}
         </span>
-        <span className="min-w-0">
-          <span className="block max-w-40 truncate text-sm font-semibold text-gray-900 sm:max-w-52">
+        <span className="min-w-0 flex-1 sm:flex-none">
+          <span className="block max-w-full truncate text-sm font-semibold text-gray-900 sm:max-w-52">
             {isSwitching
               ? 'Switching experience…'
               : selectedWorkspace?.name ?? 'My Account'}
@@ -242,7 +242,7 @@ export default function AccountMenu({
         )}
       </summary>
 
-      <div className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+      <div className="absolute left-0 right-0 z-50 mt-2 w-full max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl sm:left-auto sm:right-0 sm:w-[min(22rem,calc(100vw-2rem))]">
         <div className="border-b border-gray-100 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             Signed in as
