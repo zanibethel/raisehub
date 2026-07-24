@@ -8,25 +8,14 @@ import type {
   SelectableWorkspaceKind,
 } from '../types/identity-access'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type AuthenticatedWorkspacesResult =
-  | {
-      success: true
-      workspaces: SelectableWorkspace[]
-    }
+  | { success: true; workspaces: SelectableWorkspace[] }
   | {
       success: false
       reason: string
       message: string
       workspaces: []
     }
-
-// =============================================================================
-// Workspace keys and destinations
-// =============================================================================
 
 function buildWorkspaceKey(
   kind: SelectableWorkspaceKind,
@@ -39,22 +28,14 @@ function buildWorkspaceHref(key: string): string {
   return `/dashboard?workspace=${encodeURIComponent(key)}`
 }
 
-// =============================================================================
-// Display helpers
-// =============================================================================
-
 function getBusinessSubtitle(access: BusinessAccessRecord): string {
   switch (access.membership.membership_role) {
     case 'owner':
       return 'Business owner'
-
     case 'manager':
       return 'Business manager'
-
     case 'staff':
       return 'Business staff'
-
-    case 'viewer':
     default:
       return 'Business workspace'
   }
@@ -64,14 +45,10 @@ function getOrganizationSubtitle(access: OrganizationAccessRecord): string {
   switch (access.membership.membership_role) {
     case 'admin':
       return 'Organization administrator'
-
     case 'manager':
       return 'Organization manager'
-
     case 'seller':
       return 'Organization seller'
-
-    case 'viewer':
     default:
       return 'Organization workspace'
   }
@@ -81,22 +58,14 @@ function getFundraisingSubtitle(membershipRole: string): string {
   switch (membershipRole) {
     case 'admin':
       return 'Fundraising administrator'
-
     case 'manager':
       return 'Fundraising manager'
-
     case 'seller':
       return 'Seller experience'
-
-    case 'viewer':
     default:
       return 'Fundraising progress'
   }
 }
-
-// =============================================================================
-// Option builders
-// =============================================================================
 
 function buildCustomerWorkspace(
   summary: ActorCapabilitySummary,
@@ -207,10 +176,6 @@ function buildLegacyWorkspace(
   }
 }
 
-// =============================================================================
-// Sorting and deduplication
-// =============================================================================
-
 const WORKSPACE_KIND_ORDER: Record<SelectableWorkspaceKind, number> = {
   customer: 0,
   fundraising: 1,
@@ -228,11 +193,10 @@ function compareWorkspaces(
   }
 
   const kindDifference =
-    WORKSPACE_KIND_ORDER[first.kind] - WORKSPACE_KIND_ORDER[second.kind]
+    WORKSPACE_KIND_ORDER[first.kind] -
+    WORKSPACE_KIND_ORDER[second.kind]
 
-  if (kindDifference !== 0) {
-    return kindDifference
-  }
+  if (kindDifference !== 0) return kindDifference
 
   return first.name.localeCompare(second.name, undefined, {
     sensitivity: 'base',
@@ -248,32 +212,23 @@ function addWorkspace(
   }
 }
 
-// =============================================================================
-// Workspace resolution
-// =============================================================================
-
 export function buildSelectableWorkspaces(
   summary: ActorCapabilitySummary
 ): SelectableWorkspace[] {
   const workspacesByKey = new Map<string, SelectableWorkspace>()
 
-  const hasCustomerAccess =
-    Boolean(summary.activeCustomerEntitlement) ||
-    summary.hasLegacyCustomerPass ||
-    summary.legacyWorkspaceRole === 'customer'
+  // Every authenticated person has a personal Supporter experience. Access to
+  // paid benefits inside that experience remains entitlement-gated separately.
+  const customerSource: CapabilitySource = summary.activeCustomerEntitlement
+    ? 'customer-entitlement'
+    : summary.hasLegacyCustomerPass
+      ? 'legacy-customer-pass'
+      : 'legacy-profile'
 
-  if (hasCustomerAccess) {
-    const customerSource: CapabilitySource = summary.activeCustomerEntitlement
-      ? 'customer-entitlement'
-      : summary.hasLegacyCustomerPass
-        ? 'legacy-customer-pass'
-        : 'legacy-profile'
-
-    addWorkspace(
-      workspacesByKey,
-      buildCustomerWorkspace(summary, customerSource)
-    )
-  }
+  addWorkspace(
+    workspacesByKey,
+    buildCustomerWorkspace(summary, customerSource)
+  )
 
   const organizationAccessByMembershipId = new Map(
     summary.organizationAccess.map((access) => [
@@ -283,20 +238,13 @@ export function buildSelectableWorkspaces(
   )
 
   for (const campaignAccess of summary.campaignAccess) {
-    const organizationMembership =
-      campaignAccess.organizationMembership
-
+    const membership = campaignAccess.organizationMembership
     const organizationAccess = organizationAccessByMembershipId.get(
-      organizationMembership.id
+      membership.id
     )
-
     const organizationName =
       organizationAccess?.organization.name ?? 'My Fundraising'
-
-    const key = buildWorkspaceKey(
-      'fundraising',
-      organizationMembership.id
-    )
+    const key = buildWorkspaceKey('fundraising', membership.id)
 
     addWorkspace(workspacesByKey, {
       key,
@@ -305,12 +253,10 @@ export function buildSelectableWorkspaces(
         organizationName === 'My Fundraising'
           ? organizationName
           : `${organizationName} Fundraising`,
-      subtitle: getFundraisingSubtitle(
-        organizationMembership.membership_role
-      ),
+      subtitle: getFundraisingSubtitle(membership.membership_role),
       href: buildWorkspaceHref(key),
-      workspaceId: organizationMembership.organization_id,
-      membershipId: organizationMembership.id,
+      workspaceId: membership.organization_id,
+      membershipId: membership.id,
       legacyProfileId:
         organizationAccess?.organization.legacy_profile_id ?? null,
       source: 'campaign-membership',
@@ -369,10 +315,6 @@ export function buildSelectableWorkspaces(
 
   return [...workspacesByKey.values()].sort(compareWorkspaces)
 }
-
-// =============================================================================
-// Authenticated service
-// =============================================================================
 
 export async function getAuthenticatedWorkspaces(): Promise<AuthenticatedWorkspacesResult> {
   const capabilityResult = await resolveActorCapabilitySummary()

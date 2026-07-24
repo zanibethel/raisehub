@@ -261,20 +261,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         ) : (
           <header
-            className={`relative z-50 rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
+            className={`relative z-50 min-w-0 overflow-visible rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div
-                className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${theme.badgeClass}`}
+                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-medium ${theme.badgeClass}`}
               >
                 {theme.badge}
               </div>
               <div
-                className={
+                className={`min-w-0 max-w-full ${
                   experienceRole === 'customer'
                     ? 'supporter-account-menu'
-                    : undefined
-                }
+                    : ''
+                }`}
               >
                 <AccountMenu
                   email={accountEmail}
