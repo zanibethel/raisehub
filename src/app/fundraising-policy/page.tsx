@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import PolicyReturnButton from '@/app/components/policy-return-button'
+
 const prohibitedCampaigns = [
   'Illegal activity, weapons, controlled substances, gambling, or financial schemes',
   'Fraudulent, misleading, impersonated, or unverifiable organizers or beneficiaries',
@@ -14,6 +16,10 @@ export default function FundraisingPolicyPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-16 text-gray-900">
       <div className="mx-auto max-w-3xl rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-6">
+          <PolicyReturnButton />
+        </div>
+
         <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
           RaiseHub trust and safety
         </p>
@@ -115,12 +121,15 @@ export default function FundraisingPolicyPage() {
             </p>
           </section>
 
-          <Link
-            href="/terms"
-            className="inline-flex font-semibold text-blue-700 hover:text-blue-800"
-          >
-            ← Return to Terms of Use
-          </Link>
+          <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
+            <PolicyReturnButton />
+            <Link
+              href="/terms"
+              className="inline-flex font-semibold text-blue-700 hover:text-blue-800"
+            >
+              ← Return to Terms of Use
+            </Link>
+          </div>
         </div>
       </div>
     </main>
