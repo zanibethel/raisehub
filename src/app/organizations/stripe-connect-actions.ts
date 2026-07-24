@@ -62,7 +62,10 @@ function connectErrorMessage(error: unknown) {
     return 'Stripe test-mode credentials are not configured for this deployment.'
   }
 
-  if (message.includes('Stripe must remain in test mode')) {
+  if (
+    message.includes('Stripe live mode is disabled') ||
+    message.includes('not a test-mode key')
+  ) {
     return 'RaiseHub blocked this request because the configured Stripe key is not a test-mode key.'
   }
 
