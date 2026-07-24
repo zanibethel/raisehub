@@ -26,11 +26,16 @@ type AnalyticsProps = React.ComponentProps<
   typeof OrganizationAnalyticsSection
 >
 
+type PayoutProps = React.ComponentProps<
+  typeof OrganizationPayoutDashboardCard
+>
+
 type Props = SummaryProps &
   ReportProps &
   TopSellersProps &
   CampaignsProps &
-  AnalyticsProps
+  AnalyticsProps &
+  PayoutProps
 
 export default function OrganizationDashboardContent(
   props: Props
@@ -39,7 +44,13 @@ export default function OrganizationDashboardContent(
     <div className="mt-8 space-y-8">
       <OrganizationProfileSetupLoader />
 
-      <OrganizationPayoutDashboardCard />
+      <OrganizationPayoutDashboardCard
+        organizationId={props.organizationId}
+        status={props.status}
+        payoutsEnabled={props.payoutsEnabled}
+        detailsSubmitted={props.detailsSubmitted}
+        chargesEnabled={props.chargesEnabled}
+      />
 
       <OrganizationCampaignsSection
         campaigns={props.campaigns}
