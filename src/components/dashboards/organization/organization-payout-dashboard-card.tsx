@@ -1,35 +1,53 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 import { startOrganizationStripeOnboardingAction } from '@/app/organizations/stripe-connect-actions'
+import { getOrganizationStripeStatusAction } from '@/app/organizations/stripe-connect-status-actions'
 
-type OrganizationPayoutDashboardCardProps = {
-  organizationId: string | null
-  status: string
+type StripeStatus = {
+  onboardingStatus: string
   payoutsEnabled: boolean
   detailsSubmitted: boolean
   chargesEnabled: boolean
 }
 
-function getStatusCopy(props: OrganizationPayoutDashboardCardProps) {
+function getSelectedOrganizationId(workspaceKey: string | null) {
+  if (!workspaceKey?.startsWith('organization:')) return null
+
+  const organizationId = workspaceKey.slice('organization:'.length).trim()
+  return organizationId || null
+}
+
+function getStatusCopy(status: StripeStatus | null, checking: boolean) {
+  if (checking) {
+    return {
+      badge: 'Checking status',
+      badgeClassName: 'bg-gray-100 text-gray-700',
+      title: 'Checking payout readiness',
+      body: 'RaiseHub is loading the latest Stripe verification status.',
+      button: 'Open Stripe',
+    }
+  }
+
   if (
-    props.status === 'enabled' &&
-    props.detailsSubmitted &&
-    props.payoutsEnabled
+    status?.onboardingStatus === 'enabled' &&
+    status.detailsSubmitted &&
+    status.payoutsEnabled
   ) {
     return {
       badge: 'Payouts ready',
       badgeClassName: 'bg-green-50 text-green-700',
       title: 'Payout account connected',
-      body: props.chargesEnabled
+      body: status.chargesEnabled
         ? 'Stripe verification is complete. This organization can receive campaign proceeds.'
         : 'Stripe verification is complete and payouts are enabled for this organization.',
       button: 'Review payout details',
     }
   }
 
-  if (props.detailsSubmitted) {
+  if (status?.detailsSubmitted) {
     return {
       badge: 'Under review',
       badgeClassName: 'bg-amber-50 text-amber-700',
@@ -39,7 +57,7 @@ function getStatusCopy(props: OrganizationPayoutDashboardCardProps) {
     }
   }
 
-  if (props.status === 'in_progress') {
+  if (status?.onboardingStatus === 'in_progress') {
     return {
       badge: 'Setup in progress',
       badgeClassName: 'bg-amber-50 text-amber-700',
@@ -58,26 +76,66 @@ function getStatusCopy(props: OrganizationPayoutDashboardCardProps) {
   }
 }
 
-export default function OrganizationPayoutDashboardCard(
-  props: OrganizationPayoutDashboardCardProps
-) {
+export default function OrganizationPayoutDashboardCard() {
+  const searchParams = useSearchParams()
+  const organizationId = getSelectedOrganizationId(
+    searchParams.get('workspace')
+  )
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
-  const copy = getStatusCopy(props)
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null)
+  const copy = getStatusCopy(stripeStatus, checking)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadStatus() {
+      setChecking(true)
+      setMessage('')
+
+      if (!organizationId) {
+        if (!cancelled) {
+          setStripeStatus(null)
+          setChecking(false)
+        }
+        return
+      }
+
+      const result = await getOrganizationStripeStatusAction(organizationId)
+
+      if (cancelled) return
+
+      if (result.status === 'ok') {
+        setStripeStatus({
+          onboardingStatus: result.onboardingStatus,
+          payoutsEnabled: result.payoutsEnabled,
+          detailsSubmitted: result.detailsSubmitted,
+          chargesEnabled: result.chargesEnabled,
+        })
+      } else {
+        setStripeStatus(null)
+        setMessage(result.message)
+      }
+
+      setChecking(false)
+    }
+
+    void loadStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [organizationId])
 
   async function handleOnboarding() {
-    if (loading) return
-
-    if (!props.organizationId) {
-      setMessage('Choose an Organization workspace, then try payout setup again.')
-      return
-    }
+    if (loading || checking) return
 
     setLoading(true)
     setMessage('')
 
     const result = await startOrganizationStripeOnboardingAction(
-      props.organizationId
+      organizationId ?? ''
     )
 
     if (result.status === 'onboarding-ready') {
@@ -134,7 +192,7 @@ export default function OrganizationPayoutDashboardCard(
         <button
           type="button"
           onClick={handleOnboarding}
-          disabled={loading}
+          disabled={loading || checking}
           className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {loading ? 'Opening secure Stripe setup…' : copy.button}
