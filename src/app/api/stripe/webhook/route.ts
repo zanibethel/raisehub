@@ -14,6 +14,13 @@ function isFulfillmentEvent(event: Stripe.Event) {
   )
 }
 
+function isTerminalCheckoutEvent(event: Stripe.Event) {
+  return (
+    event.type === 'checkout.session.expired' ||
+    event.type === 'checkout.session.async_payment_failed'
+  )
+}
+
 function paymentIntentId(
   value: Stripe.Checkout.Session['payment_intent']
 ) {
@@ -86,6 +93,73 @@ async function synchronizeConnectedAccount(
   if (updateError) throw updateError
 }
 
+async function synchronizeTerminalCheckoutAttempt(
+  admin: any,
+  event: Stripe.Event
+) {
+  const session = event.data.object as Stripe.Checkout.Session
+  const attemptId = session.metadata?.checkout_attempt_id?.trim()
+
+  if (!attemptId) {
+    throw new Error('Checkout attempt metadata is missing')
+  }
+
+  if (!session.id) {
+    throw new Error('Checkout Session ID is missing')
+  }
+
+  const { data: attempt, error: lookupError } = await admin
+    .from('checkout_attempts')
+    .select(
+      'id, status, stripe_checkout_session_id, purchase_id, fulfilled_at'
+    )
+    .eq('id', attemptId)
+    .maybeSingle()
+
+  if (lookupError || !attempt) {
+    throw new Error('Checkout attempt could not be matched')
+  }
+
+  if (attempt.stripe_checkout_session_id !== session.id) {
+    throw new Error('Checkout Session does not match the stored attempt')
+  }
+
+  if (
+    attempt.status === 'paid' ||
+    attempt.purchase_id ||
+    attempt.fulfilled_at
+  ) {
+    return
+  }
+
+  const nextStatus =
+    event.type === 'checkout.session.expired' ? 'expired' : 'failed'
+
+  if (attempt.status === nextStatus) {
+    return
+  }
+
+  if (attempt.status !== 'created' && attempt.status !== 'open') {
+    return
+  }
+
+  const timestamp = new Date().toISOString()
+  const { error: updateError } = await admin
+    .from('checkout_attempts')
+    .update({
+      status: nextStatus,
+      failed_at: nextStatus === 'failed' ? timestamp : null,
+      updated_at: timestamp,
+    })
+    .eq('id', attempt.id)
+    .eq('stripe_checkout_session_id', session.id)
+    .in('status', ['created', 'open'])
+    .is('purchase_id', null)
+    .is('fulfilled_at', null)
+
+  if (updateError) throw updateError
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   let event: Stripe.Event
@@ -147,6 +221,12 @@ export async function POST(request: Request) {
   try {
     if (event.type === 'account.updated') {
       await synchronizeConnectedAccount(admin, event)
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true })
+    }
+
+    if (isTerminalCheckoutEvent(event)) {
+      await synchronizeTerminalCheckoutAttempt(admin, event)
       await markWebhookEvent(admin, event.id, 'processed')
       return NextResponse.json({ received: true })
     }
