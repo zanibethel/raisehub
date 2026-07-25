@@ -31,7 +31,9 @@ const INVALID_PROGRESS_PAYMENT_STATUSES = new Set([
   'cancelled',
   'canceled',
   'refunded',
+  'partially_refunded',
   'disputed',
+  'dispute_lost',
   'chargeback',
   'pending',
   'processing',
@@ -246,25 +248,15 @@ export function calculateDaysRemaining(
     | undefined,
   now = new Date()
 ): number | null {
-  const endDate =
-    getValidDate(endsAt)
+  if (!endsAt) return null
 
-  if (!endDate) {
-    return null
-  }
+  const endDate = new Date(endsAt)
+  if (Number.isNaN(endDate.getTime())) return null
 
-  const differenceMs =
-    endDate.getTime() -
-    now.getTime()
+  const differenceMs = endDate.getTime() - now.getTime()
+  if (differenceMs <= 0) return 0
 
-  if (differenceMs <= 0) {
-    return 0
-  }
-
-  return Math.ceil(
-    differenceMs /
-      (24 * 60 * 60 * 1000)
-  )
+  return Math.ceil(differenceMs / (24 * 60 * 60 * 1000))
 }
 
 // =============================================================================
@@ -274,87 +266,38 @@ export function calculateDaysRemaining(
 export function buildSellableCampaignOption(
   input: {
     campaign: SellableCampaignSource
-    organizationId:
-      | string
-      | null
-    organizationName:
-      | string
-      | null
-    imageUrl:
-      | string
-      | null
+    organizationId: string | null
+    organizationName: string | null
+    imageUrl: string | null
     amountRaised: number
-
-    /**
-     * Server-resolved managed price for this campaign.
-     *
-     * Every campaign loader must provide this property. Invalid or missing
-     * resolver output produces no displayed price rather than falling back to
-     * campaigns.pass_price.
-     */
-    effectivePassPrice:
-      | number
-      | null
-      | undefined
-
+    effectivePassPrice: number | null | undefined
     now?: Date
   }
 ): SellableCampaignOption {
   const goalAmount =
-    input.campaign
-      .goal_amount === null
+    input.campaign.goal_amount === null
       ? null
-      : Number(
-          input.campaign
-            .goal_amount
-        )
-
-  const effectivePassPrice =
-    normalizePassPrice(
-      input.effectivePassPrice
-    )
+      : Number(input.campaign.goal_amount)
+  const effectivePassPrice = normalizePassPrice(input.effectivePassPrice)
 
   return {
     id: input.campaign.id,
-    organizationId:
-      input.organizationId,
-    organizationLegacyProfileId:
-      input.campaign
-        .organization_id,
+    organizationId: input.organizationId,
+    organizationLegacyProfileId: input.campaign.organization_id,
     name: input.campaign.name,
-    organizationName:
-      input.organizationName,
+    organizationName: input.organizationName,
     imageUrl: input.imageUrl,
-    amountRaised:
-      input.amountRaised,
+    amountRaised: input.amountRaised,
     goalAmount,
-    goalPercentage:
-      calculateGoalPercentage(
-        input.amountRaised,
-        goalAmount
-      ),
-    amountRemaining:
-      calculateAmountRemaining(
-        input.amountRaised,
-        goalAmount
-      ),
-    endsAt:
-      input.campaign.ends_at,
-    daysRemaining:
-      calculateDaysRemaining(
-        input.campaign.ends_at,
-        input.now
-      ),
-    createdAt:
-      input.campaign.created_at,
-    passPrice:
-      effectivePassPrice,
-    description:
-      input.campaign.description,
-    startsAt:
-      input.campaign.starts_at,
-    status:
-      input.campaign.status,
+    goalPercentage: calculateGoalPercentage(input.amountRaised, goalAmount),
+    amountRemaining: calculateAmountRemaining(input.amountRaised, goalAmount),
+    endsAt: input.campaign.ends_at,
+    daysRemaining: calculateDaysRemaining(input.campaign.ends_at, input.now),
+    createdAt: input.campaign.created_at,
+    passPrice: effectivePassPrice,
+    description: input.campaign.description,
+    startsAt: input.campaign.starts_at,
+    status: input.campaign.status,
   }
 }
 
@@ -363,88 +306,26 @@ export function buildSellableCampaignOption(
 // =============================================================================
 
 export function compareSellableCampaignOptions(
-  left: Pick<
-    SellableCampaignOption,
-    | 'endsAt'
-    | 'goalPercentage'
-    | 'createdAt'
-    | 'name'
-  >,
-  right: Pick<
-    SellableCampaignOption,
-    | 'endsAt'
-    | 'goalPercentage'
-    | 'createdAt'
-    | 'name'
-  >
+  left: Pick<SellableCampaignOption, 'endsAt' | 'goalPercentage' | 'createdAt' | 'name'>,
+  right: Pick<SellableCampaignOption, 'endsAt' | 'goalPercentage' | 'createdAt' | 'name'>
 ): number {
-  const leftEndDate =
-    getValidDate(left.endsAt)
+  const leftEndDate = getValidDate(left.endsAt)
+  const rightEndDate = getValidDate(right.endsAt)
 
-  const rightEndDate =
-    getValidDate(right.endsAt)
-
-  if (
-    leftEndDate &&
-    rightEndDate
-  ) {
-    const endDifference =
-      leftEndDate.getTime() -
-      rightEndDate.getTime()
-
-    if (endDifference !== 0) {
-      return endDifference
-    }
-  } else if (
-    leftEndDate ||
-    rightEndDate
-  ) {
-    return leftEndDate
-      ? -1
-      : 1
+  if (leftEndDate && rightEndDate) {
+    const endDifference = leftEndDate.getTime() - rightEndDate.getTime()
+    if (endDifference !== 0) return endDifference
+  } else if (leftEndDate || rightEndDate) {
+    return leftEndDate ? -1 : 1
   }
 
-  const leftProgress =
-    left.goalPercentage ?? -1
+  const leftProgress = left.goalPercentage ?? -1
+  const rightProgress = right.goalPercentage ?? -1
+  if (leftProgress !== rightProgress) return rightProgress - leftProgress
 
-  const rightProgress =
-    right.goalPercentage ?? -1
+  const leftCreatedAt = getValidDate(left.createdAt)?.getTime() ?? 0
+  const rightCreatedAt = getValidDate(right.createdAt)?.getTime() ?? 0
+  if (leftCreatedAt !== rightCreatedAt) return leftCreatedAt - rightCreatedAt
 
-  if (
-    leftProgress !==
-    rightProgress
-  ) {
-    return (
-      rightProgress -
-      leftProgress
-    )
-  }
-
-  const leftCreatedAt =
-    getValidDate(
-      left.createdAt
-    )?.getTime() ?? 0
-
-  const rightCreatedAt =
-    getValidDate(
-      right.createdAt
-    )?.getTime() ?? 0
-
-  if (
-    leftCreatedAt !==
-    rightCreatedAt
-  ) {
-    return (
-      leftCreatedAt -
-      rightCreatedAt
-    )
-  }
-
-  return left.name.localeCompare(
-    right.name,
-    undefined,
-    {
-      sensitivity: 'base',
-    }
-  )
+  return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })
 }
