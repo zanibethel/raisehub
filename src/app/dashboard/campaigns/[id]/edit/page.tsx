@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 import EditCampaignForm from './edit-campaign-form'
@@ -35,7 +37,8 @@ export default async function EditCampaignPage({
         goal_amount,
         starts_at,
         ends_at,
-        status
+        status,
+        organization_id
       `
     )
     .eq('id', id)
@@ -45,6 +48,29 @@ export default async function EditCampaignPage({
   if (!campaign) {
     redirect('/dashboard')
   }
+
+  const admin = createAdminClient()
+  const [
+    { data: canonicalOrganization },
+    { data: organizationProfile },
+  ] = await Promise.all([
+    admin
+      .from('organizations')
+      .select('id')
+      .eq('legacy_profile_id', campaign.organization_id)
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('is_demo')
+      .eq('id', campaign.organization_id)
+      .maybeSingle(),
+  ])
+
+  const effectivePricing = await resolveEffectivePricing({
+    campaignId: campaign.id,
+    organizationId: canonicalOrganization?.id ?? null,
+    isDemo: organizationProfile?.is_demo ?? false,
+  })
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-8 sm:px-8">
@@ -57,26 +83,25 @@ export default async function EditCampaignPage({
         </Link>
 
         <h1 className="mt-4 text-2xl font-bold text-blue-800">
-          Edit Campaign
+          Manage Campaign
         </h1>
 
         <p className="mt-2 text-sm text-gray-600">
-          Update campaign details and publish changes to
-          your dashboard and public campaign page.
+          Update campaign details and review the pricing that will appear on the public campaign page after publishing.
         </p>
 
         <div className="mt-6">
           <EditCampaignForm
             campaignId={campaign.id}
             initialName={campaign.name ?? ''}
-            initialDescription={
-              campaign.description ?? ''
-            }
-            initialGoalAmount={String(
-              campaign.goal_amount ?? 0
-            )}
+            initialDescription={campaign.description ?? ''}
+            initialGoalAmount={String(campaign.goal_amount ?? 0)}
             initialStartsAt={campaign.starts_at ?? ''}
             initialEndsAt={campaign.ends_at ?? ''}
+            passPrice={effectivePricing.passPrice}
+            platformFeePercent={effectivePricing.platformFeePercent}
+            organizationPassEarnings={effectivePricing.organizationPassEarnings}
+            pricingScope={effectivePricing.pricingScope}
           />
         </div>
       </section>
