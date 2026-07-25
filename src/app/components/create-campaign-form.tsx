@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import { createCampaignAction } from '@/app/organization/actions'
@@ -20,7 +21,7 @@ const ORGANIZATION_SETUP_ERROR =
 const DEFAULT_CAMPAIGN_LENGTH_DAYS = 42
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2,
@@ -152,10 +153,8 @@ export default function CreateCampaignForm({
   }
 
   return (
-    <div id={id} className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-      <h2 className="text-lg font-semibold text-blue-700">Create Campaign</h2>
-      <p className="mt-2 text-sm text-gray-600">Start a fundraising campaign powered by local business deals.</p>
-      <p className="mt-3 text-xs font-medium text-gray-600">
+    <div id={id} className="scroll-mt-6">
+      <p className="text-xs font-medium text-gray-600">
         <span className="font-bold text-red-600" aria-hidden="true">*</span>{' '}Required fields
       </p>
 
@@ -177,19 +176,49 @@ export default function CreateCampaignForm({
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-blue-800">Fundraising Estimate</p>
-              <p className="mt-1 text-xs text-blue-700">Calculated from RaiseHub-managed pricing.</p>
+              <p className="text-sm font-semibold text-blue-900">Pricing managed by RaiseHub</p>
+              <p className="mt-1 text-xs font-medium text-blue-700">Standard managed pricing</p>
             </div>
-            {pricing.usedFallback ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Temporary fallback pricing</span> : null}
+            <div className="rounded-lg border border-blue-200 bg-white px-4 py-3 text-right shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">RaiseHub Pass</p>
+              <p className="mt-1 text-2xl font-bold text-blue-900">{formatCurrency(pricing.passPrice)}</p>
+            </div>
           </div>
-          <p className="mt-4 text-2xl font-bold text-blue-900">{passesNeeded.toLocaleString()} passes needed</p>
+
+          {pricing.usedFallback ? (
+            <span className="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+              Temporary fallback pricing
+            </span>
+          ) : null}
+
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            <div className="rounded-lg bg-white/70 p-3"><dt className="text-blue-700">Current pass price</dt><dd className="mt-1 font-semibold text-blue-900">{formatCurrency(pricing.passPrice)}</dd></div>
-            <div className="rounded-lg bg-white/70 p-3"><dt className="text-blue-700">RaiseHub fee</dt><dd className="mt-1 font-semibold text-blue-900">{pricing.platformFeePercent}%</dd></div>
-            <div className="rounded-lg bg-white/70 p-3"><dt className="text-blue-700">Organization earns per pass</dt><dd className="mt-1 font-semibold text-blue-900">{formatCurrency(pricing.organizationPassEarnings)}</dd></div>
-            <div className="rounded-lg bg-white/70 p-3"><dt className="text-blue-700">Estimated amount raised</dt><dd className="mt-1 font-semibold text-blue-900">{formatCurrency(projectedOrganizationEarnings)}</dd></div>
+            <div className="rounded-lg bg-white/80 p-3">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Platform fee on pass</dt>
+              <dd className="mt-1 font-semibold text-gray-900">{pricing.platformFeePercent}%</dd>
+            </div>
+            <div className="rounded-lg bg-white/80 p-3">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Organization receives per pass</dt>
+              <dd className="mt-1 font-semibold text-gray-900">{formatCurrency(pricing.organizationPassEarnings)}</dd>
+            </div>
           </dl>
+
+          <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-green-900">
+            <p className="text-sm font-bold">Donations: 100% to the organization</p>
+            <p className="mt-1 text-xs leading-5">
+              RaiseHub does not keep a percentage of optional donations. The platform fee applies only to the fundraising pass price.
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-lg bg-white/80 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Fundraising estimate</p>
+            <p className="mt-1 text-xl font-bold text-blue-900">{passesNeeded.toLocaleString()} passes needed</p>
+            <p className="mt-1 text-sm text-gray-700">Estimated organization earnings: {formatCurrency(projectedOrganizationEarnings)}</p>
+          </div>
+
           <p className="mt-3 text-xs leading-5 text-blue-700">Pass totals round up so the campaign reaches or exceeds the fundraising goal.</p>
+          <Link href="/pricing-guidelines" className="mt-3 inline-flex text-sm font-semibold text-blue-800 underline decoration-blue-300 underline-offset-4 hover:text-blue-950">
+            View pricing guidelines
+          </Link>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

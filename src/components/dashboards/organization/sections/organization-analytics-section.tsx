@@ -1,6 +1,3 @@
-import MetricCard from '@/components/dashboard/metric-card'
-import SectionHeader from '@/components/dashboard/section-header'
-
 // =============================================================================
 // Types
 // =============================================================================
@@ -8,18 +5,6 @@ import SectionHeader from '@/components/dashboard/section-header'
 type OrganizationAnalyticsSectionProps = {
   totalCampaigns: number
   activeSellerCount: number
-}
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function getSellerDescription(activeSellerCount: number): string {
-  if (activeSellerCount === 0) {
-    return 'No sellers have recorded purchases yet'
-  }
-
-  return `Distinct sellers with at least one recorded purchase`
 }
 
 // =============================================================================
@@ -31,26 +16,35 @@ export default function OrganizationAnalyticsSection({
   activeSellerCount,
 }: OrganizationAnalyticsSectionProps) {
   return (
-    <section>
-      <SectionHeader
-        title="Fundraising Activity"
-        description="Campaign and seller engagement across your organization."
-      />
+    <section aria-labelledby="fundraising-activity-heading">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div>
+          <h3
+            id="fundraising-activity-heading"
+            className="text-base font-bold text-gray-950"
+          >
+            Fundraising activity
+          </h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Campaign and seller engagement
+          </p>
+        </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <MetricCard
-          label="Total Campaigns"
-          value={totalCampaigns}
-          description="All campaigns created by your organization"
-          tone="blue"
-        />
+        <dl className="flex items-center gap-5 text-sm sm:gap-7">
+          <div className="flex items-baseline gap-2">
+            <dt className="font-medium text-gray-600">Campaigns</dt>
+            <dd className="text-lg font-bold text-blue-700">
+              {totalCampaigns.toLocaleString()}
+            </dd>
+          </div>
 
-        <MetricCard
-          label="Sellers With Sales"
-          value={activeSellerCount}
-          description={getSellerDescription(activeSellerCount)}
-          tone="green"
-        />
+          <div className="flex items-baseline gap-2 border-l border-gray-200 pl-5 sm:pl-7">
+            <dt className="font-medium text-gray-600">Sellers with sales</dt>
+            <dd className="text-lg font-bold text-green-700">
+              {activeSellerCount.toLocaleString()}
+            </dd>
+          </div>
+        </dl>
       </div>
     </section>
   )
