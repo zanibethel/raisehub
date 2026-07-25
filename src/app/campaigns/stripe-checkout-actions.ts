@@ -112,7 +112,10 @@ export async function createCampaignCheckoutAction(
     return mapRecovery(await resolveCampaignRecovery(input.campaign_id, now))
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   if (!user) {
     return { status: 'error', message: 'Create an account or log in before purchasing a fundraiser pass.' }
   }
@@ -130,46 +133,41 @@ export async function createCampaignCheckoutAction(
   }
 
   const admin = createAdminClient()
-  const selectedOrganizationId =
-    input.selected_organization_id?.trim() || campaign.organization_id
 
-  const { data: selectedOrganization, error: selectedOrganizationError } = await admin
-    .from('profiles')
-    .select('id, role')
-    .eq('id', selectedOrganizationId)
-    .eq('role', 'organization')
-    .maybeSingle()
-
-  if (selectedOrganizationError || !selectedOrganization) {
-    return { status: 'error', message: 'Choose a valid organization to receive this support.' }
-  }
+  // The campaign owner is the only valid checkout recipient. The transitional
+  // browser field remains accepted for compatibility but is never trusted.
+  const selectedOrganizationId = campaign.organization_id
 
   const [canonicalOrganizationResult, organizationProfileResult] = await Promise.all([
     admin
       .from('organizations')
       .select('id')
-      .eq('legacy_profile_id', campaign.organization_id)
+      .eq('legacy_profile_id', selectedOrganizationId)
+      .eq('status', 'active')
+      .is('archived_at', null)
       .maybeSingle(),
     admin
       .from('profiles')
-      .select('is_demo, demo_group')
-      .eq('id', campaign.organization_id)
+      .select('is_demo, demo_group, role')
+      .eq('id', selectedOrganizationId)
+      .eq('role', 'organization')
       .maybeSingle(),
   ])
 
   if (
     canonicalOrganizationResult.error ||
+    !canonicalOrganizationResult.data ||
     organizationProfileResult.error ||
     !organizationProfileResult.data
   ) {
-    return { status: 'error', message: 'We could not confirm campaign pricing. Please try again.' }
+    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
   }
 
   const effectivePricing = isDonationOnly
     ? null
     : await resolveEffectivePricing({
         campaignId: campaign.id,
-        organizationId: canonicalOrganizationResult.data?.id ?? null,
+        organizationId: canonicalOrganizationResult.data.id,
         donationAmount,
         isDemo: organizationProfileResult.data.is_demo,
         now,
@@ -198,6 +196,7 @@ export async function createCampaignCheckoutAction(
       user_id: user.id,
       campaign_id: campaign.id,
       selected_organization_id: selectedOrganizationId,
+      organization_workspace_id: canonicalOrganizationResult.data.id,
       buyer_email: user.email ?? null,
       seller_name: cleanOptionalText(input.seller_name, 120),
       donation_amount: donationAmount,
