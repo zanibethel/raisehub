@@ -5,6 +5,7 @@ import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
 import OrganizationReportSection from './sections/organization-report-section'
 import OrganizationSummarySection from './sections/organization-summary-section'
 import OrganizationTopSellersSection from './sections/organization-top-sellers-section'
+import OrganizationWorkspaceStatus from './organization-workspace-status'
 
 type SummaryProps = React.ComponentProps<typeof OrganizationSummarySection>
 type ReportProps = React.ComponentProps<typeof OrganizationReportSection>
@@ -19,37 +20,10 @@ export default function OrganizationDashboardContent(props: Props) {
 
   return (
     <div className="mt-8 space-y-8">
-      <details className="group rounded-2xl border border-blue-100 bg-white/90 shadow-sm backdrop-blur">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-              Workspace status
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold text-gray-800">
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden="true" className="text-green-600">✓</span>
-                Profile
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden="true" className="text-green-600">✓</span>
-                Payouts
-              </span>
-            </div>
-          </div>
-
-          <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">
-            Manage
-          </span>
-          <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">
-            Hide
-          </span>
-        </summary>
-
-        <div className="divide-y divide-blue-100 border-t border-blue-100 px-4 sm:px-5 [&>#organization-setup]:rounded-none [&>#organization-setup]:border-0 [&>#organization-setup]:bg-transparent [&>#organization-setup]:px-0 [&>#organization-setup]:py-4 [&>#organization-setup]:shadow-none [&>#organization-setup]:backdrop-blur-none">
-          <OrganizationProfileSetupLoader />
-          <OrganizationPayoutDashboardCard />
-        </div>
-      </details>
+      <OrganizationWorkspaceStatus>
+        <OrganizationProfileSetupLoader />
+        <OrganizationPayoutDashboardCard />
+      </OrganizationWorkspaceStatus>
 
       <OrganizationSummarySection
         activeCampaigns={props.activeCampaigns}
