@@ -154,13 +154,13 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
   const viewHref = isPublic
     ? `/campaigns/${campaignId}`
     : `/dashboard/campaigns/${campaignId}/edit`
-  const viewLabel = isPublic ? 'View public page' : 'Preview / manage'
+  const viewLabel = isPublic ? 'View public page' : 'Manage campaign'
 
   return (
     <div className={`flex flex-wrap gap-2 ${stacked ? 'flex-col items-stretch' : 'items-center'}`}>
       <Link href={viewHref} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-blue-700 hover:bg-blue-100">{viewLabel}</Link>
       {isDraft ? <span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-500">Sharing available after publishing</span> : <ShareCampaignButton campaignId={campaignId} campaignName={campaignName} />}
-      {!isArchived && !isCompleted ? <Link href={`/dashboard/campaigns/${campaignId}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</Link> : null}
+      {isPublic && !isArchived && !isCompleted ? <Link href={`/dashboard/campaigns/${campaignId}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</Link> : null}
       {canSubmit ? <SubmitCampaignForReviewButton campaignId={campaignId} campaignName={campaignName} /> : null}
       {isDraft ? <p className="w-full text-xs text-gray-600">Payout verification is also required before this campaign can publish.</p> : null}
       {canPause ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="paused" label="Pause" pendingLabel="Pausing..." className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100" confirmMessage={`Pause "${campaignName}"? Supporters will no longer be able to purchase until you resume it.`} /> : null}
