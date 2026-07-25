@@ -167,7 +167,7 @@ export default function EditCampaignForm({
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg bg-white/80 p-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Platform fee
+              Platform fee on pass
             </dt>
             <dd className="mt-1 font-semibold text-gray-900">
               {platformFeePercent}%
@@ -182,6 +182,15 @@ export default function EditCampaignForm({
             </dd>
           </div>
         </dl>
+
+        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3">
+          <p className="text-sm font-semibold text-green-900">
+            Donations: 100% to the organization
+          </p>
+          <p className="mt-1 text-xs leading-5 text-green-800">
+            RaiseHub does not keep a percentage of optional donations. The platform fee shown above applies only to the fundraising pass price.
+          </p>
+        </div>
 
         <p className="mt-4 text-sm leading-6 text-blue-800">
           RaiseHub keeps this campaign synchronized with the current applicable pricing rule. Special pricing may apply to qualifying campaigns or organizations in limited circumstances.
