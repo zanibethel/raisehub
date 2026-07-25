@@ -45,7 +45,7 @@ export default function OrganizationDashboardContent(props: Props) {
           </span>
         </summary>
 
-        <div className="space-y-1 border-t border-blue-100 px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="divide-y divide-blue-100 border-t border-blue-100 px-4 sm:px-5 [&>#organization-setup]:rounded-none [&>#organization-setup]:border-0 [&>#organization-setup]:bg-transparent [&>#organization-setup]:px-0 [&>#organization-setup]:py-4 [&>#organization-setup]:shadow-none [&>#organization-setup]:backdrop-blur-none">
           <OrganizationProfileSetupLoader />
           <OrganizationPayoutDashboardCard />
         </div>
