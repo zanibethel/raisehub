@@ -11,6 +11,7 @@ type CampaignActionResult =
   | { success?: never; error: string }
 
 type CreateCampaignInput = {
+  organizationId: string | null
   name: string
   description: string
   goal_amount: number
@@ -18,7 +19,7 @@ type CreateCampaignInput = {
   ends_at: string
 }
 
-type UpdateCampaignInput = CreateCampaignInput & {
+type UpdateCampaignInput = Omit<CreateCampaignInput, 'organizationId'> & {
   campaignId: string
 }
 
@@ -26,27 +27,25 @@ type ParsedCampaignDates =
   | { error: string; startsAt?: never; endsAt?: never }
   | { error?: never; startsAt: string | null; endsAt: string | null }
 
-type CampaignStatus =
-  | 'draft'
-  | 'active'
-  | 'paused'
-  | 'completed'
-  | 'archived'
+type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived'
 
-type OrganizationReadinessRow = {
-  id?: string
-  name?: string | null
-  town_name?: string | null
-  state_code?: string | null
+type OrganizationRow = {
+  id: string
+  legacy_profile_id: string | null
+  name: string | null
+  town_name: string | null
+  state_code: string | null
 }
 
-type CampaignPublishRow = {
+type CampaignOwnerRow = {
   id: string
-  review_status: string
+  organization_id: string
+  canonical_organization_id: string | null
+  review_status?: string
+  status?: string
 }
 
-type CampaignReviewRow = {
-  id: string
+type CampaignReviewRow = CampaignOwnerRow & {
   name: string
   description: string | null
   goal_amount: number | null
@@ -77,13 +76,7 @@ function isCampaignStatus(status: string): status is CampaignStatus {
   return VALID_CAMPAIGN_STATUSES.has(status as CampaignStatus)
 }
 
-function parseCampaignDates({
-  startsAt,
-  endsAt,
-}: {
-  startsAt: string
-  endsAt: string
-}): ParsedCampaignDates {
+function parseCampaignDates({ startsAt, endsAt }: { startsAt: string; endsAt: string }): ParsedCampaignDates {
   const startTimestamp = startsAt ? new Date(startsAt).getTime() : null
   const endTimestamp = endsAt ? new Date(endsAt).getTime() : null
 
@@ -94,28 +87,18 @@ function parseCampaignDates({
     return { error: 'Enter valid campaign dates.' }
   }
 
-  if (
-    startTimestamp !== null &&
-    endTimestamp !== null &&
-    endTimestamp < startTimestamp
-  ) {
+  if (startTimestamp !== null && endTimestamp !== null && endTimestamp < startTimestamp) {
     return { error: 'The end date must be after the start date.' }
   }
 
-  return {
-    startsAt: startsAt || null,
-    endsAt: endsAt || null,
-  }
+  return { startsAt: startsAt || null, endsAt: endsAt || null }
 }
 
 function revalidateCampaignPaths(campaignId?: string) {
   revalidatePath('/dashboard')
   revalidatePath('/')
   revalidatePath('/campaigns')
-
-  if (campaignId) {
-    revalidatePath(`/campaigns/${campaignId}`)
-  }
+  if (campaignId) revalidatePath(`/campaigns/${campaignId}`)
 }
 
 function hasOutstandingRequirements(value: unknown) {
@@ -133,24 +116,53 @@ function stripeAccountIsReady(account: StripeReadinessRow | null) {
   )
 }
 
-async function getOrganizationForLegacyProfile(userId: string) {
-  const admin = createAdminClient()
-  const { data, error } = await admin
+async function getOrganizationById(organizationId: string) {
+  const admin = createAdminClient() as any
+  const { data } = await admin
     .from('organizations')
-    .select('*')
-    .eq('legacy_profile_id', userId)
+    .select('id, legacy_profile_id, name, town_name, state_code')
+    .eq('id', organizationId)
     .maybeSingle()
-
-  if (error || !data) return null
-  return data as OrganizationReadinessRow
+  return (data ?? null) as OrganizationRow | null
 }
 
-async function organizationSetupIsComplete(userId: string) {
-  const organization = await getOrganizationForLegacyProfile(userId)
-  if (!organization) return false
+async function getOrganizationForLegacyProfile(profileId: string) {
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('organizations')
+    .select('id, legacy_profile_id, name, town_name, state_code')
+    .eq('legacy_profile_id', profileId)
+    .maybeSingle()
+  return (data ?? null) as OrganizationRow | null
+}
 
+async function userCanManageOrganization(userId: string, organization: OrganizationRow) {
+  if (organization.legacy_profile_id === userId) return true
+
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('organization_memberships')
+    .select('id')
+    .eq('organization_id', organization.id)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .in('membership_role', ['admin', 'manager'])
+    .maybeSingle()
+
+  return Boolean(data)
+}
+
+async function resolveManagedOrganization(userId: string, requestedOrganizationId: string | null) {
+  const organization = requestedOrganizationId
+    ? await getOrganizationById(requestedOrganizationId)
+    : await getOrganizationForLegacyProfile(userId)
+
+  if (!organization) return null
+  return (await userCanManageOrganization(userId, organization)) ? organization : null
+}
+
+function organizationSetupIsComplete(organization: OrganizationRow) {
   const stateCode = organization.state_code?.trim().toUpperCase() ?? ''
-
   return Boolean(
     organization.name?.trim() &&
       organization.town_name?.trim() &&
@@ -158,92 +170,76 @@ async function organizationSetupIsComplete(userId: string) {
   )
 }
 
+async function getAuthorizedCampaign(userId: string, campaignId: string) {
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('campaigns')
+    .select('id, organization_id, canonical_organization_id, review_status, status')
+    .eq('id', campaignId)
+    .maybeSingle()
+
+  const campaign = (data ?? null) as CampaignOwnerRow | null
+  if (!campaign) return null
+
+  if (campaign.canonical_organization_id) {
+    const organization = await getOrganizationById(campaign.canonical_organization_id)
+    if (!organization || !(await userCanManageOrganization(userId, organization))) return null
+    return { campaign, organization }
+  }
+
+  if (campaign.organization_id !== userId) return null
+  const organization = await getOrganizationForLegacyProfile(campaign.organization_id)
+  return { campaign, organization }
+}
+
 async function campaignCanPublish(userId: string, campaignId: string) {
-  const admin = createAdminClient()
-  const organization = await getOrganizationForLegacyProfile(userId)
-
-  if (!organization?.id) {
-    return {
-      allowed: false,
-      error: 'Complete your Organization workspace before publishing a campaign.',
-    }
+  const authorized = await getAuthorizedCampaign(userId, campaignId)
+  if (!authorized?.organization) {
+    return { allowed: false, error: 'Complete your Organization workspace before publishing a campaign.' }
   }
 
-  const [{ data: campaign }, { data: stripeAccount }] = await Promise.all([
-    admin
-      .from('campaigns')
-      .select('id, review_status')
-      .eq('id', campaignId)
-      .eq('organization_id', userId)
-      .maybeSingle<CampaignPublishRow>(),
-    (admin as any)
-      .from('organization_stripe_accounts')
-      .select(
-        'onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due'
-      )
-      .eq('organization_id', organization.id)
-      .maybeSingle(),
-  ])
-
-  if (!campaign) {
-    return { allowed: false, error: 'Campaign could not be found.' }
+  if (authorized.campaign.review_status !== 'approved') {
+    return { allowed: false, error: 'RaiseHub must approve this campaign before it can be published.' }
   }
 
-  if (campaign.review_status !== 'approved') {
-    return {
-      allowed: false,
-      error: 'RaiseHub must approve this campaign before it can be published.',
-    }
-  }
+  const admin = createAdminClient() as any
+  const { data: stripeAccount } = await admin
+    .from('organization_stripe_accounts')
+    .select('onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due')
+    .eq('organization_id', authorized.organization.id)
+    .maybeSingle()
 
   if (!stripeAccountIsReady(stripeAccount as StripeReadinessRow | null)) {
-    return {
-      allowed: false,
-      error: 'Complete Stripe payout verification before publishing this campaign.',
-    }
+    return { allowed: false, error: 'Complete Stripe payout verification before publishing this campaign.' }
   }
 
   return { allowed: true as const }
 }
 
-export async function createCampaignAction(
-  input: CreateCampaignInput
-): Promise<CampaignActionResult> {
+export async function createCampaignAction(input: CreateCampaignInput): Promise<CampaignActionResult> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'You must be signed in to create a campaign.' }
 
-  if (!user) {
-    return { error: 'You must be signed in to create a campaign.' }
+  const organization = await resolveManagedOrganization(user.id, input.organizationId)
+  if (!organization || !organizationSetupIsComplete(organization)) {
+    return { error: 'Complete your organization name, town, and state before creating a campaign.' }
   }
 
-  if (!(await organizationSetupIsComplete(user.id))) {
-    return {
-      error:
-        'Complete your organization name, town, and state before creating a campaign.',
-    }
-  }
-
-  if (!input.name.trim()) {
-    return { error: 'Campaign name is required.' }
-  }
+  if (!input.name.trim()) return { error: 'Campaign name is required.' }
 
   const goalAmount = Number(input.goal_amount)
-
   if (!Number.isFinite(goalAmount) || goalAmount < 0) {
     return { error: 'Enter a valid fundraising goal.' }
   }
 
-  const dates = parseCampaignDates({
-    startsAt: input.starts_at,
-    endsAt: input.ends_at,
-  })
-
+  const dates = parseCampaignDates({ startsAt: input.starts_at, endsAt: input.ends_at })
   if (dates.error) return { error: dates.error }
 
-  const { error } = await supabase.from('campaigns').insert({
-    organization_id: user.id,
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('campaigns').insert({
+    organization_id: organization.legacy_profile_id ?? user.id,
+    canonical_organization_id: organization.id,
     name: input.name.trim(),
     description: input.description.trim() || null,
     goal_amount: goalAmount,
@@ -252,49 +248,35 @@ export async function createCampaignAction(
     status: 'draft',
     review_status: 'not_submitted',
     campaign_type: 'organization',
-  } as never)
+  })
 
   if (error) {
-    return {
-      error:
-        'The campaign could not be created. Review the campaign details and try again.',
-    }
+    console.error('Campaign creation failed', error)
+    return { error: 'The campaign could not be created. Review the campaign details and try again.' }
   }
 
   revalidateCampaignPaths()
   return { success: true }
 }
 
-export async function updateCampaignAction(
-  input: UpdateCampaignInput
-): Promise<CampaignActionResult> {
+export async function updateCampaignAction(input: UpdateCampaignInput): Promise<CampaignActionResult> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'You must be signed in to update a campaign.' }
 
-  if (!user) {
-    return { error: 'You must be signed in to update a campaign.' }
+  if (!(await getAuthorizedCampaign(user.id, input.campaignId))) {
+    return { error: 'The campaign could not be updated. Confirm that you manage this campaign and try again.' }
   }
 
-  if (!input.name.trim()) {
-    return { error: 'Campaign name is required.' }
-  }
-
+  if (!input.name.trim()) return { error: 'Campaign name is required.' }
   const goalAmount = Number(input.goal_amount)
+  if (!Number.isFinite(goalAmount) || goalAmount < 0) return { error: 'Enter a valid fundraising goal.' }
 
-  if (!Number.isFinite(goalAmount) || goalAmount < 0) {
-    return { error: 'Enter a valid fundraising goal.' }
-  }
-
-  const dates = parseCampaignDates({
-    startsAt: input.starts_at,
-    endsAt: input.ends_at,
-  })
-
+  const dates = parseCampaignDates({ startsAt: input.starts_at, endsAt: input.ends_at })
   if (dates.error) return { error: dates.error }
 
-  const { error } = await supabase
+  const admin = createAdminClient() as any
+  const { error } = await admin
     .from('campaigns')
     .update({
       name: input.name.trim(),
@@ -304,83 +286,59 @@ export async function updateCampaignAction(
       ends_at: dates.endsAt,
     })
     .eq('id', input.campaignId)
-    .eq('organization_id', user.id)
 
-  if (error) {
-    return {
-      error:
-        'The campaign could not be updated. Confirm that you manage this campaign and try again.',
-    }
-  }
+  if (error) return { error: 'The campaign could not be updated. Confirm that you manage this campaign and try again.' }
 
   revalidateCampaignPaths(input.campaignId)
   return { success: true }
 }
 
-export async function submitCampaignForReviewAction(
-  campaignId: string
-): Promise<CampaignActionResult> {
+export async function submitCampaignForReviewAction(campaignId: string): Promise<CampaignActionResult> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'You must be signed in to submit a campaign.' }
 
-  if (!user) {
-    return { error: 'You must be signed in to submit a campaign.' }
-  }
-
-  const admin = createAdminClient() as any
-  const organization = await getOrganizationForLegacyProfile(user.id)
-
-  if (!organization?.id) {
-    return { error: 'Complete your Organization workspace before submitting.' }
-  }
-
-  const [{ data: campaign }, { data: stripeAccount }, approvedCountResult] =
-    await Promise.all([
-      admin
-        .from('campaigns')
-        .select(
-          'id, name, description, goal_amount, starts_at, ends_at, campaign_type, review_status'
-        )
-        .eq('id', campaignId)
-        .eq('organization_id', user.id)
-        .eq('status', 'draft')
-        .maybeSingle(),
-      admin
-        .from('organization_stripe_accounts')
-        .select(
-          'onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due'
-        )
-        .eq('organization_id', organization.id)
-        .maybeSingle(),
-      admin
-        .from('campaigns')
-        .select('id', { count: 'exact', head: true })
-        .eq('organization_id', user.id)
-        .eq('review_status', 'approved')
-        .neq('id', campaignId),
-    ])
-
-  if (!campaign) {
+  const authorized = await getAuthorizedCampaign(user.id, campaignId)
+  if (!authorized?.organization || authorized.campaign.status !== 'draft') {
     return { error: 'This draft campaign could not be found.' }
   }
 
-  if (campaign.review_status !== 'not_submitted' && campaign.review_status !== 'changes_requested') {
+  const admin = createAdminClient() as any
+  const [{ data: campaign }, { data: stripeAccount }, approvedCountResult] = await Promise.all([
+    admin
+      .from('campaigns')
+      .select('id, organization_id, canonical_organization_id, name, description, goal_amount, starts_at, ends_at, campaign_type, review_status, status')
+      .eq('id', campaignId)
+      .eq('status', 'draft')
+      .maybeSingle(),
+    admin
+      .from('organization_stripe_accounts')
+      .select('onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due')
+      .eq('organization_id', authorized.organization.id)
+      .maybeSingle(),
+    admin
+      .from('campaigns')
+      .select('id', { count: 'exact', head: true })
+      .eq('canonical_organization_id', authorized.organization.id)
+      .eq('review_status', 'approved')
+      .neq('id', campaignId),
+  ])
+
+  if (!campaign) return { error: 'This draft campaign could not be found.' }
+  const reviewCampaign = campaign as CampaignReviewRow
+  if (reviewCampaign.review_status !== 'not_submitted' && reviewCampaign.review_status !== 'changes_requested') {
     return { error: 'This campaign has already been submitted for review.' }
   }
 
   const decision = evaluateCampaignRisk({
-    name: (campaign as CampaignReviewRow).name,
-    description: (campaign as CampaignReviewRow).description,
-    goalAmount: Number((campaign as CampaignReviewRow).goal_amount ?? 0),
-    startsAt: (campaign as CampaignReviewRow).starts_at,
-    endsAt: (campaign as CampaignReviewRow).ends_at,
-    campaignType: (campaign as CampaignReviewRow).campaign_type,
+    name: reviewCampaign.name,
+    description: reviewCampaign.description,
+    goalAmount: Number(reviewCampaign.goal_amount ?? 0),
+    startsAt: reviewCampaign.starts_at,
+    endsAt: reviewCampaign.ends_at,
+    campaignType: reviewCampaign.campaign_type,
     previousApprovedCampaigns: Number(approvedCountResult.count ?? 0),
-    stripeReady: stripeAccountIsReady(
-      stripeAccount as StripeReadinessRow | null
-    ),
+    stripeReady: stripeAccountIsReady(stripeAccount as StripeReadinessRow | null),
   })
 
   const submittedAt = new Date().toISOString()
@@ -390,62 +348,46 @@ export async function submitCampaignForReviewAction(
       review_status: decision.resultingReviewStatus,
       review_submitted_at: submittedAt,
       terms_accepted_at: submittedAt,
-      reviewed_at:
-        decision.resultingReviewStatus === 'approved' ? submittedAt : null,
+      reviewed_at: decision.resultingReviewStatus === 'approved' ? submittedAt : null,
       reviewed_by: null,
       review_notes: null,
     })
     .eq('id', campaignId)
-    .eq('organization_id', user.id)
     .eq('status', 'draft')
 
-  if (updateError) {
-    return { error: 'The campaign could not be submitted for review.' }
-  }
+  if (updateError) return { error: 'The campaign could not be submitted for review.' }
 
-  const { error: eventError } = await admin
-    .from('campaign_review_events')
-    .insert({
-      campaign_id: campaignId,
-      organization_id: organization.id,
-      decision_source: 'automation',
-      decision: decision.decision,
-      previous_review_status: (campaign as CampaignReviewRow).review_status,
-      resulting_review_status: decision.resultingReviewStatus,
-      risk_level: decision.riskLevel,
-      risk_flags: decision.riskFlags,
-      check_results: decision.checkResults,
-      reason: decision.reason,
-      reviewed_by: null,
-    })
+  const { error: eventError } = await admin.from('campaign_review_events').insert({
+    campaign_id: campaignId,
+    organization_id: authorized.organization.id,
+    decision_source: 'automation',
+    decision: decision.decision,
+    previous_review_status: reviewCampaign.review_status,
+    resulting_review_status: decision.resultingReviewStatus,
+    risk_level: decision.riskLevel,
+    risk_flags: decision.riskFlags,
+    check_results: decision.checkResults,
+    reason: decision.reason,
+    reviewed_by: null,
+  })
 
   if (eventError) {
     console.error('Campaign review audit event could not be recorded', eventError)
-    return {
-      error:
-        'The campaign review result could not be audited. Please submit it again.',
-    }
+    return { error: 'The campaign review result could not be audited. Please submit it again.' }
   }
 
   revalidateCampaignPaths(campaignId)
   return { success: true }
 }
 
-export async function updateCampaignStatusAction(
-  campaignId: string,
-  status: string
-): Promise<CampaignActionResult> {
+export async function updateCampaignStatusAction(campaignId: string, status: string): Promise<CampaignActionResult> {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'You must be signed in to update a campaign.' }
+  if (!isCampaignStatus(status)) return { error: 'Invalid campaign status.' }
 
-  if (!user) {
-    return { error: 'You must be signed in to update a campaign.' }
-  }
-
-  if (!isCampaignStatus(status)) {
-    return { error: 'Invalid campaign status.' }
+  if (!(await getAuthorizedCampaign(user.id, campaignId))) {
+    return { error: 'The campaign status could not be updated. Try again.' }
   }
 
   if (status === 'active') {
@@ -453,15 +395,9 @@ export async function updateCampaignStatusAction(
     if (!readiness.allowed) return { error: readiness.error }
   }
 
-  const { error } = await supabase
-    .from('campaigns')
-    .update({ status })
-    .eq('id', campaignId)
-    .eq('organization_id', user.id)
-
-  if (error) {
-    return { error: 'The campaign status could not be updated. Try again.' }
-  }
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('campaigns').update({ status }).eq('id', campaignId)
+  if (error) return { error: 'The campaign status could not be updated. Try again.' }
 
   revalidateCampaignPaths(campaignId)
   return { success: true }
