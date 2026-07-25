@@ -40,7 +40,7 @@ type OrganizationCampaignsSectionProps = {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
@@ -74,18 +74,58 @@ function ReviewBadge({ status }: { status?: string | null }) {
   )
 }
 
+function CreateCampaignCard({
+  organizationId,
+  campaignCreationPricing,
+  hasExistingCampaign,
+}: {
+  organizationId: string | null
+  campaignCreationPricing: CampaignCreationPricing
+  hasExistingCampaign: boolean
+}) {
+  return (
+    <details id="create-campaign" className="group scroll-mt-6 rounded-2xl border border-blue-100 bg-white/90 shadow-sm backdrop-blur">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 sm:px-6">
+        <div>
+          <p className="font-bold text-gray-900">
+            {hasExistingCampaign ? 'Create another campaign' : 'Create your first campaign'}
+          </p>
+          <p className="mt-1 text-sm text-gray-600">
+            {hasExistingCampaign
+              ? 'Start a new draft when you are ready. Your current campaign stays the priority.'
+              : 'Open the form to set your goal, dates, and review the managed pricing.'}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">Open</span>
+        <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">Close</span>
+      </summary>
+      <div className="border-t border-blue-100 p-5 sm:p-6">
+        <CreateCampaignForm organizationId={organizationId} pricing={campaignCreationPricing} />
+      </div>
+    </details>
+  )
+}
+
 export default function OrganizationCampaignsSection({
   organizationId,
   campaigns,
   metricsByCampaign,
   campaignCreationPricing,
 }: OrganizationCampaignsSectionProps) {
+  const hasExistingCampaign = campaigns.length > 0
+
   return (
-    <>
-      <CreateCampaignForm id="create-campaign" organizationId={organizationId} pricing={campaignCreationPricing} />
+    <div className="space-y-6">
+      {!hasExistingCampaign ? (
+        <CreateCampaignCard
+          organizationId={organizationId}
+          campaignCreationPricing={campaignCreationPricing}
+          hasExistingCampaign={false}
+        />
+      ) : null}
 
       <section className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <SectionHeader title="Campaign Management" description="Create drafts, complete payout setup, submit campaigns for review, and publish only after approval." />
+        <SectionHeader title="Campaign Management" description="Complete payout setup, submit campaigns for review, and publish only after approval." />
         <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
           Draft campaigns are private. Complete Stripe payout verification and RaiseHub review before publishing or sharing.
         </div>
@@ -132,10 +172,18 @@ export default function OrganizationCampaignsSection({
             })}
           </div>
         ) : (
-          <div className="mt-4"><EmptyState title="No campaigns yet" description="Create a private draft, complete verification, and submit it for review before publishing." actionLabel="Create Campaign" actionHref="#create-campaign" /></div>
+          <div className="mt-4"><EmptyState title="No campaigns yet" description="Create a private draft, complete verification, and submit it for review before publishing." /></div>
         )}
       </section>
-    </>
+
+      {hasExistingCampaign ? (
+        <CreateCampaignCard
+          organizationId={organizationId}
+          campaignCreationPricing={campaignCreationPricing}
+          hasExistingCampaign
+        />
+      ) : null}
+    </div>
   )
 }
 
