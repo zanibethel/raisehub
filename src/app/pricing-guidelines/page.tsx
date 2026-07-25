@@ -31,6 +31,15 @@ export default function PricingGuidelinesPage() {
           Most campaigns use RaiseHub&apos;s standard pass price and platform fee. This keeps checkout, campaign earnings, and supporter expectations consistent across the platform.
         </p>
 
+        <section className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-5">
+          <h2 className="text-lg font-bold text-green-950">
+            Optional donations go fully to the organization
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-green-900">
+            RaiseHub does not keep a percentage of optional donations. The managed platform fee applies only to the fundraising pass price. Any optional donation is recorded as organization earnings in full.
+          </p>
+        </section>
+
         <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
           <h2 className="text-lg font-bold text-blue-900">
             When special pricing may be considered
