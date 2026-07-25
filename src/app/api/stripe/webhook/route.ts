@@ -21,11 +21,24 @@ function isTerminalCheckoutEvent(event: Stripe.Event) {
   )
 }
 
+function isPaymentReconciliationEvent(event: Stripe.Event) {
+  return (
+    event.type === 'charge.refunded' ||
+    event.type === 'charge.dispute.created' ||
+    event.type === 'charge.dispute.updated' ||
+    event.type === 'charge.dispute.closed'
+  )
+}
+
+function expandableId(value: string | { id: string } | null | undefined) {
+  if (typeof value === 'string') return value
+  return value?.id ?? null
+}
+
 function paymentIntentId(
   value: Stripe.Checkout.Session['payment_intent']
 ) {
-  if (typeof value === 'string') return value
-  return value?.id ?? null
+  return expandableId(value)
 }
 
 function connectOnboardingStatus(account: Stripe.Account) {
@@ -100,19 +113,12 @@ async function synchronizeTerminalCheckoutAttempt(
   const session = event.data.object as Stripe.Checkout.Session
   const attemptId = session.metadata?.checkout_attempt_id?.trim()
 
-  if (!attemptId) {
-    throw new Error('Checkout attempt metadata is missing')
-  }
-
-  if (!session.id) {
-    throw new Error('Checkout Session ID is missing')
-  }
+  if (!attemptId) throw new Error('Checkout attempt metadata is missing')
+  if (!session.id) throw new Error('Checkout Session ID is missing')
 
   const { data: attempt, error: lookupError } = await admin
     .from('checkout_attempts')
-    .select(
-      'id, status, stripe_checkout_session_id, purchase_id, fulfilled_at'
-    )
+    .select('id, status, stripe_checkout_session_id, purchase_id, fulfilled_at')
     .eq('id', attemptId)
     .maybeSingle()
 
@@ -124,24 +130,15 @@ async function synchronizeTerminalCheckoutAttempt(
     throw new Error('Checkout Session does not match the stored attempt')
   }
 
-  if (
-    attempt.status === 'paid' ||
-    attempt.purchase_id ||
-    attempt.fulfilled_at
-  ) {
+  if (attempt.status === 'paid' || attempt.purchase_id || attempt.fulfilled_at) {
     return
   }
 
   const nextStatus =
     event.type === 'checkout.session.expired' ? 'expired' : 'failed'
 
-  if (attempt.status === nextStatus) {
-    return
-  }
-
-  if (attempt.status !== 'created' && attempt.status !== 'open') {
-    return
-  }
+  if (attempt.status === nextStatus) return
+  if (attempt.status !== 'created' && attempt.status !== 'open') return
 
   const timestamp = new Date().toISOString()
   const { error: updateError } = await admin
@@ -160,6 +157,51 @@ async function synchronizeTerminalCheckoutAttempt(
   if (updateError) throw updateError
 }
 
+async function reconcilePaymentLoss(admin: any, event: Stripe.Event) {
+  let paymentIntent: string | null = null
+  let chargeId: string | null = null
+  let refundId: string | null = null
+  let disputeId: string | null = null
+  let amountCents = 0
+  let currency = 'usd'
+  let disputeStatus: string | null = null
+
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge
+    paymentIntent = expandableId(charge.payment_intent)
+    chargeId = charge.id
+    refundId = charge.refunds?.data.at(-1)?.id ?? null
+    amountCents = charge.amount_refunded
+    currency = charge.currency
+  } else {
+    const dispute = event.data.object as Stripe.Dispute
+    paymentIntent = expandableId(dispute.payment_intent)
+    chargeId = expandableId(dispute.charge)
+    disputeId = dispute.id
+    amountCents = dispute.amount
+    currency = dispute.currency
+    disputeStatus = dispute.status
+  }
+
+  if (!paymentIntent?.startsWith('pi_')) {
+    throw new Error('Stripe payment intent could not be resolved for reconciliation')
+  }
+
+  const { error } = await admin.rpc('reconcile_purchase_payment_event', {
+    p_stripe_event_id: event.id,
+    p_event_type: event.type,
+    p_stripe_payment_intent_id: paymentIntent,
+    p_stripe_charge_id: chargeId,
+    p_stripe_refund_id: refundId,
+    p_stripe_dispute_id: disputeId,
+    p_amount_cents: amountCents,
+    p_currency: currency,
+    p_dispute_status: disputeStatus,
+  })
+
+  if (error) throw error
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   let event: Stripe.Event
@@ -171,7 +213,6 @@ export async function POST(request: Request) {
     )
   } catch (error) {
     console.error('Stripe webhook verification failed', error)
-
     return NextResponse.json(
       { error: 'Invalid webhook signature' },
       { status: 400 }
@@ -211,7 +252,6 @@ export async function POST(request: Request) {
 
   if (eventInsertError) {
     console.error('Could not record Stripe webhook event', eventInsertError)
-
     return NextResponse.json(
       { error: 'Webhook event could not be recorded' },
       { status: 500 }
@@ -231,6 +271,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true })
     }
 
+    if (isPaymentReconciliationEvent(event)) {
+      await reconcilePaymentLoss(admin, event)
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true })
+    }
+
     if (!isFulfillmentEvent(event)) {
       await markWebhookEvent(admin, event.id, 'ignored')
       return NextResponse.json({ received: true, ignored: true })
@@ -239,13 +285,8 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session
     const attemptId = session.metadata?.checkout_attempt_id?.trim()
 
-    if (!attemptId) {
-      throw new Error('Checkout attempt metadata is missing')
-    }
-
-    if (!session.id) {
-      throw new Error('Checkout Session ID is missing')
-    }
+    if (!attemptId) throw new Error('Checkout attempt metadata is missing')
+    if (!session.id) throw new Error('Checkout Session ID is missing')
 
     const { data: attempt, error: attemptLookupError } = await admin
       .from('checkout_attempts')
@@ -265,9 +306,7 @@ export async function POST(request: Request) {
       'fulfill_paid_checkout_attempt',
       {
         p_stripe_checkout_session_id: session.id,
-        p_stripe_payment_intent_id: paymentIntentId(
-          session.payment_intent
-        ),
+        p_stripe_payment_intent_id: paymentIntentId(session.payment_intent),
         p_amount_total_cents: session.amount_total,
         p_currency: session.currency,
         p_payment_status: session.payment_status,
