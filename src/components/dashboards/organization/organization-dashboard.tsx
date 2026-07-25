@@ -95,12 +95,13 @@ export default async function OrganizationDashboard({
 
   let purchases: CampaignPurchase[] = []
   if (campaignIds.length > 0) {
-    const { data } = await supabase
-      .from('campaign_purchases')
+    // The checked-in generated Supabase types predate the refund reconciliation
+    // columns. Keep the compatibility cast local until types are regenerated.
+    const { data } = await (supabase.from('campaign_purchases') as any)
       .select('id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status')
       .in('campaign_id', campaignIds)
 
-    purchases = (data ?? []).filter(isProgressPurchase)
+    purchases = ((data ?? []) as CampaignPurchase[]).filter(isProgressPurchase)
   }
 
   const totalPassesSold = purchases.length
