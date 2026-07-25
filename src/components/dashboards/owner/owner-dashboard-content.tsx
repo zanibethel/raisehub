@@ -1,6 +1,7 @@
 import type { PlatformMetrics } from '@/lib/repositories/platform-analytics-repository'
 
 import OwnerAnalyticsSection from './sections/owner-analytics-section'
+import OwnerFinancialHealthSection from './sections/owner-financial-health-section'
 import OwnerPlatformOverviewSection from './sections/owner-platform-overview-section'
 
 type OwnerDashboardContentProps = {
@@ -13,6 +14,8 @@ export default function OwnerDashboardContent({
   return (
     <div className="mt-8 min-w-0 space-y-6">
       <OwnerPlatformOverviewSection />
+
+      <OwnerFinancialHealthSection />
 
       <details
         id="owner-analytics"
