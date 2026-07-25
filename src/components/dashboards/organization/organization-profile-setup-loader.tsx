@@ -33,15 +33,20 @@ export default async function OrganizationProfileSetupLoader() {
   const selectedWorkspaceKey =
     (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || ''
 
-  // Resolve the exact selected workspace so accounts can manage more than one
-  // organization without mixing profile details between them.
-  const selectedWorkspace = workspaceResult.success
-    ? workspaceResult.workspaces.find(
+  const organizationWorkspaces = workspaceResult.success
+    ? workspaceResult.workspaces.filter(
         (workspace) =>
-          workspace.key === selectedWorkspaceKey &&
-          (workspace.kind === 'organization' || workspace.kind === 'fundraising')
+          workspace.kind === 'organization' || workspace.kind === 'fundraising'
       )
-    : null
+    : []
+
+  // Prefer the explicit workspace selection. Preview deployment hostnames may not
+  // have the production workspace cookie yet, so safely fall back to the first
+  // authenticated organization workspace instead of hiding profile management.
+  const selectedWorkspace =
+    organizationWorkspaces.find(
+      (workspace) => workspace.key === selectedWorkspaceKey
+    ) ?? organizationWorkspaces[0] ?? null
   const selectedOrganizationId = selectedWorkspace?.workspaceId ?? null
 
   if (!selectedOrganizationId) {
