@@ -4,6 +4,7 @@ import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspa
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationProfileSetupSection from './sections/organization-profile-setup-section'
+import { WorkspaceStatusReporter } from './organization-workspace-status'
 
 type OrganizationSetupRecord = {
   id: string
@@ -25,92 +26,47 @@ export default async function OrganizationProfileSetupLoader() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return null
-  }
+  if (!user) return <WorkspaceStatusReporter item="profile" status="attention" />
 
   const workspaceResult = await getAuthenticatedWorkspaces()
-  const selectedWorkspaceKey =
-    (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || ''
-
+  const selectedWorkspaceKey = (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || ''
   const organizationWorkspaces = workspaceResult.success
-    ? workspaceResult.workspaces.filter(
-        (workspace) =>
-          workspace.kind === 'organization' || workspace.kind === 'fundraising'
-      )
+    ? workspaceResult.workspaces.filter((workspace) => workspace.kind === 'organization' || workspace.kind === 'fundraising')
     : []
-
-  // Prefer the explicit workspace selection. Preview deployment hostnames may not
-  // have the production workspace cookie yet, so safely fall back to the first
-  // authenticated organization workspace instead of hiding profile management.
-  const selectedWorkspace =
-    organizationWorkspaces.find(
-      (workspace) => workspace.key === selectedWorkspaceKey
-    ) ?? organizationWorkspaces[0] ?? null
+  const selectedWorkspace = organizationWorkspaces.find((workspace) => workspace.key === selectedWorkspaceKey) ?? organizationWorkspaces[0] ?? null
   const selectedOrganizationId = selectedWorkspace?.workspaceId ?? null
 
-  if (!selectedOrganizationId) {
-    return null
-  }
+  if (!selectedOrganizationId) return <WorkspaceStatusReporter item="profile" status="attention" />
 
   const admin = createAdminClient()
-  const profileRequest = admin
-    .from('profiles')
-    .select(
-      'business_name, display_name, business_description, phone, email, website_url'
-    )
-    .eq('id', user.id)
-    .maybeSingle()
-
-  // The live schema includes town_name and state_code. The checked-in generated
-  // Supabase types predate those columns, so keep this compatibility cast local.
+  const profileRequest = admin.from('profiles').select('business_name, display_name, business_description, phone, email, website_url').eq('id', user.id).maybeSingle()
   const organizationRequest = (admin.from('organizations') as any)
-    .select(
-      'id, name, organization_type, description, phone, email, website_url, town_name, state_code'
-    )
+    .select('id, name, organization_type, description, phone, email, website_url, town_name, state_code')
     .eq('id', selectedOrganizationId)
     .maybeSingle()
 
-  const [{ data: profile }, { data: organizationResult }] = await Promise.all([
-    profileRequest,
-    organizationRequest,
-  ])
+  const [{ data: profile }, { data: organizationResult }] = await Promise.all([profileRequest, organizationRequest])
   const organization = organizationResult as OrganizationSetupRecord | null
 
-  if (!organization) {
-    return null
-  }
+  if (!organization) return <WorkspaceStatusReporter item="profile" status="attention" />
 
   const profileData = {
-    name:
-      organization.name ||
-      profile?.business_name ||
-      profile?.display_name ||
-      '',
+    name: organization.name || profile?.business_name || profile?.display_name || '',
     organizationType: organization.organization_type || '',
-    description:
-      organization.description ||
-      profile?.business_description ||
-      '',
+    description: organization.description || profile?.business_description || '',
     phone: organization.phone || profile?.phone || '',
     email: organization.email || profile?.email || user.email || '',
-    websiteUrl:
-      organization.website_url || profile?.website_url || '',
+    websiteUrl: organization.website_url || profile?.website_url || '',
     townName: organization.town_name || '',
     stateCode: organization.state_code || '',
   }
 
-  const isComplete = Boolean(
-    profileData.name.trim() &&
-      profileData.townName.trim() &&
-      /^[A-Z]{2}$/.test(profileData.stateCode)
-  )
+  const isComplete = Boolean(profileData.name.trim() && profileData.townName.trim() && /^[A-Z]{2}$/.test(profileData.stateCode))
 
   return (
-    <OrganizationProfileSetupSection
-      organizationId={organization.id}
-      profile={profileData}
-      isComplete={isComplete}
-    />
+    <>
+      <WorkspaceStatusReporter item="profile" status={isComplete ? 'complete' : 'attention'} />
+      <OrganizationProfileSetupSection organizationId={organization.id} profile={profileData} isComplete={isComplete} />
+    </>
   )
 }
