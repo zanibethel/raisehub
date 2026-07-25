@@ -19,19 +19,37 @@ export default function OrganizationDashboardContent(props: Props) {
 
   return (
     <div className="mt-8 space-y-8">
-      <section className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Workspace status</p>
-            <p className="mt-1 text-sm text-gray-600">Profile and payout settings</p>
+      <details className="group rounded-2xl border border-blue-100 bg-white/90 shadow-sm backdrop-blur">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+              Workspace status
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold text-gray-800">
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-green-600">✓</span>
+                Profile
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-green-600">✓</span>
+                Payouts
+              </span>
+            </div>
           </div>
-          <span className="text-xs font-medium text-gray-500">Open a row to review</span>
-        </div>
-        <div className="divide-y divide-blue-100">
+
+          <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">
+            Manage
+          </span>
+          <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">
+            Hide
+          </span>
+        </summary>
+
+        <div className="space-y-1 border-t border-blue-100 px-4 pb-4 sm:px-5 sm:pb-5">
           <OrganizationProfileSetupLoader />
           <OrganizationPayoutDashboardCard />
         </div>
-      </section>
+      </details>
 
       <OrganizationSummarySection
         activeCampaigns={props.activeCampaigns}
