@@ -1,10 +1,10 @@
 name: RaiseHub Code Checks
 
 on:
+  pull_request:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 concurrency:
@@ -13,9 +13,9 @@ concurrency:
 
 jobs:
   verify:
-    name: TypeScript and Build
+    name: Test, Lint, TypeScript, and Build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -35,12 +35,21 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Refresh dependency lock metadata
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
       - name: Install dependencies
         id: install
         run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run tests
+        id: test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test.log
+
+      - name: Run lint
+        id: lint
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint.log
 
       - name: Check TypeScript
         id: typecheck
@@ -71,6 +80,8 @@ jobs:
             echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
             echo ""
             echo "Install result: ${{ steps.install.outcome }}"
+            echo "Test result: ${{ steps.test.outcome }}"
+            echo "Lint result: ${{ steps.lint.outcome }}"
             echo "TypeScript result: ${{ steps.typecheck.outcome }}"
             echo "Build result: ${{ steps.build.outcome }}"
           } > ci-report.txt
@@ -82,6 +93,8 @@ jobs:
           name: raisehub-ci-report-${{ github.run_id }}
           path: |
             ci-report.txt
+            test.log
+            lint.log
             typecheck.log
             build.log
           retention-days: 30
