@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { startOrganizationStripeOnboardingAction } from '@/app/organizations/stripe-connect-actions'
 import { getOrganizationStripeStatusAction } from '@/app/organizations/stripe-connect-status-actions'
+import { useWorkspaceStatusReporter } from './organization-workspace-status'
 
 type StripeStatus = {
   onboardingStatus: string
@@ -23,11 +24,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
     }
   }
 
-  if (
-    status?.onboardingStatus === 'enabled' &&
-    status.detailsSubmitted &&
-    status.payoutsEnabled
-  ) {
+  if (status?.onboardingStatus === 'enabled' && status.detailsSubmitted && status.payoutsEnabled) {
     return {
       badge: 'Payouts ready',
       badgeClassName: 'bg-green-50 text-green-700',
@@ -74,13 +71,13 @@ export default function OrganizationPayoutDashboardCard() {
   const [checking, setChecking] = useState(true)
   const [message, setMessage] = useState('')
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null)
+  const reportStatus = useWorkspaceStatusReporter()
   const copy = getStatusCopy(stripeStatus, checking)
-  const isReady = Boolean(
-    !checking &&
-      stripeStatus?.onboardingStatus === 'enabled' &&
-      stripeStatus.detailsSubmitted &&
-      stripeStatus.payoutsEnabled,
-  )
+  const isReady = Boolean(!checking && stripeStatus?.onboardingStatus === 'enabled' && stripeStatus.detailsSubmitted && stripeStatus.payoutsEnabled)
+
+  useEffect(() => {
+    reportStatus('payouts', checking ? 'checking' : isReady ? 'complete' : 'attention')
+  }, [checking, isReady, reportStatus])
 
   useEffect(() => {
     let cancelled = false
@@ -88,9 +85,7 @@ export default function OrganizationPayoutDashboardCard() {
     async function loadStatus() {
       setChecking(true)
       setMessage('')
-
       const result = await getOrganizationStripeStatusAction()
-
       if (cancelled) return
 
       if (result.status === 'ok') {
@@ -111,7 +106,6 @@ export default function OrganizationPayoutDashboardCard() {
     }
 
     void loadStatus()
-
     return () => {
       cancelled = true
     }
@@ -119,10 +113,8 @@ export default function OrganizationPayoutDashboardCard() {
 
   async function handleOnboarding() {
     if (loading || checking) return
-
     setLoading(true)
     setMessage('')
-
     const result = await startOrganizationStripeOnboardingAction(organizationId)
 
     if (result.status === 'onboarding-ready') {
@@ -135,29 +127,13 @@ export default function OrganizationPayoutDashboardCard() {
   }
 
   return (
-    <details
-      className={
-        isReady
-          ? 'group py-3'
-          : 'group my-3 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'
-      }
-    >
-      <summary
-        className={
-          isReady
-            ? 'flex cursor-pointer list-none items-center justify-between gap-4'
-            : 'flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6'
-        }
-      >
+    <details className={isReady ? 'group py-3' : 'group my-3 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'}>
+      <summary className={isReady ? 'flex cursor-pointer list-none items-center justify-between gap-4' : 'flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6'}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-gray-900">Payouts & Stripe</p>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}>
-              {copy.badge}
-            </span>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-              Test mode
-            </span>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}>{copy.badge}</span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Test mode</span>
           </div>
           {!isReady ? (
             <>
@@ -167,34 +143,17 @@ export default function OrganizationPayoutDashboardCard() {
           ) : null}
         </div>
 
-        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">
-          {isReady ? 'View' : 'Fix'}
-        </span>
-        <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">
-          Hide
-        </span>
+        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">{isReady ? 'View' : 'Fix'}</span>
+        <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">Hide</span>
       </summary>
 
       <div className={isReady ? 'mt-3 border-t border-blue-100 pt-4' : 'border-t border-amber-200 p-5 sm:p-6'}>
         <p className="text-sm leading-6 text-gray-600">{copy.body}</p>
-        <p className="mt-2 text-xs font-medium text-blue-700">
-          Production-site QA is using Stripe test mode. No real funds or live connected accounts will be created.
-        </p>
-
-        <button
-          type="button"
-          onClick={handleOnboarding}
-          disabled={loading || checking || !organizationId}
-          className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-        >
+        <p className="mt-2 text-xs font-medium text-blue-700">Production-site QA is using Stripe test mode. No real funds or live connected accounts will be created.</p>
+        <button type="button" onClick={handleOnboarding} disabled={loading || checking || !organizationId} className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
           {loading ? 'Opening secure Stripe setup…' : copy.button}
         </button>
-
-        {message ? (
-          <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">
-            {message}
-          </p>
-        ) : null}
+        {message ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">{message}</p> : null}
       </div>
     </details>
   )
