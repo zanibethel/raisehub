@@ -146,14 +146,19 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
   const isDraft = status === 'draft'
   const isArchived = status === 'archived'
   const isCompleted = status === 'completed'
+  const isPublic = status === 'active'
   const canPause = status === 'active'
   const canResume = status === 'paused'
   const canArchive = !isArchived
   const canSubmit = isDraft && (!reviewStatus || reviewStatus === 'not_submitted' || reviewStatus === 'changes_requested')
+  const viewHref = isPublic
+    ? `/campaigns/${campaignId}`
+    : `/dashboard/campaigns/${campaignId}/edit`
+  const viewLabel = isPublic ? 'View public page' : 'Preview / manage'
 
   return (
     <div className={`flex flex-wrap gap-2 ${stacked ? 'flex-col items-stretch' : 'items-center'}`}>
-      <Link href={`/campaigns/${campaignId}`} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-blue-700 hover:bg-blue-100">View</Link>
+      <Link href={viewHref} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-blue-700 hover:bg-blue-100">{viewLabel}</Link>
       {isDraft ? <span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-500">Sharing available after publishing</span> : <ShareCampaignButton campaignId={campaignId} campaignName={campaignName} />}
       {!isArchived && !isCompleted ? <Link href={`/dashboard/campaigns/${campaignId}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</Link> : null}
       {canSubmit ? <SubmitCampaignForReviewButton campaignId={campaignId} campaignName={campaignName} /> : null}
