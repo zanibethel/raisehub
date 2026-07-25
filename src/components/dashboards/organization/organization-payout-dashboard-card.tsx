@@ -75,6 +75,12 @@ export default function OrganizationPayoutDashboardCard() {
   const [message, setMessage] = useState('')
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null)
   const copy = getStatusCopy(stripeStatus, checking)
+  const isReady = Boolean(
+    !checking &&
+      stripeStatus?.onboardingStatus === 'enabled' &&
+      stripeStatus.detailsSubmitted &&
+      stripeStatus.payoutsEnabled,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -129,43 +135,48 @@ export default function OrganizationPayoutDashboardCard() {
   }
 
   return (
-    <details className="group rounded-3xl border border-blue-100 bg-white shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6">
-        <div className="min-w-0">
+    <details
+      className={
+        isReady
+          ? 'group py-3'
+          : 'group my-3 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'
+      }
+    >
+      <summary
+        className={
+          isReady
+            ? 'flex cursor-pointer list-none items-center justify-between gap-4'
+            : 'flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6'
+        }
+      >
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-              Organization payouts
-            </p>
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}
-            >
+            <p className="text-sm font-semibold text-gray-900">Payouts & Stripe</p>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}>
               {copy.badge}
             </span>
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-              Stripe test mode
+              Test mode
             </span>
           </div>
-
-          <h2 className="mt-2 text-xl font-bold text-gray-900">
-            {copy.title}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-            {copy.body}
-          </p>
+          {!isReady ? (
+            <>
+              <h2 className="mt-2 text-xl font-bold text-gray-900">{copy.title}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">{copy.body}</p>
+            </>
+          ) : null}
         </div>
 
         <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">
-          View
+          {isReady ? 'View' : 'Fix'}
         </span>
         <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">
           Hide
         </span>
       </summary>
 
-      <div className="border-t border-blue-100 p-5 sm:p-6">
-        <p className="text-sm leading-6 text-gray-600">
-          Stripe securely verifies the organization and bank account used to receive campaign proceeds.
-        </p>
+      <div className={isReady ? 'mt-3 border-t border-blue-100 pt-4' : 'border-t border-amber-200 p-5 sm:p-6'}>
+        <p className="text-sm leading-6 text-gray-600">{copy.body}</p>
         <p className="mt-2 text-xs font-medium text-blue-700">
           Production-site QA is using Stripe test mode. No real funds or live connected accounts will be created.
         </p>
@@ -174,7 +185,7 @@ export default function OrganizationPayoutDashboardCard() {
           type="button"
           onClick={handleOnboarding}
           disabled={loading || checking || !organizationId}
-          className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {loading ? 'Opening secure Stripe setup…' : copy.button}
         </button>
