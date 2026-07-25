@@ -6,7 +6,6 @@ import ShareCampaignButton from '@/app/components/share-campaign-button'
 import SubmitCampaignForReviewButton from '@/app/components/submit-campaign-for-review-button'
 import CampaignStatusBadge from '@/components/dashboard/campaign-status-badge'
 import EmptyState from '@/components/dashboard/empty-state'
-import SectionHeader from '@/components/dashboard/section-header'
 
 type Campaign = {
   id: string
@@ -113,6 +112,11 @@ export default function OrganizationCampaignsSection({
   campaignCreationPricing,
 }: OrganizationCampaignsSectionProps) {
   const hasExistingCampaign = campaigns.length > 0
+  const activeCount = campaigns.filter((campaign) => campaign.status.toLowerCase() === 'active').length
+  const inReviewCount = campaigns.filter((campaign) => campaign.review_status === 'pending').length
+  const draftCount = campaigns.filter(
+    (campaign) => campaign.status.toLowerCase() === 'draft' && campaign.review_status !== 'pending',
+  ).length
 
   return (
     <div className="space-y-6">
@@ -124,57 +128,74 @@ export default function OrganizationCampaignsSection({
         />
       ) : null}
 
-      <section className="rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-        <SectionHeader title="Campaign Management" description="Complete payout setup, submit campaigns for review, and publish only after approval." />
-        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-          Draft campaigns are private. Complete Stripe payout verification and RaiseHub review before publishing or sharing.
-        </div>
-
-        {campaigns.length > 0 ? (
-          <div className="mt-5 space-y-4">
-            <div className="overflow-x-auto">
-              <table className="hidden min-w-full divide-y divide-blue-100 md:table">
-                <thead><tr className="text-left text-xs font-bold uppercase tracking-[0.08em] text-blue-700"><th className="px-3 py-3">Campaign</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Review</th><th className="px-3 py-3">Goal</th><th className="px-3 py-3">Recorded</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Actions</th></tr></thead>
-                <tbody className="divide-y divide-blue-50">
-                  {campaigns.map((campaign) => {
-                    const metrics = metricsByCampaign[campaign.id] ?? { supporterCount: 0, sellerCount: 0, gross: 0, fees: 0, amountRaised: 0 }
-                    return (
-                      <tr key={campaign.id} className="align-top">
-                        <td className="px-3 py-4"><p className="font-semibold text-gray-900">{campaign.name}</p><p className="mt-1 text-xs text-gray-500">{metrics.supporterCount} supporters · {metrics.sellerCount} sellers</p></td>
-                        <td className="px-3 py-4"><CampaignStatusBadge status={campaign.status} /></td>
-                        <td className="px-3 py-4"><ReviewBadge status={campaign.review_status} /></td>
-                        <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(Number(campaign.goal_amount ?? 0))}</td>
-                        <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(metrics.amountRaised)}</td>
-                        <td className="px-3 py-4 text-sm text-gray-600">{formatDate(campaign.created_at)}</td>
-                        <td className="px-3 py-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} /></td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+      <details className="group rounded-2xl border border-blue-100 bg-white/90 shadow-xl backdrop-blur">
+        <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-lg font-bold text-gray-900">Campaign Management</p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
+                <span><strong className="text-green-700">{activeCount}</strong> active</span>
+                <span><strong className="text-amber-700">{inReviewCount}</strong> in review</span>
+                <span><strong className="text-slate-700">{draftCount}</strong> drafts</span>
+              </div>
             </div>
-
-            {campaigns.map((campaign) => {
-              const metrics = metricsByCampaign[campaign.id] ?? { supporterCount: 0, sellerCount: 0, gross: 0, fees: 0, amountRaised: 0 }
-              return (
-                <article key={campaign.id} className="rounded-xl border border-blue-100 bg-blue-50 p-4 md:hidden">
-                  <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
-                  <div className="mt-3 flex flex-wrap items-center gap-2"><CampaignStatusBadge status={campaign.status} /><ReviewBadge status={campaign.review_status} /></div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Goal</dt><dd className="mt-1 font-semibold text-gray-800">{formatCurrency(Number(campaign.goal_amount ?? 0))}</dd></div>
-                    <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Recorded</dt><dd className="mt-1 font-semibold text-gray-800">{formatCurrency(metrics.amountRaised)}</dd></div>
-                    <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Sellers</dt><dd className="mt-1 font-semibold text-gray-800">{metrics.sellerCount}</dd></div>
-                    <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Created</dt><dd className="mt-1 font-semibold text-gray-800">{formatDate(campaign.created_at)}</dd></div>
-                  </dl>
-                  <div className="mt-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} stacked /></div>
-                </article>
-              )
-            })}
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">Manage</span>
+            <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">Hide</span>
           </div>
-        ) : (
-          <div className="mt-4"><EmptyState title="No campaigns yet" description="Create a private draft, complete verification, and submit it for review before publishing." /></div>
-        )}
-      </section>
+        </summary>
+
+        <div className="border-t border-blue-100 p-5 sm:p-6">
+          <p className="text-sm text-gray-600">Complete payout setup, submit campaigns for review, and publish only after approval.</p>
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+            Draft campaigns are private. Complete Stripe payout verification and RaiseHub review before publishing or sharing.
+          </div>
+
+          {campaigns.length > 0 ? (
+            <div className="mt-5 space-y-4">
+              <div className="overflow-x-auto">
+                <table className="hidden min-w-full divide-y divide-blue-100 md:table">
+                  <thead><tr className="text-left text-xs font-bold uppercase tracking-[0.08em] text-blue-700"><th className="px-3 py-3">Campaign</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Review</th><th className="px-3 py-3">Goal</th><th className="px-3 py-3">Recorded</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Actions</th></tr></thead>
+                  <tbody className="divide-y divide-blue-50">
+                    {campaigns.map((campaign) => {
+                      const metrics = metricsByCampaign[campaign.id] ?? { supporterCount: 0, sellerCount: 0, gross: 0, fees: 0, amountRaised: 0 }
+                      return (
+                        <tr key={campaign.id} className="align-top">
+                          <td className="px-3 py-4"><p className="font-semibold text-gray-900">{campaign.name}</p><p className="mt-1 text-xs text-gray-500">{metrics.supporterCount} supporters · {metrics.sellerCount} sellers</p></td>
+                          <td className="px-3 py-4"><CampaignStatusBadge status={campaign.status} /></td>
+                          <td className="px-3 py-4"><ReviewBadge status={campaign.review_status} /></td>
+                          <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(Number(campaign.goal_amount ?? 0))}</td>
+                          <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(metrics.amountRaised)}</td>
+                          <td className="px-3 py-4 text-sm text-gray-600">{formatDate(campaign.created_at)}</td>
+                          <td className="px-3 py-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {campaigns.map((campaign) => {
+                const metrics = metricsByCampaign[campaign.id] ?? { supporterCount: 0, sellerCount: 0, gross: 0, fees: 0, amountRaised: 0 }
+                return (
+                  <article key={campaign.id} className="rounded-xl border border-blue-100 bg-blue-50 p-4 md:hidden">
+                    <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
+                    <div className="mt-3 flex flex-wrap items-center gap-2"><CampaignStatusBadge status={campaign.status} /><ReviewBadge status={campaign.review_status} /></div>
+                    <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Goal</dt><dd className="mt-1 font-semibold text-gray-800">{formatCurrency(Number(campaign.goal_amount ?? 0))}</dd></div>
+                      <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Recorded</dt><dd className="mt-1 font-semibold text-gray-800">{formatCurrency(metrics.amountRaised)}</dd></div>
+                      <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Sellers</dt><dd className="mt-1 font-semibold text-gray-800">{metrics.sellerCount}</dd></div>
+                      <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Created</dt><dd className="mt-1 font-semibold text-gray-800">{formatDate(campaign.created_at)}</dd></div>
+                    </dl>
+                    <div className="mt-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} stacked /></div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="mt-4"><EmptyState title="No campaigns yet" description="Create a private draft, complete verification, and submit it for review before publishing." /></div>
+          )}
+        </div>
+      </details>
 
       {hasExistingCampaign ? (
         <CreateCampaignCard
