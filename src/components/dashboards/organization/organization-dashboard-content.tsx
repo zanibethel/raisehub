@@ -19,8 +19,19 @@ export default function OrganizationDashboardContent(props: Props) {
 
   return (
     <div className="mt-8 space-y-8">
-      <OrganizationProfileSetupLoader />
-      <OrganizationPayoutDashboardCard />
+      <section className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Workspace status</p>
+            <p className="mt-1 text-sm text-gray-600">Profile and payout settings</p>
+          </div>
+          <span className="text-xs font-medium text-gray-500">Open a row to review</span>
+        </div>
+        <div className="divide-y divide-blue-100">
+          <OrganizationProfileSetupLoader />
+          <OrganizationPayoutDashboardCard />
+        </div>
+      </section>
 
       <OrganizationSummarySection
         activeCampaigns={props.activeCampaigns}
