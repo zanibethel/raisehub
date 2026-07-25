@@ -15,6 +15,8 @@ type CampaignPurchase = {
   amount_paid: number
   platform_fee: number
   organization_earnings: number
+  refunded_amount_cents: number | null
+  refunded_organization_amount_cents: number | null
   seller_name: string | null
   payment_status: string
 }
@@ -33,6 +35,32 @@ function generateSupporterKey(purchase: CampaignPurchase): string {
   if (purchase.user_id) return `user:${purchase.user_id}`
   if (purchase.buyer_email) return `email:${purchase.buyer_email.toLowerCase()}`
   return `guest:${purchase.id}`
+}
+
+function isProgressPurchase(purchase: CampaignPurchase) {
+  return (
+    isCampaignPurchaseProgressEligible(purchase.payment_status) ||
+    purchase.payment_status?.trim().toLowerCase() === 'partially_refunded'
+  )
+}
+
+function netPurchaseAmounts(purchase: CampaignPurchase) {
+  const gross = Math.max(
+    Number(purchase.amount_paid ?? 0) -
+      Number(purchase.refunded_amount_cents ?? 0) / 100,
+    0
+  )
+  const organizationEarnings = Math.max(
+    Number(purchase.organization_earnings ?? 0) -
+      Number(purchase.refunded_organization_amount_cents ?? 0) / 100,
+    0
+  )
+
+  return {
+    gross,
+    organizationEarnings,
+    platformFee: Math.max(gross - organizationEarnings, 0),
+  }
 }
 
 export default async function OrganizationDashboard({
@@ -69,16 +97,25 @@ export default async function OrganizationDashboard({
   if (campaignIds.length > 0) {
     const { data } = await supabase
       .from('campaign_purchases')
-      .select('id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, seller_name, payment_status')
+      .select('id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status')
       .in('campaign_id', campaignIds)
 
-    purchases = (data ?? []).filter((purchase) => isCampaignPurchaseProgressEligible(purchase.payment_status))
+    purchases = (data ?? []).filter(isProgressPurchase)
   }
 
   const totalPassesSold = purchases.length
-  const grossRevenue = purchases.reduce((sum, purchase) => sum + Number(purchase.amount_paid ?? 0), 0)
-  const totalFees = purchases.reduce((sum, purchase) => sum + Number(purchase.platform_fee ?? 0), 0)
-  const totalEarnings = purchases.reduce((sum, purchase) => sum + Number(purchase.organization_earnings ?? 0), 0)
+  const grossRevenue = purchases.reduce(
+    (sum, purchase) => sum + netPurchaseAmounts(purchase).gross,
+    0
+  )
+  const totalFees = purchases.reduce(
+    (sum, purchase) => sum + netPurchaseAmounts(purchase).platformFee,
+    0
+  )
+  const totalEarnings = purchases.reduce(
+    (sum, purchase) => sum + netPurchaseAmounts(purchase).organizationEarnings,
+    0
+  )
 
   const metricsByCampaign = new Map<string, CampaignMetrics>()
   const supportersByCampaign = new Map<string, Set<string>>()
@@ -93,10 +130,11 @@ export default async function OrganizationDashboard({
       fees: 0,
       amountRaised: 0,
     }
+    const net = netPurchaseAmounts(purchase)
 
-    existing.gross += Number(purchase.amount_paid ?? 0)
-    existing.fees += Number(purchase.platform_fee ?? 0)
-    existing.amountRaised += Number(purchase.organization_earnings ?? 0)
+    existing.gross += net.gross
+    existing.fees += net.platformFee
+    existing.amountRaised += net.organizationEarnings
 
     const supporterKey = generateSupporterKey(purchase)
     supporterKeys.add(supporterKey)
@@ -122,7 +160,7 @@ export default async function OrganizationDashboard({
     if (!seller) continue
     const existing = sellerStats.get(seller) ?? { sold: 0, earnings: 0 }
     existing.sold += 1
-    existing.earnings += Number(purchase.organization_earnings ?? 0)
+    existing.earnings += netPurchaseAmounts(purchase).organizationEarnings
     sellerStats.set(seller, existing)
   }
 
