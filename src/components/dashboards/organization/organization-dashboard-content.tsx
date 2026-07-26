@@ -14,8 +14,11 @@ type ReportProps = React.ComponentProps<typeof OrganizationReportSection>
 type TopSellersProps = React.ComponentProps<typeof OrganizationTopSellersSection>
 type CampaignsProps = React.ComponentProps<typeof OrganizationCampaignsSection>
 type AnalyticsProps = React.ComponentProps<typeof OrganizationAnalyticsSection>
+type SellerRosterCampaigns = React.ComponentProps<typeof OrganizationSellerRosterPreview>['campaigns']
 
-type Props = SummaryProps & ReportProps & TopSellersProps & CampaignsProps & AnalyticsProps
+type Props = SummaryProps & ReportProps & TopSellersProps & CampaignsProps & AnalyticsProps & {
+  sellerCampaigns: SellerRosterCampaigns
+}
 
 export default function OrganizationDashboardContent(props: Props) {
   const topSellers = props.sellers.slice(0, 3)
@@ -73,7 +76,7 @@ export default function OrganizationDashboardContent(props: Props) {
         </div>
       </details>
 
-      <OrganizationSellerRosterPreview campaigns={props.campaigns} />
+      <OrganizationSellerRosterPreview campaigns={props.sellerCampaigns} />
 
       <OrganizationCampaignsSection
         organizationId={props.organizationId}
