@@ -271,7 +271,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
         <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
           <label htmlFor="seller-names" className="text-sm font-bold text-gray-900">Add sellers, students, or participants</label>
           <p className="mt-1 text-sm text-gray-600">Enter one name per line, paste a comma-separated list, or upload a CSV.</p>
-          <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={5} placeholder={'Theo\nElijah\nBenji\nNiko\nZJ'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
+          <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={6} placeholder={'Sara\nTheo\nElijah\nBenji\nNiko\nZJ'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
           <button type="button" onClick={addNames} disabled={isPending} className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto">{isPending ? 'Saving…' : 'Add to roster'}</button>
         </div>
 
