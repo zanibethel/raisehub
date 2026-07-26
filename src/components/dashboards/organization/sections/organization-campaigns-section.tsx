@@ -220,6 +220,7 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
   const canResume = status === 'paused'
   const canArchive = !isArchived
   const canSubmit = isDraft && (!reviewStatus || reviewStatus === 'not_submitted' || reviewStatus === 'changes_requested')
+  const canPublish = isDraft && reviewStatus === 'approved'
   const viewHref = isPublic
     ? `/campaigns/${campaignId}`
     : `/dashboard/campaigns/${campaignId}/edit`
@@ -231,7 +232,9 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
       {isDraft ? <span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-500">Sharing available after publishing</span> : <ShareCampaignButton campaignId={campaignId} campaignName={campaignName} />}
       {isPublic && !isArchived && !isCompleted ? <Link href={`/dashboard/campaigns/${campaignId}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</Link> : null}
       {canSubmit ? <SubmitCampaignForReviewButton campaignId={campaignId} campaignName={campaignName} /> : null}
-      {isDraft ? <p className="w-full text-xs text-gray-600">Payout verification is also required before this campaign can publish.</p> : null}
+      {canPublish ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="active" label="Publish campaign" pendingLabel="Publishing..." className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700" confirmMessage={`Publish "${campaignName}"? This will make the campaign available to supporters.`} /> : null}
+      {isDraft && reviewStatus !== 'approved' ? <p className="w-full text-xs text-gray-600">Payout verification and RaiseHub approval are required before this campaign can publish.</p> : null}
+      {canPublish ? <p className="w-full text-xs text-gray-600">Publishing will run the final payout-readiness check before this campaign goes live.</p> : null}
       {canPause ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="paused" label="Pause" pendingLabel="Pausing..." className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100" confirmMessage={`Pause "${campaignName}"? Supporters will no longer be able to purchase until you resume it.`} /> : null}
       {canResume ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="active" label="Resume" pendingLabel="Resuming..." className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100" /> : null}
       {canArchive ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="archived" label="Archive" pendingLabel="Archiving..." className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100" confirmMessage={`Archive "${campaignName}"? This keeps campaign history but hides it from active campaign lists.`} /> : null}
