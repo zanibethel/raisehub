@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import tsx --test src/**/*.test.ts"
+    "test": "sh -c 'files=$(find src -type f -name \"*.test.ts\"); if [ -z \"$files\" ]; then echo \"No test files found\"; exit 0; fi; node --import tsx --test $files'"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
