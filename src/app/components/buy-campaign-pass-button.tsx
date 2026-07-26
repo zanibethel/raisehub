@@ -198,6 +198,10 @@ export default function BuyCampaignPassButton({
     setLoading(false)
   }
 
+  const showSellerSelector = !hasLockedSeller && (
+    sellerOptionsLoading || Boolean(sellerOptionsError) || sellerOptions.length > 0
+  )
+
   return (
     <div className="space-y-4">
       {hasActivePass ? (
@@ -207,7 +211,7 @@ export default function BuyCampaignPassButton({
         </div>
       ) : null}
 
-      {!hasLockedSeller ? (
+      {showSellerSelector ? (
         <div>
           <label htmlFor="campaign-seller" className="mb-1 block text-sm font-medium text-gray-700">
             Seller to support
