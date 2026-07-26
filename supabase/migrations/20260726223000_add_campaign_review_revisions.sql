@@ -41,7 +41,7 @@ where review_status = 'approved'
 create or replace function public.prepare_campaign_review_revision()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -92,6 +92,8 @@ begin
 end
 $$;
 
+revoke execute on function public.prepare_campaign_review_revision() from public, anon, authenticated;
+
 drop trigger if exists prepare_campaign_review_revision on public.campaigns;
 create trigger prepare_campaign_review_revision
 before update on public.campaigns
@@ -101,7 +103,7 @@ execute function public.prepare_campaign_review_revision();
 create or replace function public.record_campaign_review_reopened()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -156,6 +158,8 @@ begin
   return new;
 end
 $$;
+
+revoke execute on function public.record_campaign_review_reopened() from public, anon, authenticated;
 
 drop trigger if exists record_campaign_review_reopened on public.campaigns;
 create trigger record_campaign_review_reopened
