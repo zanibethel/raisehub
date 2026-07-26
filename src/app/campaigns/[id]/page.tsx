@@ -32,6 +32,12 @@ type CampaignPageProps = {
   }>
 }
 
+type ManagedSellerResolution = {
+  campaign_seller_id: string
+  display_name: string
+  valid_for_attribution: boolean
+}
+
 function buildCampaignHref(input: {
   campaignId: string
   seller?: string
@@ -42,40 +48,20 @@ function buildCampaignHref(input: {
 }) {
   const searchParams = new URLSearchParams()
 
-  if (input.seller) {
-    searchParams.set('seller', input.seller)
-  }
-
-  if (input.notice) {
-    searchParams.set('notice', input.notice)
-  }
-
-  if (input.replaced) {
-    searchParams.set('replaced', input.replaced)
-  }
-
-  if (input.donation) {
-    searchParams.set('donation', input.donation)
-  }
-
-  if (input.organization) {
-    searchParams.set('organization', input.organization)
-  }
+  if (input.seller) searchParams.set('seller', input.seller)
+  if (input.notice) searchParams.set('notice', input.notice)
+  if (input.replaced) searchParams.set('replaced', input.replaced)
+  if (input.donation) searchParams.set('donation', input.donation)
+  if (input.organization) searchParams.set('organization', input.organization)
 
   const query = searchParams.toString()
-
-  return query
-    ? `/campaigns/${input.campaignId}?${query}`
-    : `/campaigns/${input.campaignId}`
+  return query ? `/campaigns/${input.campaignId}?${query}` : `/campaigns/${input.campaignId}`
 }
 
 function getCampaignNotice(
   notice: 'campaign-unavailable' | 'campaign-replaced' | undefined
 ) {
-  if (!notice) {
-    return null
-  }
-
+  if (!notice) return null
   return 'The selected campaign is no longer accepting new sales. Choose an active campaign to continue.'
 }
 
@@ -84,36 +70,21 @@ export default async function CampaignPage({
   searchParams,
 }: CampaignPageProps) {
   const { id } = await params
-  const {
-    seller,
-    notice,
-    donation,
-    organization,
-  } = await searchParams
-
+  const { seller, notice, donation, organization } = await searchParams
   const supabase = await createClient()
   const now = new Date()
-
   const { campaign, error } = await getCampaignById(id)
 
   if (error) {
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-12">
         <div className="mx-auto max-w-3xl rounded-3xl border border-blue-100 bg-white p-8 shadow">
-          <h1 className="text-2xl font-bold text-blue-700">
-            Campaign unavailable
-          </h1>
-
+          <h1 className="text-2xl font-bold text-blue-700">Campaign unavailable</h1>
           <p className="mt-3 text-sm text-gray-600">
-            We could not load this campaign right now. Please return to the
-            active fundraiser list and try again.
+            We could not load this campaign right now. Please return to the active fundraiser list and try again.
           </p>
-
           <div className="mt-6">
-            <Link
-              href="/campaigns"
-              className="text-sm font-medium text-blue-700 hover:underline"
-            >
+            <Link href="/campaigns" className="text-sm font-medium text-blue-700 hover:underline">
               Browse active campaigns →
             </Link>
           </div>
@@ -126,43 +97,31 @@ export default async function CampaignPage({
     const recoveryResult = await resolveCampaignRecovery(id, now)
 
     if (recoveryResult.status === 'replacement-found') {
-      redirect(
-        buildCampaignHref({
-          campaignId: recoveryResult.campaignId,
-          seller,
-          notice: 'campaign-replaced',
-          replaced: recoveryResult.replacedCampaignId,
-          donation,
-          organization,
-        })
-      )
+      redirect(buildCampaignHref({
+        campaignId: recoveryResult.campaignId,
+        seller,
+        notice: 'campaign-replaced',
+        replaced: recoveryResult.replacedCampaignId,
+        donation,
+        organization,
+      }))
     }
 
-    const noticeMessage =
-      getCampaignNotice(notice) ??
+    const noticeMessage = getCampaignNotice(notice) ??
       'The selected campaign is no longer accepting new sales. Choose an active campaign to continue.'
 
     if (recoveryResult.status === 'selection-required') {
       return (
         <main className="min-h-screen bg-slate-50 px-6 py-12">
           <div className="mx-auto max-w-6xl space-y-6">
-            <Link
-              href="/campaigns"
-              className="text-sm text-blue-600"
-            >
-              ← Back to fundraisers
-            </Link>
-
+            <Link href="/campaigns" className="text-sm text-blue-600">← Back to fundraisers</Link>
             <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
               {noticeMessage}
             </div>
-
             <SelectableCampaignCarousel
               campaigns={recoveryResult.campaigns}
               seller={seller}
-              replacedCampaignId={
-                recoveryResult.replacedCampaignId
-              }
+              replacedCampaignId={recoveryResult.replacedCampaignId}
               notice="campaign-unavailable"
               donationAmount={donation}
               selectedOrganizationId={organization}
@@ -178,34 +137,15 @@ export default async function CampaignPage({
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-12">
         <div className="mx-auto max-w-3xl space-y-6">
-          <Link
-            href="/campaigns"
-            className="text-sm text-blue-600"
-          >
-            ← Back to fundraisers
-          </Link>
-
+          <Link href="/campaigns" className="text-sm text-blue-600">← Back to fundraisers</Link>
           <div className="rounded-3xl border border-blue-100 bg-white p-8 shadow">
-            <h1 className="text-2xl font-bold text-blue-700">
-              Campaign unavailable
-            </h1>
-
-            <p className="mt-3 text-sm text-gray-600">
-              {noticeMessage}
-            </p>
-
+            <h1 className="text-2xl font-bold text-blue-700">Campaign unavailable</h1>
+            <p className="mt-3 text-sm text-gray-600">{noticeMessage}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/campaigns"
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
+              <Link href="/campaigns" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 Browse active campaigns
               </Link>
-
-              <Link
-                href="/"
-                className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-              >
+              <Link href="/" className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
                 Return home
               </Link>
             </div>
@@ -215,12 +155,8 @@ export default async function CampaignPage({
     )
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   const noticeMessage = getCampaignNotice(notice)
-
   const { data: organizations } = await supabase
     .from('profiles')
     .select('id, business_name, display_name')
@@ -233,11 +169,26 @@ export default async function CampaignPage({
   if (user) {
     const passAccess = await getCustomerPassAccess(user.id, now)
     hasActivePass = passAccess.hasActivePass
-    activePassExpiresAt =
-      passAccess.activeEntitlement?.expires_at ?? null
+    activePassExpiresAt = passAccess.activeEntitlement?.expires_at ?? null
   }
 
   const admin = createAdminClient()
+  const isManagedSellerCode = Boolean(seller && /^[a-f0-9]{14}$/i.test(seller))
+  let managedSeller: ManagedSellerResolution | null = null
+
+  if (seller && isManagedSellerCode) {
+    const { data } = await (admin as any).rpc('resolve_campaign_seller_referral', {
+      p_campaign_id: campaign.id,
+      p_referral_code: seller,
+    })
+    managedSeller = ((data ?? [])[0] ?? null) as ManagedSellerResolution | null
+  }
+
+  const attributedSellerName = managedSeller?.valid_for_attribution
+    ? managedSeller.display_name
+    : isManagedSellerCode
+      ? ''
+      : seller || ''
 
   const [
     { data: campaignOrganization },
@@ -263,12 +214,7 @@ export default async function CampaignPage({
   })
 
   const goal = Number(campaign.goal_amount ?? 0)
-
-  const {
-    amountRaisedByCampaignId,
-    error: progressError,
-  } = await getPublicCampaignProgress([campaign.id])
-
+  const { amountRaisedByCampaignId, error: progressError } = await getPublicCampaignProgress([campaign.id])
   const progressState = buildCampaignDetailProgressState({
     amountRaised: amountRaisedByCampaignId.get(campaign.id),
     goalAmount: campaign.goal_amount,
@@ -278,12 +224,7 @@ export default async function CampaignPage({
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/campaigns"
-          className="text-sm text-blue-600"
-        >
-          ← Back to fundraisers
-        </Link>
+        <Link href="/campaigns" className="text-sm text-blue-600">← Back to fundraisers</Link>
 
         {noticeMessage ? (
           <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
@@ -291,57 +232,55 @@ export default async function CampaignPage({
           </div>
         ) : null}
 
-        <h1 className="mt-4 text-3xl font-bold text-gray-900">
-          {campaign.name}
-        </h1>
+        {managedSeller?.valid_for_attribution ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Seller link recognized</p>
+            <p className="mt-1 text-lg font-bold text-emerald-950">Supporting {managedSeller.display_name}</p>
+            <p className="mt-1 text-sm text-emerald-800">
+              A completed purchase from this link will be credited to this seller and the campaign.
+            </p>
+          </div>
+        ) : seller && isManagedSellerCode ? (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Campaign link still works</p>
+            <p className="mt-1 text-lg font-bold text-amber-950">Supporting the campaign generally</p>
+            <p className="mt-1 text-sm text-amber-800">
+              This seller code is no longer eligible for new credit. Your support will still benefit the campaign without assigning it to a seller.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">General campaign link</p>
+            <p className="mt-1 text-sm text-blue-900">
+              Your support will benefit this campaign without assigning the purchase to a specific seller.
+            </p>
+          </div>
+        )}
 
-        <p className="mt-2 text-gray-600">
-          {campaign.description ||
-            'Support this local fundraiser.'}
-        </p>
+        <h1 className="mt-4 text-3xl font-bold text-gray-900">{campaign.name}</h1>
+        <p className="mt-2 text-gray-600">{campaign.description || 'Support this local fundraiser.'}</p>
 
         <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">
-            Progress
-          </p>
-
+          <p className="text-sm text-gray-500">Progress</p>
           {progressState.status === 'available' ? (
             <>
-              <p className="mt-2 text-3xl font-bold text-blue-700">
-                {progressState.goalPercentage.toFixed(0)}% of goal
-              </p>
-
+              <p className="mt-2 text-3xl font-bold text-blue-700">{progressState.goalPercentage.toFixed(0)}% of goal</p>
               <div className="mt-3 h-3 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-3 rounded-full bg-blue-600"
-                  style={{
-                    width: `${progressState.goalPercentage}%`,
-                  }}
-                />
+                <div className="h-3 rounded-full bg-blue-600" style={{ width: `${progressState.goalPercentage}%` }} />
               </div>
-
               <p className="mt-2 text-sm text-gray-600">
-                ${progressState.amountRaised.toLocaleString()} raised of $
-                {goal.toLocaleString()}
+                ${progressState.amountRaised.toLocaleString()} raised of ${goal.toLocaleString()}
               </p>
-
               {progressState.amountRemaining !== null ? (
-                <p className="mt-1 text-sm text-gray-500">
-                  ${progressState.amountRemaining.toLocaleString()} remaining
-                </p>
+                <p className="mt-1 text-sm text-gray-500">${progressState.amountRemaining.toLocaleString()} remaining</p>
               ) : null}
             </>
           ) : (
             <>
-              <p className="mt-2 text-3xl font-bold text-slate-600">
-                Progress temporarily unavailable
-              </p>
-
+              <p className="mt-2 text-3xl font-bold text-slate-600">Progress temporarily unavailable</p>
               <div className="mt-3 h-3 w-full rounded-full bg-slate-200" />
-
               <p className="mt-2 text-sm text-gray-600">
-                Fundraising totals are temporarily unavailable. You can still
-                support this campaign right now.
+                Fundraising totals are temporarily unavailable. You can still support this campaign right now.
               </p>
             </>
           )}
@@ -353,11 +292,8 @@ export default async function CampaignPage({
 
         <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
           <p className="text-lg font-semibold text-gray-900">
-            {hasActivePass
-              ? 'Your pass is active'
-              : 'Get your fundraising pass'}
+            {hasActivePass ? 'Your pass is active' : 'Get your fundraising pass'}
           </p>
-
           <p className="mt-1 text-sm text-gray-600">
             {hasActivePass
               ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation.'
@@ -366,29 +302,14 @@ export default async function CampaignPage({
 
           {hasActivePass ? (
             <div className="mt-4 rounded-xl border border-green-100 bg-green-50 p-4">
-              <p className="text-sm font-semibold text-green-800">
-                Current pass expiration
-              </p>
-
+              <p className="text-sm font-semibold text-green-800">Current pass expiration</p>
               <p className="mt-1 text-lg font-bold text-green-900">
-                {activePassExpiresAt
-                  ? new Date(
-                      activePassExpiresAt
-                    ).toLocaleDateString()
-                  : 'No expiration date'}
+                {activePassExpiresAt ? new Date(activePassExpiresAt).toLocaleDateString() : 'No expiration date'}
               </p>
-
               <p className="mt-2 text-xs leading-5 text-green-700">
-                Supporting another fundraiser will soon let you extend this
-                date, gift a separate six-month pass, or donate without
-                changing your current pass.
+                Supporting another fundraiser will soon let you extend this date, gift a separate six-month pass, or donate without changing your current pass.
               </p>
-
-              <button
-                type="button"
-                disabled
-                className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-green-300 bg-white px-4 py-3 text-sm font-semibold text-green-800 opacity-70 sm:w-auto"
-              >
+              <button type="button" disabled className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-green-300 bg-white px-4 py-3 text-sm font-semibold text-green-800 opacity-70 sm:w-auto">
                 🎁 Gift a Pass — Coming Next
               </button>
             </div>
@@ -399,22 +320,14 @@ export default async function CampaignPage({
               campaignId={campaign.id}
               passPrice={effectivePricing.passPrice}
               organizations={organizations ?? []}
-              defaultOrganizationId={
-                campaign.organization_id
-              }
-              sellerName={seller || ''}
+              defaultOrganizationId={campaign.organization_id}
+              sellerName={attributedSellerName}
               hasActivePass={hasActivePass}
               initialDonationAmount={donation}
-              initialSelectedOrganizationId={
-                organization ?? null
-              }
+              initialSelectedOrganizationId={organization ?? null}
             />
-
             <div className="flex justify-center">
-              <ShareCampaignButton
-                campaignId={campaign.id}
-                campaignName={campaign.name}
-              />
+              <ShareCampaignButton campaignId={campaign.id} campaignName={campaign.name} />
             </div>
           </div>
 

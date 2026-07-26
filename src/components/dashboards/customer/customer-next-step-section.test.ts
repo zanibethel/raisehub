@@ -87,7 +87,7 @@ test(
 
     assert.ok(
       nextStepSource.includes(
-        'min-h-12 w-full'
+        'min-h-11 w-full'
       )
     )
 

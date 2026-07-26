@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
+import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
@@ -30,6 +32,7 @@ type CampaignMetrics = {
 }
 
 type CanonicalOrganizationPricingRow = { id: string }
+type OrganizationMembershipRoleRow = { membership_role: string }
 
 function generateSupporterKey(purchase: CampaignPurchase): string {
   if (purchase.user_id) return `user:${purchase.user_id}`
@@ -78,6 +81,17 @@ export default async function OrganizationDashboard({
   ])
 
   const canonicalOrganizationId = canonicalOrganization?.id ?? null
+  const { data: organizationMembership } = canonicalOrganizationId
+    ? await supabase
+        .from('organization_memberships')
+        .select('membership_role')
+        .eq('organization_id', canonicalOrganizationId)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle<OrganizationMembershipRoleRow>()
+    : { data: null }
+  const isSellerWorkspace = organizationMembership?.membership_role === 'seller'
+
   const campaignCreationPricing = await resolveEffectivePricing({
     organizationId: canonicalOrganizationId,
     isDemo: organizationProfile?.is_demo ?? false,
@@ -90,7 +104,11 @@ export default async function OrganizationDashboard({
 
   const { data: campaigns } = await campaignQuery.order('created_at', { ascending: false })
   const organizationCampaigns = campaigns ?? []
-  const activeCampaigns = organizationCampaigns.filter((campaign) => campaign.status === 'active').length
+  const now = new Date()
+  const sellableCampaigns = organizationCampaigns.filter((campaign) =>
+    isCampaignCurrentlySellable(campaign, now)
+  )
+  const activeCampaigns = sellableCampaigns.length
   const campaignIds = organizationCampaigns.map((campaign) => campaign.id)
 
   let purchases: CampaignPurchase[] = []
@@ -170,27 +188,50 @@ export default async function OrganizationDashboard({
     .sort((first, second) => second.sold - first.sold)
 
   return (
-    <OrganizationDashboardContent
-      organizationId={canonicalOrganizationId}
-      totalPassesSold={totalPassesSold}
-      totalEarnings={totalEarnings}
-      activeCampaigns={activeCampaigns}
-      totalFundsRaised={totalEarnings}
-      totalSellers={sellerStats.size}
-      totalSupporters={supporterKeys.size}
-      grossRevenue={grossRevenue}
-      totalFees={totalFees}
-      sellers={topSellers}
-      campaigns={organizationCampaigns}
-      metricsByCampaign={Object.fromEntries(metricsByCampaign)}
-      totalCampaigns={organizationCampaigns.length}
-      activeSellerCount={sellerStats.size}
-      campaignCreationPricing={{
-        passPrice: campaignCreationPricing.passPrice,
-        platformFeePercent: campaignCreationPricing.platformFeePercent,
-        organizationPassEarnings: campaignCreationPricing.organizationPassEarnings,
-        usedFallback: campaignCreationPricing.usedFallback,
-      }}
-    />
+    <>
+      {isSellerWorkspace ? (
+        <section className="mt-6 rounded-3xl border border-violet-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">Seller setup</p>
+              <h2 className="mt-1 text-xl font-bold text-gray-900">Link your roster name</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                Select your name from this organization’s available campaign rosters. Your existing QR code, referral link, and sales history will stay connected.
+              </p>
+            </div>
+            <Link
+              href="/seller/claim-roster"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700"
+            >
+              Link my roster name
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      <OrganizationDashboardContent
+        organizationId={canonicalOrganizationId}
+        totalPassesSold={totalPassesSold}
+        totalEarnings={totalEarnings}
+        activeCampaigns={activeCampaigns}
+        totalFundsRaised={totalEarnings}
+        totalSellers={sellerStats.size}
+        totalSupporters={supporterKeys.size}
+        grossRevenue={grossRevenue}
+        totalFees={totalFees}
+        sellers={topSellers}
+        campaigns={organizationCampaigns}
+        sellerCampaigns={sellableCampaigns}
+        metricsByCampaign={Object.fromEntries(metricsByCampaign)}
+        totalCampaigns={organizationCampaigns.length}
+        activeSellerCount={sellerStats.size}
+        campaignCreationPricing={{
+          passPrice: campaignCreationPricing.passPrice,
+          platformFeePercent: campaignCreationPricing.platformFeePercent,
+          organizationPassEarnings: campaignCreationPricing.organizationPassEarnings,
+          usedFallback: campaignCreationPricing.usedFallback,
+        }}
+      />
+    </>
   )
 }

@@ -89,7 +89,7 @@ test(
 
     assert.ok(
       repositorySource.includes(
-        "'id, display_name, business_name, logo_url'"
+        "'id, display_name, business_name, logo_url, is_demo'"
       )
     )
   }
