@@ -1,3 +1,5 @@
+import { evaluateOrganizationPayoutReadiness } from '@/lib/stripe/organization-payout-readiness'
+
 import type {
   CampaignPublishingBlocker,
   CampaignPublishingEligibility,
@@ -5,10 +7,6 @@ import type {
   CampaignPublishingNextAction,
   CampaignPublishingNextActionCode,
 } from './types'
-
-function hasOutstandingRequirements(value: unknown) {
-  return Array.isArray(value) && value.length > 0
-}
 
 function nextActionFor(
   code: CampaignPublishingNextActionCode,
@@ -137,80 +135,23 @@ export function evaluateCampaignPublishingEligibility(
     })
   }
 
-  const stripe = input.stripe
-  if (!stripe.accountExists) {
-    addBlocker(blockers, {
-      code: 'stripe_account_missing',
-      message: 'Set up a Stripe payout account before publishing.',
-      action: 'complete_payout_setup',
-    })
-  } else {
-    if (stripe.livemode !== null && stripe.livemode !== stripe.expectedLivemode) {
-      addBlocker(blockers, {
-        code: 'stripe_mode_mismatch',
-        message: stripe.expectedLivemode
-          ? 'Complete payout setup with a live Stripe account before publishing.'
-          : 'Reconnect the Stripe test account used by this environment.',
-        action: 'complete_payout_setup',
-      })
-    }
-
-    if (stripe.onboardingStatus !== 'enabled') {
-      addBlocker(blockers, {
-        code: 'stripe_onboarding_incomplete',
-        message: 'Complete Stripe onboarding before publishing.',
-        action: 'complete_payout_setup',
-      })
-    }
-
-    if (!stripe.detailsSubmitted) {
-      addBlocker(blockers, {
-        code: 'stripe_details_incomplete',
-        message: 'Submit the required Stripe account details before publishing.',
-        action: 'complete_payout_setup',
-      })
-    }
-
-    if (!stripe.payoutsEnabled) {
-      addBlocker(blockers, {
-        code: 'stripe_payouts_disabled',
-        message: 'Stripe payouts must be enabled before publishing.',
-        action: 'complete_payout_setup',
-      })
-    }
-
-    if (stripe.disabledReason) {
-      addBlocker(blockers, {
-        code: 'stripe_account_disabled',
-        message: `Stripe has restricted this payout account: ${stripe.disabledReason}.`,
-        action: 'complete_payout_setup',
-      })
-    }
-
-    if (hasOutstandingRequirements(stripe.requirementsCurrentlyDue)) {
-      addBlocker(blockers, {
-        code: 'stripe_requirements_due',
-        message: 'Stripe requires additional account information before payouts can be enabled.',
-        action: 'complete_payout_setup',
-      })
-    }
-  }
+  const payoutReadiness = evaluateOrganizationPayoutReadiness(input.stripe)
+  for (const blocker of payoutReadiness.blockers) addBlocker(blockers, blocker)
 
   const campaignStateReady = campaignStatus === 'draft'
   const reviewReady = reviewStatus === 'approved' && approvalCurrent
-  const payoutsReady = !blockers.some((blocker) => blocker.code.startsWith('stripe_'))
   const canPublish =
     input.authorized &&
     campaignStateReady &&
     reviewReady &&
     input.profileReady &&
-    payoutsReady
+    payoutReadiness.ready
 
   return {
     canPublish,
     campaignStateReady,
     reviewReady,
-    payoutsReady,
+    payoutsReady: payoutReadiness.ready,
     profileReady: input.profileReady,
     authorized: input.authorized,
     blockingReasons: blockers,
