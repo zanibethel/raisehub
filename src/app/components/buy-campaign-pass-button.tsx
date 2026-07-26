@@ -95,14 +95,22 @@ export default function BuyCampaignPassButton({
     const controller = new AbortController()
 
     async function loadSellers() {
+      setSelectedSellerCode('')
+      setSellerOptions([])
       setSellerOptionsLoading(true)
       setSellerOptionsError('')
 
       try {
-        const response = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/sellers`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
+        const searchParams = new URLSearchParams()
+        if (selectedOrganizationId) searchParams.set('organization', selectedOrganizationId)
+        const query = searchParams.toString()
+        const response = await fetch(
+          `/api/campaigns/${encodeURIComponent(campaignId)}/sellers${query ? `?${query}` : ''}`,
+          {
+            cache: 'no-store',
+            signal: controller.signal,
+          }
+        )
         const payload = (await response.json()) as {
           sellers?: SellerOption[]
           error?: string
@@ -126,7 +134,7 @@ export default function BuyCampaignPassButton({
 
     void loadSellers()
     return () => controller.abort()
-  }, [campaignId, hasLockedSeller])
+  }, [campaignId, hasLockedSeller, selectedOrganizationId])
 
   const selectedSeller = useMemo(
     () => sellerOptions.find((seller) => seller.referral_code === selectedSellerCode) ?? null,
@@ -249,14 +257,14 @@ export default function BuyCampaignPassButton({
               {sellerOptionsError} This purchase can still support the campaign generally.
             </p>
           ) : sellerOptionsLoading ? (
-            <p className="mt-2 text-xs text-gray-500">Checking this campaign’s active seller roster.</p>
+            <p className="mt-2 text-xs text-gray-500">Checking this organization’s active seller roster.</p>
           ) : sellerOptions.length > 0 ? (
             <p className="mt-2 text-xs text-gray-500">
               Choose a seller for credit, or leave this as general campaign support.
             </p>
           ) : (
             <p className="mt-2 text-xs text-gray-500">
-              No active seller roster entries are available for this campaign. The purchase will support the campaign generally.
+              No active seller roster entries are available for this organization’s active campaign. The purchase will support the organization generally.
             </p>
           )}
         </div>
