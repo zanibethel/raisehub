@@ -24,6 +24,7 @@ type CheckoutInput = {
   selected_organization_id?: string
   donation_amount?: number
   seller_name?: string
+  seller_referral?: string
 }
 
 type CheckoutResult =
@@ -35,6 +36,7 @@ type CheckoutResult =
 
 type DatabaseError = { message: string }
 type CheckoutAttemptRow = { id: string }
+type ManagedSellerRow = { id: string; display_name: string }
 type UntypedQueryResult<T> = Promise<{ data: T | null; error: DatabaseError | null }>
 type UntypedTable = {
   insert(values: Record<string, unknown>): {
@@ -45,6 +47,11 @@ type UntypedTable = {
   update(values: Record<string, unknown>): {
     eq(column: string, value: string): UntypedQueryResult<unknown>
   }
+  select(columns: string): {
+    eq(column: string, value: string): UntypedTable
+    maybeSingle(): UntypedQueryResult<ManagedSellerRow>
+  }
+  eq(column: string, value: string): UntypedTable
 }
 type UntypedAdminClient = {
   from(table: string): UntypedTable
@@ -133,9 +140,8 @@ export async function createCampaignCheckoutAction(
   }
 
   const admin = createAdminClient()
+  const untypedAdmin = admin as unknown as UntypedAdminClient
 
-  // The campaign owner is the only valid checkout recipient. The transitional
-  // browser field remains accepted for compatibility but is never trusted.
   const selectedOrganizationId = campaign.organization_id
 
   const [canonicalOrganizationResult, organizationProfileResult] = await Promise.all([
@@ -161,6 +167,25 @@ export async function createCampaignCheckoutAction(
     !organizationProfileResult.data
   ) {
     return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
+  }
+
+  let managedSeller: ManagedSellerRow | null = null
+  const sellerReferral = cleanOptionalText(input.seller_referral, 64)
+
+  if (sellerReferral) {
+    const { data, error } = await untypedAdmin
+      .from('campaign_sellers')
+      .select('id, display_name')
+      .eq('campaign_id', campaign.id)
+      .eq('referral_code', sellerReferral)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (error) {
+      return { status: 'error', message: 'We could not confirm the selected seller. Please try again.' }
+    }
+
+    managedSeller = data
   }
 
   const effectivePricing = isDonationOnly
@@ -189,7 +214,8 @@ export async function createCampaignCheckoutAction(
     return { status: 'error', message: 'Choose an amount greater than zero.' }
   }
 
-  const untypedAdmin = admin as unknown as UntypedAdminClient
+  const sellerNameSnapshot = managedSeller?.display_name ?? cleanOptionalText(input.seller_name, 120)
+
   const { data: attempt, error: attemptError } = await untypedAdmin
     .from('checkout_attempts')
     .insert({
@@ -198,7 +224,9 @@ export async function createCampaignCheckoutAction(
       selected_organization_id: selectedOrganizationId,
       organization_workspace_id: canonicalOrganizationResult.data.id,
       buyer_email: user.email ?? null,
-      seller_name: cleanOptionalText(input.seller_name, 120),
+      seller_name: sellerNameSnapshot,
+      campaign_seller_id: managedSeller?.id ?? null,
+      campaign_seller_name_snapshot: managedSeller?.display_name ?? null,
       donation_amount: donationAmount,
       expected_amount_cents: expectedAmountCents,
       currency: 'usd',
