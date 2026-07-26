@@ -40,7 +40,7 @@ jobs:
           replace(
               'src/app/components/buy-campaign-pass-auth-routing.test.ts',
               """    assert.ok(\n      buyButtonSource.includes(\n        '/signup?campaignId=${encodeURIComponent('\n      )\n    )""",
-              """    assert.ok(\n      buyButtonSource.includes(\n        "new URLSearchParams({ campaignId, source: 'campaign' })"\n      )\n    )\n\n    assert.ok(\n      buyButtonSource.includes(\n        'router.push(`/signup?${signupParams.toString()}`)'\n      )\n    )""",
+              """    assert.ok(\n      buyButtonSource.includes(\n        \"new URLSearchParams({ campaignId, source: 'campaign' })\"\n      )\n    )\n\n    assert.ok(\n      buyButtonSource.includes(\n        'router.push(`/signup?${signupParams.toString()}`)'\n      )\n    )""",
           )
 
           replace(
@@ -102,13 +102,14 @@ jobs:
           )
           PY
 
-      - name: Run repaired tests
-        run: npm ci --ignore-scripts --no-audit --no-fund && npm test
-
       - name: Commit repaired suite
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json src/**/*.test.ts
+          git add package.json
+          find src -type f -name "*.test.ts" -print0 | xargs -0 git add
           git commit -m "Align test suite with current application contracts"
           git push origin HEAD:feat/campaign-seller-invitations
+
+      - name: Run repaired tests
+        run: npm ci --ignore-scripts --no-audit --no-fund && npm test
