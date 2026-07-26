@@ -80,7 +80,7 @@ test(
 
     assert.match(
       componentSource,
-      /\{settings\.heading\}/
+      /currentOption\?\.label \?\? settings\.heading/
     )
   }
 )
@@ -182,7 +182,7 @@ test(
 
     assert.match(
       componentSource,
-      /isAvailable\s*\?\s*'✓'\s*:\s*'○'/
+      /isAvailable\s*\?\s*'bg-green-100 text-green-800'/
     )
   }
 )

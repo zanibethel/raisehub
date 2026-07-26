@@ -15,7 +15,7 @@ test(
   () => {
     assert.ok(
       digitalPassSource.includes(
-        'className="mt-6 rounded-2xl border border-white/25 bg-white/15 p-4 backdrop-blur"'
+        'className="mt-4 rounded-2xl border border-white/25 bg-white/15 p-3.5 backdrop-blur"'
       )
     )
 
@@ -32,7 +32,7 @@ test(
   () => {
     assert.ok(
       digitalPassSource.includes(
-        'className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"'
+        'className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"'
       )
     )
 

@@ -196,7 +196,7 @@ test(
 
     assertSourceIncludes(
       digitalPassSource,
-      'flex shrink-0 flex-wrap items-center gap-2'
+      'mt-4 flex flex-wrap items-center gap-2'
     )
   }
 )
@@ -247,12 +247,12 @@ test(
 
     assertSourceIncludes(
       digitalPassSource,
-      'There are no participating'
+      'No participating deals are available right now.'
     )
 
     assertSourceIncludes(
       digitalPassSource,
-      'deals available right now.'
+      'Check back as businesses add new offers.'
     )
   }
 )
@@ -262,22 +262,22 @@ test(
   () => {
     assertSourceIncludes(
       digitalPassSource,
-      'Businesses can add new offers'
+      'Check back as businesses add new offers.'
     )
 
     assertSourceIncludes(
       digitalPassSource,
-      'at any time, so check back'
+      'Your pass is active and ready.'
     )
 
     assertSourceIncludes(
       digitalPassSource,
-      'Your pass remains active'
+      'hasNoActiveOffers'
     )
 
     assertSourceIncludes(
       digitalPassSource,
-      'until its expiration date.'
+      'normalizedOfferCount === 0'
     )
   }
 )
@@ -426,7 +426,7 @@ test(
   () => {
     assertSourceIncludes(
       digitalPassSource,
-      'mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4'
+      'mt-5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3'
     )
   }
 )

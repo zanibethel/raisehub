@@ -29,13 +29,12 @@ test('organization setup validates and saves canonical town and state', () => {
   assert.ok(setupActionSource.includes('state_code: stateCode'))
 })
 
-test('organization membership setup avoids unsupported partial-index upsert', () => {
-  assert.ok(setupActionSource.includes('existingMembership'))
+test('organization profile updates require an active authorized membership', () => {
+  assert.ok(setupActionSource.includes(".from('organization_memberships')"))
   assert.ok(setupActionSource.includes(".eq('status', 'active')"))
-  assert.ok(setupActionSource.includes(".from('organization_memberships').insert"))
-  assert.ok(
-    !setupActionSource.includes("onConflict: 'organization_id,user_id'")
-  )
+  assert.ok(setupActionSource.includes("['admin', 'manager'].includes"))
+  assert.ok(!setupActionSource.includes("onConflict: 'organization_id,user_id'"))
+  assert.ok(!setupActionSource.includes(".from('organization_memberships').insert"))
 })
 
 test('dashboard setup state uses the same readiness requirements', () => {

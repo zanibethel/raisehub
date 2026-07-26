@@ -23,7 +23,13 @@ test(
   () => {
     assert.ok(
       buyButtonSource.includes(
-        '/signup?campaignId=${encodeURIComponent('
+        "new URLSearchParams({ campaignId, source: 'campaign' })"
+      )
+    )
+
+    assert.ok(
+      buyButtonSource.includes(
+        'router.push(`/signup?${signupParams.toString()}`)'
       )
     )
 
