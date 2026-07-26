@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 import { createCampaignCheckoutAction } from '@/app/campaigns/stripe-checkout-actions'
@@ -36,15 +36,9 @@ function buildCampaignHref(input: {
 
   if (input.sellerName) searchParams.set('seller', input.sellerName)
   searchParams.set('notice', input.notice)
-  if (input.replacedCampaignId) {
-    searchParams.set('replaced', input.replacedCampaignId)
-  }
-  if (input.donationAmount) {
-    searchParams.set('donation', input.donationAmount)
-  }
-  if (input.selectedOrganizationId) {
-    searchParams.set('organization', input.selectedOrganizationId)
-  }
+  if (input.replacedCampaignId) searchParams.set('replaced', input.replacedCampaignId)
+  if (input.donationAmount) searchParams.set('donation', input.donationAmount)
+  if (input.selectedOrganizationId) searchParams.set('organization', input.selectedOrganizationId)
 
   return `/campaigns/${input.campaignId}?${searchParams.toString()}`
 }
@@ -60,12 +54,10 @@ export default function BuyCampaignPassButton({
   initialSelectedOrganizationId = null,
 }: BuyCampaignPassButtonProps) {
   const router = useRouter()
+  const currentSearchParams = useSearchParams()
   const supabase = createClient()
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
-    initialSelectedOrganizationId ??
-      defaultOrganizationId ??
-      organizations[0]?.id ??
-      ''
+    initialSelectedOrganizationId ?? defaultOrganizationId ?? organizations[0]?.id ?? ''
   )
   const [donationAmount, setDonationAmount] = useState(
     initialDonationAmount ?? (hasActivePass ? '10' : '0')
@@ -80,14 +72,18 @@ export default function BuyCampaignPassButton({
   async function handleBuyPass() {
     if (loading) return
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      router.push(
-        `/signup?campaignId=${encodeURIComponent(campaignId)}&source=campaign`
-      )
+      const signupParams = new URLSearchParams({
+        campaignId,
+        source: 'campaign',
+      })
+      const sellerReferral = currentSearchParams.get('seller')?.trim()
+      if (sellerReferral) signupParams.set('seller', sellerReferral)
+      if (donationAmount) signupParams.set('donation', donationAmount)
+      if (selectedOrganizationId) signupParams.set('organization', selectedOrganizationId)
+      router.push(`/signup?${signupParams.toString()}`)
       return
     }
 
@@ -112,33 +108,26 @@ export default function BuyCampaignPassButton({
     }
 
     if (result.status === 'replacement-found') {
-      router.push(
-        buildCampaignHref({
-          campaignId: result.campaignId,
-          sellerName,
-          notice: 'campaign-replaced',
-          replacedCampaignId: result.replacedCampaignId,
-          donationAmount,
-          selectedOrganizationId,
-        })
-      )
+      router.push(buildCampaignHref({
+        campaignId: result.campaignId,
+        sellerName,
+        notice: 'campaign-replaced',
+        replacedCampaignId: result.replacedCampaignId,
+        donationAmount,
+        selectedOrganizationId,
+      }))
       return
     }
 
-    if (
-      result.status === 'selection-required' ||
-      result.status === 'no-valid-campaign'
-    ) {
-      router.push(
-        buildCampaignHref({
-          campaignId,
-          sellerName,
-          notice: 'campaign-unavailable',
-          replacedCampaignId: result.replacedCampaignId,
-          donationAmount,
-          selectedOrganizationId,
-        })
-      )
+    if (result.status === 'selection-required' || result.status === 'no-valid-campaign') {
+      router.push(buildCampaignHref({
+        campaignId,
+        sellerName,
+        notice: 'campaign-unavailable',
+        replacedCampaignId: result.replacedCampaignId,
+        donationAmount,
+        selectedOrganizationId,
+      }))
       return
     }
 
@@ -150,139 +139,51 @@ export default function BuyCampaignPassButton({
     <div className="space-y-4">
       {hasActivePass ? (
         <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
-          <p>
-            ✅ Pass already active. You can make an additional donation below.
-          </p>
-          <Link
-            href="/dashboard"
-            className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-          >
-            View My Pass
-          </Link>
+          <p>✅ Pass already active. You can make an additional donation below.</p>
+          <Link href="/dashboard" className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">View My Pass</Link>
         </div>
       ) : null}
 
       {organizations.length > 0 ? (
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Organization to support
-          </label>
-          <select
-            value={selectedOrganizationId}
-            onChange={(event) =>
-              setSelectedOrganizationId(event.target.value)
-            }
-            className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm"
-          >
+          <label className="mb-1 block text-sm font-medium text-gray-700">Organization to support</label>
+          <select value={selectedOrganizationId} onChange={(event) => setSelectedOrganizationId(event.target.value)} className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm">
             {organizations.map((organization) => {
-              const name =
-                organization.display_name ||
-                organization.business_name ||
-                'Organization'
-
-              return (
-                <option key={organization.id} value={organization.id}>
-                  {name}
-                </option>
-              )
+              const name = organization.display_name || organization.business_name || 'Organization'
+              return <option key={organization.id} value={organization.id}>{name}</option>
             })}
           </select>
         </div>
       ) : null}
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">
-          {hasActivePass
-            ? 'Additional donation'
-            : 'Optional donation add-on'}
-        </label>
-
+        <label className="mb-2 block text-sm font-medium text-gray-700">{hasActivePass ? 'Additional donation' : 'Optional donation add-on'}</label>
         <div className="flex flex-wrap gap-2">
-          {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map(
-            (amount) => (
-              <button
-                key={amount}
-                type="button"
-                onClick={() => setDonationAmount(amount)}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-                  donationAmount === amount
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                }`}
-              >
-                {amount === '0' ? 'No donation' : `$${amount}`}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={() => setDonationAmount('')}
-            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
-              !['0', '5', '10', '25'].includes(donationAmount)
-                ? 'border-blue-600 bg-blue-600 text-white'
-                : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-            }`}
-          >
-            Custom
-          </button>
+          {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map((amount) => (
+            <button key={amount} type="button" onClick={() => setDonationAmount(amount)} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${donationAmount === amount ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>
+              {amount === '0' ? 'No donation' : `$${amount}`}
+            </button>
+          ))}
+          <button type="button" onClick={() => setDonationAmount('')} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${!['0', '5', '10', '25'].includes(donationAmount) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>Custom</button>
         </div>
 
         {!['0', '5', '10', '25'].includes(donationAmount) ? (
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={donationAmount}
-            onChange={(event) => setDonationAmount(event.target.value)}
-            className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm"
-            placeholder="Enter custom amount"
-          />
+          <input type="number" min="0" step="1" value={donationAmount} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm" placeholder="Enter custom amount" />
         ) : null}
-
-        <p className="mt-2 text-xs text-gray-500">
-          Donations go directly toward the selected organization.
-        </p>
+        <p className="mt-2 text-xs text-gray-500">Donations go directly toward the selected organization.</p>
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        {!hasActivePass ? (
-          <div className="flex items-center justify-between text-sm text-blue-800">
-            <span>Pass price</span>
-            <span>${passPrice.toFixed(2)}</span>
-          </div>
-        ) : null}
-
-        {hasActivePass || donationNumber > 0 ? (
-          <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
-            <span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span>
-            <span>${donationNumber.toFixed(2)}</span>
-          </div>
-        ) : null}
-
-        <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900">
-          <span>Total today</span>
-          <span>${totalAmount.toFixed(2)}</span>
-        </div>
+        {!hasActivePass ? <div className="flex items-center justify-between text-sm text-blue-800"><span>Pass price</span><span>${passPrice.toFixed(2)}</span></div> : null}
+        {hasActivePass || donationNumber > 0 ? <div className="mt-1 flex items-center justify-between text-sm text-blue-800"><span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span><span>${donationNumber.toFixed(2)}</span></div> : null}
+        <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900"><span>Total today</span><span>${totalAmount.toFixed(2)}</span></div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleBuyPass}
-        disabled={loading}
-        className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
-        {loading
-          ? 'Opening secure checkout...'
-          : hasActivePass
-            ? `Donate Securely - $${totalAmount.toFixed(2)}`
-            : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
+      <button type="button" onClick={handleBuyPass} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+        {loading ? 'Opening secure checkout...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
       </button>
 
-      <p className="text-center text-xs text-gray-500">
-        Payment is completed securely through Stripe. Pass access is added only after payment is confirmed.
-      </p>
-
+      <p className="text-center text-xs text-gray-500">Payment is completed securely through Stripe. Pass access is added only after payment is confirmed.</p>
       {message ? <p className="text-sm text-red-600">{message}</p> : null}
     </div>
   )
