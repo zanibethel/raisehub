@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   const { id } = await params
   const admin = createAdminClient()
 
-  const { data, error } = await admin
+  const { data, error } = await (admin as any)
     .from('campaign_sellers')
     .select('id, display_name, referral_code')
     .eq('campaign_id', id)
