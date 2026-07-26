@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { createCampaignCheckoutAction } from '@/app/campaigns/stripe-checkout-actions'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +11,12 @@ type OrganizationOption = {
   id: string
   business_name: string | null
   display_name: string | null
+}
+
+type SellerOption = {
+  id: string
+  display_name: string
+  referral_code: string
 }
 
 type BuyCampaignPassButtonProps = {
@@ -26,7 +32,7 @@ type BuyCampaignPassButtonProps = {
 
 function buildCampaignHref(input: {
   campaignId: string
-  sellerName: string
+  sellerReferral: string
   notice: 'campaign-unavailable' | 'campaign-replaced'
   replacedCampaignId: string | null
   donationAmount: string
@@ -34,7 +40,7 @@ function buildCampaignHref(input: {
 }) {
   const searchParams = new URLSearchParams()
 
-  if (input.sellerName) searchParams.set('seller', input.sellerName)
+  if (input.sellerReferral) searchParams.set('seller', input.sellerReferral)
   searchParams.set('notice', input.notice)
   if (input.replacedCampaignId) searchParams.set('replaced', input.replacedCampaignId)
   if (input.donationAmount) searchParams.set('donation', input.donationAmount)
@@ -56,6 +62,14 @@ export default function BuyCampaignPassButton({
   const router = useRouter()
   const currentSearchParams = useSearchParams()
   const supabase = createClient()
+  const referralFromUrl = currentSearchParams.get('seller')?.trim() || ''
+  const isManagedReferral = /^[a-f0-9]{14}$/i.test(referralFromUrl)
+  const hasLockedSeller = Boolean(isManagedReferral && sellerName)
+
+  const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([])
+  const [selectedSellerCode, setSelectedSellerCode] = useState(
+    hasLockedSeller ? referralFromUrl : ''
+  )
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     initialSelectedOrganizationId ?? defaultOrganizationId ?? organizations[0]?.id ?? ''
   )
@@ -64,6 +78,37 @@ export default function BuyCampaignPassButton({
   )
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSellers() {
+      const { data } = await (supabase as any).rpc('get_public_campaign_sellers', {
+        p_campaign_id: campaignId,
+      })
+
+      if (!cancelled) {
+        setSellerOptions((data ?? []) as SellerOption[])
+      }
+    }
+
+    void loadSellers()
+    return () => {
+      cancelled = true
+    }
+  }, [campaignId, supabase])
+
+  const selectedSeller = useMemo(
+    () => sellerOptions.find((seller) => seller.referral_code === selectedSellerCode) ?? null,
+    [selectedSellerCode, sellerOptions]
+  )
+
+  const effectiveSellerName = hasLockedSeller
+    ? sellerName
+    : selectedSeller?.display_name ?? ''
+  const effectiveSellerReferral = hasLockedSeller
+    ? referralFromUrl
+    : selectedSellerCode
 
   const donationNumber = Number(donationAmount) || 0
   const effectivePassPrice = hasActivePass ? 0 : passPrice
@@ -79,8 +124,7 @@ export default function BuyCampaignPassButton({
         campaignId,
         source: 'campaign',
       })
-      const sellerReferral = currentSearchParams.get('seller')?.trim()
-      if (sellerReferral) signupParams.set('seller', sellerReferral)
+      if (effectiveSellerReferral) signupParams.set('seller', effectiveSellerReferral)
       if (donationAmount) signupParams.set('donation', donationAmount)
       if (selectedOrganizationId) signupParams.set('organization', selectedOrganizationId)
       router.push(`/signup?${signupParams.toString()}`)
@@ -99,7 +143,7 @@ export default function BuyCampaignPassButton({
       campaign_id: campaignId,
       selected_organization_id: selectedOrganizationId || undefined,
       donation_amount: donationNumber,
-      seller_name: sellerName || undefined,
+      seller_name: effectiveSellerName || undefined,
     })
 
     if (result.status === 'checkout-ready') {
@@ -110,7 +154,7 @@ export default function BuyCampaignPassButton({
     if (result.status === 'replacement-found') {
       router.push(buildCampaignHref({
         campaignId: result.campaignId,
-        sellerName,
+        sellerReferral: effectiveSellerReferral,
         notice: 'campaign-replaced',
         replacedCampaignId: result.replacedCampaignId,
         donationAmount,
@@ -122,7 +166,7 @@ export default function BuyCampaignPassButton({
     if (result.status === 'selection-required' || result.status === 'no-valid-campaign') {
       router.push(buildCampaignHref({
         campaignId,
-        sellerName,
+        sellerReferral: effectiveSellerReferral,
         notice: 'campaign-unavailable',
         replacedCampaignId: result.replacedCampaignId,
         donationAmount,
@@ -141,6 +185,30 @@ export default function BuyCampaignPassButton({
         <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
           <p>✅ Pass already active. You can make an additional donation below.</p>
           <Link href="/dashboard" className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">View My Pass</Link>
+        </div>
+      ) : null}
+
+      {!hasLockedSeller && sellerOptions.length > 0 ? (
+        <div>
+          <label htmlFor="campaign-seller" className="mb-1 block text-sm font-medium text-gray-700">
+            Seller to support
+          </label>
+          <select
+            id="campaign-seller"
+            value={selectedSellerCode}
+            onChange={(event) => setSelectedSellerCode(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm"
+          >
+            <option value="">Anyone / no specific seller</option>
+            {sellerOptions.map((seller) => (
+              <option key={seller.id} value={seller.referral_code}>
+                {seller.display_name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-gray-500">
+            Choose a seller for credit, or leave this as general campaign support.
+          </p>
         </div>
       ) : null}
 
