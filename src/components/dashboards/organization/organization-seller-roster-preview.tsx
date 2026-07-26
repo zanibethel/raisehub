@@ -8,15 +8,8 @@ import {
   updateCampaignSellerAction,
 } from './organization-seller-roster-actions'
 
-type CampaignOption = {
-  id: string
-  name: string
-  status: string
-}
-
-type Props = {
-  campaigns: CampaignOption[]
-}
+type CampaignOption = { id: string; name: string; status: string }
+type Props = { campaigns: CampaignOption[] }
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -103,17 +96,11 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
 
   function addNames() {
     const parsed = parseNames()
-    if (parsed.length === 0) {
-      setMessage('Add at least one seller, student, or participant name.')
-      return
-    }
+    if (parsed.length === 0) return setMessage('Add at least one seller, student, or participant name.')
 
     startTransition(async () => {
       const result = await createCampaignSellersAction(selectedCampaignId, parsed)
-      if (!result.success) {
-        setMessage(result.error)
-        return
-      }
+      if (!result.success) return setMessage(result.error)
       setRows(result.data)
       setNames('')
       setMessage(`${parsed.length} roster ${parsed.length === 1 ? 'entry was' : 'entries were'} processed. Existing duplicate names were left unchanged.`)
@@ -123,13 +110,11 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
   function handleCsvUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
     reader.onload = () => {
       const text = String(reader.result ?? '')
       const lines = text.split(/\r?\n/).filter(Boolean)
-      const first = lines[0]?.toLowerCase() ?? ''
-      const dataLines = first.includes('name') ? lines.slice(1) : lines
+      const dataLines = (lines[0]?.toLowerCase() ?? '').includes('name') ? lines.slice(1) : lines
       const importedNames = dataLines
         .map((line) => line.split(',')[0]?.replace(/^"|"$/g, '').trim())
         .filter(Boolean)
@@ -145,24 +130,10 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
   }
 
   function downloadRoster() {
-    const campaignName = selectedCampaign?.name ?? 'campaign'
-    const header = [
-      'seller_name', 'status', 'account_status', 'referral_code', 'personal_campaign_link',
-      'passes_sold', 'gross_sales', 'organization_earnings', 'last_sale_date',
-    ]
-    const data = rows.map((row) => [
-      row.name,
-      row.status,
-      row.claimed ? 'claimed' : 'managed',
-      row.referralCode,
-      sellerLink(row),
-      row.passesSold,
-      row.grossSales.toFixed(2),
-      row.organizationEarnings.toFixed(2),
-      row.lastSaleAt ?? '',
-    ])
+    const header = ['seller_name', 'status', 'account_status', 'referral_code', 'personal_campaign_link', 'passes_sold', 'gross_sales', 'organization_earnings', 'last_sale_date']
+    const data = rows.map((row) => [row.name, row.status, row.claimed ? 'claimed' : 'managed', row.referralCode, sellerLink(row), row.passesSold, row.grossSales.toFixed(2), row.organizationEarnings.toFixed(2), row.lastSaleAt ?? ''])
     const csv = [header, ...data].map((line) => line.map(escapeCsv).join(',')).join('\n')
-    downloadFile(`${slugify(campaignName)}-seller-roster.csv`, csv)
+    downloadFile(`${slugify(selectedCampaign?.name ?? 'campaign')}-seller-roster.csv`, csv)
   }
 
   async function downloadSellerQr(row: CampaignSellerRosterRow) {
@@ -174,12 +145,9 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
 
   async function printQrSheet() {
     const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      setMessage('Allow pop-ups for RaiseHub to generate the printable QR sheet.')
-      return
-    }
+    if (!printWindow) return setMessage('Allow pop-ups for RaiseHub to generate the printable QR sheet.')
 
-    printWindow.document.write('<!doctype html><html><head><title>Building QR sheet…</title></head><body style="font-family:Arial,sans-serif;padding:32px;text-align:center"><p>Building your printable QR sheet…</p></body></html>')
+    printWindow.document.write('<!doctype html><html><body style="font-family:Arial,sans-serif;padding:32px;text-align:center"><p>Building your printable QR sheet…</p></body></html>')
     printWindow.document.close()
     setCreatingQrSheet(true)
 
@@ -187,10 +155,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
       const QRCode = await import('qrcode')
       const campaignName = selectedCampaign?.name ?? 'Campaign'
       const generalQr = await QRCode.toDataURL(campaignLink(), { width: 560, margin: 2, errorCorrectionLevel: 'M' })
-      const sellerCards = await Promise.all(activeRows.map(async (row) => ({
-        row,
-        qr: await QRCode.toDataURL(sellerLink(row), { width: 560, margin: 2, errorCorrectionLevel: 'M' }),
-      })))
+      const sellerCards = await Promise.all(activeRows.map(async (row) => ({ row, qr: await QRCode.toDataURL(sellerLink(row), { width: 560, margin: 2, errorCorrectionLevel: 'M' }) })))
       const cards = [
         `<article class="card general"><img src="${generalQr}" alt="General campaign QR code"/><h2>General campaign</h2><p>No specific seller</p><code>${escapeHtml(campaignLink())}</code></article>`,
         ...sellerCards.map(({ row, qr }) => `<article class="card"><img src="${qr}" alt="QR code for ${escapeHtml(row.name)}"/><h2>${escapeHtml(row.name)}</h2><p>Seller code: ${escapeHtml(row.referralCode)}</p><code>${escapeHtml(sellerLink(row))}</code></article>`),
@@ -198,22 +163,8 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
 
       printWindow.document.open()
       printWindow.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(campaignName)} QR sheet</title><style>
-        @page { size: letter; margin: 0.35in; } * { box-sizing: border-box; }
-        body { margin: 0; padding: 12px; font-family: Arial, sans-serif; color: #111827; }
-        header { margin-bottom: 18px; text-align: center; } h1 { margin: 0; font-size: 24px; }
-        header p { margin: 6px 0 0; color: #4b5563; }
-        .actions { display: flex; justify-content: center; gap: 10px; margin: 0 0 18px; }
-        .actions button { border: 0; border-radius: 10px; padding: 12px 18px; background: #2563eb; color: white; font-size: 16px; font-weight: 700; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .card { break-inside: avoid; border: 1px dashed #94a3b8; border-radius: 12px; padding: 12px; text-align: center; min-height: 265px; }
-        .card.general { border: 2px solid #2563eb; background: #eff6ff; }
-        img { width: 150px; height: 150px; display: block; margin: 0 auto 8px; }
-        h2 { margin: 0; font-size: 16px; } p { margin: 5px 0; font-size: 11px; color: #475569; }
-        code { display: block; margin-top: 8px; font-size: 8px; overflow-wrap: anywhere; color: #334155; }
-        footer { margin-top: 15px; text-align: center; font-size: 10px; color: #64748b; }
-        @media (max-width: 700px) { .grid { grid-template-columns: 1fr 1fr; } .card { min-height: 240px; } img { width: 130px; height: 130px; } }
-        @media print { body { padding: 0; } .actions { display: none; } .grid { grid-template-columns: repeat(3, 1fr); } }
-      </style></head><body><header><h1>${escapeHtml(campaignName)}</h1><p>Campaign and seller QR codes</p></header><div class="actions"><button type="button" onclick="window.print()">Print or save PDF</button></div><main class="grid">${cards}</main><footer>Inactive or removed seller codes still open this campaign without seller attribution.</footer></body></html>`)
+        @page{size:letter;margin:.35in}*{box-sizing:border-box}body{margin:0;padding:12px;font-family:Arial,sans-serif;color:#111827}header{text-align:center;margin-bottom:18px}.actions{display:flex;justify-content:center;margin-bottom:18px}.actions button{border:0;border-radius:10px;padding:12px 18px;background:#2563eb;color:#fff;font-size:16px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{break-inside:avoid;border:1px dashed #94a3b8;border-radius:12px;padding:12px;text-align:center;min-height:265px}.general{border:2px solid #2563eb;background:#eff6ff}.card img{width:150px;height:150px;display:block;margin:0 auto 8px}.card h2{margin:0;font-size:16px}.card p{margin:5px 0;font-size:11px;color:#475569}.card code{display:block;margin-top:8px;font-size:8px;overflow-wrap:anywhere;color:#334155}footer{margin-top:15px;text-align:center;font-size:10px;color:#64748b}@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.card{min-height:240px}.card img{width:130px;height:130px}}@media print{body{padding:0}.actions{display:none}.grid{grid-template-columns:repeat(3,1fr)}}
+      </style></head><body><header><h1>${escapeHtml(campaignName)}</h1><p>Campaign and seller QR codes</p></header><div class="actions"><button onclick="window.print()">Print or save PDF</button></div><main class="grid">${cards}</main><footer>Inactive or removed seller codes still open this campaign without seller attribution.</footer></body></html>`)
       printWindow.document.close()
       printWindow.focus()
       setMessage(`Printable QR sheet created with ${activeRows.length} active seller ${activeRows.length === 1 ? 'code' : 'codes'} plus the general campaign code.`)
@@ -235,11 +186,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
     const url = campaignLink()
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: selectedCampaign?.name ?? 'RaiseHub campaign',
-          text: `Support ${selectedCampaign?.name ?? 'this campaign'} on RaiseHub.`,
-          url,
-        })
+        await navigator.share({ title: selectedCampaign?.name ?? 'RaiseHub campaign', text: `Support ${selectedCampaign?.name ?? 'this campaign'} on RaiseHub.`, url })
         setShowGeneralLinkActions(false)
         setMessage('General campaign link shared.')
         return
@@ -247,7 +194,6 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
         if (error instanceof DOMException && error.name === 'AbortError') return
       }
     }
-
     await navigator.clipboard.writeText(url)
     setShowGeneralLinkActions(false)
     setMessage('Sharing is not available in this browser, so the general campaign link was copied instead.')
@@ -305,7 +251,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <button type="button" onClick={downloadTemplate} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700">CSV template</button>
           <label className="cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-center text-sm font-semibold text-blue-700">Upload CSV<input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} className="sr-only" /></label>
-          <button type="button" onClick={downloadRoster} disabled={rows.length === 0} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">Download roster</button>
+          <button type="button" onClick={downloadRoster} disabled={rows.length === 0} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700 disabled:opacity-50">Download roster</button>
           <button type="button" onClick={printQrSheet} disabled={creatingQrSheet || rows.length === 0} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-700 disabled:opacity-50">{creatingQrSheet ? 'Building QR sheet…' : 'Print QR sheet'}</button>
           <button type="button" onClick={() => setShowGeneralLinkActions((current) => !current)} aria-expanded={showGeneralLinkActions} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-800">Share campaign</button>
         </div>
@@ -325,8 +271,8 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
         <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
           <label htmlFor="seller-names" className="text-sm font-bold text-gray-900">Add sellers, students, or participants</label>
           <p className="mt-1 text-sm text-gray-600">Enter one name per line, paste a comma-separated list, or upload a CSV.</p>
-          <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={5} placeholder={'Theo Perez\nEli Perez\nBenji Perez'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
-          <button type="button" onClick={addNames} disabled={isPending} className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60 sm:w-auto">{isPending ? 'Saving…' : 'Add to roster'}</button>
+          <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={5} placeholder={'Theo\nElijah\nBenji\nNiko\nZJ'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
+          <button type="button" onClick={addNames} disabled={isPending} className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto">{isPending ? 'Saving…' : 'Add to roster'}</button>
         </div>
 
         {message ? <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700">{message}</p> : null}
