@@ -4,6 +4,7 @@ import OrganizationPayoutCenter from './organization-payout-center'
 import OrganizationPayoutDashboardCard from './organization-payout-dashboard-card'
 import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
 import OrganizationReportSection from './sections/organization-report-section'
+import OrganizationSellerRosterPreview from './organization-seller-roster-preview'
 import OrganizationSummarySection from './sections/organization-summary-section'
 import OrganizationTopSellersSection from './sections/organization-top-sellers-section'
 import OrganizationWorkspaceStatus from './organization-workspace-status'
@@ -71,6 +72,8 @@ export default function OrganizationDashboardContent(props: Props) {
           <OrganizationTopSellersSection sellers={props.sellers} />
         </div>
       </details>
+
+      <OrganizationSellerRosterPreview campaigns={props.campaigns} />
 
       <OrganizationCampaignsSection
         organizationId={props.organizationId}
