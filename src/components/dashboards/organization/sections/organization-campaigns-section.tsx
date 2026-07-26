@@ -6,6 +6,7 @@ import ShareCampaignButton from '@/app/components/share-campaign-button'
 import SubmitCampaignForReviewButton from '@/app/components/submit-campaign-for-review-button'
 import CampaignStatusBadge from '@/components/dashboard/campaign-status-badge'
 import EmptyState from '@/components/dashboard/empty-state'
+import type { CampaignPublishingEligibility } from '@/lib/campaign-publishing/types'
 
 type Campaign = {
   id: string
@@ -14,6 +15,7 @@ type Campaign = {
   status: string
   review_status?: string | null
   created_at: string | null
+  publishingEligibility: CampaignPublishingEligibility
 }
 
 type CampaignMetrics = {
@@ -147,7 +149,7 @@ export default function OrganizationCampaignsSection({
         <div className="border-t border-blue-100 p-5 sm:p-6">
           <p className="text-sm text-gray-600">Complete payout setup, submit campaigns for review, and publish only after approval.</p>
           <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-            Draft campaigns are private. Complete Stripe payout verification and RaiseHub review before publishing or sharing.
+            Draft campaigns are private. Campaign readiness below uses the same checks enforced when publishing.
           </div>
 
           {campaigns.length > 0 ? (
@@ -166,7 +168,7 @@ export default function OrganizationCampaignsSection({
                           <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(Number(campaign.goal_amount ?? 0))}</td>
                           <td className="px-3 py-4 text-sm font-medium text-gray-700">{formatCurrency(metrics.amountRaised)}</td>
                           <td className="px-3 py-4 text-sm text-gray-600">{formatDate(campaign.created_at)}</td>
-                          <td className="px-3 py-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} /></td>
+                          <td className="px-3 py-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} eligibility={campaign.publishingEligibility} /></td>
                         </tr>
                       )
                     })}
@@ -186,7 +188,7 @@ export default function OrganizationCampaignsSection({
                       <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Sellers</dt><dd className="mt-1 font-semibold text-gray-800">{metrics.sellerCount}</dd></div>
                       <div className="rounded-lg bg-white/70 p-3"><dt className="text-xs uppercase tracking-wide text-gray-500">Created</dt><dd className="mt-1 font-semibold text-gray-800">{formatDate(campaign.created_at)}</dd></div>
                     </dl>
-                    <div className="mt-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} stacked /></div>
+                    <div className="mt-4"><CampaignActions campaignId={campaign.id} campaignName={campaign.name} campaignStatus={campaign.status} reviewStatus={campaign.review_status} eligibility={campaign.publishingEligibility} stacked /></div>
                   </article>
                 )
               })}
@@ -208,9 +210,16 @@ export default function OrganizationCampaignsSection({
   )
 }
 
-type CampaignActionsProps = { campaignId: string; campaignName: string; campaignStatus: string; reviewStatus?: string | null; stacked?: boolean }
+type CampaignActionsProps = {
+  campaignId: string
+  campaignName: string
+  campaignStatus: string
+  reviewStatus?: string | null
+  eligibility: CampaignPublishingEligibility
+  stacked?: boolean
+}
 
-function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatus, stacked = false }: CampaignActionsProps) {
+function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatus, eligibility, stacked = false }: CampaignActionsProps) {
   const status = campaignStatus.toLowerCase()
   const isDraft = status === 'draft'
   const isArchived = status === 'archived'
@@ -220,7 +229,6 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
   const canResume = status === 'paused'
   const canArchive = !isArchived
   const canSubmit = isDraft && (!reviewStatus || reviewStatus === 'not_submitted' || reviewStatus === 'changes_requested')
-  const canPublish = isDraft && reviewStatus === 'approved'
   const viewHref = isPublic
     ? `/campaigns/${campaignId}`
     : `/dashboard/campaigns/${campaignId}/edit`
@@ -232,9 +240,19 @@ function CampaignActions({ campaignId, campaignName, campaignStatus, reviewStatu
       {isDraft ? <span className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-500">Sharing available after publishing</span> : <ShareCampaignButton campaignId={campaignId} campaignName={campaignName} />}
       {isPublic && !isArchived && !isCompleted ? <Link href={`/dashboard/campaigns/${campaignId}/edit`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</Link> : null}
       {canSubmit ? <SubmitCampaignForReviewButton campaignId={campaignId} campaignName={campaignName} /> : null}
-      {canPublish ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="active" label="Publish campaign" pendingLabel="Publishing..." className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700" confirmMessage={`Publish "${campaignName}"? This will make the campaign available to supporters.`} /> : null}
-      {isDraft && reviewStatus !== 'approved' ? <p className="w-full text-xs text-gray-600">Payout verification and RaiseHub approval are required before this campaign can publish.</p> : null}
-      {canPublish ? <p className="w-full text-xs text-gray-600">Publishing will run the final payout-readiness check before this campaign goes live.</p> : null}
+      {eligibility.canPublish ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="active" label="Publish campaign" pendingLabel="Publishing..." className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700" confirmMessage={`Publish "${campaignName}"? This will make the campaign available to supporters.`} /> : null}
+      {isDraft && eligibility.canPublish ? (
+        <p className="w-full rounded-lg bg-green-50 p-3 text-xs font-medium text-green-800">Ready to publish. Review, profile, and payout checks are complete.</p>
+      ) : null}
+      {isDraft && !eligibility.canPublish ? (
+        <div className="w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="font-semibold">What to do next: {eligibility.nextAction.label}</p>
+          <ul className="mt-2 space-y-1">
+            {eligibility.blockingReasons.map((blocker) => <li key={blocker.code}>• {blocker.message}</li>)}
+          </ul>
+          {eligibility.nextAction.href ? <Link href={eligibility.nextAction.href} className="mt-2 inline-flex font-semibold text-blue-700 hover:underline">{eligibility.nextAction.label}</Link> : null}
+        </div>
+      ) : null}
       {canPause ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="paused" label="Pause" pendingLabel="Pausing..." className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100" confirmMessage={`Pause "${campaignName}"? Supporters will no longer be able to purchase until you resume it.`} /> : null}
       {canResume ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="active" label="Resume" pendingLabel="Resuming..." className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100" /> : null}
       {canArchive ? <CampaignStatusActionButton campaignId={campaignId} campaignName={campaignName} status="archived" label="Archive" pendingLabel="Archiving..." className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100" confirmMessage={`Archive "${campaignName}"? This keeps campaign history but hides it from active campaign lists.`} /> : null}
