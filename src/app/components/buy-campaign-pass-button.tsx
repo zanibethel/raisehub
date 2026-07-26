@@ -39,13 +39,11 @@ function buildCampaignHref(input: {
   selectedOrganizationId: string
 }) {
   const searchParams = new URLSearchParams()
-
   if (input.sellerReferral) searchParams.set('seller', input.sellerReferral)
   searchParams.set('notice', input.notice)
   if (input.replacedCampaignId) searchParams.set('replaced', input.replacedCampaignId)
   if (input.donationAmount) searchParams.set('donation', input.donationAmount)
   if (input.selectedOrganizationId) searchParams.set('organization', input.selectedOrganizationId)
-
   return `/campaigns/${input.campaignId}?${searchParams.toString()}`
 }
 
@@ -67,6 +65,8 @@ export default function BuyCampaignPassButton({
   const hasLockedSeller = Boolean(isManagedReferral && sellerName)
 
   const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([])
+  const [sellerOptionsLoading, setSellerOptionsLoading] = useState(!hasLockedSeller)
+  const [sellerOptionsError, setSellerOptionsError] = useState('')
   const [selectedSellerCode, setSelectedSellerCode] = useState(
     hasLockedSeller ? referralFromUrl : ''
   )
@@ -80,23 +80,46 @@ export default function BuyCampaignPassButton({
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
+    if (hasLockedSeller) {
+      setSellerOptionsLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
 
     async function loadSellers() {
-      const { data } = await (supabase as any).rpc('get_public_campaign_sellers', {
-        p_campaign_id: campaignId,
-      })
+      setSellerOptionsLoading(true)
+      setSellerOptionsError('')
 
-      if (!cancelled) {
-        setSellerOptions((data ?? []) as SellerOption[])
+      try {
+        const response = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/sellers`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const payload = (await response.json()) as {
+          sellers?: SellerOption[]
+          error?: string
+        }
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Seller options are temporarily unavailable.')
+        }
+
+        setSellerOptions(payload.sellers ?? [])
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setSellerOptions([])
+        setSellerOptionsError(
+          error instanceof Error ? error.message : 'Seller options are temporarily unavailable.'
+        )
+      } finally {
+        if (!controller.signal.aborted) setSellerOptionsLoading(false)
       }
     }
 
     void loadSellers()
-    return () => {
-      cancelled = true
-    }
-  }, [campaignId, supabase])
+    return () => controller.abort()
+  }, [campaignId, hasLockedSeller])
 
   const selectedSeller = useMemo(
     () => sellerOptions.find((seller) => seller.referral_code === selectedSellerCode) ?? null,
@@ -109,7 +132,6 @@ export default function BuyCampaignPassButton({
   const effectiveSellerReferral = hasLockedSeller
     ? referralFromUrl
     : selectedSellerCode
-
   const donationNumber = Number(donationAmount) || 0
   const effectivePassPrice = hasActivePass ? 0 : passPrice
   const totalAmount = effectivePassPrice + donationNumber
@@ -120,10 +142,7 @@ export default function BuyCampaignPassButton({
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      const signupParams = new URLSearchParams({
-        campaignId,
-        source: 'campaign',
-      })
+      const signupParams = new URLSearchParams({ campaignId, source: 'campaign' })
       if (effectiveSellerReferral) signupParams.set('seller', effectiveSellerReferral)
       if (donationAmount) signupParams.set('donation', donationAmount)
       if (selectedOrganizationId) signupParams.set('organization', selectedOrganizationId)
@@ -188,7 +207,7 @@ export default function BuyCampaignPassButton({
         </div>
       ) : null}
 
-      {!hasLockedSeller && sellerOptions.length > 0 ? (
+      {!hasLockedSeller ? (
         <div>
           <label htmlFor="campaign-seller" className="mb-1 block text-sm font-medium text-gray-700">
             Seller to support
@@ -197,18 +216,27 @@ export default function BuyCampaignPassButton({
             id="campaign-seller"
             value={selectedSellerCode}
             onChange={(event) => setSelectedSellerCode(event.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm"
+            disabled={sellerOptionsLoading || Boolean(sellerOptionsError)}
+            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm disabled:bg-gray-100 disabled:text-gray-500"
           >
-            <option value="">Anyone / no specific seller</option>
+            <option value="">
+              {sellerOptionsLoading ? 'Loading sellers…' : 'Anyone / no specific seller'}
+            </option>
             {sellerOptions.map((seller) => (
               <option key={seller.id} value={seller.referral_code}>
                 {seller.display_name}
               </option>
             ))}
           </select>
-          <p className="mt-2 text-xs text-gray-500">
-            Choose a seller for credit, or leave this as general campaign support.
-          </p>
+          {sellerOptionsError ? (
+            <p className="mt-2 text-xs text-amber-700">
+              {sellerOptionsError} This purchase can still support the campaign generally.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-gray-500">
+              Choose a seller for credit, or leave this as general campaign support.
+            </p>
+          )}
         </div>
       ) : null}
 
@@ -234,7 +262,6 @@ export default function BuyCampaignPassButton({
           ))}
           <button type="button" onClick={() => setDonationAmount('')} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${!['0', '5', '10', '25'].includes(donationAmount) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>Custom</button>
         </div>
-
         {!['0', '5', '10', '25'].includes(donationAmount) ? (
           <input type="number" min="0" step="1" value={donationAmount} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm" placeholder="Enter custom amount" />
         ) : null}
@@ -250,7 +277,6 @@ export default function BuyCampaignPassButton({
       <button type="button" onClick={handleBuyPass} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
         {loading ? 'Opening secure checkout...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
       </button>
-
       <p className="text-center text-xs text-gray-500">Payment is completed securely through Stripe. Pass access is added only after payment is confirmed.</p>
       {message ? <p className="text-sm text-red-600">{message}</p> : null}
     </div>
