@@ -163,6 +163,7 @@ export default function BuyCampaignPassButton({
       selected_organization_id: selectedOrganizationId || undefined,
       donation_amount: donationNumber,
       seller_name: effectiveSellerName || undefined,
+      seller_referral: effectiveSellerReferral || undefined,
     })
 
     if (result.status === 'checkout-ready') {
