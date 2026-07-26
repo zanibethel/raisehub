@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
+import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
@@ -103,7 +104,11 @@ export default async function OrganizationDashboard({
 
   const { data: campaigns } = await campaignQuery.order('created_at', { ascending: false })
   const organizationCampaigns = campaigns ?? []
-  const activeCampaigns = organizationCampaigns.filter((campaign) => campaign.status === 'active').length
+  const now = new Date()
+  const sellableCampaigns = organizationCampaigns.filter((campaign) =>
+    isCampaignCurrentlySellable(campaign, now)
+  )
+  const activeCampaigns = sellableCampaigns.length
   const campaignIds = organizationCampaigns.map((campaign) => campaign.id)
 
   let purchases: CampaignPurchase[] = []
@@ -216,6 +221,7 @@ export default async function OrganizationDashboard({
         totalFees={totalFees}
         sellers={topSellers}
         campaigns={organizationCampaigns}
+        sellerCampaigns={sellableCampaigns}
         metricsByCampaign={Object.fromEntries(metricsByCampaign)}
         totalCampaigns={organizationCampaigns.length}
         activeSellerCount={sellerStats.size}
