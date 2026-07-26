@@ -2,7 +2,6 @@ begin;
 
 create extension if not exists pgcrypto;
 
--- Campaign-scoped seller identities exist independently of auth accounts.
 create table if not exists public.campaign_sellers (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -18,17 +17,15 @@ create table if not exists public.campaign_sellers (
   updated_at timestamptz not null default now(),
   disabled_at timestamptz,
   removed_at timestamptz,
-  constraint campaign_sellers_name_not_blank check (btrim(display_name) <> ''),
-  constraint campaign_sellers_campaign_unique_name unique (campaign_id, display_name)
+  constraint campaign_sellers_name_not_blank check (btrim(display_name) <> '')
 );
 
+create unique index if not exists campaign_sellers_campaign_name_unique_idx
+  on public.campaign_sellers(campaign_id, lower(display_name));
 create index if not exists campaign_sellers_campaign_status_idx
   on public.campaign_sellers(campaign_id, status, display_name);
 create index if not exists campaign_sellers_org_idx
   on public.campaign_sellers(organization_id, campaign_id);
-create index if not exists campaign_sellers_profile_idx
-  on public.campaign_sellers(seller_profile_id)
-  where seller_profile_id is not null;
 
 alter table public.checkout_attempts
   add column if not exists campaign_seller_id uuid
@@ -51,7 +48,7 @@ alter table public.campaign_sellers enable row level security;
 revoke all on table public.campaign_sellers from public, anon, authenticated;
 grant select, insert, update on table public.campaign_sellers to service_role;
 
-create policy campaign_sellers_select_org_admin_or_owner
+create policy campaign_sellers_select_authorized
   on public.campaign_sellers
   for select
   to authenticated
@@ -65,10 +62,11 @@ create policy campaign_sellers_select_org_admin_or_owner
         and om.status = 'active'
         and om.membership_role in ('admin', 'manager')
     )
-    or seller_profile_id in (
-      select sp.id
+    or exists (
+      select 1
       from public.seller_profiles sp
-      where sp.user_id = (select auth.uid())
+      where sp.id = campaign_sellers.seller_profile_id
+        and sp.user_id = (select auth.uid())
     )
   );
 
@@ -123,23 +121,17 @@ begin
   from public.campaigns
   where id = p_campaign_id;
 
-  if v_org_id is null then
-    raise exception 'Campaign not found.';
-  end if;
-
+  if v_org_id is null then raise exception 'Campaign not found.'; end if;
   if not public.is_campaign_roster_manager(p_campaign_id, p_actor_profile_id) then
     raise exception 'Organization administrator access is required.';
   end if;
-
   if coalesce(array_length(p_names, 1), 0) = 0 then
     raise exception 'At least one seller name is required.';
   end if;
 
   foreach v_name in array p_names loop
     v_name := nullif(btrim(v_name), '');
-    if v_name is null then
-      continue;
-    end if;
+    if v_name is null then continue; end if;
 
     select * into v_row
     from public.campaign_sellers cs
@@ -147,42 +139,28 @@ begin
       and lower(cs.display_name) = lower(v_name)
     limit 1;
 
-    if v_row.id is not null then
-      campaign_seller_id := v_row.id;
-      display_name := v_row.display_name;
-      referral_code := v_row.referral_code;
-      status := v_row.status;
+    if v_row.id is null then
+      loop
+        v_code := lower(substr(encode(gen_random_bytes(10), 'hex'), 1, 14));
+        exit when not exists (
+          select 1 from public.campaign_sellers where referral_code = v_code
+        );
+      end loop;
+
+      insert into public.campaign_sellers (
+        organization_id, campaign_id, display_name, referral_code, created_by
+      ) values (
+        v_org_id, p_campaign_id, v_name, v_code, p_actor_profile_id
+      ) returning * into v_row;
+      created := true;
+    else
       created := false;
-      return next;
-      continue;
     end if;
-
-    loop
-      v_code := lower(substr(encode(gen_random_bytes(10), 'hex'), 1, 14));
-      exit when not exists (
-        select 1 from public.campaign_sellers where referral_code = v_code
-      );
-    end loop;
-
-    insert into public.campaign_sellers (
-      organization_id,
-      campaign_id,
-      display_name,
-      referral_code,
-      created_by
-    ) values (
-      v_org_id,
-      p_campaign_id,
-      v_name,
-      v_code,
-      p_actor_profile_id
-    ) returning * into v_row;
 
     campaign_seller_id := v_row.id;
     display_name := v_row.display_name;
     referral_code := v_row.referral_code;
     status := v_row.status;
-    created := true;
     return next;
   end loop;
 end;
@@ -208,10 +186,7 @@ begin
   where id = p_campaign_seller_id
   for update;
 
-  if v_row.id is null then
-    raise exception 'Campaign seller not found.';
-  end if;
-
+  if v_row.id is null then raise exception 'Campaign seller not found.'; end if;
   if not public.is_campaign_roster_manager(v_row.campaign_id, p_actor_profile_id) then
     raise exception 'Organization administrator access is required.';
   end if;
@@ -254,6 +229,7 @@ returns table(
   account_claimed boolean,
   passes_sold bigint,
   gross_sales numeric,
+  organization_earnings numeric,
   last_sale_at timestamptz,
   created_at timestamptz
 )
@@ -275,7 +251,8 @@ begin
     cs.seller_profile_id,
     cs.seller_profile_id is not null,
     count(cp.id)::bigint,
-    coalesce(sum(cp.amount_total), 0)::numeric,
+    coalesce(sum(cp.amount_paid), 0)::numeric,
+    coalesce(sum(cp.organization_earnings), 0)::numeric,
     max(cp.created_at),
     cs.created_at
   from public.campaign_sellers cs
@@ -317,10 +294,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select
-    cs.id,
-    cs.display_name,
-    cs.status = 'active'
+  select cs.id, cs.display_name, cs.status = 'active'
   from public.campaign_sellers cs
   where cs.campaign_id = p_campaign_id
     and cs.referral_code = nullif(btrim(p_referral_code), '')
@@ -341,10 +315,8 @@ grant execute on function public.get_public_campaign_sellers(uuid) to anon, auth
 grant execute on function public.resolve_campaign_seller_referral(uuid, text) to anon, authenticated, service_role;
 
 comment on table public.campaign_sellers is
-  'Campaign-scoped seller, student, or participant identities that do not require an account.';
+  'Campaign-scoped sellers, students, or participants that do not require accounts.';
 comment on column public.campaign_sellers.referral_code is
-  'Stable public attribution identifier. Disabled sellers fall back to campaign-only attribution.';
-comment on column public.campaign_purchases.campaign_seller_id is
-  'Immutable campaign seller attribution snapshot captured when checkout is created.';
+  'Stable public attribution code. Ineligible sellers fall back to campaign-only attribution.';
 
 commit;
