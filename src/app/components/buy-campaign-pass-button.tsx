@@ -47,6 +47,10 @@ function buildCampaignHref(input: {
   return `/campaigns/${input.campaignId}?${searchParams.toString()}`
 }
 
+function organizationName(organization: OrganizationOption | null | undefined) {
+  return organization?.display_name || organization?.business_name || 'Organization'
+}
+
 export default function BuyCampaignPassButton({
   campaignId,
   passPrice,
@@ -72,6 +76,9 @@ export default function BuyCampaignPassButton({
   )
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
     initialSelectedOrganizationId ?? defaultOrganizationId ?? organizations[0]?.id ?? ''
+  )
+  const [showOrganizationPicker, setShowOrganizationPicker] = useState(
+    Boolean(initialSelectedOrganizationId && initialSelectedOrganizationId !== defaultOrganizationId)
   )
   const [donationAmount, setDonationAmount] = useState(
     initialDonationAmount ?? (hasActivePass ? '10' : '0')
@@ -124,6 +131,10 @@ export default function BuyCampaignPassButton({
   const selectedSeller = useMemo(
     () => sellerOptions.find((seller) => seller.referral_code === selectedSellerCode) ?? null,
     [selectedSellerCode, sellerOptions]
+  )
+  const selectedOrganization = useMemo(
+    () => organizations.find((organization) => organization.id === selectedOrganizationId) ?? null,
+    [organizations, selectedOrganizationId]
   )
 
   const effectiveSellerName = hasLockedSeller
@@ -199,10 +210,6 @@ export default function BuyCampaignPassButton({
     setLoading(false)
   }
 
-  const showSellerSelector = !hasLockedSeller && (
-    sellerOptionsLoading || Boolean(sellerOptionsError) || sellerOptions.length > 0
-  )
-
   return (
     <div className="space-y-4">
       {hasActivePass ? (
@@ -212,20 +219,24 @@ export default function BuyCampaignPassButton({
         </div>
       ) : null}
 
-      {showSellerSelector ? (
+      {hasLockedSeller ? null : (
         <div>
           <label htmlFor="campaign-seller" className="mb-1 block text-sm font-medium text-gray-700">
-            Seller to support
+            Credit this sale to a seller
           </label>
           <select
             id="campaign-seller"
             value={selectedSellerCode}
             onChange={(event) => setSelectedSellerCode(event.target.value)}
-            disabled={sellerOptionsLoading || Boolean(sellerOptionsError)}
+            disabled={sellerOptionsLoading || Boolean(sellerOptionsError) || sellerOptions.length === 0}
             className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm disabled:bg-gray-100 disabled:text-gray-500"
           >
             <option value="">
-              {sellerOptionsLoading ? 'Loading sellers…' : 'Anyone / no specific seller'}
+              {sellerOptionsLoading
+                ? 'Loading sellers…'
+                : sellerOptions.length === 0
+                  ? 'Anyone / no active roster seller'
+                  : 'Anyone / no specific seller'}
             </option>
             {sellerOptions.map((seller) => (
               <option key={seller.id} value={seller.referral_code}>
@@ -237,23 +248,52 @@ export default function BuyCampaignPassButton({
             <p className="mt-2 text-xs text-amber-700">
               {sellerOptionsError} This purchase can still support the campaign generally.
             </p>
-          ) : (
+          ) : sellerOptionsLoading ? (
+            <p className="mt-2 text-xs text-gray-500">Checking this campaign’s active seller roster.</p>
+          ) : sellerOptions.length > 0 ? (
             <p className="mt-2 text-xs text-gray-500">
               Choose a seller for credit, or leave this as general campaign support.
             </p>
+          ) : (
+            <p className="mt-2 text-xs text-gray-500">
+              No active seller roster entries are available for this campaign. The purchase will support the campaign generally.
+            </p>
           )}
         </div>
-      ) : null}
+      )}
 
       {organizations.length > 0 ? (
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Organization to support</label>
-          <select value={selectedOrganizationId} onChange={(event) => setSelectedOrganizationId(event.target.value)} className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm">
-            {organizations.map((organization) => {
-              const name = organization.display_name || organization.business_name || 'Organization'
-              return <option key={organization.id} value={organization.id}>{name}</option>
-            })}
-          </select>
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Supporting</p>
+          <p className="mt-1 text-lg font-bold text-blue-950">{organizationName(selectedOrganization)}</p>
+          {organizations.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => setShowOrganizationPicker((current) => !current)}
+              className="mt-2 text-sm font-semibold text-blue-700 hover:underline"
+            >
+              {showOrganizationPicker ? 'Keep this organization' : 'Support a different organization'}
+            </button>
+          ) : null}
+          {showOrganizationPicker && organizations.length > 1 ? (
+            <div className="mt-3">
+              <label htmlFor="organization-to-support" className="mb-1 block text-sm font-medium text-gray-700">
+                Choose another organization
+              </label>
+              <select
+                id="organization-to-support"
+                value={selectedOrganizationId}
+                onChange={(event) => setSelectedOrganizationId(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm"
+              >
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organizationName(organization)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -270,7 +310,7 @@ export default function BuyCampaignPassButton({
         {!['0', '5', '10', '25'].includes(donationAmount) ? (
           <input type="number" min="0" step="1" value={donationAmount} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm" placeholder="Enter custom amount" />
         ) : null}
-        <p className="mt-2 text-xs text-gray-500">Donations go directly toward the selected organization.</p>
+        <p className="mt-2 text-xs text-gray-500">Donations go directly toward {organizationName(selectedOrganization)}.</p>
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
