@@ -4,6 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
+type RpcClient = {
+  rpc: (
+    functionName: string,
+    args: Record<string, unknown>
+  ) => Promise<{
+    data: unknown
+    error: { message: string } | null
+  }>
+}
+
 export type ClaimableRosterEntry = {
   organization_id: string
   organization_name: string
@@ -22,7 +32,7 @@ export async function listClaimableRosterEntriesAction() {
     return { success: false as const, error: 'Sign in to link your seller profile.' }
   }
 
-  const admin = createAdminClient()
+  const admin = createAdminClient() as unknown as RpcClient
   const { data, error } = await admin.rpc('list_claimable_campaign_sellers', {
     p_actor_profile_id: user.id,
   })
@@ -42,7 +52,8 @@ export async function claimRosterEntryAction(campaignSellerId: string) {
     return { success: false as const, error: 'Sign in to link your seller profile.' }
   }
 
-  const { error } = await supabase.rpc('claim_campaign_seller_roster_entry', {
+  const rpcClient = supabase as unknown as RpcClient
+  const { error } = await rpcClient.rpc('claim_campaign_seller_roster_entry', {
     p_actor_profile_id: user.id,
     p_campaign_seller_id: campaignSellerId,
   })
