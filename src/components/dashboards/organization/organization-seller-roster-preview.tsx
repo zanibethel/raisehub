@@ -1,6 +1,7 @@
 'use client'
 
 import { ChangeEvent, useEffect, useMemo, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CampaignSellerRosterRow,
   createCampaignSellersAction,
@@ -232,7 +233,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
 
   return (
     <>
-      <style>{`@media print { body * { visibility: hidden !important; } #raisehub-qr-print-sheet, #raisehub-qr-print-sheet * { visibility: visible !important; } #raisehub-qr-print-sheet { position: absolute !important; inset: 0 !important; width: 100% !important; background: white !important; padding: 0 !important; } .raisehub-print-actions { display: none !important; } }`}</style>
+      <style>{`@page { size: Letter portrait; margin: 0.35in; } @media print { html, body { margin: 0 !important; padding: 0 !important; background: white !important; } body > *:not(#raisehub-qr-print-root) { display: none !important; } #raisehub-qr-print-root { display: block !important; position: static !important; width: 100% !important; } #raisehub-qr-print-sheet { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: white !important; } #raisehub-qr-print-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.12in !important; } .raisehub-qr-card { break-inside: avoid !important; page-break-inside: avoid !important; min-width: 0 !important; padding: 0.1in !important; } .raisehub-qr-card img { width: 1.45in !important; height: 1.45in !important; max-width: 100% !important; } .raisehub-qr-card .raisehub-qr-url { font-size: 6px !important; line-height: 1.15 !important; overflow-wrap: anywhere !important; } .raisehub-print-actions { display: none !important; } }`}</style>
 
       <details className="group rounded-2xl border border-emerald-100 bg-white/90 shadow-xl backdrop-blur">
         <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
@@ -320,8 +321,8 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
         </div>
       </details>
 
-      {qrSheet ? (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 sm:p-6">
+      {qrSheet && typeof document !== 'undefined' ? createPortal(
+        <div id="raisehub-qr-print-root" className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 sm:p-6">
           <section id="raisehub-qr-print-sheet" className="mx-auto max-w-5xl rounded-2xl bg-white p-4 text-gray-900 shadow-2xl sm:p-7">
             <div className="raisehub-print-actions mb-5 flex flex-col gap-3 sm:flex-row sm:justify-between">
               <button type="button" onClick={() => setQrSheet(null)} className="rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700">Close preview</button>
@@ -333,26 +334,27 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
               <p className="mt-1 text-sm text-gray-600">Campaign and seller QR codes</p>
             </header>
 
-            <main className="grid grid-cols-2 gap-3 print:grid-cols-3 sm:grid-cols-3">
-              <article className="break-inside-avoid rounded-xl border-2 border-blue-600 bg-blue-50 p-3 text-center">
+            <main id="raisehub-qr-print-grid" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <article className="raisehub-qr-card break-inside-avoid rounded-xl border-2 border-blue-600 bg-blue-50 p-3 text-center">
                 <img src={qrSheet.generalQr} alt="General campaign QR code" className="mx-auto h-36 w-36" />
                 <h2 className="mt-2 font-bold">General campaign</h2>
                 <p className="text-xs text-gray-600">No specific seller</p>
-                <p className="mt-2 break-all font-mono text-[8px] text-gray-500">{qrSheet.campaignUrl}</p>
+                <p className="raisehub-qr-url mt-2 break-all font-mono text-[8px] text-gray-500">{qrSheet.campaignUrl}</p>
               </article>
               {qrSheet.sellers.map(({ row, qr, url }) => (
-                <article key={row.id} className="break-inside-avoid rounded-xl border border-dashed border-slate-400 p-3 text-center">
+                <article key={row.id} className="raisehub-qr-card break-inside-avoid rounded-xl border border-dashed border-slate-400 p-3 text-center">
                   <img src={qr} alt={`QR code for ${row.name}`} className="mx-auto h-36 w-36" />
                   <h2 className="mt-2 font-bold">{row.name}</h2>
                   <p className="text-xs text-gray-600">Seller code: {row.referralCode}</p>
-                  <p className="mt-2 break-all font-mono text-[8px] text-gray-500">{url}</p>
+                  <p className="raisehub-qr-url mt-2 break-all font-mono text-[8px] text-gray-500">{url}</p>
                 </article>
               ))}
             </main>
 
             <footer className="mt-5 text-center text-xs text-gray-500">Inactive or removed seller codes still open this campaign without seller attribution.</footer>
           </section>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   )
