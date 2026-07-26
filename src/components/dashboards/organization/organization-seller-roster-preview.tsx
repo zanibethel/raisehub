@@ -10,6 +10,12 @@ import {
 
 type CampaignOption = { id: string; name: string; status: string }
 type Props = { campaigns: CampaignOption[] }
+type QrSheetData = {
+  campaignName: string
+  campaignUrl: string
+  generalQr: string
+  sellers: Array<{ row: CampaignSellerRosterRow; qr: string; url: string }>
+}
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -17,15 +23,6 @@ function slugify(value: string) {
 
 function escapeCsv(value: string | number | boolean) {
   return `"${String(value).replaceAll('"', '""')}"`
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
 }
 
 function downloadFile(filename: string, contents: string, type = 'text/csv;charset=utf-8') {
@@ -61,6 +58,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
   const [rows, setRows] = useState<CampaignSellerRosterRow[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [creatingQrSheet, setCreatingQrSheet] = useState(false)
+  const [qrSheet, setQrSheet] = useState<QrSheetData | null>(null)
   const [showGeneralLinkActions, setShowGeneralLinkActions] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -70,6 +68,7 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
   useEffect(() => {
     if (!selectedCampaignId) return
     setShowGeneralLinkActions(false)
+    setQrSheet(null)
     startTransition(async () => {
       const result = await listCampaignSellerRosterAction(selectedCampaignId)
       if (result.success) {
@@ -88,6 +87,10 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
 
   function sellerLink(row: CampaignSellerRosterRow) {
     return `${campaignLink()}?seller=${encodeURIComponent(row.referralCode)}`
+  }
+
+  function sellerSignupLink() {
+    return `${window.location.origin}/signup/seller?campaignId=${encodeURIComponent(selectedCampaignId)}`
   }
 
   function parseNames() {
@@ -143,33 +146,29 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
     setMessage(`Downloaded ${row.name}’s QR code.`)
   }
 
-  async function printQrSheet() {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return setMessage('Allow pop-ups for RaiseHub to generate the printable QR sheet.')
-
-    printWindow.document.write('<!doctype html><html><body style="font-family:Arial,sans-serif;padding:32px;text-align:center"><p>Building your printable QR sheet…</p></body></html>')
-    printWindow.document.close()
+  async function buildQrSheet() {
     setCreatingQrSheet(true)
+    setMessage(null)
 
     try {
       const QRCode = await import('qrcode')
       const campaignName = selectedCampaign?.name ?? 'Campaign'
-      const generalQr = await QRCode.toDataURL(campaignLink(), { width: 560, margin: 2, errorCorrectionLevel: 'M' })
-      const sellerCards = await Promise.all(activeRows.map(async (row) => ({ row, qr: await QRCode.toDataURL(sellerLink(row), { width: 560, margin: 2, errorCorrectionLevel: 'M' }) })))
-      const cards = [
-        `<article class="card general"><img src="${generalQr}" alt="General campaign QR code"/><h2>General campaign</h2><p>No specific seller</p><code>${escapeHtml(campaignLink())}</code></article>`,
-        ...sellerCards.map(({ row, qr }) => `<article class="card"><img src="${qr}" alt="QR code for ${escapeHtml(row.name)}"/><h2>${escapeHtml(row.name)}</h2><p>Seller code: ${escapeHtml(row.referralCode)}</p><code>${escapeHtml(sellerLink(row))}</code></article>`),
-      ].join('')
+      const campaignUrl = campaignLink()
+      const generalQr = await QRCode.toDataURL(campaignUrl, { width: 560, margin: 2, errorCorrectionLevel: 'M' })
+      const sellers = await Promise.all(
+        activeRows.map(async (row) => {
+          const url = sellerLink(row)
+          return {
+            row,
+            url,
+            qr: await QRCode.toDataURL(url, { width: 560, margin: 2, errorCorrectionLevel: 'M' }),
+          }
+        })
+      )
 
-      printWindow.document.open()
-      printWindow.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(campaignName)} QR sheet</title><style>
-        @page{size:letter;margin:.35in}*{box-sizing:border-box}body{margin:0;padding:12px;font-family:Arial,sans-serif;color:#111827}header{text-align:center;margin-bottom:18px}.actions{display:flex;justify-content:center;margin-bottom:18px}.actions button{border:0;border-radius:10px;padding:12px 18px;background:#2563eb;color:#fff;font-size:16px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{break-inside:avoid;border:1px dashed #94a3b8;border-radius:12px;padding:12px;text-align:center;min-height:265px}.general{border:2px solid #2563eb;background:#eff6ff}.card img{width:150px;height:150px;display:block;margin:0 auto 8px}.card h2{margin:0;font-size:16px}.card p{margin:5px 0;font-size:11px;color:#475569}.card code{display:block;margin-top:8px;font-size:8px;overflow-wrap:anywhere;color:#334155}footer{margin-top:15px;text-align:center;font-size:10px;color:#64748b}@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.card{min-height:240px}.card img{width:130px;height:130px}}@media print{body{padding:0}.actions{display:none}.grid{grid-template-columns:repeat(3,1fr)}}
-      </style></head><body><header><h1>${escapeHtml(campaignName)}</h1><p>Campaign and seller QR codes</p></header><div class="actions"><button onclick="window.print()">Print or save PDF</button></div><main class="grid">${cards}</main><footer>Inactive or removed seller codes still open this campaign without seller attribution.</footer></body></html>`)
-      printWindow.document.close()
-      printWindow.focus()
+      setQrSheet({ campaignName, campaignUrl, generalQr, sellers })
       setMessage(`Printable QR sheet created with ${activeRows.length} active seller ${activeRows.length === 1 ? 'code' : 'codes'} plus the general campaign code.`)
     } catch {
-      printWindow.close()
       setMessage('The QR sheet could not be generated. Please try again.')
     } finally {
       setCreatingQrSheet(false)
@@ -180,6 +179,11 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
     await navigator.clipboard.writeText(campaignLink())
     setShowGeneralLinkActions(false)
     setMessage('General campaign link copied. Purchases from this link are not assigned to a specific seller.')
+  }
+
+  async function copySellerSignupLink() {
+    await navigator.clipboard.writeText(sellerSignupLink())
+    setMessage('Seller signup link copied. New sellers will be guided into this campaign and organization.')
   }
 
   async function shareGeneralCampaignLink() {
@@ -227,89 +231,129 @@ export default function OrganizationSellerRosterPreview({ campaigns }: Props) {
   if (campaigns.length === 0) return null
 
   return (
-    <details className="group rounded-2xl border border-emerald-100 bg-white/90 shadow-xl backdrop-blur">
-      <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-lg font-bold text-gray-900">Seller roster & links</p>
-            <p className="mt-1 text-sm text-gray-600">{rows.length} rostered · {activeRows.length} active · saved to this campaign</p>
-          </div>
-          <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 group-open:hidden">Manage</span>
-          <span className="hidden shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 group-open:inline">Hide</span>
-        </div>
-      </summary>
+    <>
+      <style>{`@media print { body * { visibility: hidden !important; } #raisehub-qr-print-sheet, #raisehub-qr-print-sheet * { visibility: visible !important; } #raisehub-qr-print-sheet { position: absolute !important; inset: 0 !important; width: 100% !important; background: white !important; padding: 0 !important; } .raisehub-print-actions { display: none !important; } }`}</style>
 
-      <div className="space-y-5 border-t border-emerald-100 p-5 sm:p-6">
-        <div>
-          <label htmlFor="seller-campaign" className="text-sm font-semibold text-gray-800">Campaign</label>
-          <select id="seller-campaign" value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900">
-            {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.status}</option>)}
-          </select>
-          <p className="mt-2 text-xs text-gray-500">Only campaigns belonging to this organization workspace are available here.</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <button type="button" onClick={downloadTemplate} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700">CSV template</button>
-          <label className="cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-center text-sm font-semibold text-blue-700">Upload CSV<input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} className="sr-only" /></label>
-          <button type="button" onClick={downloadRoster} disabled={rows.length === 0} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700 disabled:opacity-50">Download roster</button>
-          <button type="button" onClick={printQrSheet} disabled={creatingQrSheet || rows.length === 0} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-700 disabled:opacity-50">{creatingQrSheet ? 'Building QR sheet…' : 'Print QR sheet'}</button>
-          <button type="button" onClick={() => setShowGeneralLinkActions((current) => !current)} aria-expanded={showGeneralLinkActions} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-800">Share campaign</button>
-        </div>
-
-        {showGeneralLinkActions ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="font-bold text-gray-900">General campaign link</p>
-            <p className="mt-1 text-sm text-gray-600">This link supports the organization and campaign without assigning credit to a specific seller.</p>
-            <p className="mt-3 break-all rounded-xl bg-white px-3 py-3 font-mono text-xs text-gray-600">{campaignLink()}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={copyGeneralCampaignLink} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700">Copy link</button>
-              <button type="button" onClick={shareGeneralCampaignLink} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white">Share</button>
+      <details className="group rounded-2xl border border-emerald-100 bg-white/90 shadow-xl backdrop-blur">
+        <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-lg font-bold text-gray-900">Seller roster & links</p>
+              <p className="mt-1 text-sm text-gray-600">{rows.length} rostered · {activeRows.length} active · saved to this campaign</p>
             </div>
+            <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 group-open:hidden">Manage</span>
+            <span className="hidden shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 group-open:inline">Hide</span>
           </div>
-        ) : null}
+        </summary>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-          <label htmlFor="seller-names" className="text-sm font-bold text-gray-900">Add sellers, students, or participants</label>
-          <p className="mt-1 text-sm text-gray-600">Enter one name per line, paste a comma-separated list, or upload a CSV.</p>
-          <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={6} placeholder={'Theo\nElijah\nSara\nBenji\nNiko\nZJ'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
-          <button type="button" onClick={addNames} disabled={isPending} className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto">{isPending ? 'Saving…' : 'Add to roster'}</button>
+        <div className="space-y-5 border-t border-emerald-100 p-5 sm:p-6">
+          <div>
+            <label htmlFor="seller-campaign" className="text-sm font-semibold text-gray-800">Campaign</label>
+            <select id="seller-campaign" value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900">
+              {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.status}</option>)}
+            </select>
+            <p className="mt-2 text-xs text-gray-500">Only campaigns belonging to this organization workspace are available here.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <button type="button" onClick={downloadTemplate} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700">CSV template</button>
+            <label className="cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-center text-sm font-semibold text-blue-700">Upload CSV<input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} className="sr-only" /></label>
+            <button type="button" onClick={downloadRoster} disabled={rows.length === 0} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700 disabled:opacity-50">Download roster</button>
+            <button type="button" onClick={buildQrSheet} disabled={creatingQrSheet || rows.length === 0} className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-700 disabled:opacity-50">{creatingQrSheet ? 'Building QR sheet…' : 'Print QR sheet'}</button>
+            <button type="button" onClick={copySellerSignupLink} className="rounded-xl border border-green-200 bg-green-50 px-3 py-3 text-sm font-semibold text-green-700">Copy seller signup</button>
+            <button type="button" onClick={() => setShowGeneralLinkActions((current) => !current)} aria-expanded={showGeneralLinkActions} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-800">Share campaign</button>
+          </div>
+
+          {showGeneralLinkActions ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-bold text-gray-900">General campaign link</p>
+              <p className="mt-1 text-sm text-gray-600">This link supports the organization and campaign without assigning credit to a specific seller.</p>
+              <p className="mt-3 break-all rounded-xl bg-white px-3 py-3 font-mono text-xs text-gray-600">{campaignLink()}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={copyGeneralCampaignLink} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700">Copy link</button>
+                <button type="button" onClick={shareGeneralCampaignLink} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white">Share</button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <label htmlFor="seller-names" className="text-sm font-bold text-gray-900">Add sellers, students, or participants</label>
+            <p className="mt-1 text-sm text-gray-600">Enter one name per line, paste a comma-separated list, or upload a CSV.</p>
+            <textarea id="seller-names" value={names} onChange={(event) => setNames(event.target.value)} rows={6} placeholder={'Theo\nElijah\nSara\nBenji\nNiko\nZJ'} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm text-gray-900" />
+            <button type="button" onClick={addNames} disabled={isPending} className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto">{isPending ? 'Saving…' : 'Add to roster'}</button>
+          </div>
+
+          {message ? <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700">{message}</p> : null}
+
+          {isPending && rows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center"><p className="font-semibold text-gray-900">Loading roster…</p></div>
+          ) : rows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center"><p className="font-semibold text-gray-900">No sellers added yet</p><p className="mt-2 text-sm text-gray-600">Add a roster to generate one tracked campaign link per person. Accounts are optional.</p></div>
+          ) : (
+            <div className="space-y-3">
+              {rows.map((row) => (
+                <article key={row.id} className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="font-bold text-gray-900">{row.name}</p><div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold"><span className={row.status === 'active' ? 'rounded-full bg-green-100 px-2 py-1 text-green-800' : 'rounded-full bg-gray-200 px-2 py-1 text-gray-700'}>{row.status}</span><span className="rounded-full bg-blue-100 px-2 py-1 text-blue-800">{row.claimed ? 'Account claimed' : 'Managed — no account required'}</span></div></div>
+                    <button type="button" disabled={isPending} onClick={() => renameSeller(row)} className="text-sm font-semibold text-blue-700 disabled:opacity-50">Edit</button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                    <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Passes sold</p><p className="mt-1 font-bold text-gray-900">{row.passesSold}</p></div>
+                    <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Gross sales</p><p className="mt-1 font-bold text-gray-900">${row.grossSales.toFixed(2)}</p></div>
+                    <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Org earnings</p><p className="mt-1 font-bold text-gray-900">${row.organizationEarnings.toFixed(2)}</p></div>
+                    <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Last sale</p><p className="mt-1 font-bold text-gray-900">{formatDate(row.lastSaleAt)}</p></div>
+                  </div>
+                  <p className="mt-4 truncate rounded-xl bg-slate-50 px-3 py-3 font-mono text-xs text-slate-600">{row.referralCode}</p>
+                  {row.status !== 'active' ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Existing printed links still open the campaign, but new purchases will not credit this seller.</p> : null}
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                    <button type="button" onClick={() => copyLink(row)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">Copy link</button>
+                    <button type="button" onClick={() => downloadSellerQr(row)} className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700">Download QR</button>
+                    <button type="button" disabled={isPending} onClick={() => changeStatus(row, row.status === 'active' ? 'inactive' : 'active')} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 disabled:opacity-50">{row.status === 'active' ? 'Deactivate' : 'Reactivate'}</button>
+                    <button type="button" disabled={isPending} onClick={() => changeStatus(row, 'removed')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Remove</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">Roster changes are saved to the selected campaign. Removed sellers retain historical sales and old links fall back to general campaign access.</p>
         </div>
+      </details>
 
-        {message ? <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700">{message}</p> : null}
+      {qrSheet ? (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 sm:p-6">
+          <section id="raisehub-qr-print-sheet" className="mx-auto max-w-5xl rounded-2xl bg-white p-4 text-gray-900 shadow-2xl sm:p-7">
+            <div className="raisehub-print-actions mb-5 flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <button type="button" onClick={() => setQrSheet(null)} className="rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700">Close preview</button>
+              <button type="button" onClick={() => window.print()} className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white">Print or save PDF</button>
+            </div>
 
-        {isPending && rows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center"><p className="font-semibold text-gray-900">Loading roster…</p></div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center"><p className="font-semibold text-gray-900">No sellers added yet</p><p className="mt-2 text-sm text-gray-600">Add a roster to generate one tracked campaign link per person. Accounts are optional.</p></div>
-        ) : (
-          <div className="space-y-3">
-            {rows.map((row) => (
-              <article key={row.id} className="rounded-2xl border border-gray-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div><p className="font-bold text-gray-900">{row.name}</p><div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold"><span className={row.status === 'active' ? 'rounded-full bg-green-100 px-2 py-1 text-green-800' : 'rounded-full bg-gray-200 px-2 py-1 text-gray-700'}>{row.status}</span><span className="rounded-full bg-blue-100 px-2 py-1 text-blue-800">{row.claimed ? 'Account claimed' : 'Managed — no account required'}</span></div></div>
-                  <button type="button" disabled={isPending} onClick={() => renameSeller(row)} className="text-sm font-semibold text-blue-700 disabled:opacity-50">Edit</button>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                  <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Passes sold</p><p className="mt-1 font-bold text-gray-900">{row.passesSold}</p></div>
-                  <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Gross sales</p><p className="mt-1 font-bold text-gray-900">${row.grossSales.toFixed(2)}</p></div>
-                  <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Org earnings</p><p className="mt-1 font-bold text-gray-900">${row.organizationEarnings.toFixed(2)}</p></div>
-                  <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs uppercase tracking-wide text-gray-500">Last sale</p><p className="mt-1 font-bold text-gray-900">{formatDate(row.lastSaleAt)}</p></div>
-                </div>
-                <p className="mt-4 truncate rounded-xl bg-slate-50 px-3 py-3 font-mono text-xs text-slate-600">{row.referralCode}</p>
-                {row.status !== 'active' ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Existing printed links still open the campaign, but new purchases will not credit this seller.</p> : null}
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                  <button type="button" onClick={() => copyLink(row)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">Copy link</button>
-                  <button type="button" onClick={() => downloadSellerQr(row)} className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700">Download QR</button>
-                  <button type="button" disabled={isPending} onClick={() => changeStatus(row, row.status === 'active' ? 'inactive' : 'active')} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 disabled:opacity-50">{row.status === 'active' ? 'Deactivate' : 'Reactivate'}</button>
-                  <button type="button" disabled={isPending} onClick={() => changeStatus(row, 'removed')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Remove</button>
-                </div>
+            <header className="mb-5 text-center">
+              <h1 className="text-2xl font-bold">{qrSheet.campaignName}</h1>
+              <p className="mt-1 text-sm text-gray-600">Campaign and seller QR codes</p>
+            </header>
+
+            <main className="grid grid-cols-2 gap-3 print:grid-cols-3 sm:grid-cols-3">
+              <article className="break-inside-avoid rounded-xl border-2 border-blue-600 bg-blue-50 p-3 text-center">
+                <img src={qrSheet.generalQr} alt="General campaign QR code" className="mx-auto h-36 w-36" />
+                <h2 className="mt-2 font-bold">General campaign</h2>
+                <p className="text-xs text-gray-600">No specific seller</p>
+                <p className="mt-2 break-all font-mono text-[8px] text-gray-500">{qrSheet.campaignUrl}</p>
               </article>
-            ))}
-          </div>
-        )}
+              {qrSheet.sellers.map(({ row, qr, url }) => (
+                <article key={row.id} className="break-inside-avoid rounded-xl border border-dashed border-slate-400 p-3 text-center">
+                  <img src={qr} alt={`QR code for ${row.name}`} className="mx-auto h-36 w-36" />
+                  <h2 className="mt-2 font-bold">{row.name}</h2>
+                  <p className="text-xs text-gray-600">Seller code: {row.referralCode}</p>
+                  <p className="mt-2 break-all font-mono text-[8px] text-gray-500">{url}</p>
+                </article>
+              ))}
+            </main>
 
-        <p className="text-xs text-gray-500">Roster changes are saved to the selected campaign. Removed sellers retain historical sales and old links fall back to general campaign access.</p>
-      </div>
-    </details>
+            <footer className="mt-5 text-center text-xs text-gray-500">Inactive or removed seller codes still open this campaign without seller attribution.</footer>
+          </section>
+        </div>
+      ) : null}
+    </>
   )
 }
