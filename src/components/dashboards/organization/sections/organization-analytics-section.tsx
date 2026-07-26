@@ -26,7 +26,7 @@ export default function OrganizationAnalyticsSection({
             Fundraising activity
           </h3>
           <p className="mt-1 text-sm text-gray-600">
-            Campaign and seller engagement
+            Campaign activity and recorded seller attribution
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export default function OrganizationAnalyticsSection({
           </div>
 
           <div className="flex items-baseline gap-2 border-l border-gray-200 pl-5 sm:pl-7">
-            <dt className="font-medium text-gray-600">Sellers with sales</dt>
+            <dt className="font-medium text-gray-600">Sellers credited</dt>
             <dd className="text-lg font-bold text-green-700">
               {activeSellerCount.toLocaleString()}
             </dd>

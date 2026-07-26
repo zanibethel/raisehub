@@ -24,8 +24,11 @@ export default function OrganizationTopSellersSection({
   return (
     <section className="rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
       <h2 className="text-lg font-semibold text-yellow-700">
-        Top Sellers
+        Top sellers by recorded sales
       </h2>
+      <p className="mt-1 text-xs text-gray-500">
+        Historical sales attribution is separate from the current active checkout roster.
+      </p>
 
       {topSellers.length > 0 ? (
         <div className="mt-4 space-y-3">
@@ -52,7 +55,7 @@ export default function OrganizationTopSellersSection({
         </div>
       ) : (
         <p className="mt-3 text-sm text-gray-600">
-          No seller referrals tracked yet.
+          No seller sales have been recorded yet.
         </p>
       )}
     </section>
