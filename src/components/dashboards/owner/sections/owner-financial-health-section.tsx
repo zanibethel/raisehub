@@ -198,7 +198,7 @@ export default async function OwnerFinancialHealthSection() {
           organizations={snapshot.organizations}
         />
 
-        <details className="group rounded-2xl border border-slate-200">
+        <details className="group/audit-history rounded-2xl border border-slate-200">
           <summary className="flex cursor-pointer list-none items-center justify-between p-4">
             <div>
               <h4 className="font-bold text-slate-950">Immutable audit history</h4>
@@ -206,7 +206,7 @@ export default async function OwnerFinancialHealthSection() {
                 Most recent 25 payment-risk actions with expandable diffs
               </p>
             </div>
-            <span className="text-xl font-bold text-slate-500 transition group-open:rotate-45">
+            <span className="text-xl font-bold text-slate-500 transition group-open/audit-history:rotate-45">
               +
             </span>
           </summary>

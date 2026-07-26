@@ -23,17 +23,17 @@ function Field({ label, name, defaultValue, help, min = 0, max }: {
   max?: number
 }) {
   return (
-    <label className="block rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <span className="text-sm font-bold text-slate-950">{label}</span>
+    <label className="block min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+      <span className="block text-sm font-bold leading-5 text-slate-950">{label}</span>
       <input
         name={name}
         type="number"
         min={min}
         max={max}
         defaultValue={defaultValue}
-        className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+        className="mt-2 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
       />
-      <span className="mt-1 block text-xs leading-5 text-slate-600">{help}</span>
+      <span className="mt-1 block text-xs leading-4 text-slate-600">{help}</span>
     </label>
   )
 }
@@ -67,17 +67,17 @@ export default function OwnerPaymentRiskControls({
 
   return (
     <div className="space-y-4">
-      <details className="group rounded-2xl border border-slate-200 bg-white">
+      <details className="group/global rounded-2xl border border-slate-200 bg-white">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
           <div>
             <h4 className="font-bold text-slate-950">Global payment-risk policy</h4>
             <p className="mt-1 text-sm text-slate-600">Future payout eligibility uses these defaults. Historical ledger entries never change.</p>
           </div>
-          <span className="text-xl font-bold text-slate-500 transition group-open:rotate-45">+</span>
+          <span className="text-xl font-bold text-slate-500 transition group-open/global:rotate-45">+</span>
         </summary>
         <form action={globalAction} className="space-y-4 border-t border-slate-200 p-4">
           <input type="hidden" name="request_id" value={crypto.randomUUID()} />
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <Field label="Standard payout hold days" name="standard_hold_days" defaultValue={policy.standard_hold_days} max={90} help="New earnings wait this many days before becoming eligible." />
             <Field label="First-payout hold days" name="first_payout_hold_days" defaultValue={policy.first_payout_hold_days} max={90} help="Extra review window before an organization's first payout." />
             <Field label="Rolling reserve basis points" name="reserve_percent_bps" defaultValue={policy.reserve_percent_bps} max={10000} help="500 means 5%. This amount remains reserved against future losses." />
@@ -105,13 +105,13 @@ export default function OwnerPaymentRiskControls({
         </form>
       </details>
 
-      <details className="group rounded-2xl border border-slate-200 bg-white">
+      <details className="group/overrides rounded-2xl border border-slate-200 bg-white">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
           <div>
             <h4 className="font-bold text-slate-950">Organization overrides</h4>
             <p className="mt-1 text-sm text-slate-600">Blank values inherit platform defaults. Overrides remain visible and audited.</p>
           </div>
-          <span className="text-xl font-bold text-slate-500 transition group-open:rotate-45">+</span>
+          <span className="text-xl font-bold text-slate-500 transition group-open/overrides:rotate-45">+</span>
         </summary>
         <div className="space-y-4 border-t border-slate-200 p-4">
           <label className="block text-sm font-semibold text-slate-800">
@@ -132,7 +132,7 @@ export default function OwnerPaymentRiskControls({
               <form action={overrideAction} className="space-y-4">
                 <input type="hidden" name="organization_id" value={selected.id} />
                 <input type="hidden" name="request_id" value={crypto.randomUUID()} />
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <Field label="Custom payout hold days" name="standard_hold_days" defaultValue={override.standard_hold_days ?? ''} max={90} help={`Blank uses ${policy.standard_hold_days} days.`} />
                   <Field label="Custom first-payout hold days" name="first_payout_hold_days" defaultValue={override.first_payout_hold_days ?? ''} max={90} help={`Blank uses ${policy.first_payout_hold_days} days.`} />
                   <Field label="Custom reserve basis points" name="reserve_percent_bps" defaultValue={override.reserve_percent_bps ?? ''} max={10000} help={`Blank uses ${policy.reserve_percent_bps} basis points.`} />
