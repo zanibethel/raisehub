@@ -1,0 +1,79 @@
+name: Apply QR print source fix
+
+on:
+  push:
+    branches:
+      - feat/campaign-seller-invitations
+    paths:
+      - .github/workflows/apply-qr-print-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/campaign-seller-invitations
+          fetch-depth: 0
+
+      - name: Patch mobile and desktop QR print layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/dashboards/organization/organization-seller-roster-preview.tsx')
+          text = path.read_text()
+
+          text = text.replace(
+              "import { ChangeEvent, useEffect, useMemo, useState, useTransition } from 'react'",
+              "import { ChangeEvent, useEffect, useMemo, useState, useTransition } from 'react'\nimport { createPortal } from 'react-dom'",
+          )
+
+          old_style = """      <style>{`@media print { body * { visibility: hidden !important; } #raisehub-qr-print-sheet, #raisehub-qr-print-sheet * { visibility: visible !important; } #raisehub-qr-print-sheet { position: absolute !important; inset: 0 !important; width: 100% !important; background: white !important; padding: 0 !important; } .raisehub-print-actions { display: none !important; } }`}</style>"""
+          new_style = """      <style>{`@page { size: Letter portrait; margin: 0.35in; } @media print { html, body { margin: 0 !important; padding: 0 !important; background: white !important; } body > *:not(#raisehub-qr-print-root) { display: none !important; } #raisehub-qr-print-root { display: block !important; position: static !important; width: 100% !important; } #raisehub-qr-print-sheet { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: white !important; } #raisehub-qr-print-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.12in !important; } .raisehub-qr-card { break-inside: avoid !important; page-break-inside: avoid !important; min-width: 0 !important; padding: 0.1in !important; } .raisehub-qr-card img { width: 1.45in !important; height: 1.45in !important; max-width: 100% !important; } .raisehub-qr-card .raisehub-qr-url { font-size: 6px !important; line-height: 1.15 !important; overflow-wrap: anywhere !important; } .raisehub-print-actions { display: none !important; } }`}</style>"""
+          if old_style not in text:
+              raise SystemExit('Expected print style block not found')
+          text = text.replace(old_style, new_style)
+
+          text = text.replace(
+              """      {qrSheet ? (\n        <div className=\"fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 sm:p-6\">""",
+              """      {qrSheet && typeof document !== 'undefined' ? createPortal(\n        <div id=\"raisehub-qr-print-root\" className=\"fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3 sm:p-6\">""",
+          )
+          text = text.replace(
+              """            <main className=\"grid grid-cols-2 gap-3 print:grid-cols-3 sm:grid-cols-3\">""",
+              """            <main id=\"raisehub-qr-print-grid\" className=\"grid grid-cols-2 gap-3 sm:grid-cols-3\">""",
+          )
+          text = text.replace(
+              """              <article className=\"break-inside-avoid rounded-xl border-2 border-blue-600 bg-blue-50 p-3 text-center\">""",
+              """              <article className=\"raisehub-qr-card break-inside-avoid rounded-xl border-2 border-blue-600 bg-blue-50 p-3 text-center\">""",
+          )
+          text = text.replace(
+              """                <p className=\"mt-2 break-all font-mono text-[8px] text-gray-500\">{qrSheet.campaignUrl}</p>""",
+              """                <p className=\"raisehub-qr-url mt-2 break-all font-mono text-[8px] text-gray-500\">{qrSheet.campaignUrl}</p>""",
+          )
+          text = text.replace(
+              """                <article key={row.id} className=\"break-inside-avoid rounded-xl border border-dashed border-slate-400 p-3 text-center\">""",
+              """                <article key={row.id} className=\"raisehub-qr-card break-inside-avoid rounded-xl border border-dashed border-slate-400 p-3 text-center\">""",
+          )
+          text = text.replace(
+              """                  <p className=\"mt-2 break-all font-mono text-[8px] text-gray-500\">{url}</p>""",
+              """                  <p className=\"raisehub-qr-url mt-2 break-all font-mono text-[8px] text-gray-500\">{url}</p>""",
+          )
+          text = text.replace(
+              """        </div>\n      ) : null}""",
+              """        </div>,\n        document.body\n      ) : null}""",
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Commit source fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/dashboards/organization/organization-seller-roster-preview.tsx
+          git commit -m "Fix QR sheet printing across mobile and desktop"
+          git push origin HEAD:feat/campaign-seller-invitations
