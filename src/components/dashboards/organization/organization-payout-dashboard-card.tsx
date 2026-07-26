@@ -11,6 +11,10 @@ type StripeStatus = {
   payoutsEnabled: boolean
   detailsSubmitted: boolean
   chargesEnabled: boolean
+  livemode: boolean | null
+  payoutReady: boolean
+  mode: 'test' | 'live'
+  blockers: string[]
 }
 
 function getStatusCopy(status: StripeStatus | null, checking: boolean) {
@@ -24,7 +28,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
     }
   }
 
-  if (status?.onboardingStatus === 'enabled' && status.detailsSubmitted && status.payoutsEnabled) {
+  if (status?.payoutReady) {
     return {
       badge: 'Payouts ready',
       badgeClassName: 'bg-green-50 text-green-700',
@@ -38,10 +42,10 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
 
   if (status?.detailsSubmitted) {
     return {
-      badge: 'Under review',
+      badge: 'Needs attention',
       badgeClassName: 'bg-amber-50 text-amber-700',
-      title: 'Stripe is reviewing payout details',
-      body: 'Open Stripe to review any remaining requirements or update account information.',
+      title: 'Stripe payout setup needs attention',
+      body: status.blockers[0] ?? 'Open Stripe to review remaining requirements or update account information.',
       button: 'Continue in Stripe',
     }
   }
@@ -51,7 +55,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
       badge: 'Setup in progress',
       badgeClassName: 'bg-amber-50 text-amber-700',
       title: 'Finish secure campaign payout setup',
-      body: 'Complete Stripe verification before campaign proceeds can be transferred.',
+      body: status.blockers[0] ?? 'Complete Stripe verification before campaign proceeds can be transferred.',
       button: 'Continue payout setup',
     }
   }
@@ -60,7 +64,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
     badge: 'Setup required',
     badgeClassName: 'bg-amber-50 text-amber-700',
     title: 'Set up secure campaign payouts',
-    body: 'Connect and verify your organization with Stripe before campaign proceeds can be transferred.',
+    body: status?.blockers[0] ?? 'Connect and verify your organization with Stripe before campaign proceeds can be transferred.',
     button: 'Set up payouts with Stripe',
   }
 }
@@ -73,7 +77,7 @@ export default function OrganizationPayoutDashboardCard() {
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null)
   const reportStatus = useWorkspaceStatusReporter()
   const copy = getStatusCopy(stripeStatus, checking)
-  const isReady = Boolean(!checking && stripeStatus?.onboardingStatus === 'enabled' && stripeStatus.detailsSubmitted && stripeStatus.payoutsEnabled)
+  const isReady = Boolean(!checking && stripeStatus?.payoutReady)
 
   useEffect(() => {
     reportStatus('payouts', checking ? 'checking' : isReady ? 'complete' : 'attention')
@@ -95,6 +99,10 @@ export default function OrganizationPayoutDashboardCard() {
           payoutsEnabled: result.payoutsEnabled,
           detailsSubmitted: result.detailsSubmitted,
           chargesEnabled: result.chargesEnabled,
+          livemode: result.livemode,
+          payoutReady: result.payoutReady,
+          mode: result.mode,
+          blockers: result.blockers,
         })
       } else {
         setOrganizationId('')
@@ -126,14 +134,16 @@ export default function OrganizationPayoutDashboardCard() {
     setLoading(false)
   }
 
+  const modeLabel = stripeStatus?.mode === 'live' ? 'Live mode' : 'Test mode'
+
   return (
-    <details className={isReady ? 'group py-3' : 'group my-3 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'}>
+    <details id="organization-payouts" className={isReady ? 'group py-3' : 'group my-3 scroll-mt-6 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'}>
       <summary className={isReady ? 'flex cursor-pointer list-none items-center justify-between gap-4' : 'flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6'}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-gray-900">Payouts & Stripe</p>
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}>{copy.badge}</span>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Test mode</span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{modeLabel}</span>
           </div>
           {!isReady ? (
             <>
@@ -149,7 +159,18 @@ export default function OrganizationPayoutDashboardCard() {
 
       <div className={isReady ? 'mt-3 border-t border-blue-100 pt-4' : 'border-t border-amber-200 p-5 sm:p-6'}>
         <p className="text-sm leading-6 text-gray-600">{copy.body}</p>
-        <p className="mt-2 text-xs font-medium text-blue-700">Production-site QA is using Stripe test mode. No real funds or live connected accounts will be created.</p>
+        {!isReady && stripeStatus?.blockers.length ? (
+          <ul className="mt-3 space-y-2 text-sm text-amber-900">
+            {stripeStatus.blockers.map((blocker) => (
+              <li key={blocker} className="rounded-lg bg-white/70 px-3 py-2">{blocker}</li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mt-2 text-xs font-medium text-blue-700">
+          {stripeStatus?.mode === 'live'
+            ? 'This environment expects a live Stripe connected account.'
+            : 'This environment uses Stripe test mode. No real funds or live connected accounts will be created.'}
+        </p>
         <button type="button" onClick={handleOnboarding} disabled={loading || checking || !organizationId} className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
           {loading ? 'Opening secure Stripe setup…' : copy.button}
         </button>
