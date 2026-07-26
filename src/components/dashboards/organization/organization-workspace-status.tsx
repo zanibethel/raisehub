@@ -10,6 +10,7 @@ type WorkspaceStatusContextValue = {
 }
 
 const WorkspaceStatusContext = createContext<WorkspaceStatusContextValue | null>(null)
+const ignoreStandaloneStatus = (_item: WorkspaceItem, _status: WorkspaceStatus) => undefined
 
 function StatusItem({ label, status }: { label: string; status: WorkspaceStatus }) {
   const isComplete = status === 'complete'
@@ -28,8 +29,7 @@ function StatusItem({ label, status }: { label: string; status: WorkspaceStatus 
 
 export function useWorkspaceStatusReporter() {
   const context = useContext(WorkspaceStatusContext)
-  if (!context) throw new Error('useWorkspaceStatusReporter must be used within OrganizationWorkspaceStatus')
-  return context.reportStatus
+  return context?.reportStatus ?? ignoreStandaloneStatus
 }
 
 export function WorkspaceStatusReporter({ item, status }: { item: WorkspaceItem; status: WorkspaceStatus }) {
