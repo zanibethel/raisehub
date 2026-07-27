@@ -12,23 +12,31 @@ export const metadata: Metadata = {
   description: 'Digital fundraising passes for schools and local businesses',
 }
 
+type DemoPresentationProfile = {
+  role: string
+  is_demo: boolean | null
+}
+
+const PUBLIC_DEMO_ROLES = new Set([
+  'customer',
+  'business',
+  'organization',
+])
+
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   // =========================================
-  // 🧭 APP + PROFILE DEMO CONTEXT
+  // DEMO PRESENTATION CONTEXT
   //
-  // The deployment-level app mode controls whether
-  // the public experience is the Demo showroom.
+  // Deployment mode controls logged-out showroom branding.
+  // Once authenticated, both role and profile demo status decide
+  // whether the public demo presentation remains visible.
   //
-  // Once a user is signed in, the profile's is_demo
-  // value becomes the source of truth for whether
-  // Demo presentation should remain visible.
-  //
-  // This prevents Production users from receiving
-  // Demo branding inside a Demo-mode deployment.
+  // Owner and Admin sessions never receive the public demo banner.
+  // Owner preview uses its own contextual preview bar instead.
   // =========================================
   const appMode = getAppMode()
   const supabase = await createClient()
@@ -37,20 +45,29 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
-  let signedInProfileIsDemo = false
+  let signedInProfile: DemoPresentationProfile | null = null
 
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_demo')
+      .select('role, is_demo')
       .eq('id', user.id)
-      .maybeSingle()
+      .maybeSingle<DemoPresentationProfile>()
 
-    signedInProfileIsDemo = profile?.is_demo ?? false
+    signedInProfile = profile ?? null
   }
 
+  const showLoggedOutDemoBanner =
+    appMode === 'demo' && !user
+
+  const showAuthenticatedDemoBanner =
+    appMode === 'demo' &&
+    Boolean(user) &&
+    signedInProfile?.is_demo === true &&
+    PUBLIC_DEMO_ROLES.has(signedInProfile.role)
+
   const showDemoBanner =
-    appMode === 'demo' && (!user || signedInProfileIsDemo)
+    showLoggedOutDemoBanner || showAuthenticatedDemoBanner
 
   return (
     <html lang="en" data-app-mode={appMode}>
