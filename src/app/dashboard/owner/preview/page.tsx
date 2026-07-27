@@ -211,6 +211,7 @@ export default async function OwnerPreviewPage({
   }
 
   const activeSubjectId = activeSubject?.profile_id ?? null
+  const activeSubjectLabel = activeSubject?.label ?? null
   const returnToGroupHref = activeGroup
     ? `/dashboard/owner/demo-groups/${encodeURIComponent(activeGroup.group_key)}`
     : '/dashboard/owner/demos'
@@ -229,7 +230,7 @@ export default async function OwnerPreviewPage({
                   Role: {getPreviewLabel(activeRole)}
                 </span>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
-                  Profile: {activeSubject?.label ?? 'Not selected'}
+                  Profile: {activeSubjectLabel ?? 'Not selected'}
                 </span>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
                   Group: {activeGroup?.name ?? 'Not selected'}
@@ -341,7 +342,7 @@ export default async function OwnerPreviewPage({
               Open Demo Center
             </Link>
           </section>
-        ) : !activeSubjectId ? (
+        ) : !activeSubjectId || !activeSubjectLabel ? (
           <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-5">
             <p className="font-bold text-amber-950">
               Choose a linked {getPreviewLabel(activeRole).toLowerCase()} profile
@@ -365,7 +366,7 @@ export default async function OwnerPreviewPage({
                     Controlled preview
                   </p>
                   <h2 className="mt-1 text-xl font-bold">
-                    {getPreviewLabel(activeRole)} · {activeSubject.label}
+                    {getPreviewLabel(activeRole)} · {activeSubjectLabel}
                   </h2>
                 </div>
                 <span className="rounded-full bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-200">
