@@ -1,23 +1,28 @@
+'use client'
+
+import { usePathname, useSearchParams } from 'next/navigation'
+
 // =========================================
 // 🧭 DEMO BANNER
-// Renders only when the app is running in demo mode
-// (NEXT_PUBLIC_APP_MODE=demo). Returns null otherwise,
-// so production renders nothing here at all.
 //
-// The `cta` slot accepts a React node for the primary
-// call-to-action area so interactive demo launchers
-// can be rendered as client components without
-// restructuring this server component.
+// Root layout decides whether the current visitor is in a public demo
+// presentation. This client component handles route-specific handoffs so
+// production campaign browsing can look and feel fully live even while the
+// demo and production domains still share one deployment.
 // =========================================
-
-import { isDemoMode } from '@/lib/app-mode'
 
 type DemoBannerProps = {
   cta?: React.ReactNode
 }
 
 export default function DemoBanner({ cta }: DemoBannerProps) {
-  if (!isDemoMode()) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isLiveCampaignPage =
+    pathname.startsWith('/campaigns') &&
+    searchParams.get('live') === '1'
+
+  if (isLiveCampaignPage) {
     return null
   }
 
