@@ -63,7 +63,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-12 sm:px-8 sm:py-16">
+    <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-10 sm:px-8 sm:py-16">
       <section className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/95 p-7 shadow-xl sm:p-9">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
           Welcome back
@@ -78,39 +78,7 @@ export default function LoginPage() {
           account settings.
         </p>
 
-        <div className="mt-7 space-y-3">
-          <button
-            type="button"
-            onClick={() => handleOAuth('google')}
-            disabled={Boolean(oauthProvider)}
-            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
-          >
-            {oauthProvider === 'google'
-              ? 'Connecting to Google...'
-              : 'Continue with Google'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleOAuth('apple')}
-            disabled={Boolean(oauthProvider)}
-            className="w-full rounded-xl bg-black px-4 py-3 font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
-          >
-            {oauthProvider === 'apple'
-              ? 'Connecting to Apple...'
-              : 'Continue with Apple'}
-          </button>
-        </div>
-
-        <div className="my-7 flex items-center gap-4">
-          <div className="h-px flex-1 bg-gray-200" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Or use email
-          </span>
-          <div className="h-px flex-1 bg-gray-200" />
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="mt-7 space-y-4">
           <label className="block">
             <span className="text-sm font-semibold text-gray-700">Email</span>
             <input
@@ -162,6 +130,38 @@ export default function LoginPage() {
             {message}
           </p>
         ) : null}
+
+        <div className="my-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-gray-200" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Or continue with
+          </span>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => handleOAuth('google')}
+            disabled={Boolean(oauthProvider)}
+            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
+          >
+            {oauthProvider === 'google'
+              ? 'Connecting...'
+              : 'Google'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleOAuth('apple')}
+            disabled={Boolean(oauthProvider)}
+            className="w-full rounded-xl bg-black px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
+          >
+            {oauthProvider === 'apple'
+              ? 'Connecting...'
+              : 'Apple'}
+          </button>
+        </div>
 
         <p className="mt-7 text-center text-sm text-gray-600">
           Need an account?{' '}
