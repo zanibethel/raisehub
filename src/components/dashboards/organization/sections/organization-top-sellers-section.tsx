@@ -1,30 +1,28 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 
-type CampaignSeller = {
-  seller: string
-  sold: number
-  gross: number
-  earnings: number
-  lastSaleAt: string | null
+import {
+  loadCampaignPerformanceReportAction,
+  type CampaignPerformanceReport,
+} from '../organization-performance-actions'
+
+type CampaignOption = {
+  id: string
+  name: string
+  status: string
+  created_at: string | null
 }
 
-export type CampaignPerformanceReport = {
-  campaignId: string
-  campaignName: string
-  status: string
-  createdAt: string | null
-  passesSold: number
-  grossRevenue: number
-  organizationEarnings: number
-  sellerCount: number
-  supporterCount: number
-  sellers: CampaignSeller[]
+type LegacyTopSeller = {
+  seller: string
+  sold: number
+  earnings: number
 }
 
 type OrganizationTopSellersSectionProps = {
-  campaignReports: CampaignPerformanceReport[]
+  campaigns: CampaignOption[]
+  sellers: LegacyTopSeller[]
 }
 
 function formatCurrency(value: number) {
@@ -50,26 +48,41 @@ function escapeCsv(value: string | number) {
 }
 
 export default function OrganizationTopSellersSection({
-  campaignReports,
+  campaigns,
 }: OrganizationTopSellersSectionProps) {
   const defaultCampaign =
-    campaignReports.find((campaign) => campaign.status.toLowerCase() === 'active') ??
-    campaignReports[0]
-  const [selectedCampaignId, setSelectedCampaignId] = useState(defaultCampaign?.campaignId ?? '')
+    campaigns.find((campaign) => campaign.status.toLowerCase() === 'active') ?? campaigns[0]
+  const [selectedCampaignId, setSelectedCampaignId] = useState(defaultCampaign?.id ?? '')
+  const [report, setReport] = useState<CampaignPerformanceReport | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const selectedCampaign = useMemo(
-    () =>
-      campaignReports.find((campaign) => campaign.campaignId === selectedCampaignId) ??
-      defaultCampaign,
-    [campaignReports, defaultCampaign, selectedCampaignId]
+    () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? defaultCampaign,
+    [campaigns, defaultCampaign, selectedCampaignId]
   )
 
+  useEffect(() => {
+    if (!selectedCampaign?.id) return
+
+    setError(null)
+    startTransition(async () => {
+      const result = await loadCampaignPerformanceReportAction(selectedCampaign.id)
+      if (!result.success) {
+        setReport(null)
+        setError(result.error)
+        return
+      }
+      setReport(result.data)
+    })
+  }, [selectedCampaign?.id])
+
   function downloadCsv() {
-    if (!selectedCampaign) return
+    if (!report) return
 
     const rows = [
       ['rank', 'seller', 'passes_sold', 'gross_sales', 'organization_earnings', 'last_recorded_sale'],
-      ...selectedCampaign.sellers.map((seller, index) => [
+      ...report.sellers.map((seller, index) => [
         index + 1,
         seller.seller,
         seller.sold,
@@ -83,7 +96,7 @@ export default function OrganizationTopSellersSection({
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `${slugify(selectedCampaign.campaignName)}-performance-report.csv`
+    anchor.download = `${slugify(report.campaignName)}-performance-report.csv`
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
@@ -115,87 +128,103 @@ export default function OrganizationTopSellersSection({
           </label>
           <select
             id="performance-campaign"
-            value={selectedCampaign.campaignId}
+            value={selectedCampaign.id}
             onChange={(event) => setSelectedCampaignId(event.target.value)}
             className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-900"
           >
-            {campaignReports.map((campaign) => (
-              <option key={campaign.campaignId} value={campaign.campaignId}>
-                {campaign.campaignName} · {campaign.status}
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name} · {campaign.status}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Status</p>
-          <p className="mt-1 font-bold capitalize text-gray-900">{selectedCampaign.status}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Passes sold</p>
-          <p className="mt-1 font-bold text-gray-900">{selectedCampaign.passesSold.toLocaleString()}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Gross sales</p>
-          <p className="mt-1 font-bold text-gray-900">{formatCurrency(selectedCampaign.grossRevenue)}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Organization earnings</p>
-          <p className="mt-1 font-bold text-emerald-700">{formatCurrency(selectedCampaign.organizationEarnings)}</p>
-        </div>
-        <div className="rounded-xl bg-slate-50 p-3 col-span-2 lg:col-span-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Recorded sellers</p>
-          <p className="mt-1 font-bold text-gray-900">{selectedCampaign.sellerCount.toLocaleString()}</p>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="font-bold text-gray-900">Seller results</h3>
-          <p className="mt-1 text-xs text-gray-500">
-            Historical sales stay attached to this campaign even when its active roster changes.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={downloadCsv}
-          className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
-        >
-          Download CSV report
-        </button>
-      </div>
-
-      {selectedCampaign.sellers.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          {selectedCampaign.sellers.map((seller, index) => (
-            <div
-              key={`${selectedCampaign.campaignId}:${seller.seller}`}
-              className="rounded-xl border border-yellow-100 bg-yellow-50 p-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="truncate font-bold text-gray-900">#{index + 1} {seller.seller}</p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {seller.sold.toLocaleString()} passes sold · Last sale {formatDate(seller.lastSaleAt)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-bold text-yellow-800">{formatCurrency(seller.gross)} sales</p>
-                  <p className="mt-1 text-xs font-semibold text-emerald-700">
-                    {formatCurrency(seller.earnings)} earned
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-gray-600">
-          No seller-attributed sales were recorded for this campaign.
+      {isPending ? (
+        <p className="mt-5 rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-800">
+          Loading campaign results…
         </p>
-      )}
+      ) : null}
+
+      {error ? (
+        <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+          {error}
+        </p>
+      ) : null}
+
+      {report && !isPending ? (
+        <>
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Status</p>
+              <p className="mt-1 font-bold capitalize text-gray-900">{report.status}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Passes sold</p>
+              <p className="mt-1 font-bold text-gray-900">{report.passesSold.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Gross sales</p>
+              <p className="mt-1 font-bold text-gray-900">{formatCurrency(report.grossRevenue)}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Organization earnings</p>
+              <p className="mt-1 font-bold text-emerald-700">{formatCurrency(report.organizationEarnings)}</p>
+            </div>
+            <div className="col-span-2 rounded-xl bg-slate-50 p-3 lg:col-span-1">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Recorded sellers</p>
+              <p className="mt-1 font-bold text-gray-900">{report.sellerCount.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-gray-900">Seller results</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Historical sales stay attached to this campaign even when its active roster changes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={downloadCsv}
+              className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
+            >
+              Download CSV report
+            </button>
+          </div>
+
+          {report.sellers.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {report.sellers.map((seller, index) => (
+                <div
+                  key={`${report.campaignId}:${seller.seller}`}
+                  className="rounded-xl border border-yellow-100 bg-yellow-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-gray-900">#{index + 1} {seller.seller}</p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {seller.sold.toLocaleString()} passes sold · Last sale {formatDate(seller.lastSaleAt)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-bold text-yellow-800">{formatCurrency(seller.gross)} sales</p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">
+                        {formatCurrency(seller.earnings)} earned
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-gray-600">
+              No seller-attributed sales were recorded for this campaign.
+            </p>
+          )}
+        </>
+      ) : null}
     </section>
   )
 }
