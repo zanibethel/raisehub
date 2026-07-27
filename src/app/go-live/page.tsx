@@ -29,7 +29,7 @@ const choices = [
     title: 'I own a business',
     description:
       'Join RaiseHub as a local business and create offers that bring supporters through your door.',
-    href: '/signup/business',
+    href: '/signup/business?live=1',
     action: 'Register my business',
     accent: 'border-amber-200 bg-amber-50',
     actionClass: 'bg-amber-700 hover:bg-amber-800',
@@ -38,7 +38,7 @@ const choices = [
     title: 'Start a fundraiser',
     description:
       'Create an organization workspace and launch a campaign for your school, team, group, or cause.',
-    href: '/signup/organization',
+    href: '/signup/organization?live=1',
     action: 'Start a fundraiser',
     accent: 'border-violet-200 bg-violet-50',
     actionClass: 'bg-violet-700 hover:bg-violet-800',
