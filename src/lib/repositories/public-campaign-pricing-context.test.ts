@@ -21,7 +21,7 @@ test('public campaign discovery loads demo status with organization metadata', (
 test('public campaign pricing keeps production and demo rules separated', () => {
   assert.match(
     source,
-    /isDemo: profile\?\.is_demo \?\? false/
+    /isDemo: profile\?\.is_demo === true/
   )
   assert.match(
     source,
