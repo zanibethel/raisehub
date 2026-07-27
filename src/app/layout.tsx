@@ -75,13 +75,15 @@ export default async function RootLayout({
     <html lang="en" data-app-mode={appMode}>
       <body className="bg-slate-100 text-gray-900">
         {showDemoBanner ? (
-          <DemoBanner
-            cta={
-              <Suspense fallback={null}>
-                <DemoBannerCTA />
-              </Suspense>
-            }
-          />
+          <Suspense fallback={null}>
+            <DemoBanner
+              cta={
+                <Suspense fallback={null}>
+                  <DemoBannerCTA />
+                </Suspense>
+              }
+            />
+          </Suspense>
         ) : null}
         <Nav />
         <NotificationRouteOverlayCleanup />
