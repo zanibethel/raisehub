@@ -2,23 +2,14 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type PreviewRole =
   | 'customer'
   | 'business'
   | 'organization'
-  | 'admin'
 
 type OwnerRoleSwitcherProps = {
   activeRole: PreviewRole
 }
-
-// =============================================================================
-// Options
-// =============================================================================
 
 const roleOptions: {
   value: PreviewRole
@@ -27,8 +18,8 @@ const roleOptions: {
 }[] = [
   {
     value: 'customer',
-    label: 'Customer',
-    description: 'Passes, saved deals, and available offers',
+    label: 'Supporter',
+    description: 'Passes, saved offers, campaign support, and redemptions',
   },
   {
     value: 'business',
@@ -40,16 +31,7 @@ const roleOptions: {
     label: 'Organization',
     description: 'Campaigns, sellers, earnings, and reports',
   },
-  {
-    value: 'admin',
-    label: 'Admin',
-    description: 'Platform management and oversight',
-  },
 ]
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function OwnerRoleSwitcher({
   activeRole,
@@ -71,20 +53,17 @@ export default function OwnerRoleSwitcher({
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-          Owner preview
+          Switch role
         </p>
-
         <h2 className="mt-1 text-lg font-bold text-slate-900">
-          Test a dashboard role
+          View another side of this scenario
         </h2>
-
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Preview each RaiseHub experience without changing your permanent
-          account role.
+          The selected demo group remains active. Choose a linked profile after switching roles.
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {roleOptions.map((option) => {
           const isActive = option.value === activeRole
 
@@ -107,7 +86,6 @@ export default function OwnerRoleSwitcher({
               >
                 {option.label}
               </span>
-
               <span className="mt-1 block text-xs leading-5 text-slate-600">
                 {option.description}
               </span>
@@ -117,7 +95,7 @@ export default function OwnerRoleSwitcher({
       </div>
 
       <p className="mt-4 text-xs text-slate-500">
-        Preview mode does not change your saved profile role.
+        Preview mode never changes your saved Owner role or signs you into the selected demo account.
       </p>
     </section>
   )
