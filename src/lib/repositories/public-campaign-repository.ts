@@ -117,7 +117,7 @@ export async function getPublicSellableCampaigns(
         'id, organization_id, name, description, goal_amount, starts_at, ends_at, status, created_at, is_demo'
       )
       .eq('status', 'active')
-      .eq('is_demo', demoMode)
+      .or(`is_demo.eq.${demoMode}`)
       .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
       .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
       .order('created_at', { ascending: false })
