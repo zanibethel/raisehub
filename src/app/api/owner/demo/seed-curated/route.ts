@@ -56,7 +56,7 @@ async function findOrCreateAuthUser(
   fullName: string
 ) {
   const admin = createAdminClient()
-  const normalizedEmail = email.toLowerCase()
+  const normalizedEmail = email.trim().toLowerCase()
 
   const { data: listedUsers, error: listError } =
     await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -68,14 +68,11 @@ async function findOrCreateAuthUser(
   )
 
   if (existing) {
-    const { data, error } = await admin.auth.admin.updateUserById(
-      existing.id,
-      {
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      }
-    )
+    const { data, error } = await admin.auth.admin.updateUserById(existing.id, {
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    })
 
     if (error || !data.user) {
       throw error ?? new Error(`Could not update ${email}.`)
@@ -151,7 +148,9 @@ export async function POST() {
     )
   }
 
-  const admin = createAdminClient()
+  // The generated Supabase types lag several live demo columns. Keep this
+  // privileged, Owner-only seeder runtime-validated while the shared types catch up.
+  const admin = createAdminClient() as any
 
   try {
     const identities = await Promise.all(
@@ -191,7 +190,7 @@ export async function POST() {
         { onConflict: 'group_key' }
       )
       .select('id, group_key')
-      .single<{ id: string; group_key: string }>()
+      .single()
 
     if (groupError || !group) throw groupError
 
@@ -227,6 +226,11 @@ export async function POST() {
     const organizationUser = identityByRole.organization
     const businessUser = identityByRole.business
     const customerUser = identityByRole.customer
+    const now = new Date()
+    const startsAt = new Date(now)
+    startsAt.setDate(now.getDate() - 21)
+    const endsAt = new Date(now)
+    endsAt.setDate(now.getDate() + 75)
 
     const { data: organization, error: organizationError } = await admin
       .from('organizations')
@@ -248,7 +252,7 @@ export async function POST() {
         { onConflict: 'legacy_profile_id' }
       )
       .select('id')
-      .single<{ id: string }>()
+      .single()
 
     if (organizationError || !organization) throw organizationError
 
@@ -261,7 +265,7 @@ export async function POST() {
           membership_role: 'admin',
           status: 'active',
           display_name: 'Elena Ramirez',
-          accepted_at: new Date().toISOString(),
+          accepted_at: now.toISOString(),
           is_demo: true,
           demo_group: DEMO_GROUP_KEY,
         },
@@ -291,7 +295,7 @@ export async function POST() {
         { onConflict: 'legacy_profile_id' }
       )
       .select('id')
-      .single<{ id: string }>()
+      .single()
 
     if (businessError || !business) throw businessError
 
@@ -303,7 +307,7 @@ export async function POST() {
           user_id: businessUser.id,
           membership_role: 'owner',
           status: 'active',
-          accepted_at: new Date().toISOString(),
+          accepted_at: now.toISOString(),
           is_demo: true,
           demo_group: DEMO_GROUP_KEY,
         },
@@ -311,12 +315,6 @@ export async function POST() {
       )
 
     if (businessMembershipError) throw businessMembershipError
-
-    const now = new Date()
-    const startsAt = new Date(now)
-    startsAt.setDate(now.getDate() - 21)
-    const endsAt = new Date(now)
-    endsAt.setDate(now.getDate() + 75)
 
     const { data: campaign, error: campaignError } = await admin
       .from('campaigns')
@@ -341,7 +339,7 @@ export async function POST() {
         { onConflict: 'organization_id,name' }
       )
       .select('id')
-      .single<{ id: string }>()
+      .single()
 
     if (campaignError || !campaign) throw campaignError
 
@@ -365,7 +363,7 @@ export async function POST() {
         { onConflict: 'business_id,title' }
       )
       .select('id')
-      .single<{ id: string }>()
+      .single()
 
     if (offerError || !offer) throw offerError
 
@@ -375,7 +373,7 @@ export async function POST() {
       .eq('campaign_id', campaign.id)
       .eq('user_id', customerUser.id)
       .eq('demo_group', DEMO_GROUP_KEY)
-      .maybeSingle<{ id: string }>()
+      .maybeSingle()
 
     let purchaseId = existingPurchase?.id ?? null
 
@@ -402,7 +400,7 @@ export async function POST() {
           demo_group: DEMO_GROUP_KEY,
         })
         .select('id')
-        .single<{ id: string }>()
+        .single()
 
       if (purchaseError || !purchase) throw purchaseError
       purchaseId = purchase.id
@@ -447,7 +445,7 @@ export async function POST() {
       .eq('offer_id', offer.id)
       .eq('user_id', customerUser.id)
       .eq('demo_group', DEMO_GROUP_KEY)
-      .maybeSingle<{ id: string }>()
+      .maybeSingle()
 
     if (!existingRedemption) {
       const { error } = await admin.from('redemptions').insert({
