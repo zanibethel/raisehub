@@ -16,6 +16,7 @@ type SignupPageProps = {
     seller?: string
     donation?: string
     organization?: string
+    live?: string
   }>
 }
 
@@ -79,7 +80,12 @@ export default async function SignupPage({
   }
 
   const { campaigns, error } =
-    await getPublicSellableCampaigns()
+    await getPublicSellableCampaigns(
+      new Date(),
+      requestedParams.live === '1'
+        ? 'production'
+        : 'app'
+    )
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] p-5 sm:p-8">
