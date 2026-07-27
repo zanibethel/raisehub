@@ -354,11 +354,12 @@ function CampaignActions({
 }: CampaignActionsProps) {
   const status = campaignStatus.toLowerCase()
   const isDraft = status === 'draft'
+  const isPaused = status === 'paused'
   const isArchived = status === 'archived'
   const isCompleted = status === 'completed'
   const isPublic = status === 'active'
   const canPause = status === 'active'
-  const canResume = status === 'paused'
+  const canResume = isPaused && eligibility.canPublish
   const canArchive = !isArchived
   const canSubmit =
     isDraft &&
@@ -370,10 +371,11 @@ function CampaignActions({
   const actionClass = compactGrid
     ? 'min-h-10 w-full justify-center rounded-lg px-2.5 py-2 text-center text-xs font-semibold'
     : 'rounded-lg px-3 py-2 text-center text-xs font-semibold'
+  const showEligibilityGuidance = (isDraft || isPaused) && !eligibility.canPublish
 
   return (
     <div className={compactGrid ? 'grid grid-cols-2 gap-2 [&>*]:min-w-0' : 'flex flex-wrap items-center gap-2'}>
-      {eligibility.canPublish ? (
+      {isDraft && eligibility.canPublish ? (
         <CampaignStatusActionButton
           campaignId={campaignId}
           campaignName={campaignName}
@@ -460,7 +462,7 @@ function CampaignActions({
         </p>
       ) : null}
 
-      {isDraft && !eligibility.canPublish ? (
+      {showEligibilityGuidance ? (
         <div
           className={`${compactGrid ? 'col-span-2' : 'w-full'} rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900`}
         >

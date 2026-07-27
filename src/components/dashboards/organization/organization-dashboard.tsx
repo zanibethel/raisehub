@@ -153,27 +153,36 @@ export default async function OrganizationDashboard({
   const stripeAccount = (stripeAccountResult.data ?? null) as StripeReadinessRow | null
   const expectedLivemode = process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
   const profileReady = organizationProfileIsReady(canonicalOrganization ?? null)
-  const organizationCampaigns = (campaigns ?? []).map((campaign) => ({
-    ...campaign,
-    publishingEligibility: evaluateCampaignPublishingEligibility({
-      campaignId: campaign.id,
-      campaignStatus: campaign.status,
-      reviewStatus: campaign.review_status,
-      authorized: canManageOrganization,
-      profileReady,
-      approvalCurrent: true,
-      stripe: {
-        accountExists: Boolean(stripeAccount),
-        expectedLivemode,
-        livemode: stripeAccount?.livemode ?? null,
-        onboardingStatus: stripeAccount?.onboarding_status ?? null,
-        detailsSubmitted: stripeAccount?.details_submitted ?? false,
-        payoutsEnabled: stripeAccount?.payouts_enabled ?? false,
-        disabledReason: stripeAccount?.disabled_reason ?? null,
-        requirementsCurrentlyDue: stripeAccount?.requirements_currently_due ?? [],
-      },
-    }),
-  }))
+  const organizationCampaigns = (campaigns ?? []).map((campaign) => {
+    const status = campaign.status?.trim().toLowerCase() ?? ''
+    const approvalCurrent =
+      campaign.review_status === 'approved' &&
+      Number.isInteger(campaign.content_revision) &&
+      campaign.content_revision > 0 &&
+      campaign.approved_revision === campaign.content_revision
+
+    return {
+      ...campaign,
+      publishingEligibility: evaluateCampaignPublishingEligibility({
+        campaignId: campaign.id,
+        campaignStatus: status === 'paused' ? 'draft' : campaign.status,
+        reviewStatus: campaign.review_status,
+        authorized: canManageOrganization,
+        profileReady,
+        approvalCurrent,
+        stripe: {
+          accountExists: Boolean(stripeAccount),
+          expectedLivemode,
+          livemode: stripeAccount?.livemode ?? null,
+          onboardingStatus: stripeAccount?.onboarding_status ?? null,
+          detailsSubmitted: stripeAccount?.details_submitted ?? false,
+          payoutsEnabled: stripeAccount?.payouts_enabled ?? false,
+          disabledReason: stripeAccount?.disabled_reason ?? null,
+          requirementsCurrentlyDue: stripeAccount?.requirements_currently_due ?? [],
+        },
+      }),
+    }
+  })
   const now = new Date()
   const sellableCampaigns = organizationCampaigns.filter((campaign) =>
     isCampaignCurrentlySellable(campaign, now)

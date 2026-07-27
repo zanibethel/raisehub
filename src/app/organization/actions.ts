@@ -44,6 +44,8 @@ type CampaignOwnerRow = {
   canonical_organization_id: string | null
   review_status?: string
   status?: string
+  content_revision?: number | null
+  approved_revision?: number | null
 }
 
 type CampaignReviewRow = CampaignOwnerRow & {
@@ -122,6 +124,15 @@ function stripeEnvironmentIsLive() {
   return process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
 }
 
+function campaignApprovalIsCurrent(campaign: CampaignOwnerRow) {
+  return Boolean(
+    campaign.review_status === 'approved' &&
+      Number.isInteger(campaign.content_revision) &&
+      Number(campaign.content_revision) > 0 &&
+      campaign.approved_revision === campaign.content_revision
+  )
+}
+
 async function getOrganizationById(organizationId: string) {
   const admin = createAdminClient() as any
   const { data } = await admin
@@ -180,7 +191,7 @@ async function getAuthorizedCampaign(userId: string, campaignId: string) {
   const admin = createAdminClient() as any
   const { data } = await admin
     .from('campaigns')
-    .select('id, organization_id, canonical_organization_id, review_status, status')
+    .select('id, organization_id, canonical_organization_id, review_status, status, content_revision, approved_revision')
     .eq('id', campaignId)
     .maybeSingle()
 
@@ -198,7 +209,11 @@ async function getAuthorizedCampaign(userId: string, campaignId: string) {
   return { campaign, organization }
 }
 
-async function getCampaignPublishingEligibility(userId: string, campaignId: string) {
+async function getCampaignPublishingEligibility(
+  userId: string,
+  campaignId: string,
+  campaignStatusOverride?: string
+) {
   const authorized = await getAuthorizedCampaign(userId, campaignId)
 
   if (!authorized) {
@@ -208,7 +223,7 @@ async function getCampaignPublishingEligibility(userId: string, campaignId: stri
       reviewStatus: null,
       authorized: false,
       profileReady: false,
-      approvalCurrent: true,
+      approvalCurrent: false,
       stripe: {
         accountExists: false,
         expectedLivemode: stripeEnvironmentIsLive(),
@@ -234,13 +249,13 @@ async function getCampaignPublishingEligibility(userId: string, campaignId: stri
 
   return evaluateCampaignPublishingEligibility({
     campaignId,
-    campaignStatus: authorized.campaign.status,
+    campaignStatus: campaignStatusOverride ?? authorized.campaign.status,
     reviewStatus: authorized.campaign.review_status,
     authorized: true,
     profileReady: Boolean(
       authorized.organization && organizationSetupIsComplete(authorized.organization)
     ),
-    approvalCurrent: true,
+    approvalCurrent: campaignApprovalIsCurrent(authorized.campaign),
     stripe: {
       accountExists: Boolean(stripe),
       expectedLivemode: stripeEnvironmentIsLive(),
@@ -432,8 +447,8 @@ export async function updateCampaignStatusAction(campaignId: string, status: str
   const currentStatus = authorized.campaign.status?.trim().toLowerCase()
   const admin = createAdminClient() as any
 
-  if (status === 'active' && currentStatus === 'draft') {
-    const eligibility = await getCampaignPublishingEligibility(user.id, campaignId)
+  if (status === 'active' && (currentStatus === 'draft' || currentStatus === 'paused')) {
+    const eligibility = await getCampaignPublishingEligibility(user.id, campaignId, 'draft')
     if (!eligibility.canPublish) {
       return {
         error:
@@ -442,24 +457,29 @@ export async function updateCampaignStatusAction(campaignId: string, status: str
       }
     }
 
-    const { data: publishedCampaign, error } = await admin
+    const { data: activatedCampaign, error } = await admin
       .from('campaigns')
       .update({ status: 'active' })
       .eq('id', campaignId)
-      .eq('status', 'draft')
+      .eq('status', currentStatus)
       .select('id')
       .maybeSingle()
 
-    if (error || !publishedCampaign) {
-      return { error: 'The campaign changed before it could be published. Refresh and try again.' }
+    if (error || !activatedCampaign) {
+      return {
+        error:
+          currentStatus === 'paused'
+            ? 'The campaign changed before it could be resumed. Refresh and try again.'
+            : 'The campaign changed before it could be published. Refresh and try again.',
+      }
     }
 
     revalidateCampaignPaths(campaignId)
     return { success: true }
   }
 
-  if (status === 'active' && currentStatus !== 'paused' && currentStatus !== 'active') {
-    return { error: 'Only a paused campaign can be resumed.' }
+  if (status === 'active' && currentStatus !== 'active') {
+    return { error: 'Only a draft campaign can be published or a paused campaign resumed.' }
   }
 
   const { error } = await admin
