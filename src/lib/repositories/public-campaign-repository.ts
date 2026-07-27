@@ -16,7 +16,6 @@ type CampaignRow = {
   ends_at: string | null
   status: string
   created_at: string
-  is_demo: boolean
 }
 
 type OrganizationRow = {
@@ -114,7 +113,7 @@ export async function getPublicSellableCampaigns(
     await admin
       .from('campaigns')
       .select(
-        'id, organization_id, name, description, goal_amount, starts_at, ends_at, status, created_at, is_demo'
+        'id, organization_id, name, description, goal_amount, starts_at, ends_at, status, created_at'
       )
       .eq('status', 'active')
       .or(`is_demo.eq.${demoMode}`)
@@ -215,7 +214,7 @@ export async function getPublicSellableCampaigns(
     return {
       campaignId: campaign.id,
       organizationId: organization?.id ?? null,
-      isDemo: campaign.is_demo || profile?.is_demo === true,
+      isDemo: profile?.is_demo === true,
     }
   })
 
