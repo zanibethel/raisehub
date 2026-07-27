@@ -46,7 +46,7 @@ function isAllowedRole(
 function buildOwnerPreviewHref(
   role: AllowedRole
 ): string {
-  return `/dashboard?previewRole=${encodeURIComponent(
+  return `/dashboard/owner/preview?previewRole=${encodeURIComponent(
     role
   )}`
 }
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
   const supabase = await createClient()
 
-  // Owners remain authenticated as owners and use the existing preview system.
+  // Owners remain authenticated as owners and use the dedicated preview system.
   // This prevents demo exploration from replacing the permanent owner session.
   const ownerPreviewHref =
     await getAuthenticatedOwnerPreviewHref(
@@ -134,6 +134,7 @@ export async function POST(request: Request) {
   }
 
   // Public and non-owner demo visitors continue using designated demo accounts.
+  // Sprint #41 will replace this global role map with group-aware server selection.
   const emailMap: Record<
     AllowedRole,
     string | undefined
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          'Demo account configuration is incomplete. Contact the platform administrator.',
+          'The interactive demo is temporarily unavailable. Please try again later.',
       },
       { status: 503 }
     )
