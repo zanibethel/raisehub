@@ -25,7 +25,7 @@ export default async function Nav() {
       .maybeSingle()
 
     if (profile?.role === 'organization') {
-      profileHref = '/dashboard#organization-setup'
+      profileHref = '/dashboard/organization/profile'
     } else if (profile?.role === 'business') {
       profileHref = '/dashboard#business-profile'
     } else if (profile?.role === 'owner' || profile?.role === 'admin') {
@@ -40,13 +40,9 @@ export default async function Nav() {
       process.env.DEMO_CUSTOMER_EMAIL?.toLowerCase(),
       process.env.DEMO_BUSINESS_EMAIL?.toLowerCase(),
       process.env.DEMO_ORGANIZATION_EMAIL?.toLowerCase(),
-    ].filter(
-      (value): value is string =>
-        Boolean(value)
-    )
+    ].filter((value): value is string => Boolean(value))
 
-    isPublicDemoUser =
-      publicDemoEmails.includes(email)
+    isPublicDemoUser = publicDemoEmails.includes(email)
   }
 
   const navUser = user
