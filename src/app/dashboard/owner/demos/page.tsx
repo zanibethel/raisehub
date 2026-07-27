@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import CreateDemoGroupForm from '@/components/dashboards/owner/create-demo-group-form'
+import SeedCuratedDemoButton from '@/components/dashboards/owner/seed-curated-demo-button'
 import {
   getDemoGroups,
   type DemoGroupSummary,
@@ -190,6 +191,24 @@ export default async function OwnerDemoCenterPage() {
             <p className="mt-2 text-3xl font-bold text-blue-700">
               {profileCount}
             </p>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-amber-300 bg-amber-50 p-5 shadow-sm sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
+            Guided setup
+          </p>
+
+          <h2 className="mt-2 text-2xl font-bold text-slate-950">
+            Create the complete Lakeview demo
+          </h2>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+            Creates the three demo login accounts and their connected organization, business, campaign, offer, purchase, entitlement, saved offer, and redemption. You can run it again safely to repair or refresh the same scenario.
+          </p>
+
+          <div className="mt-5">
+            <SeedCuratedDemoButton />
           </div>
         </section>
 
