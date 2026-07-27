@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Nav from './components/nav'
 import DemoBanner from './components/demo-banner'
 import DemoBannerCTA from './components/demo-banner-cta'
+import NotificationRouteOverlayCleanup from './components/notification-route-overlay-cleanup'
 import { getAppMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
 
@@ -58,6 +59,7 @@ export default async function RootLayout({
           <DemoBanner cta={<DemoBannerCTA />} />
         ) : null}
         <Nav />
+        <NotificationRouteOverlayCleanup />
         {children}
       </body>
     </html>
