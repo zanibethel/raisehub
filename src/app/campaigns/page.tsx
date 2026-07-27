@@ -2,9 +2,27 @@ import Link from 'next/link'
 import CampaignCard from '@/app/components/campaign-card'
 import { getPublicSellableCampaigns } from '@/lib/repositories/public-campaign-repository'
 
-export default async function CampaignsPage() {
+type CampaignsPageProps = {
+  searchParams?: Promise<{
+    live?: string | string[]
+  }>
+}
+
+function isLiveRequest(value?: string | string[]) {
+  const candidate = Array.isArray(value) ? value[0] : value
+  return candidate === '1'
+}
+
+export default async function CampaignsPage({
+  searchParams,
+}: CampaignsPageProps) {
+  const params = searchParams ? await searchParams : undefined
+  const liveMode = isLiveRequest(params?.live)
   const { campaigns, error } =
-    await getPublicSellableCampaigns()
+    await getPublicSellableCampaigns(
+      new Date(),
+      liveMode ? 'production' : 'app'
+    )
 
   if (error) {
     return (
@@ -49,7 +67,9 @@ export default async function CampaignsPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm text-gray-600">
-          Browse currently active campaigns that are within their fundraising window.
+          {liveMode
+            ? 'Browse real active campaigns currently accepting support.'
+            : 'Browse currently active campaigns that are within their fundraising window.'}
         </p>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
