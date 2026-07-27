@@ -77,6 +77,7 @@ const DEMO_SAMPLE_OFFERS: Offer[] = [
 export default async function FeaturedDealsCarousel() {
   const supabase = await createClient()
   const now = new Date().toISOString()
+  const demoMode = isDemoMode()
 
   const { data: offers, error: offersError } = await supabase
     .from('offers')
@@ -84,6 +85,7 @@ export default async function FeaturedDealsCarousel() {
       'id, title, discount, description, starts_at, ends_at, business_id'
     )
     .eq('is_active', true)
+    .eq('is_demo', demoMode)
     .or(`starts_at.is.null,starts_at.lte.${now}`)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
@@ -102,7 +104,7 @@ export default async function FeaturedDealsCarousel() {
 
   if (
     candidateOffers.length === 0 &&
-    isDemoMode()
+    demoMode
   ) {
     return (
       <FeaturedDealsCarouselClient
@@ -132,6 +134,7 @@ export default async function FeaturedDealsCarousel() {
       )
       .in('id', businessIds)
       .eq('role', 'business')
+      .eq('is_demo', demoMode)
 
   if (profilesError) {
     return null
@@ -160,7 +163,7 @@ export default async function FeaturedDealsCarousel() {
 
   if (
     validOffers.length === 0 &&
-    isDemoMode()
+    demoMode
   ) {
     return (
       <FeaturedDealsCarouselClient
