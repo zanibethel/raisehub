@@ -1,5 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
+
 import Nav from './components/nav'
 import DemoBanner from './components/demo-banner'
 import DemoBannerCTA from './components/demo-banner-cta'
@@ -73,7 +75,13 @@ export default async function RootLayout({
     <html lang="en" data-app-mode={appMode}>
       <body className="bg-slate-100 text-gray-900">
         {showDemoBanner ? (
-          <DemoBanner cta={<DemoBannerCTA />} />
+          <DemoBanner
+            cta={
+              <Suspense fallback={null}>
+                <DemoBannerCTA />
+              </Suspense>
+            }
+          />
         ) : null}
         <Nav />
         <NotificationRouteOverlayCleanup />
