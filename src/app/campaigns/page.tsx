@@ -77,7 +77,11 @@ export default async function CampaignsPage({
             <CampaignCard
               key={campaign.id}
               campaign={campaign}
-              href={`/campaigns/${campaign.id}`}
+              href={
+                liveMode
+                  ? `/campaigns/${campaign.id}?live=1`
+                  : `/campaigns/${campaign.id}`
+              }
               actionLabel="Support This Campaign"
               className="min-w-0"
             />
