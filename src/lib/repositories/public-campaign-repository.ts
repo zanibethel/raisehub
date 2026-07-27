@@ -38,6 +38,8 @@ type ProgressRow = {
   amount_raised: number | null
 }
 
+type PublicCampaignMode = 'app' | 'production'
+
 export type PublicSellableCampaignsResult = {
   campaigns: SellableCampaignOption[]
   error: string | null
@@ -99,15 +101,18 @@ function getGoalState(
  *
  * This server-only query intentionally uses the admin client so logged-out
  * visitors are not dependent on authenticated RLS state. Every table query is
- * explicitly limited to the fields needed by public campaign cards, and app
- * mode determines whether demo or production records are eligible.
+ * explicitly limited to the fields needed by public campaign cards. App mode
+ * controls normal discovery, while the Go Live handoff can explicitly request
+ * production records from the shared prelaunch deployment.
  */
 export async function getPublicSellableCampaigns(
-  now = new Date()
+  now = new Date(),
+  mode: PublicCampaignMode = 'app'
 ): Promise<PublicSellableCampaignsResult> {
   const admin = createAdminClient()
   const nowIso = now.toISOString()
-  const demoMode = isDemoMode()
+  const demoMode =
+    mode === 'production' ? false : isDemoMode()
 
   const { data: campaignData, error: campaignError } =
     await admin
