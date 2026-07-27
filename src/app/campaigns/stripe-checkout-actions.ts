@@ -45,6 +45,11 @@ type UntypedTable = {
 }
 type UntypedAdminClient = { from(table: string): UntypedTable }
 
+type DemoClassification = {
+  is_demo: boolean
+  demo_group: string | null
+}
+
 function mapRecovery(result: CampaignRecoveryResult): CheckoutResult {
   if (result.status === 'replacement-found') return result
   if (result.status === 'selection-required') return result
@@ -79,11 +84,25 @@ async function resolveOrigin() {
   return 'http://localhost:3000'
 }
 
-export async function createCampaignCheckoutAction(input: CheckoutInput): Promise<CheckoutResult> {
-  if (!stripeIsConfigured()) {
-    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+function resolveDemoGroup(
+  classifications: DemoClassification[]
+): string | null {
+  const demoRows = classifications.filter((row) => row.is_demo)
+
+  if (demoRows.length === 0) {
+    return null
   }
 
+  const groups = new Set(
+    demoRows.map((row) => row.demo_group).filter(Boolean)
+  )
+
+  return groups.size === 1
+    ? Array.from(groups)[0] ?? null
+    : null
+}
+
+export async function createCampaignCheckoutAction(input: CheckoutInput): Promise<CheckoutResult> {
   const supabase = await createClient()
   const now = new Date()
   const { campaign, error: campaignError } = await getCampaignById(input.campaign_id)
@@ -95,6 +114,66 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { status: 'error', message: 'Create an account or log in before purchasing a fundraiser pass.' }
 
+  const admin = createAdminClient()
+  const untypedAdmin = admin as unknown as UntypedAdminClient
+  const selectedOrganizationId = campaign.organization_id
+
+  const [
+    canonicalOrganizationResult,
+    organizationProfileResult,
+    userProfileResult,
+    campaignClassificationResult,
+  ] = await Promise.all([
+    admin.from('organizations').select('id').eq('legacy_profile_id', selectedOrganizationId).eq('status', 'active').is('archived_at', null).maybeSingle(),
+    admin.from('profiles').select('is_demo, demo_group, role').eq('id', selectedOrganizationId).eq('role', 'organization').maybeSingle(),
+    admin.from('profiles').select('is_demo, demo_group').eq('id', user.id).maybeSingle(),
+    admin.from('campaigns').select('is_demo, demo_group').eq('id', campaign.id).maybeSingle(),
+  ])
+
+  if (
+    canonicalOrganizationResult.error ||
+    !canonicalOrganizationResult.data ||
+    organizationProfileResult.error ||
+    !organizationProfileResult.data ||
+    userProfileResult.error ||
+    !userProfileResult.data ||
+    campaignClassificationResult.error ||
+    !campaignClassificationResult.data
+  ) {
+    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
+  }
+
+  const classifications: DemoClassification[] = [
+    userProfileResult.data,
+    organizationProfileResult.data,
+    campaignClassificationResult.data,
+  ]
+  const containsDemoData = classifications.some((row) => row.is_demo)
+  const demoGroup = resolveDemoGroup(classifications)
+
+  if (containsDemoData) {
+    const allDemo = classifications.every((row) => row.is_demo)
+    const allSameGroup =
+      Boolean(demoGroup) &&
+      classifications.every((row) => row.demo_group === demoGroup)
+
+    if (!allDemo || !allSameGroup) {
+      return {
+        status: 'error',
+        message: 'This demo checkout is not safely connected to one demo group. No payment was started.',
+      }
+    }
+
+    return {
+      status: 'error',
+      message: 'This is a demonstration checkout. No real payment was started while the simulated purchase flow is being prepared.',
+    }
+  }
+
+  if (!stripeIsConfigured()) {
+    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+  }
+
   const passAccess = await getCustomerPassAccess(user.id, now)
   if (passAccess.error) return { status: 'error', message: 'We could not confirm your current pass access. Please try again.' }
 
@@ -102,19 +181,6 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   const isDonationOnly = passAccess.hasActivePass
   if (isDonationOnly && donationAmount <= 0) {
     return { status: 'error', message: 'Choose a donation amount to support this fundraiser.' }
-  }
-
-  const admin = createAdminClient()
-  const untypedAdmin = admin as unknown as UntypedAdminClient
-  const selectedOrganizationId = campaign.organization_id
-
-  const [canonicalOrganizationResult, organizationProfileResult] = await Promise.all([
-    admin.from('organizations').select('id').eq('legacy_profile_id', selectedOrganizationId).eq('status', 'active').is('archived_at', null).maybeSingle(),
-    admin.from('profiles').select('is_demo, demo_group, role').eq('id', selectedOrganizationId).eq('role', 'organization').maybeSingle(),
-  ])
-
-  if (canonicalOrganizationResult.error || !canonicalOrganizationResult.data || organizationProfileResult.error || !organizationProfileResult.data) {
-    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
   }
 
   let managedSeller: ManagedSellerRow | null = null
@@ -136,7 +202,7 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     campaignId: campaign.id,
     organizationId: canonicalOrganizationResult.data.id,
     donationAmount,
-    isDemo: organizationProfileResult.data.is_demo,
+    isDemo: false,
     now,
   })
 
@@ -172,8 +238,8 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
       organization_pass_earnings: snapshot.organizationPassEarnings,
       organization_earnings: snapshot.organizationEarnings,
       pricing_resolved_at: snapshot.pricingResolvedAt,
-      is_demo: organizationProfileResult.data.is_demo,
-      demo_group: organizationProfileResult.data.demo_group,
+      is_demo: false,
+      demo_group: null,
       status: 'created',
     })
     .select('id')
