@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 
 type MobileNavEnhancementsProps = {
   signedIn: boolean
-  profileHref: string
+  profileHref: string | null
 }
 
 export default function MobileNavEnhancements({
@@ -45,25 +45,32 @@ export default function MobileNavEnhancements({
         menuLinks.setAttribute('data-raisehub-account-menu', 'true')
         accountEmail?.setAttribute('data-raisehub-account-email', 'true')
 
-        let slot = menuLinks.querySelector<HTMLElement>(
-          '[data-raisehub-profile-slot]'
-        )
-
-        if (!slot) {
-          slot = document.createElement('div')
-          slot.setAttribute('data-raisehub-profile-slot', 'true')
-          const notificationLink = menuLinks.querySelector(
-            'a[href="/dashboard/notifications"]'
+        if (profileHref) {
+          let slot = menuLinks.querySelector<HTMLElement>(
+            '[data-raisehub-profile-slot]'
           )
-          menuLinks.insertBefore(slot, notificationLink ?? menuLinks.lastElementChild)
-        }
 
-        setProfileSlot(slot)
+          if (!slot) {
+            slot = document.createElement('div')
+            slot.setAttribute('data-raisehub-profile-slot', 'true')
+            const notificationLink = menuLinks.querySelector(
+              'a[href="/dashboard/notifications"]'
+            )
+            menuLinks.insertBefore(slot, notificationLink ?? menuLinks.lastElementChild)
+          }
+
+          setProfileSlot(slot)
+        } else {
+          menuLinks
+            .querySelector('[data-raisehub-profile-slot]')
+            ?.remove()
+          setProfileSlot(null)
+        }
       } else {
         setProfileSlot(null)
       }
 
-      return { closeButton, menuRoot }
+      return { closeButton, menuRoot, panel }
     }
 
     syncOpenMenu()
@@ -77,17 +84,29 @@ export default function MobileNavEnhancements({
       if (!menuRoot.contains(event.target as Node)) closeButton.click()
     }
 
+    function handleMenuSelection(event: MouseEvent) {
+      const { closeButton, panel } = syncOpenMenu()
+      if (!closeButton || !panel) return
+
+      const selectedAction = (event.target as Element | null)?.closest('a, button')
+      if (!selectedAction || !panel.contains(selectedAction)) return
+
+      closeButton.click()
+    }
+
     document.addEventListener('pointerdown', handlePointerDown, true)
+    document.addEventListener('click', handleMenuSelection)
 
     return () => {
       observer.disconnect()
       document.removeEventListener('pointerdown', handlePointerDown, true)
+      document.removeEventListener('click', handleMenuSelection)
     }
-  }, [signedIn])
+  }, [profileHref, signedIn])
 
   return (
     <>
-      {profileSlot
+      {profileSlot && profileHref
         ? createPortal(
             <Link
               href={profileHref}

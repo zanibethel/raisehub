@@ -15,7 +15,7 @@ export default async function Nav() {
   // Owner remains excluded intentionally.
   const demoMode = isDemoMode()
   let isPublicDemoUser = false
-  let profileHref = '/dashboard#profile'
+  let profileHref: string | null = '/dashboard#profile'
 
   if (user) {
     const { data: profile } = await supabase
@@ -29,7 +29,9 @@ export default async function Nav() {
     } else if (profile?.role === 'business') {
       profileHref = '/dashboard#business-profile'
     } else if (profile?.role === 'owner' || profile?.role === 'admin') {
-      profileHref = '/dashboard/owner/settings'
+      // Owner/Admin profile settings do not have a dedicated route yet.
+      // Hide the action rather than sending users to a 404.
+      profileHref = null
     }
   }
 
