@@ -16,45 +16,45 @@ export default function ShareCampaignButton({
   // =========================================
   // 🔗 SHARE / COPY CAMPAIGN LINK
   // =========================================
-async function handleShare() {
-  const url = `${window.location.origin}/campaigns/${campaignId}`
+  async function handleShare() {
+    const url = `${window.location.origin}/campaigns/${campaignId}`
 
-  try {
-    if (navigator.share) {
-      await navigator.share({
-        title: campaignName,
-        text: `Support this fundraiser on RaiseHub: ${campaignName}`,
-        url,
-      })
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: campaignName,
+          text: `Support this fundraiser on RaiseHub: ${campaignName}`,
+          url,
+        })
 
-      return
+        return
+      }
+
+      await navigator.clipboard.writeText(url)
+      setMessage('Campaign link copied!')
+    } catch (error) {
+      // User canceled native share sheet — no need to show an error.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+
+      console.error('Share failed:', error)
+      setMessage('Could not share campaign. Please try again.')
     }
-
-    await navigator.clipboard.writeText(url)
-    setMessage('Campaign link copied!')
-  } catch (error) {
-    // User canceled native share sheet — no need to show an error.
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return
-    }
-
-    console.error('Share failed:', error)
-    setMessage('Could not share campaign. Please try again.')
   }
-}
 
   return (
-    <div>
+    <div className="flex h-full min-w-0 flex-col">
       <button
         type="button"
         onClick={handleShare}
-        className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+        className="flex min-h-10 w-full flex-1 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium leading-tight text-blue-700 hover:bg-blue-100"
       >
         Share Campaign
       </button>
 
       {message ? (
-        <p className="mt-2 text-xs text-blue-700">{message}</p>
+        <p className="mt-2 text-center text-xs text-blue-700">{message}</p>
       ) : null}
     </div>
   )
