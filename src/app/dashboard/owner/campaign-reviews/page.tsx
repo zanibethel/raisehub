@@ -192,7 +192,7 @@ export default async function OwnerCampaignReviewsPage({ searchParams }: PagePro
           </section>
         ) : (
           <>
-            <form id="bulk-approve-form" action={bulkApproveCampaignsAction} />
+            <form id="bulk-approve-form" action={bulkApproveCampaignsAction}></form>
 
             <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div>
@@ -217,118 +217,119 @@ export default async function OwnerCampaignReviewsPage({ searchParams }: PagePro
                 const readiness = stripeReadiness(stripe)
 
                 return (
-                  <details
+                  <article
                     key={campaign.id}
-                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm open:border-blue-200 open:shadow-md"
+                    className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
                   >
-                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 marker:hidden">
-                      <input
-                        type="checkbox"
-                        name="campaignIds"
-                        value={campaign.id}
-                        form="bulk-approve-form"
-                        aria-label={`Select ${campaign.name} for bulk approval`}
-                        className="h-5 w-5 shrink-0 rounded border-slate-300 text-emerald-600"
-                        onClick={(event) => event.stopPropagation()}
-                      />
+                    <input
+                      type="checkbox"
+                      name="campaignIds"
+                      value={campaign.id}
+                      form="bulk-approve-form"
+                      aria-label={`Select ${campaign.name} for bulk approval`}
+                      className="mt-4 h-5 w-5 shrink-0 rounded border-slate-300 text-emerald-600"
+                    />
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="truncate font-black text-slate-950">{campaign.name}</h2>
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black capitalize text-amber-900">
-                            {campaign.review_status.replaceAll('_', ' ')}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-                              readiness.ready
-                                ? 'bg-emerald-100 text-emerald-900'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {readiness.label}
-                          </span>
+                    <details className="group min-w-0 flex-1 overflow-hidden rounded-xl border border-transparent open:border-blue-100 open:bg-blue-50/30">
+                      <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 marker:hidden">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="truncate font-black text-slate-950">{campaign.name}</h2>
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black capitalize text-amber-900">
+                              {campaign.review_status.replaceAll('_', ' ')}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                                readiness.ready
+                                  ? 'bg-emerald-100 text-emerald-900'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {readiness.label}
+                            </span>
+                          </div>
+                          <p className="mt-1 truncate text-sm text-slate-600">
+                            {organization?.name ?? 'Organization not linked'} ·{' '}
+                            {formatMoney(Number(campaign.goal_amount ?? 0))} goal
+                          </p>
                         </div>
-                        <p className="mt-1 truncate text-sm text-slate-600">
-                          {organization?.name ?? 'Organization not linked'} ·{' '}
-                          {formatMoney(Number(campaign.goal_amount ?? 0))} goal
+
+                        <span className="shrink-0 text-sm font-black text-blue-700 group-open:hidden">
+                          View details
+                        </span>
+                        <span className="hidden shrink-0 text-sm font-black text-blue-700 group-open:inline">
+                          Hide
+                        </span>
+                      </summary>
+
+                      <div className="border-t border-blue-100 px-3 pb-4 pt-4">
+                        <p className="text-sm leading-6 text-slate-700">
+                          {campaign.description?.trim() || 'No campaign description provided.'}
                         </p>
-                      </div>
 
-                      <span className="shrink-0 text-sm font-black text-blue-700 group-open:hidden">
-                        View details
-                      </span>
-                      <span className="hidden shrink-0 text-sm font-black text-blue-700 group-open:inline">
-                        Hide
-                      </span>
-                    </summary>
-
-                    <div className="border-t border-slate-200 px-4 pb-5 pt-4">
-                      <p className="text-sm leading-6 text-slate-700">
-                        {campaign.description?.trim() || 'No campaign description provided.'}
-                      </p>
-
-                      <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
-                        <p><strong>Status</strong><br /><span className="capitalize">{campaign.status}</span></p>
-                        <p><strong>Submitted</strong><br />{formatDate(campaign.review_submitted_at)}</p>
-                        <p><strong>Beneficiary</strong><br />{campaign.beneficiary_name || 'Organization'}</p>
-                        <p><strong>Relationship</strong><br />{campaign.beneficiary_relationship || 'Not specified'}</p>
-                      </div>
-
-                      {campaign.review_notes ? (
-                        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-                          <strong>Previous review note:</strong> {campaign.review_notes}
-                        </p>
-                      ) : null}
-
-                      <form action={reviewCampaignAction} className="mt-4">
-                        <input type="hidden" name="campaignId" value={campaign.id} />
-                        <label
-                          className="block text-sm font-black text-slate-800"
-                          htmlFor={`notes-${campaign.id}`}
-                        >
-                          Decision note
-                        </label>
-                        <textarea
-                          id={`notes-${campaign.id}`}
-                          name="notes"
-                          rows={2}
-                          placeholder="Required when requesting changes, rejecting, or suspending."
-                          className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        />
-
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                          <button
-                            name="decision"
-                            value="approved"
-                            className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            name="decision"
-                            value="changes_requested"
-                            className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-amber-600"
-                          >
-                            Request changes
-                          </button>
-                          <button
-                            name="decision"
-                            value="rejected"
-                            className="rounded-xl bg-rose-600 px-4 py-3 text-sm font-black text-white hover:bg-rose-700"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            name="decision"
-                            value="suspended"
-                            className="rounded-xl bg-slate-800 px-4 py-3 text-sm font-black text-white hover:bg-slate-950"
-                          >
-                            Suspend
-                          </button>
+                        <div className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+                          <p><strong>Status</strong><br /><span className="capitalize">{campaign.status}</span></p>
+                          <p><strong>Submitted</strong><br />{formatDate(campaign.review_submitted_at)}</p>
+                          <p><strong>Beneficiary</strong><br />{campaign.beneficiary_name || 'Organization'}</p>
+                          <p><strong>Relationship</strong><br />{campaign.beneficiary_relationship || 'Not specified'}</p>
                         </div>
-                      </form>
-                    </div>
-                  </details>
+
+                        {campaign.review_notes ? (
+                          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+                            <strong>Previous review note:</strong> {campaign.review_notes}
+                          </p>
+                        ) : null}
+
+                        <form action={reviewCampaignAction} className="mt-4">
+                          <input type="hidden" name="campaignId" value={campaign.id} />
+                          <label
+                            className="block text-sm font-black text-slate-800"
+                            htmlFor={`notes-${campaign.id}`}
+                          >
+                            Decision note
+                          </label>
+                          <textarea
+                            id={`notes-${campaign.id}`}
+                            name="notes"
+                            rows={2}
+                            placeholder="Required when requesting changes, rejecting, or suspending."
+                            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          />
+
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <button
+                              name="decision"
+                              value="approved"
+                              className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              name="decision"
+                              value="changes_requested"
+                              className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-amber-600"
+                            >
+                              Request changes
+                            </button>
+                            <button
+                              name="decision"
+                              value="rejected"
+                              className="rounded-xl bg-rose-600 px-4 py-3 text-sm font-black text-white hover:bg-rose-700"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              name="decision"
+                              value="suspended"
+                              className="rounded-xl bg-slate-800 px-4 py-3 text-sm font-black text-white hover:bg-slate-950"
+                            >
+                              Suspend
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </details>
+                  </article>
                 )
               })}
             </div>
