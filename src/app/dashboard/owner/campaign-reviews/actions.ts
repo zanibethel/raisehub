@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -32,20 +33,17 @@ async function requireOwner() {
   return user
 }
 
-export async function reviewCampaignAction(formData: FormData) {
-  const user = await requireOwner()
-  const campaignId = String(formData.get('campaignId') ?? '').trim()
-  const decision = String(formData.get('decision') ?? '').trim() as ReviewDecision
-  const notes = String(formData.get('notes') ?? '').trim()
-
-  if (!campaignId) throw new Error('Campaign is required.')
-  if (!['approved', 'changes_requested', 'rejected', 'suspended'].includes(decision)) {
-    throw new Error('Invalid review decision.')
-  }
-  if (decision !== 'approved' && !notes) {
-    throw new Error('Add a reason before completing this review.')
-  }
-
+async function saveReviewDecision({
+  campaignId,
+  decision,
+  notes,
+  reviewerId,
+}: {
+  campaignId: string
+  decision: ReviewDecision
+  notes: string
+  reviewerId: string
+}) {
   const admin = createAdminClient() as any
   const { data: campaign, error: campaignError } = await admin
     .from('campaigns')
@@ -65,7 +63,7 @@ export async function reviewCampaignAction(formData: FormData) {
     review_status: decision,
     review_notes: notes || null,
     reviewed_at: new Date().toISOString(),
-    reviewed_by: user.id,
+    reviewed_by: reviewerId,
   }
 
   if (decision === 'suspended') update.status = 'paused'
@@ -77,28 +75,81 @@ export async function reviewCampaignAction(formData: FormData) {
 
   if (updateError) throw new Error('Campaign review could not be saved.')
 
-  const { error: auditError } = await admin
-    .from('campaign_review_events')
-    .insert({
-      campaign_id: campaignId,
-      organization_id: organization?.id ?? null,
-      decision_source: 'owner',
-      decision,
-      previous_review_status: campaign.review_status,
-      resulting_review_status: decision,
-      risk_level: decision === 'approved' ? 'low' : 'unknown',
-      risk_flags: [],
-      check_results: {},
-      reason: notes || (decision === 'approved' ? 'Approved by RaiseHub Owner.' : null),
-      internal_notes: notes || null,
-      reviewed_by: user.id,
-    })
+  const { error: auditError } = await admin.from('campaign_review_events').insert({
+    campaign_id: campaignId,
+    organization_id: organization?.id ?? null,
+    decision_source: 'owner',
+    decision,
+    previous_review_status: campaign.review_status,
+    resulting_review_status: decision,
+    risk_level: decision === 'approved' ? 'low' : 'unknown',
+    risk_flags: [],
+    check_results: {},
+    reason: notes || (decision === 'approved' ? 'Approved by RaiseHub Owner.' : null),
+    internal_notes: notes || null,
+    reviewed_by: reviewerId,
+  })
 
   if (auditError) {
     console.error('Campaign review audit insert failed', auditError)
     throw new Error('Review changed, but the audit record could not be saved.')
   }
+}
 
+function refreshReviewSurfaces() {
   revalidatePath('/dashboard/owner/campaign-reviews')
   revalidatePath('/dashboard')
+}
+
+export async function reviewCampaignAction(formData: FormData) {
+  const user = await requireOwner()
+  const campaignId = String(formData.get('campaignId') ?? '').trim()
+  const decision = String(formData.get('decision') ?? '').trim() as ReviewDecision
+  const notes = String(formData.get('notes') ?? '').trim()
+
+  if (!campaignId) throw new Error('Campaign is required.')
+  if (!['approved', 'changes_requested', 'rejected', 'suspended'].includes(decision)) {
+    throw new Error('Invalid review decision.')
+  }
+  if (decision !== 'approved' && !notes) {
+    throw new Error('Add a reason before completing this review.')
+  }
+
+  await saveReviewDecision({
+    campaignId,
+    decision,
+    notes,
+    reviewerId: user.id,
+  })
+
+  refreshReviewSurfaces()
+  redirect('/dashboard/owner/campaign-reviews?reviewed=1')
+}
+
+export async function bulkApproveCampaignsAction(formData: FormData) {
+  const user = await requireOwner()
+  const campaignIds = Array.from(
+    new Set(
+      formData
+        .getAll('campaignIds')
+        .map((value) => String(value).trim())
+        .filter(Boolean)
+    )
+  )
+
+  if (campaignIds.length === 0) {
+    redirect('/dashboard/owner/campaign-reviews?select=1')
+  }
+
+  for (const campaignId of campaignIds) {
+    await saveReviewDecision({
+      campaignId,
+      decision: 'approved',
+      notes: '',
+      reviewerId: user.id,
+    })
+  }
+
+  refreshReviewSurfaces()
+  redirect(`/dashboard/owner/campaign-reviews?approved=${campaignIds.length}`)
 }
