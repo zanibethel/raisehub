@@ -58,6 +58,7 @@ begin
     new.content_revision := old.content_revision + 1;
 
     if old.review_status = 'approved' then
+      new.status := 'draft';
       new.review_status := 'not_submitted';
       new.approved_revision := null;
       new.review_invalidated_at := now();
@@ -148,9 +149,10 @@ begin
         'material_edit', true,
         'previous_content_revision', old.content_revision,
         'content_revision', new.content_revision,
-        'previous_approved_revision', old.approved_revision
+        'previous_approved_revision', old.approved_revision,
+        'returned_to_draft', true
       ),
-      'Campaign details changed after approval. Review was reopened automatically.',
+      'Campaign details changed after approval. Review was reopened and the campaign returned to draft automatically.',
       null
     );
   end if;
