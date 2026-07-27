@@ -1,7 +1,10 @@
 import Link from 'next/link'
+
+import { evaluateCampaignPublishingEligibility } from '@/lib/campaign-publishing/evaluate'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import OrganizationDashboardContent from './organization-dashboard-content'
 
@@ -31,8 +34,33 @@ type CampaignMetrics = {
   amountRaised: number
 }
 
-type CanonicalOrganizationPricingRow = { id: string }
+type CanonicalOrganizationPricingRow = {
+  id: string
+  legacy_profile_id: string | null
+  name: string | null
+  town_name: string | null
+  state_code: string | null
+}
+
 type OrganizationMembershipRoleRow = { membership_role: string }
+
+type StripeReadinessRow = {
+  livemode: boolean
+  onboarding_status: string
+  details_submitted: boolean
+  payouts_enabled: boolean
+  disabled_reason: string | null
+  requirements_currently_due: unknown
+}
+
+function organizationProfileIsReady(organization: CanonicalOrganizationPricingRow | null) {
+  const stateCode = organization?.state_code?.trim().toUpperCase() ?? ''
+  return Boolean(
+    organization?.name?.trim() &&
+      organization.town_name?.trim() &&
+      /^[A-Z]{2}$/.test(stateCode)
+  )
+}
 
 function generateSupporterKey(purchase: CampaignPurchase): string {
   if (purchase.user_id) return `user:${purchase.user_id}`
@@ -77,7 +105,11 @@ export default async function OrganizationDashboard({
 
   const [{ data: organizationProfile }, { data: canonicalOrganization }] = await Promise.all([
     supabase.from('profiles').select('is_demo').eq('id', organizationProfileId).maybeSingle(),
-    supabase.from('organizations').select('id').eq('legacy_profile_id', organizationProfileId).maybeSingle<CanonicalOrganizationPricingRow>(),
+    supabase
+      .from('organizations')
+      .select('id, legacy_profile_id, name, town_name, state_code')
+      .eq('legacy_profile_id', organizationProfileId)
+      .maybeSingle<CanonicalOrganizationPricingRow>(),
   ])
 
   const canonicalOrganizationId = canonicalOrganization?.id ?? null
@@ -91,6 +123,11 @@ export default async function OrganizationDashboard({
         .maybeSingle<OrganizationMembershipRoleRow>()
     : { data: null }
   const isSellerWorkspace = organizationMembership?.membership_role === 'seller'
+  const canManageOrganization = Boolean(
+    canonicalOrganization?.legacy_profile_id === user.id ||
+      organizationMembership?.membership_role === 'admin' ||
+      organizationMembership?.membership_role === 'manager'
+  )
 
   const campaignCreationPricing = await resolveEffectivePricing({
     organizationId: canonicalOrganizationId,
@@ -102,8 +139,41 @@ export default async function OrganizationDashboard({
     ? campaignQuery.or(`canonical_organization_id.eq.${canonicalOrganizationId},organization_id.eq.${organizationProfileId}`)
     : campaignQuery.eq('organization_id', organizationProfileId)
 
-  const { data: campaigns } = await campaignQuery.order('created_at', { ascending: false })
-  const organizationCampaigns = campaigns ?? []
+  const [{ data: campaigns }, stripeAccountResult] = await Promise.all([
+    campaignQuery.order('created_at', { ascending: false }),
+    canonicalOrganizationId
+      ? (createAdminClient() as any)
+          .from('organization_stripe_accounts')
+          .select('livemode, onboarding_status, details_submitted, payouts_enabled, disabled_reason, requirements_currently_due')
+          .eq('organization_id', canonicalOrganizationId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const stripeAccount = (stripeAccountResult.data ?? null) as StripeReadinessRow | null
+  const expectedLivemode = process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
+  const profileReady = organizationProfileIsReady(canonicalOrganization ?? null)
+  const organizationCampaigns = (campaigns ?? []).map((campaign) => ({
+    ...campaign,
+    publishingEligibility: evaluateCampaignPublishingEligibility({
+      campaignId: campaign.id,
+      campaignStatus: campaign.status,
+      reviewStatus: campaign.review_status,
+      authorized: canManageOrganization,
+      profileReady,
+      approvalCurrent: true,
+      stripe: {
+        accountExists: Boolean(stripeAccount),
+        expectedLivemode,
+        livemode: stripeAccount?.livemode ?? null,
+        onboardingStatus: stripeAccount?.onboarding_status ?? null,
+        detailsSubmitted: stripeAccount?.details_submitted ?? false,
+        payoutsEnabled: stripeAccount?.payouts_enabled ?? false,
+        disabledReason: stripeAccount?.disabled_reason ?? null,
+        requirementsCurrentlyDue: stripeAccount?.requirements_currently_due ?? [],
+      },
+    }),
+  }))
   const now = new Date()
   const sellableCampaigns = organizationCampaigns.filter((campaign) =>
     isCampaignCurrentlySellable(campaign, now)

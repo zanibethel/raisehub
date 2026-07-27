@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { evaluateCampaignPublishingEligibility } from '@/lib/campaign-publishing/evaluate'
 import { evaluateCampaignRisk } from '@/lib/campaign-review/evaluate'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -56,6 +57,7 @@ type CampaignReviewRow = CampaignOwnerRow & {
 }
 
 type StripeReadinessRow = {
+  livemode?: boolean
   onboarding_status: string
   details_submitted: boolean
   charges_enabled?: boolean
@@ -114,6 +116,10 @@ function stripeAccountIsReady(account: StripeReadinessRow | null) {
       !account.disabled_reason &&
       !hasOutstandingRequirements(account.requirements_currently_due)
   )
+}
+
+function stripeEnvironmentIsLive() {
+  return process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
 }
 
 async function getOrganizationById(organizationId: string) {
@@ -192,28 +198,60 @@ async function getAuthorizedCampaign(userId: string, campaignId: string) {
   return { campaign, organization }
 }
 
-async function campaignCanPublish(userId: string, campaignId: string) {
+async function getCampaignPublishingEligibility(userId: string, campaignId: string) {
   const authorized = await getAuthorizedCampaign(userId, campaignId)
-  if (!authorized?.organization) {
-    return { allowed: false, error: 'Complete your Organization workspace before publishing a campaign.' }
-  }
 
-  if (authorized.campaign.review_status !== 'approved') {
-    return { allowed: false, error: 'RaiseHub must approve this campaign before it can be published.' }
+  if (!authorized) {
+    return evaluateCampaignPublishingEligibility({
+      campaignId,
+      campaignStatus: null,
+      reviewStatus: null,
+      authorized: false,
+      profileReady: false,
+      approvalCurrent: true,
+      stripe: {
+        accountExists: false,
+        expectedLivemode: stripeEnvironmentIsLive(),
+        livemode: null,
+        onboardingStatus: null,
+        detailsSubmitted: false,
+        payoutsEnabled: false,
+        disabledReason: null,
+        requirementsCurrentlyDue: [],
+      },
+    })
   }
 
   const admin = createAdminClient() as any
-  const { data: stripeAccount } = await admin
-    .from('organization_stripe_accounts')
-    .select('onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due')
-    .eq('organization_id', authorized.organization.id)
-    .maybeSingle()
+  const { data: stripeAccount } = authorized.organization
+    ? await admin
+        .from('organization_stripe_accounts')
+        .select('livemode, onboarding_status, details_submitted, charges_enabled, payouts_enabled, disabled_reason, requirements_currently_due')
+        .eq('organization_id', authorized.organization.id)
+        .maybeSingle()
+    : { data: null }
+  const stripe = (stripeAccount ?? null) as StripeReadinessRow | null
 
-  if (!stripeAccountIsReady(stripeAccount as StripeReadinessRow | null)) {
-    return { allowed: false, error: 'Complete Stripe payout verification before publishing this campaign.' }
-  }
-
-  return { allowed: true as const }
+  return evaluateCampaignPublishingEligibility({
+    campaignId,
+    campaignStatus: authorized.campaign.status,
+    reviewStatus: authorized.campaign.review_status,
+    authorized: true,
+    profileReady: Boolean(
+      authorized.organization && organizationSetupIsComplete(authorized.organization)
+    ),
+    approvalCurrent: true,
+    stripe: {
+      accountExists: Boolean(stripe),
+      expectedLivemode: stripeEnvironmentIsLive(),
+      livemode: stripe?.livemode ?? null,
+      onboardingStatus: stripe?.onboarding_status,
+      detailsSubmitted: stripe?.details_submitted ?? false,
+      payoutsEnabled: stripe?.payouts_enabled ?? false,
+      disabledReason: stripe?.disabled_reason,
+      requirementsCurrentlyDue: stripe?.requirements_currently_due ?? [],
+    },
+  })
 }
 
 export async function createCampaignAction(input: CreateCampaignInput): Promise<CampaignActionResult> {
@@ -386,17 +424,49 @@ export async function updateCampaignStatusAction(campaignId: string, status: str
   if (!user) return { error: 'You must be signed in to update a campaign.' }
   if (!isCampaignStatus(status)) return { error: 'Invalid campaign status.' }
 
-  if (!(await getAuthorizedCampaign(user.id, campaignId))) {
+  const authorized = await getAuthorizedCampaign(user.id, campaignId)
+  if (!authorized) {
     return { error: 'The campaign status could not be updated. Try again.' }
   }
 
-  if (status === 'active') {
-    const readiness = await campaignCanPublish(user.id, campaignId)
-    if (!readiness.allowed) return { error: readiness.error }
+  const currentStatus = authorized.campaign.status?.trim().toLowerCase()
+  const admin = createAdminClient() as any
+
+  if (status === 'active' && currentStatus === 'draft') {
+    const eligibility = await getCampaignPublishingEligibility(user.id, campaignId)
+    if (!eligibility.canPublish) {
+      return {
+        error:
+          eligibility.blockingReasons[0]?.message ??
+          'This campaign is not eligible to publish yet.',
+      }
+    }
+
+    const { data: publishedCampaign, error } = await admin
+      .from('campaigns')
+      .update({ status: 'active' })
+      .eq('id', campaignId)
+      .eq('status', 'draft')
+      .select('id')
+      .maybeSingle()
+
+    if (error || !publishedCampaign) {
+      return { error: 'The campaign changed before it could be published. Refresh and try again.' }
+    }
+
+    revalidateCampaignPaths(campaignId)
+    return { success: true }
   }
 
-  const admin = createAdminClient() as any
-  const { error } = await admin.from('campaigns').update({ status }).eq('id', campaignId)
+  if (status === 'active' && currentStatus !== 'paused' && currentStatus !== 'active') {
+    return { error: 'Only a paused campaign can be resumed.' }
+  }
+
+  const { error } = await admin
+    .from('campaigns')
+    .update({ status })
+    .eq('id', campaignId)
+
   if (error) return { error: 'The campaign status could not be updated. Try again.' }
 
   revalidateCampaignPaths(campaignId)

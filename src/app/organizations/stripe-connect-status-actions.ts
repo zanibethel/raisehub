@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers'
 
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
+import { evaluateOrganizationPayoutReadiness } from '@/lib/stripe/organization-payout-readiness'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,6 +17,10 @@ type StripeStatusResult =
       payoutsEnabled: boolean
       detailsSubmitted: boolean
       chargesEnabled: boolean
+      livemode: boolean | null
+      payoutReady: boolean
+      mode: 'test' | 'live'
+      blockers: string[]
     }
   | { status: 'error'; message: string }
 
@@ -24,6 +29,9 @@ type StripeAccountRow = {
   payouts_enabled: boolean
   details_submitted: boolean
   charges_enabled: boolean
+  livemode: boolean
+  disabled_reason: string | null
+  requirements_currently_due: unknown
 }
 
 export async function getOrganizationStripeStatusAction(): Promise<StripeStatusResult> {
@@ -75,7 +83,7 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
   const { data, error } = (await admin
     .from('organization_stripe_accounts')
     .select(
-      'onboarding_status, payouts_enabled, details_submitted, charges_enabled'
+      'onboarding_status, payouts_enabled, details_submitted, charges_enabled, livemode, disabled_reason, requirements_currently_due'
     )
     .eq('organization_id', organizationId)
     .maybeSingle()) as {
@@ -95,6 +103,18 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
     }
   }
 
+  const expectedLivemode = process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
+  const readiness = evaluateOrganizationPayoutReadiness({
+    accountExists: Boolean(data),
+    expectedLivemode,
+    livemode: data?.livemode ?? null,
+    onboardingStatus: data?.onboarding_status ?? 'not_started',
+    detailsSubmitted: data?.details_submitted ?? false,
+    payoutsEnabled: data?.payouts_enabled ?? false,
+    disabledReason: data?.disabled_reason ?? null,
+    requirementsCurrentlyDue: data?.requirements_currently_due ?? null,
+  })
+
   return {
     status: 'ok',
     organizationId,
@@ -102,5 +122,9 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
     payoutsEnabled: data?.payouts_enabled ?? false,
     detailsSubmitted: data?.details_submitted ?? false,
     chargesEnabled: data?.charges_enabled ?? false,
+    livemode: data?.livemode ?? null,
+    payoutReady: readiness.ready,
+    mode: readiness.mode,
+    blockers: readiness.blockers.map((blocker) => blocker.message),
   }
 }
