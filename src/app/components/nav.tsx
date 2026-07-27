@@ -1,5 +1,6 @@
 import { isDemoMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
+import MobileNavEnhancements from './mobile-nav-enhancements'
 import NavClient from './nav-client'
 
 export default async function Nav() {
@@ -14,6 +15,23 @@ export default async function Nav() {
   // Owner remains excluded intentionally.
   const demoMode = isDemoMode()
   let isPublicDemoUser = false
+  let profileHref = '/dashboard#profile'
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.role === 'organization') {
+      profileHref = '/dashboard#organization-setup'
+    } else if (profile?.role === 'business') {
+      profileHref = '/dashboard#business-profile'
+    } else if (profile?.role === 'owner' || profile?.role === 'admin') {
+      profileHref = '/dashboard/owner/settings'
+    }
+  }
 
   if (demoMode && user?.email) {
     const email = user.email.toLowerCase()
@@ -39,7 +57,7 @@ export default async function Nav() {
     : null
 
   return (
-    <nav className="relative z-[100] border-b border-gray-200 bg-white">
+    <nav className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur">
       <div className="mx-auto max-w-5xl">
         <NavClient
           user={navUser}
@@ -47,6 +65,10 @@ export default async function Nav() {
           isPublicDemoUser={isPublicDemoUser}
         />
       </div>
+      <MobileNavEnhancements
+        signedIn={Boolean(user)}
+        profileHref={profileHref}
+      />
     </nav>
   )
-} 
+}
