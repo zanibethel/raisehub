@@ -143,3 +143,19 @@ set check_results = event.check_results || jsonb_build_object(
 )
 from reopened
 where event.id = reopened.id;
+
+-- Realtime is required so a newly inserted notification updates the signed-in
+-- user's bell and preview without requiring a manual page refresh.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end
+$$;
