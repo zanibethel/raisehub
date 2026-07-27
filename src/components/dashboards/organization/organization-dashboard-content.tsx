@@ -43,17 +43,17 @@ export default function OrganizationDashboardContent(props: Props) {
         <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-gray-900">Performance and top sellers</p>
+              <p className="text-lg font-bold text-gray-900">Campaign performance</p>
               <p className="mt-1 truncate text-sm text-gray-600">
-                {props.totalPassesSold.toLocaleString()} passes sold · ${props.totalEarnings.toLocaleString()} organization earnings · {props.activeSellerCount.toLocaleString()} active sellers
+                {props.totalPassesSold.toLocaleString()} passes sold · ${props.totalEarnings.toLocaleString()} organization earnings · {props.totalCampaigns.toLocaleString()} campaigns
               </p>
             </div>
-            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">View more</span>
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">View reports</span>
             <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">Hide</span>
           </div>
 
           <div className="mt-3 border-t border-blue-100 pt-3 group-open:hidden">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Top sellers</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Recent seller leaders</p>
             {topSellers.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {topSellers.map((seller) => (
@@ -72,7 +72,7 @@ export default function OrganizationDashboardContent(props: Props) {
         <div className="space-y-6 border-t border-blue-100 p-5 sm:p-6">
           <OrganizationAnalyticsSection totalCampaigns={props.totalCampaigns} activeSellerCount={props.activeSellerCount} />
           <OrganizationReportSection grossRevenue={props.grossRevenue} totalFees={props.totalFees} totalEarnings={props.totalEarnings} totalPassesSold={props.totalPassesSold} />
-          <OrganizationTopSellersSection sellers={props.sellers} />
+          <OrganizationTopSellersSection campaigns={props.campaigns} sellers={props.sellers} />
         </div>
       </details>
 
