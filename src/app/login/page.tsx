@@ -4,6 +4,25 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
+      <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.2-2.07H12v3.92h5.37a4.6 4.6 0 0 1-1.99 3.02v2.55h3.22c1.89-1.74 3-4.31 3-7.42Z" />
+      <path fill="#34A853" d="M12 22c2.7 0 4.97-.89 6.6-2.35l-3.22-2.55c-.89.6-2.03.95-3.38.95-2.6 0-4.8-1.75-5.59-4.11H3.09v2.63A9.98 9.98 0 0 0 12 22Z" />
+      <path fill="#FBBC05" d="M6.41 13.94A6 6 0 0 1 6.1 12c0-.67.11-1.32.31-1.94V7.43H3.09A10 10 0 0 0 2 12c0 1.61.39 3.13 1.09 4.57l3.32-2.63Z" />
+      <path fill="#EA4335" d="M12 5.95c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 2.96 14.7 2 12 2a9.98 9.98 0 0 0-8.91 5.43l3.32 2.63C7.2 7.7 9.4 5.95 12 5.95Z" />
+    </svg>
+  )
+}
+
+function AppleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-current">
+      <path d="M16.7 12.8c0-2.32 1.9-3.43 1.99-3.48a4.27 4.27 0 0 0-3.36-1.82c-1.43-.15-2.8.84-3.52.84-.73 0-1.84-.82-3.03-.8a4.47 4.47 0 0 0-3.77 2.3c-1.61 2.79-.41 6.9 1.15 9.15.77 1.1 1.67 2.32 2.86 2.27 1.15-.05 1.58-.73 2.97-.73 1.38 0 1.78.73 2.99.7 1.24-.02 2.02-1.1 2.75-2.21a10 10 0 0 0 1.24-2.54 4.06 4.06 0 0 1-2.27-3.68ZM14.39 5.98A4.06 4.06 0 0 0 15.34 3a4.13 4.13 0 0 0-2.7 1.4 3.86 3.86 0 0 0-.98 2.89 3.42 3.42 0 0 0 2.73-1.31Z" />
+    </svg>
+  )
+}
+
 export default function LoginPage() {
   const supabase = createClient()
 
@@ -144,22 +163,20 @@ export default function LoginPage() {
             type="button"
             onClick={() => handleOAuth('google')}
             disabled={Boolean(oauthProvider)}
-            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
           >
-            {oauthProvider === 'google'
-              ? 'Connecting...'
-              : 'Google'}
+            <GoogleIcon />
+            {oauthProvider === 'google' ? 'Connecting...' : 'Google sign-in'}
           </button>
 
           <button
             type="button"
             onClick={() => handleOAuth('apple')}
             disabled={Boolean(oauthProvider)}
-            className="w-full rounded-xl bg-black px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
           >
-            {oauthProvider === 'apple'
-              ? 'Connecting...'
-              : 'Apple'}
+            <AppleIcon />
+            {oauthProvider === 'apple' ? 'Connecting...' : 'Apple sign-in'}
           </button>
         </div>
 
