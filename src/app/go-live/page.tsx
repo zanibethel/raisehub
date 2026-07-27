@@ -11,7 +11,7 @@ const choices = [
     title: 'Explore campaigns',
     description:
       'Browse active fundraisers and choose a campaign to support.',
-    href: '/campaigns',
+    href: '/campaigns?live=1',
     action: 'Browse campaigns',
     accent: 'border-blue-200 bg-blue-50',
     actionClass: 'bg-blue-700 hover:bg-blue-800',
@@ -20,7 +20,7 @@ const choices = [
     title: 'Support a campaign',
     description:
       'Create a supporter account, select a fundraiser, and purchase or share a RaiseHub Pass.',
-    href: '/signup',
+    href: '/signup?live=1',
     action: 'Sign up as a supporter',
     accent: 'border-emerald-200 bg-emerald-50',
     actionClass: 'bg-emerald-700 hover:bg-emerald-800',
