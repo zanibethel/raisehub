@@ -23,6 +23,12 @@ type CheckoutInput = {
 
 type CheckoutResult =
   | { status: 'checkout-ready'; url: string }
+  | {
+      status: 'demo-complete'
+      purchaseId: string
+      entitlementId: string | null
+      message: string
+    }
   | { status: 'replacement-found'; campaignId: string; replacedCampaignId: string }
   | { status: 'selection-required'; replacedCampaignId: string; campaigns: SellableCampaignOption[] }
   | { status: 'no-valid-campaign'; replacedCampaignId: string | null }
@@ -144,9 +150,9 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   }
 
   const classifications: DemoClassification[] = [
-    userProfileResult.data,
-    organizationProfileResult.data,
-    campaignClassificationResult.data,
+    userProfileResult.data as DemoClassification,
+    organizationProfileResult.data as DemoClassification,
+    campaignClassificationResult.data as unknown as DemoClassification,
   ]
   const containsDemoData = classifications.some((row) => row.is_demo)
   const demoGroup = resolveDemoGroup(classifications)
@@ -163,15 +169,6 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
         message: 'This demo checkout is not safely connected to one demo group. No payment was started.',
       }
     }
-
-    return {
-      status: 'error',
-      message: 'This is a demonstration checkout. No real payment was started while the simulated purchase flow is being prepared.',
-    }
-  }
-
-  if (!stripeIsConfigured()) {
-    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
   }
 
   const passAccess = await getCustomerPassAccess(user.id, now)
@@ -202,7 +199,7 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     campaignId: campaign.id,
     organizationId: canonicalOrganizationResult.data.id,
     donationAmount,
-    isDemo: false,
+    isDemo: containsDemoData,
     now,
   })
 
@@ -215,6 +212,55 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   if (expectedAmountCents <= 0) return { status: 'error', message: 'Choose an amount greater than zero.' }
 
   const sellerNameSnapshot = managedSeller?.display_name ?? cleanOptionalText(input.seller_name, 120)
+
+  if (containsDemoData && demoGroup) {
+    const { data: simulatedRows, error: simulatedError } = await admin.rpc(
+      'create_campaign_purchase_with_entitlement',
+      {
+        p_campaign_id: campaign.id,
+        p_user_id: user.id,
+        p_buyer_email: user.email ?? null,
+        p_selected_organization_id: selectedOrganizationId,
+        p_donation_amount: donationAmount,
+        p_seller_name: sellerNameSnapshot,
+        p_amount_paid: snapshot.amountPaid,
+        p_platform_fee: snapshot.platformFee,
+        p_organization_earnings: snapshot.organizationEarnings,
+        p_is_demo: true,
+        p_demo_group: demoGroup,
+        p_grant_entitlement: snapshot.grantEntitlement,
+        p_pricing_rule_id: snapshot.pricingRuleId,
+        p_pricing_scope: snapshot.pricingScope,
+        p_pass_price_charged: snapshot.passPriceCharged,
+        p_platform_fee_percent: snapshot.platformFeePercent,
+        p_organization_pass_earnings: snapshot.organizationPassEarnings,
+        p_pricing_resolved_at: snapshot.pricingResolvedAt,
+      }
+    )
+
+    const simulated = simulatedRows?.[0]
+
+    if (simulatedError || !simulated?.purchase_id) {
+      return {
+        status: 'error',
+        message: 'The simulated purchase could not be completed. No real payment was attempted.',
+      }
+    }
+
+    return {
+      status: 'demo-complete',
+      purchaseId: simulated.purchase_id,
+      entitlementId: simulated.entitlement_id,
+      message: snapshot.grantEntitlement
+        ? 'Demo purchase complete. No real payment was charged, and the demonstration pass is now active.'
+        : 'Demo donation complete. No real payment was charged.',
+    }
+  }
+
+  if (!stripeIsConfigured()) {
+    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+  }
+
   const { data: attempt, error: attemptError } = await untypedAdmin
     .from('checkout_attempts')
     .insert({
