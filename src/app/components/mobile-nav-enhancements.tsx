@@ -23,16 +23,28 @@ export default function MobileNavEnhancements({
       const menuRoot = closeButton?.parentElement
       const panel = closeButton?.nextElementSibling as HTMLElement | null
       const menuLinks = panel?.querySelector('nav') as HTMLElement | null
+      const accountEmail = panel?.querySelector('p') as HTMLElement | null
 
       document
         .querySelectorAll('[data-raisehub-auth-menu]')
         .forEach((element) => element.removeAttribute('data-raisehub-auth-menu'))
+
+      document
+        .querySelectorAll('[data-raisehub-account-menu]')
+        .forEach((element) => element.removeAttribute('data-raisehub-account-menu'))
+
+      document
+        .querySelectorAll('[data-raisehub-account-email]')
+        .forEach((element) => element.removeAttribute('data-raisehub-account-email'))
 
       if (menuLinks?.querySelector('a[href="/login"]')) {
         menuLinks.setAttribute('data-raisehub-auth-menu', 'true')
       }
 
       if (signedIn && menuLinks) {
+        menuLinks.setAttribute('data-raisehub-account-menu', 'true')
+        accountEmail?.setAttribute('data-raisehub-account-email', 'true')
+
         let slot = menuLinks.querySelector<HTMLElement>(
           '[data-raisehub-profile-slot]'
         )
@@ -110,6 +122,20 @@ export default function MobileNavEnhancements({
 
           nav [data-raisehub-auth-menu='true'] > a[href='/signup']:hover {
             background: rgb(29 78 216);
+          }
+
+          nav [data-raisehub-account-email='true'] {
+            text-align: right;
+          }
+
+          nav [data-raisehub-account-menu='true'] > a,
+          nav [data-raisehub-account-menu='true'] > button,
+          nav [data-raisehub-account-menu='true'] > [data-raisehub-profile-slot] > a {
+            text-align: right;
+          }
+
+          nav [data-raisehub-account-menu='true'] > button {
+            display: block;
           }
         }
       `}</style>
