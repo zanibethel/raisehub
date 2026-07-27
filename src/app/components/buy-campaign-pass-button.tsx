@@ -84,6 +84,7 @@ export default function BuyCampaignPassButton({
     initialDonationAmount ?? (hasActivePass ? '10' : '0')
   )
   const [message, setMessage] = useState('')
+  const [demoComplete, setDemoComplete] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -170,11 +171,13 @@ export default function BuyCampaignPassButton({
     }
 
     if (totalAmount <= 0) {
+      setDemoComplete(false)
       setMessage('Please choose a donation amount.')
       return
     }
 
     setLoading(true)
+    setDemoComplete(false)
     setMessage('')
 
     const result = await createCampaignCheckoutAction({
@@ -187,6 +190,14 @@ export default function BuyCampaignPassButton({
 
     if (result.status === 'checkout-ready') {
       window.location.assign(result.url)
+      return
+    }
+
+    if (result.status === 'demo-complete') {
+      setDemoComplete(true)
+      setMessage(result.message)
+      setLoading(false)
+      router.refresh()
       return
     }
 
@@ -214,6 +225,7 @@ export default function BuyCampaignPassButton({
       return
     }
 
+    setDemoComplete(false)
     setMessage(result.message)
     setLoading(false)
   }
@@ -328,10 +340,19 @@ export default function BuyCampaignPassButton({
       </div>
 
       <button type="button" onClick={handleBuyPass} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-        {loading ? 'Opening secure checkout...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
+        {loading ? 'Processing...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
       </button>
-      <p className="text-center text-xs text-gray-500">Payment is completed securely through Stripe. Pass access is added only after payment is confirmed.</p>
-      {message ? <p className="text-sm text-red-600">{message}</p> : null}
+      <p className="text-center text-xs text-gray-500">Production payments are completed securely through Stripe. Demo accounts create clearly marked simulated records without charging a card.</p>
+      {message ? (
+        <div className={`rounded-xl border p-4 text-sm ${demoComplete ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+          <p>{message}</p>
+          {demoComplete ? (
+            <Link href="/dashboard" className="mt-3 inline-flex rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800">
+              View demo dashboard
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }
