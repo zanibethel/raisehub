@@ -40,6 +40,7 @@ const DEMO_SAMPLE_PARTNERS = [
 
 export default async function LogoCarousel() {
   const supabase = await createClient()
+  const demoMode = isDemoMode()
 
   const { data: partners, error } = await supabase
     .from('profiles')
@@ -47,6 +48,7 @@ export default async function LogoCarousel() {
       'id, business_name, display_name, logo_url, website_url, role, phone, address, google_maps_url'
     )
     .eq('role', 'business')
+    .eq('is_demo', demoMode)
     .limit(20)
 
   if (error) return null
@@ -63,7 +65,7 @@ export default async function LogoCarousel() {
 
   if (
     validBusinessPartners.length === 0 &&
-    isDemoMode()
+    demoMode
   ) {
     return (
       <LogoCarouselClient

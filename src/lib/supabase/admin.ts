@@ -2,7 +2,25 @@ import 'server-only'
 
 import { createClient } from '@supabase/supabase-js'
 
+import type { DemoDatabase } from './demo-database.types'
 import type { GiftPassDatabase } from './gift-pass-database.types'
+
+// =============================================================================
+// Unified privileged database type
+// =============================================================================
+
+// The generated database type currently trails a few newer RaiseHub tables.
+// Merge the supplemental Gift Pass and Demo Platform bridges so privileged
+// server code can remain strongly typed without falling back to `any`.
+type AdminDatabase = Omit<GiftPassDatabase, 'public'> & {
+  public: Omit<GiftPassDatabase['public'], 'Tables'> & {
+    Tables: GiftPassDatabase['public']['Tables'] &
+      Pick<
+        DemoDatabase['public']['Tables'],
+        'demo_groups' | 'demo_profiles'
+      >
+  }
+}
 
 // =============================================================================
 // Privileged Supabase client
@@ -12,7 +30,8 @@ import type { GiftPassDatabase } from './gift-pass-database.types'
  * Creates a server-only Supabase client using the service-role key.
  *
  * Use this only after the caller has independently authenticated and validated
- * the requested operation with the normal cookie-based server client.
+ * the requested operation with the normal cookie-based server client, or for a
+ * narrowly scoped public route that performs its own strict allow-list checks.
  *
  * The service-role key bypasses Row Level Security and must never be imported
  * into a Client Component or exposed through a NEXT_PUBLIC environment value.
@@ -33,7 +52,7 @@ export function createAdminClient() {
     )
   }
 
-  return createClient<GiftPassDatabase>(
+  return createClient<AdminDatabase>(
     supabaseUrl,
     serviceRoleKey,
     {

@@ -8,9 +8,6 @@ import {
 } from '@/lib/repositories/demo-platform-repository'
 import { createClient } from '@/lib/supabase/server'
 
-// ==========================used
-// =============================================================================
-
 type DemoGroupPageProps = {
   params: Promise<{
     groupKey: string
@@ -21,24 +18,16 @@ type ActorProfile = {
   role: string
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
 function getRoleTone(role: string) {
   switch (role) {
     case 'business':
       return 'bg-emerald-100 text-emerald-700'
-
     case 'organization':
       return 'bg-blue-100 text-blue-700'
-
     case 'customer':
       return 'bg-amber-100 text-amber-800'
-
     case 'owner':
       return 'bg-violet-100 text-violet-700'
-
     default:
       return 'bg-slate-100 text-slate-700'
   }
@@ -50,10 +39,8 @@ function getPreviewRole(role: string) {
     case 'organization':
     case 'admin':
       return role
-
     case 'owner':
       return 'admin'
-
     case 'customer':
     default:
       return 'customer'
@@ -62,9 +49,15 @@ function getPreviewRole(role: string) {
 
 function DemoProfileRow({
   profile,
+  groupKey,
 }: {
   profile: DemoProfileSummary
+  groupKey: string
 }) {
+  const isLinked = Boolean(profile.profileId)
+  const isActive = profile.status === 'active'
+  const isReady = isLinked && isActive
+
   return (
     <article className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -77,7 +70,7 @@ function DemoProfileRow({
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getRoleTone(profile.role)}`}
             >
-              {profile.role}
+              {profile.role === 'customer' ? 'supporter' : profile.role}
             </span>
 
             {profile.isPrimary ? (
@@ -86,48 +79,56 @@ function DemoProfileRow({
               </span>
             ) : null}
 
-            <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-              {profile.status}
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                isReady
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              {isReady ? 'Ready' : 'Needs setup'}
             </span>
           </div>
 
           <div className="mt-2 min-w-0 space-y-0.5">
             <p className="break-words text-sm font-medium text-slate-700">
-              {profile.displayName ??
-                'No linked display name'}
+              {profile.displayName ?? 'No linked display name'}
             </p>
 
             <p className="break-all text-xs text-slate-400">
-              {profile.email ??
-                'No linked email'}
+              {profile.email ?? 'No linked authentication identity'}
             </p>
+
+            {!isReady ? (
+              <p className="pt-1 text-xs font-medium text-amber-700">
+                {!isLinked
+                  ? 'Next action: link this demo profile to an authentication identity.'
+                  : 'Next action: activate this profile before previewing it.'}
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {profile.profileId ? (
+        {profile.profileId && isActive ? (
           <Link
             href={`/dashboard/owner/preview?previewRole=${encodeURIComponent(
               getPreviewRole(profile.role)
             )}&subject=${encodeURIComponent(
               profile.profileId
-            )}`}
+            )}&group=${encodeURIComponent(groupKey)}`}
             className="inline-flex w-fit shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
           >
-            Open →
+            Open viewer →
           </Link>
         ) : (
           <span className="shrink-0 text-sm font-medium text-amber-700">
-            Not linked
+            Preview unavailable
           </span>
         )}
       </div>
     </article>
   )
 }
-
-// =============================================================================
-// Page
-// =============================================================================
 
 export default async function DemoGroupPage({
   params,
@@ -154,9 +155,7 @@ export default async function DemoGroupPage({
   }
 
   const { groupKey } = await params
-
-  const result =
-    await getDemoGroupDetails(groupKey)
+  const result = await getDemoGroupDetails(groupKey)
 
   if (
     result.error === 'Demo group not found.' ||
@@ -165,8 +164,12 @@ export default async function DemoGroupPage({
     notFound()
   }
 
-  const { group, profiles } =
-    result.details
+  const { group, profiles } = result.details
+  const readyProfiles = profiles.filter(
+    (demoProfile) =>
+      Boolean(demoProfile.profileId) &&
+      demoProfile.status === 'active'
+  ).length
 
   return (
     <div className="w-full overflow-x-clip">
@@ -198,19 +201,21 @@ export default async function DemoGroupPage({
               </div>
 
               <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-slate-300">
-                {group.description ??
-                  'Reusable RaiseHub demo scenario.'}
+                {group.description ?? 'Reusable RaiseHub demo scenario.'}
               </p>
             </div>
 
-            <div className="w-fit shrink-0 rounded-2xl bg-white/10 px-4 py-3 text-center">
-              <p className="text-2xl font-bold">
-                {profiles.length}
-              </p>
-
-              <p className="text-xs text-slate-300">
-                Profiles
-              </p>
+            <div className="grid w-fit shrink-0 grid-cols-2 gap-2 text-center">
+              <div className="rounded-2xl bg-white/10 px-4 py-3">
+                <p className="text-2xl font-bold">{profiles.length}</p>
+                <p className="text-xs text-slate-300">Profiles</p>
+              </div>
+              <div className="rounded-2xl bg-emerald-400/10 px-4 py-3">
+                <p className="text-2xl font-bold text-emerald-200">
+                  {readyProfiles}
+                </p>
+                <p className="text-xs text-slate-300">Ready</p>
+              </div>
             </div>
           </div>
         </section>
@@ -220,16 +225,13 @@ export default async function DemoGroupPage({
             <p className="break-words font-bold text-rose-900">
               Some demo information could not be loaded
             </p>
-
             <p className="mt-1 break-words text-sm text-rose-700">
               {result.error}
             </p>
           </section>
         ) : null}
 
-        <CreateDemoProfileForm
-          groupKey={group.groupKey}
-        />
+        <CreateDemoProfileForm groupKey={group.groupKey} />
 
         <section className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-end justify-between gap-4">
@@ -237,18 +239,16 @@ export default async function DemoGroupPage({
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
                 Demo Profiles
               </p>
-
               <h2 className="mt-1 break-words text-2xl font-bold text-slate-950">
                 Choose an experience
               </h2>
-
               <p className="mt-1 break-words text-sm text-slate-600">
-                Open a linked identity in the Experience Viewer.
+                Open a ready identity in the Experience Viewer or follow the next action shown for incomplete profiles.
               </p>
             </div>
 
             <span className="shrink-0 rounded-full bg-slate-950 px-3 py-1.5 text-sm font-bold text-white">
-              {profiles.length}
+              {readyProfiles}/{profiles.length} ready
             </span>
           </div>
 
@@ -257,17 +257,17 @@ export default async function DemoGroupPage({
               <p className="break-words font-bold text-slate-900">
                 No identities in this group
               </p>
-
               <p className="mt-1 break-words text-sm text-slate-600">
                 Create the first portable identity above, then link it to a full RaiseHub experience.
               </p>
             </div>
           ) : (
             <div className="mt-4 min-w-0 space-y-3">
-              {profiles.map((profile) => (
+              {profiles.map((demoProfile) => (
                 <DemoProfileRow
-                  key={profile.id}
-                  profile={profile}
+                  key={demoProfile.id}
+                  profile={demoProfile}
+                  groupKey={group.groupKey}
                 />
               ))}
             </div>

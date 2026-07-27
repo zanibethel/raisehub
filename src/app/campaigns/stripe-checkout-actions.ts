@@ -23,6 +23,12 @@ type CheckoutInput = {
 
 type CheckoutResult =
   | { status: 'checkout-ready'; url: string }
+  | {
+      status: 'demo-complete'
+      purchaseId: string
+      entitlementId: string | null
+      message: string
+    }
   | { status: 'replacement-found'; campaignId: string; replacedCampaignId: string }
   | { status: 'selection-required'; replacedCampaignId: string; campaigns: SellableCampaignOption[] }
   | { status: 'no-valid-campaign'; replacedCampaignId: string | null }
@@ -44,6 +50,11 @@ type UntypedTable = {
   maybeSingle(): UntypedQueryResult<ManagedSellerRow>
 }
 type UntypedAdminClient = { from(table: string): UntypedTable }
+
+type DemoClassification = {
+  is_demo: boolean
+  demo_group: string | null
+}
 
 function mapRecovery(result: CampaignRecoveryResult): CheckoutResult {
   if (result.status === 'replacement-found') return result
@@ -79,11 +90,25 @@ async function resolveOrigin() {
   return 'http://localhost:3000'
 }
 
-export async function createCampaignCheckoutAction(input: CheckoutInput): Promise<CheckoutResult> {
-  if (!stripeIsConfigured()) {
-    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+function resolveDemoGroup(
+  classifications: DemoClassification[]
+): string | null {
+  const demoRows = classifications.filter((row) => row.is_demo)
+
+  if (demoRows.length === 0) {
+    return null
   }
 
+  const groups = new Set(
+    demoRows.map((row) => row.demo_group).filter(Boolean)
+  )
+
+  return groups.size === 1
+    ? Array.from(groups)[0] ?? null
+    : null
+}
+
+export async function createCampaignCheckoutAction(input: CheckoutInput): Promise<CheckoutResult> {
   const supabase = await createClient()
   const now = new Date()
   const { campaign, error: campaignError } = await getCampaignById(input.campaign_id)
@@ -95,6 +120,57 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { status: 'error', message: 'Create an account or log in before purchasing a fundraiser pass.' }
 
+  const admin = createAdminClient()
+  const untypedAdmin = admin as unknown as UntypedAdminClient
+  const selectedOrganizationId = campaign.organization_id
+
+  const [
+    canonicalOrganizationResult,
+    organizationProfileResult,
+    userProfileResult,
+    campaignClassificationResult,
+  ] = await Promise.all([
+    admin.from('organizations').select('id').eq('legacy_profile_id', selectedOrganizationId).eq('status', 'active').is('archived_at', null).maybeSingle(),
+    admin.from('profiles').select('is_demo, demo_group, role').eq('id', selectedOrganizationId).eq('role', 'organization').maybeSingle(),
+    admin.from('profiles').select('is_demo, demo_group').eq('id', user.id).maybeSingle(),
+    admin.from('campaigns').select('is_demo, demo_group').eq('id', campaign.id).maybeSingle(),
+  ])
+
+  if (
+    canonicalOrganizationResult.error ||
+    !canonicalOrganizationResult.data ||
+    organizationProfileResult.error ||
+    !organizationProfileResult.data ||
+    userProfileResult.error ||
+    !userProfileResult.data ||
+    campaignClassificationResult.error ||
+    !campaignClassificationResult.data
+  ) {
+    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
+  }
+
+  const classifications: DemoClassification[] = [
+    userProfileResult.data as DemoClassification,
+    organizationProfileResult.data as DemoClassification,
+    campaignClassificationResult.data as unknown as DemoClassification,
+  ]
+  const containsDemoData = classifications.some((row) => row.is_demo)
+  const demoGroup = resolveDemoGroup(classifications)
+
+  if (containsDemoData) {
+    const allDemo = classifications.every((row) => row.is_demo)
+    const allSameGroup =
+      Boolean(demoGroup) &&
+      classifications.every((row) => row.demo_group === demoGroup)
+
+    if (!allDemo || !allSameGroup) {
+      return {
+        status: 'error',
+        message: 'This demo checkout is not safely connected to one demo group. No payment was started.',
+      }
+    }
+  }
+
   const passAccess = await getCustomerPassAccess(user.id, now)
   if (passAccess.error) return { status: 'error', message: 'We could not confirm your current pass access. Please try again.' }
 
@@ -102,19 +178,6 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   const isDonationOnly = passAccess.hasActivePass
   if (isDonationOnly && donationAmount <= 0) {
     return { status: 'error', message: 'Choose a donation amount to support this fundraiser.' }
-  }
-
-  const admin = createAdminClient()
-  const untypedAdmin = admin as unknown as UntypedAdminClient
-  const selectedOrganizationId = campaign.organization_id
-
-  const [canonicalOrganizationResult, organizationProfileResult] = await Promise.all([
-    admin.from('organizations').select('id').eq('legacy_profile_id', selectedOrganizationId).eq('status', 'active').is('archived_at', null).maybeSingle(),
-    admin.from('profiles').select('is_demo, demo_group, role').eq('id', selectedOrganizationId).eq('role', 'organization').maybeSingle(),
-  ])
-
-  if (canonicalOrganizationResult.error || !canonicalOrganizationResult.data || organizationProfileResult.error || !organizationProfileResult.data) {
-    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
   }
 
   let managedSeller: ManagedSellerRow | null = null
@@ -136,7 +199,7 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     campaignId: campaign.id,
     organizationId: canonicalOrganizationResult.data.id,
     donationAmount,
-    isDemo: organizationProfileResult.data.is_demo,
+    isDemo: containsDemoData,
     now,
   })
 
@@ -149,6 +212,55 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   if (expectedAmountCents <= 0) return { status: 'error', message: 'Choose an amount greater than zero.' }
 
   const sellerNameSnapshot = managedSeller?.display_name ?? cleanOptionalText(input.seller_name, 120)
+
+  if (containsDemoData && demoGroup) {
+    const { data: simulatedRows, error: simulatedError } = await admin.rpc(
+      'create_campaign_purchase_with_entitlement',
+      {
+        p_campaign_id: campaign.id,
+        p_user_id: user.id,
+        p_buyer_email: user.email ?? null,
+        p_selected_organization_id: selectedOrganizationId,
+        p_donation_amount: donationAmount,
+        p_seller_name: sellerNameSnapshot,
+        p_amount_paid: snapshot.amountPaid,
+        p_platform_fee: snapshot.platformFee,
+        p_organization_earnings: snapshot.organizationEarnings,
+        p_is_demo: true,
+        p_demo_group: demoGroup,
+        p_grant_entitlement: snapshot.grantEntitlement,
+        p_pricing_rule_id: snapshot.pricingRuleId,
+        p_pricing_scope: snapshot.pricingScope,
+        p_pass_price_charged: snapshot.passPriceCharged,
+        p_platform_fee_percent: snapshot.platformFeePercent,
+        p_organization_pass_earnings: snapshot.organizationPassEarnings,
+        p_pricing_resolved_at: snapshot.pricingResolvedAt,
+      }
+    )
+
+    const simulated = simulatedRows?.[0]
+
+    if (simulatedError || !simulated?.purchase_id) {
+      return {
+        status: 'error',
+        message: 'The simulated purchase could not be completed. No real payment was attempted.',
+      }
+    }
+
+    return {
+      status: 'demo-complete',
+      purchaseId: simulated.purchase_id,
+      entitlementId: simulated.entitlement_id,
+      message: snapshot.grantEntitlement
+        ? 'Demo purchase complete. No real payment was charged, and the demonstration pass is now active.'
+        : 'Demo donation complete. No real payment was charged.',
+    }
+  }
+
+  if (!stripeIsConfigured()) {
+    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+  }
+
   const { data: attempt, error: attemptError } = await untypedAdmin
     .from('checkout_attempts')
     .insert({
@@ -172,8 +284,8 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
       organization_pass_earnings: snapshot.organizationPassEarnings,
       organization_earnings: snapshot.organizationEarnings,
       pricing_resolved_at: snapshot.pricingResolvedAt,
-      is_demo: organizationProfileResult.data.is_demo,
-      demo_group: organizationProfileResult.data.demo_group,
+      is_demo: false,
+      demo_group: null,
       status: 'created',
     })
     .select('id')

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { isDemoMode } from '@/lib/app-mode'
 import { resolveEffectiveCampaignPricingBatch } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -98,13 +99,15 @@ function getGoalState(
  *
  * This server-only query intentionally uses the admin client so logged-out
  * visitors are not dependent on authenticated RLS state. Every table query is
- * explicitly limited to the fields needed by public campaign cards.
+ * explicitly limited to the fields needed by public campaign cards, and app
+ * mode determines whether demo or production records are eligible.
  */
 export async function getPublicSellableCampaigns(
   now = new Date()
 ): Promise<PublicSellableCampaignsResult> {
   const admin = createAdminClient()
   const nowIso = now.toISOString()
+  const demoMode = isDemoMode()
 
   const { data: campaignData, error: campaignError } =
     await admin
@@ -113,6 +116,7 @@ export async function getPublicSellableCampaigns(
         'id, organization_id, name, description, goal_amount, starts_at, ends_at, status, created_at'
       )
       .eq('status', 'active')
+      .or(`is_demo.eq.${demoMode}`)
       .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
       .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
       .order('created_at', { ascending: false })
@@ -159,7 +163,8 @@ export async function getPublicSellableCampaigns(
         'id, display_name, business_name, logo_url, is_demo'
       )
       .in('id', legacyOrganizationIds)
-      .eq('role', 'organization'),
+      .eq('role', 'organization')
+      .eq('is_demo', demoMode),
     admin.rpc('get_public_campaign_progress', {
       p_campaign_ids: campaignRows.map(
         (campaign) => campaign.id
@@ -209,7 +214,7 @@ export async function getPublicSellableCampaigns(
     return {
       campaignId: campaign.id,
       organizationId: organization?.id ?? null,
-      isDemo: profile?.is_demo ?? false,
+      isDemo: profile?.is_demo === true,
     }
   })
 

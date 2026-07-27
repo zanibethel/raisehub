@@ -17,6 +17,7 @@ type DemoLaunchResponse = {
   ok?: boolean
   error?: string
   mode?: 'owner-preview' | 'demo-account'
+  groupKey?: string
   href?: string
 }
 
@@ -29,9 +30,9 @@ export const DEMO_ROLES: {
 }[] = [
   {
     role: 'customer',
-    title: 'Customer',
+    title: 'Supporter',
     description:
-      'Browse local deals, save offers, and support fundraisers in your community.',
+      'Support a fundraiser, browse local deals, and use a digital RaiseHub pass.',
     icon: '🛍️',
     color:
       'border-yellow-200 hover:border-yellow-400 hover:bg-yellow-50',
@@ -278,8 +279,8 @@ export function DemoLauncherModal({
           </h2>
 
           <p className="mt-2 text-sm text-gray-600">
-            Explore RaiseHub as any of the
-            following roles. No sign-up
+            Explore RaiseHub as a supporter,
+            business, or organization. No sign-up
             required.
           </p>
         </div>
