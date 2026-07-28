@@ -49,20 +49,6 @@ function getStatusClasses(status?: string | null): string {
   return 'border-red-200 bg-red-50 text-red-700'
 }
 
-function getStatusDotClasses(status?: string | null): string {
-  const normalizedStatus = status?.trim().toLowerCase()
-
-  if (normalizedStatus === 'ready') {
-    return 'bg-green-500'
-  }
-
-  if (normalizedStatus === 'in progress') {
-    return 'bg-yellow-500'
-  }
-
-  return 'bg-red-500'
-}
-
 function getPlanClasses(planLabel?: string | null): string {
   const normalizedPlan = planLabel?.trim().toLowerCase()
 
@@ -99,196 +85,86 @@ export default function WorkspaceCard({
     workspaceId: workspace.id,
     workspaceRole: workspace.role,
   })
-
-  const setupPercentage = clampPercentage(
-    workspace.setupPercentage
-  )
-
-  const completedSetupItems =
-    workspace.completedSetupItems ?? 0
-
-  const totalSetupItems =
-    workspace.totalSetupItems ?? 0
-
-  const missingSetupItems =
-    workspace.missingSetupItems ?? []
-
-  const hasContactInformation =
-    Boolean(workspace.email) || Boolean(workspace.phone)
+  const setupPercentage = clampPercentage(workspace.setupPercentage)
+  const missingCount = workspace.missingSetupItems?.length ?? 0
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:p-5">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span
-            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getRoleClasses(
-              workspace.role
-            )}`}
-          >
-            {getRoleLabel(workspace.role)}
-          </span>
+    <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:p-4">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getRoleClasses(
+                workspace.role
+              )}`}
+            >
+              {getRoleLabel(workspace.role)}
+            </span>
+            <span
+              className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getPlanClasses(
+                workspace.planLabel
+              )}`}
+            >
+              {getPlanDisplayLabel(workspace.planLabel)}
+            </span>
+            {workspace.status ? (
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusClasses(
+                  workspace.status
+                )}`}
+              >
+                {workspace.status}
+              </span>
+            ) : null}
+          </div>
 
-          <h3 className="mt-3 break-words text-lg font-bold leading-snug text-slate-950">
+          <h3 className="mt-2 break-words text-base font-bold leading-snug text-slate-950">
             {workspace.name}
           </h3>
-
           {workspace.subtitle ? (
-            <p className="mt-1 break-words text-sm text-slate-500">
+            <p className="mt-0.5 break-words text-xs text-slate-500">
               {workspace.subtitle}
             </p>
           ) : null}
         </div>
 
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${getPlanClasses(
-              workspace.planLabel
-            )}`}
-          >
-            {getPlanDisplayLabel(workspace.planLabel)}
-          </span>
-
-          {workspace.status ? (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${getStatusClasses(
-                workspace.status
-              )}`}
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${getStatusDotClasses(
-                  workspace.status
-                )}`}
-                aria-hidden="true"
-              />
-
-              {workspace.status}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <section className="mt-5 min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-              Setup progress
-            </p>
-
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              {completedSetupItems} of {totalSetupItems} complete
-            </p>
-          </div>
-
-          {setupPercentage !== null ? (
-            <span className="shrink-0 text-lg font-bold text-slate-900">
-              {setupPercentage}%
-            </span>
-          ) : null}
-        </div>
-
         {setupPercentage !== null ? (
-          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-blue-600 transition-all"
-              style={{ width: `${setupPercentage}%` }}
-            />
+          <div className="shrink-0 text-right">
+            <p className="text-lg font-black text-slate-950">{setupPercentage}%</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">setup</p>
           </div>
         ) : null}
-      </section>
+      </div>
 
-      {missingSetupItems.length > 0 ? (
-        <section className="mt-3 min-w-0 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">
-            Missing setup items
-          </p>
-
-          <ul className="mt-2 space-y-1.5">
-            {missingSetupItems.map((item) => (
-              <li
-                key={item}
-                className="flex min-w-0 items-start gap-2 text-sm leading-5 text-amber-950"
-              >
-                <span
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
-                  aria-hidden="true"
-                />
-
-                <span className="min-w-0 break-words">
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <section className="mt-3 rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-semibold text-green-800">
-            Profile setup is complete.
-          </p>
-        </section>
-      )}
-
-      <section className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-          Contact
-        </p>
-
-        {hasContactInformation ? (
-          <div className="mt-2 space-y-2">
-            {workspace.email ? (
-              <div className="flex min-w-0 items-start gap-2">
-                <span
-                  className="shrink-0 text-sm"
-                  aria-hidden="true"
-                >
-                  ✉
-                </span>
-
-                <a
-                  href={`mailto:${workspace.email}`}
-                  className="min-w-0 break-all text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline"
-                >
-                  {workspace.email}
-                </a>
-              </div>
-            ) : null}
-
-            {workspace.phone ? (
-              <div className="flex min-w-0 items-start gap-2">
-                <span
-                  className="shrink-0 text-sm"
-                  aria-hidden="true"
-                >
-                  ☎
-                </span>
-
-                <a
-                  href={`tel:${workspace.phone}`}
-                  className="min-w-0 break-words text-sm font-semibold text-slate-800 hover:text-blue-700 hover:underline"
-                >
-                  {workspace.phone}
-                </a>
-              </div>
-            ) : null}
-          </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2.5 text-xs text-slate-600">
+        <span>
+          <strong className="text-slate-900">
+            {workspace.completedSetupItems ?? 0}/{workspace.totalSetupItems ?? 0}
+          </strong>{' '}
+          complete
+        </span>
+        {missingCount > 0 ? (
+          <span className="font-semibold text-amber-700">
+            {missingCount} missing
+          </span>
         ) : (
-          <p className="mt-1 text-sm text-slate-500">
-            No contact details added.
-          </p>
+          <span className="font-semibold text-green-700">Ready</span>
         )}
-      </section>
+        {workspace.email ? (
+          <span className="min-w-0 truncate">{workspace.email}</span>
+        ) : null}
+      </div>
 
-      <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <Link
           href={`/dashboard/owner/support?${workspaceUrl.toString()}`}
-          className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+          className="inline-flex min-h-9 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-blue-700"
         >
           Open account
         </Link>
-
         <Link
           href={`/dashboard/owner/support?${workspaceUrl.toString()}&supportMode=read-only`}
-          className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
         >
           Support Mode
         </Link>
