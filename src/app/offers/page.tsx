@@ -208,7 +208,9 @@ export default async function OffersPage() {
                         {businessName}
                       </p>
                       <h2 className="mt-1 text-xl font-bold text-gray-900">
-                        {offer.title}
+                        {hasActivePass
+                          ? offer.title
+                          : 'Exclusive Local Deal'}
                       </h2>
                     </div>
                   </div>
