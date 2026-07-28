@@ -17,6 +17,14 @@ type BusinessProfile = {
   redemption_method: string | null
 }
 
+type BusinessWorkspaceLifecycle = {
+  id: string
+  status: string
+  archived_at: string | null
+  archive_reason: string | null
+  restore_requested_at: string | null
+}
+
 type ProfileQueryError = {
   code?: string | null
   message?: string | null
@@ -74,6 +82,15 @@ export default async function BusinessDashboard({
         }
       : null
   }
+
+  // Generated types may temporarily lag additive lifecycle columns.
+  const { data: businessWorkspace } = await (supabase as any)
+    .from('businesses')
+    .select('id, status, archived_at, archive_reason, restore_requested_at')
+    .eq('legacy_profile_id', businessProfileId)
+    .maybeSingle()
+
+  const lifecycle = businessWorkspace as BusinessWorkspaceLifecycle | null
 
   const { data: offers } = await supabase
     .from('offers')
@@ -157,9 +174,9 @@ export default async function BusinessDashboard({
   const topOffer = (offers ?? []).find((offer) => offer.id === topOfferId)
 
   const profileEmailById = Object.fromEntries(
-    (redeemedProfiles ?? []).map((profile) => [
-      profile.id,
-      profile.email || 'Unknown user',
+    (redeemedProfiles ?? []).map((redeemedProfile) => [
+      redeemedProfile.id,
+      redeemedProfile.email || 'Unknown user',
     ])
   )
 
@@ -195,6 +212,11 @@ export default async function BusinessDashboard({
       viewCount={viewCount}
       clickCount={clickCount}
       conversionRate={conversionRate}
+      businessId={lifecycle?.id ?? null}
+      businessStatus={lifecycle?.status ?? 'active'}
+      archivedAt={lifecycle?.archived_at ?? null}
+      archiveReason={lifecycle?.archive_reason ?? null}
+      restoreRequestedAt={lifecycle?.restore_requested_at ?? null}
     />
   )
 }
