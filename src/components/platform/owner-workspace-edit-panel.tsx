@@ -25,13 +25,9 @@ export default function OwnerWorkspaceEditPanel({ workspace }: Props) {
       body: JSON.stringify({
         workspaceId: workspace.id,
         workspaceRole: workspace.role,
-        businessName: formData.get('businessName'),
-        displayName: formData.get('displayName'),
+        name: formData.get('name'),
         email: formData.get('email'),
         phone: formData.get('phone'),
-        address: formData.get('address'),
-        websiteUrl: formData.get('websiteUrl'),
-        description: formData.get('description'),
       }),
     })
 
@@ -76,39 +72,20 @@ export default function OwnerWorkspaceEditPanel({ workspace }: Props) {
       <div className="rounded-xl border border-amber-300 bg-white p-4">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">Editing as RaiseHub Owner</p>
         <p className="mt-2 text-sm leading-6 text-slate-700">
-          Changes save directly to this client workspace. Review carefully before saving.
+          Changes save directly to this client profile. Review carefully before saving.
         </p>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {workspace.role === 'business' ? (
-          <label className="text-sm font-semibold text-slate-700">Business name
-            <input name="businessName" defaultValue={workspace.businessName ?? workspace.name} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
-          </label>
-        ) : (
-          <label className="text-sm font-semibold text-slate-700">Display name
-            <input name="displayName" defaultValue={workspace.displayName ?? workspace.name} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
-          </label>
-        )}
+        <label className="text-sm font-semibold text-slate-700">Account name
+          <input name="name" defaultValue={workspace.name} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
+        </label>
         <label className="text-sm font-semibold text-slate-700">Email
           <input name="email" type="email" defaultValue={workspace.email ?? ''} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
         </label>
-        <label className="text-sm font-semibold text-slate-700">Phone
+        <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Phone
           <input name="phone" defaultValue={workspace.phone ?? ''} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
         </label>
-        <label className="text-sm font-semibold text-slate-700">Address
-          <input name="address" defaultValue={workspace.address ?? ''} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
-        </label>
-        {workspace.role === 'business' ? (
-          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Website
-            <input name="websiteUrl" defaultValue={workspace.websiteUrl ?? ''} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
-          </label>
-        ) : null}
-        {workspace.role === 'business' ? (
-          <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Description
-            <textarea name="description" rows={4} defaultValue={workspace.description ?? ''} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" />
-          </label>
-        ) : null}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
