@@ -27,6 +27,11 @@ export type PlatformAnalyticsMetrics = {
 }
 
 export type PlatformMetricsResult = {
+  metrics: PlatformMetrics | null
+  error: string | null
+}
+
+export type PlatformAnalyticsMetricsResult = {
   metrics: PlatformAnalyticsMetrics | null
   error: string | null
 }
@@ -76,7 +81,7 @@ function getExpiringOfferWindow() {
 
 async function getEnvironmentMetrics(
   environment: AnalyticsEnvironment
-): Promise<{ metrics: PlatformMetrics | null; error: string | null }> {
+): Promise<PlatformMetricsResult> {
   const supabase = await createClient()
   const isDemo = environment === 'demo'
   const { now, sevenDaysFromNow } = getExpiringOfferWindow()
@@ -207,7 +212,13 @@ async function getEnvironmentMetrics(
 // Repository
 // =============================================================================
 
+// Existing callers receive production-only metrics.
 export async function getPlatformMetrics(): Promise<PlatformMetricsResult> {
+  return getEnvironmentMetrics('production')
+}
+
+// The Owner Analytics workspace receives both isolated environments.
+export async function getPlatformAnalyticsMetrics(): Promise<PlatformAnalyticsMetricsResult> {
   const [productionResult, demoResult] = await Promise.all([
     getEnvironmentMetrics('production'),
     getEnvironmentMetrics('demo'),
