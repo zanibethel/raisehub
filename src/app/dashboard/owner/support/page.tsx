@@ -28,6 +28,9 @@ type SupportPageProps = {
     workspaceId?: string
     workspaceRole?: string
     supportMode?: string
+    role?: string
+    environment?: string
+    search?: string
   }>
 }
 
@@ -57,6 +60,20 @@ function resolveWorkspaceMode(
   return supportMode === 'read-only'
     ? 'read-only'
     : 'workspace'
+}
+
+function resolveInitialRole(role?: string) {
+  return role === 'business' ||
+    role === 'organization' ||
+    role === 'customer'
+    ? role
+    : 'all'
+}
+
+function resolveInitialEnvironment(environment?: string) {
+  return environment === 'demo' || environment === 'all'
+    ? environment
+    : 'production'
 }
 
 function resolveSelectedWorkspace({
@@ -188,6 +205,10 @@ export default async function OwnerSupportPage({
       (workspace) => workspace.role === 'customer'
     ).length
 
+  const initialRole = resolveInitialRole(params.role)
+  const initialEnvironment = resolveInitialEnvironment(params.environment)
+  const initialSearch = params.search?.trim() ?? ''
+
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-7xl">
@@ -221,42 +242,25 @@ export default async function OwnerSupportPage({
           </div>
         </header>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              All workspaces
-            </p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">
-              {workspaceResult.workspaces.length}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Businesses
-            </p>
-            <p className="mt-2 text-3xl font-bold text-emerald-700">
-              {businessCount}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Organizations
-            </p>
-            <p className="mt-2 text-3xl font-bold text-blue-700">
-              {organizationCount}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Customers
-            </p>
-            <p className="mt-2 text-3xl font-bold text-amber-700">
-              {customerCount}
-            </p>
-          </div>
+        <section className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-6 sm:grid-cols-4 sm:gap-4">
+          {[
+            ['All', workspaceResult.workspaces.length, 'text-slate-950'],
+            ['Businesses', businessCount, 'text-emerald-700'],
+            ['Organizations', organizationCount, 'text-blue-700'],
+            ['Customers', customerCount, 'text-amber-700'],
+          ].map(([label, value, valueClass]) => (
+            <div
+              key={String(label)}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:rounded-3xl sm:p-5"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">
+                {label}
+              </p>
+              <p className={`mt-1 text-2xl font-black sm:mt-2 sm:text-3xl ${valueClass}`}>
+                {value}
+              </p>
+            </div>
+          ))}
         </section>
 
         {workspaceResult.error ? (
@@ -299,9 +303,12 @@ export default async function OwnerSupportPage({
           </section>
         ) : null}
 
-        <section className="mt-6">
+        <section className="mt-4 sm:mt-6">
           <WorkspaceSelector
             workspaces={workspaceResult.workspaces}
+            initialRole={initialRole}
+            initialEnvironment={initialEnvironment}
+            initialSearch={initialSearch}
           />
         </section>
 
