@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getPlatformMetrics } from '@/lib/repositories/platform-analytics-repository'
+import { getPlatformAnalyticsMetrics } from '@/lib/repositories/platform-analytics-repository'
 import type { PlatformAnalyticsMetrics } from '@/lib/repositories/platform-analytics-repository'
 
 // =============================================================================
@@ -46,7 +46,7 @@ export async function getOwnerPlatformAnalytics(): Promise<OwnerPlatformAnalytic
     return { status: 'owner-role-required' }
   }
 
-  const { metrics, error: metricsError } = await getPlatformMetrics()
+  const { metrics, error: metricsError } = await getPlatformAnalyticsMetrics()
 
   if (metricsError || !metrics) {
     return { status: 'metrics-lookup-failure' }
