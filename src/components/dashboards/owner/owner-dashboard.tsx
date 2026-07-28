@@ -5,19 +5,16 @@ import { getOwnerPlatformAnalytics } from '@/lib/services/owner-platform-analyti
 import OwnerDashboardContent from './owner-dashboard-content'
 
 export default async function OwnerDashboard() {
-  const platformAnalyticsResult =
-    await getOwnerPlatformAnalytics()
+  const platformAnalyticsResult = await getOwnerPlatformAnalytics()
 
   const platformMetrics =
     platformAnalyticsResult.status === 'success'
-      ? platformAnalyticsResult.metrics
+      ? platformAnalyticsResult.metrics.production
       : null
 
   return (
     <>
-      <OwnerDashboardContent
-        platformMetrics={platformMetrics}
-      />
+      <OwnerDashboardContent platformMetrics={platformMetrics} />
 
       <section className="mt-8 grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm sm:p-5">
