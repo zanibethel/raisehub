@@ -18,6 +18,7 @@ export type WorkspaceCardData = {
   missingSetupItems?: string[]
   email?: string | null
   phone?: string | null
+  isDemo?: boolean
 }
 
 export type LegacyProfileRole =
