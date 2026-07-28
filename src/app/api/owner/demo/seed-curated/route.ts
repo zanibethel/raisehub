@@ -1,36 +1,43 @@
 import { NextResponse } from 'next/server'
 
+import {
+  LAKEVIEW_BUSINESSES,
+  LAKEVIEW_CAMPAIGNS,
+  LAKEVIEW_DEMO_GROUP_KEY,
+  LAKEVIEW_IDENTITIES,
+  LAKEVIEW_OFFERS,
+  validateLakeviewScenario,
+  type LakeviewIdentityKey,
+} from '@/lib/demo/lakeview-scenario'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-
-const DEMO_GROUP_KEY = 'lakeview_launch_2026'
-
-const DEMO_IDENTITIES = {
-  customer: {
-    email: 'supporter.demo@raisehub.app',
-    fullName: 'Maya Thompson',
-    displayName: 'Maya Thompson',
-  },
-  business: {
-    email: 'business.demo@raisehub.app',
-    fullName: 'Jordan Lee',
-    displayName: 'Jordan Lee',
-    businessName: 'Maple Street Coffee Co.',
-  },
-  organization: {
-    email: 'organization.demo@raisehub.app',
-    fullName: 'Elena Ramirez',
-    displayName: 'Elena Ramirez',
-    businessName: 'Lakeview Elementary PTA',
-  },
-} as const
-
-type DemoRole = keyof typeof DEMO_IDENTITIES
 
 type SeededIdentity = {
   id: string
   email: string
-  role: DemoRole
+  key: LakeviewIdentityKey
+}
+
+type SeedCounts = {
+  identities: number
+  businesses: number
+  campaigns: number
+  offers: number
+  purchases: number
+  entitlements: number
+  savedOffers: number
+  redemptions: number
+  repairedDuplicates: number
+}
+
+class SeedStageError extends Error {
+  constructor(
+    readonly stage: string,
+    message: string
+  ) {
+    super(message)
+    this.name = 'SeedStageError'
+  }
 }
 
 async function requireOwner() {
@@ -50,6 +57,12 @@ async function requireOwner() {
   return profile?.role === 'owner' ? profile : null
 }
 
+function dateFromNow(offsetDays: number, includeTime = true) {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + offsetDays)
+  return includeTime ? date.toISOString() : date.toISOString().slice(0, 10)
+}
+
 async function findOrCreateAuthUser(
   email: string,
   password: string,
@@ -57,7 +70,6 @@ async function findOrCreateAuthUser(
 ) {
   const admin = createAdminClient()
   const normalizedEmail = email.trim().toLowerCase()
-
   const { data: listedUsers, error: listError } =
     await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
 
@@ -74,10 +86,7 @@ async function findOrCreateAuthUser(
       user_metadata: { full_name: fullName },
     })
 
-    if (error || !data.user) {
-      throw error ?? new Error(`Could not update ${email}.`)
-    }
-
+    if (error || !data.user) throw error ?? new Error('Demo identity update failed.')
     return data.user
   }
 
@@ -88,103 +97,187 @@ async function findOrCreateAuthUser(
     user_metadata: { full_name: fullName },
   })
 
-  if (error || !data.user) {
-    throw error ?? new Error(`Could not create ${email}.`)
-  }
-
+  if (error || !data.user) throw error ?? new Error('Demo identity creation failed.')
   return data.user
 }
 
 async function seedIdentity(
-  role: DemoRole,
+  key: LakeviewIdentityKey,
   password: string
 ): Promise<SeededIdentity> {
-  const admin = createAdminClient()
-  const identity = DEMO_IDENTITIES[role]
+  const admin = createAdminClient() as any
+  const identity = LAKEVIEW_IDENTITIES[key]
   const authUser = await findOrCreateAuthUser(
     identity.email,
     password,
     identity.fullName
   )
 
-  const { error } = await admin.from('profiles').upsert(
-    {
-      id: authUser.id,
-      email: identity.email,
-      role,
-      full_name: identity.fullName,
-      display_name: identity.displayName,
-      business_name:
-        'businessName' in identity ? identity.businessName : null,
-      subscription_tier: role === 'business' ? 'growth' : 'free',
-      onboarding_completed: true,
-      is_demo: true,
-      demo_group: DEMO_GROUP_KEY,
-    },
-    { onConflict: 'id' }
-  )
+  const { data: existingProfile, error: profileLookupError } = await admin
+    .from('profiles')
+    .select('id, is_demo, demo_group')
+    .eq('id', authUser.id)
+    .maybeSingle()
+
+  if (profileLookupError) throw profileLookupError
+  if (existingProfile && (!existingProfile.is_demo || existingProfile.demo_group !== LAKEVIEW_DEMO_GROUP_KEY)) {
+    throw new Error('A curated demo email is already attached to a production-owned profile.')
+  }
+
+  const profile = {
+    id: authUser.id,
+    email: identity.email,
+    role: identity.role,
+    full_name: identity.fullName,
+    display_name: identity.displayName,
+    business_name: 'businessName' in identity ? identity.businessName : null,
+    business_category:
+      identity.role === 'business'
+        ? LAKEVIEW_BUSINESSES.find((business) => business.key === key)?.category ?? null
+        : null,
+    business_description:
+      identity.role === 'business'
+        ? LAKEVIEW_BUSINESSES.find((business) => business.key === key)?.description ?? null
+        : null,
+    subscription_tier:
+      identity.role === 'business'
+        ? LAKEVIEW_BUSINESSES.find((business) => business.key === key)?.subscriptionTier ?? 'free'
+        : 'free',
+    onboarding_completed: true,
+    is_demo: true,
+    demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+  }
+
+  const { error } = existingProfile
+    ? await admin.from('profiles').update(profile).eq('id', authUser.id)
+    : await admin.from('profiles').insert(profile)
 
   if (error) throw error
+  return { id: authUser.id, email: identity.email, key }
+}
 
-  return { id: authUser.id, email: identity.email, role }
+async function ensureSingleRecord(
+  admin: any,
+  table: string,
+  lookup: Record<string, unknown>,
+  values: Record<string, unknown>,
+  counts: SeedCounts
+) {
+  let query = admin.from(table).select('id, is_demo, demo_group')
+  for (const [column, value] of Object.entries(lookup)) query = query.eq(column, value)
+
+  const { data: rows, error: lookupError } = await query
+  if (lookupError) throw lookupError
+
+  const matches = rows ?? []
+  const unsafe = matches.find(
+    (row: any) => !row.is_demo || row.demo_group !== LAKEVIEW_DEMO_GROUP_KEY
+  )
+  if (unsafe) throw new Error(`Refusing to modify a production-owned ${table} record.`)
+
+  if (matches.length > 0) {
+    const keeper = matches[0]
+    const { error } = await admin.from(table).update(values).eq('id', keeper.id)
+    if (error) throw error
+
+    const duplicateIds = matches.slice(1).map((row: any) => row.id)
+    if (duplicateIds.length > 0) {
+      const { error: deleteError } = await admin.from(table).delete().in('id', duplicateIds)
+      if (deleteError) throw deleteError
+      counts.repairedDuplicates += duplicateIds.length
+    }
+
+    return keeper.id as string
+  }
+
+  const { data, error } = await admin
+    .from(table)
+    .insert({ ...lookup, ...values })
+    .select('id')
+    .single()
+
+  if (error || !data) throw error ?? new Error(`${table} insert failed.`)
+  return data.id as string
+}
+
+async function ensureMembership(
+  admin: any,
+  table: 'organization_memberships' | 'business_memberships',
+  lookup: Record<string, string>,
+  values: Record<string, unknown>,
+  counts: SeedCounts
+) {
+  return ensureSingleRecord(
+    admin,
+    table,
+    lookup,
+    {
+      ...values,
+      is_demo: true,
+      demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+    },
+    counts
+  )
 }
 
 export async function POST() {
   const owner = await requireOwner()
-
   if (!owner) {
     return NextResponse.json({ error: 'Owner access required.' }, { status: 403 })
   }
 
   const password = process.env.DEMO_ACCOUNT_PASSWORD
-
   if (!password || password.length < 12) {
     return NextResponse.json(
-      {
-        error:
-          'Set DEMO_ACCOUNT_PASSWORD to a strong password of at least 12 characters before seeding.',
-      },
+      { error: 'A strong DEMO_ACCOUNT_PASSWORD is required before seeding.' },
       { status: 503 }
     )
   }
 
-  // The generated Supabase types lag several live demo columns. Keep this
-  // privileged, Owner-only seeder runtime-validated while the shared types catch up.
+  validateLakeviewScenario()
   const admin = createAdminClient() as any
+  const counts: SeedCounts = {
+    identities: 0,
+    businesses: 0,
+    campaigns: 0,
+    offers: 0,
+    purchases: 0,
+    entitlements: 0,
+    savedOffers: 0,
+    redemptions: 0,
+    repairedDuplicates: 0,
+  }
+  let stage = 'identities'
 
   try {
     const identities = await Promise.all(
-      (Object.keys(DEMO_IDENTITIES) as DemoRole[]).map((role) =>
-        seedIdentity(role, password)
+      (Object.keys(LAKEVIEW_IDENTITIES) as LakeviewIdentityKey[]).map((key) =>
+        seedIdentity(key, password)
       )
     )
+    counts.identities = identities.length
+    const identityByKey = Object.fromEntries(
+      identities.map((identity) => [identity.key, identity])
+    ) as Record<LakeviewIdentityKey, SeededIdentity>
 
-    const identityByRole = Object.fromEntries(
-      identities.map((identity) => [identity.role, identity])
-    ) as Record<DemoRole, SeededIdentity>
-
-    await admin
-      .from('demo_groups')
-      .update({ is_default: false })
-      .eq('is_default', true)
-
+    stage = 'demo-group'
     const { data: group, error: groupError } = await admin
       .from('demo_groups')
       .upsert(
         {
-          group_key: DEMO_GROUP_KEY,
-          name: 'Lakeview Playground Launch',
-          description:
-            'Lakeview Elementary PTA raises money for playground improvements with support from Maple Street Coffee Co. and local supporters.',
+          group_key: LAKEVIEW_DEMO_GROUP_KEY,
+          name: 'Lakeview Community Fundraising Demo',
+          description: 'A connected demo community with varied campaigns, local businesses, supporter purchases, saved offers, and redemptions.',
           scenario_type: 'fundraiser',
           status: 'active',
           is_default: true,
           created_by: owner.id,
           metadata: {
-            story_version: 1,
-            organization: 'Lakeview Elementary PTA',
-            business: 'Maple Street Coffee Co.',
-            supporter: 'Maya Thompson',
+            curated: true,
+            story_version: 2,
+            baseline_businesses: LAKEVIEW_BUSINESSES.length,
+            baseline_campaigns: LAKEVIEW_CAMPAIGNS.length,
+            baseline_offers: LAKEVIEW_OFFERS.length,
           },
         },
         { onConflict: 'group_key' }
@@ -192,287 +285,315 @@ export async function POST() {
       .select('id, group_key')
       .single()
 
-    if (groupError || !group) throw groupError
+    if (groupError || !group) throw groupError ?? new Error('Demo group unavailable.')
 
+    stage = 'demo-profiles'
     for (const identity of identities) {
-      const label =
-        identity.role === 'customer'
-          ? 'Maya — Supporter'
-          : identity.role === 'business'
-            ? 'Jordan — Business Owner'
-            : 'Elena — Organization Leader'
-
+      const definition = LAKEVIEW_IDENTITIES[identity.key]
       const { error } = await admin.from('demo_profiles').upsert(
         {
           demo_group_id: group.id,
           profile_id: identity.id,
-          slug: identity.role,
-          label,
-          role: identity.role,
+          slug: definition.slug,
+          label: `${definition.displayName} — ${definition.role}`,
+          role: definition.role,
           status: 'active',
-          is_primary: true,
-          baseline_data: {
-            email: identity.email,
-            demo_group: DEMO_GROUP_KEY,
-          },
-          metadata: { curated: true, story_version: 1 },
+          is_primary: ['customer', 'organization', 'mapleCoffee'].includes(identity.key),
+          baseline_data: { email: identity.email, demo_group: LAKEVIEW_DEMO_GROUP_KEY },
+          metadata: { curated: true, story_version: 2, identity_key: identity.key },
         },
         { onConflict: 'demo_group_id,slug' }
       )
-
       if (error) throw error
     }
 
-    const organizationUser = identityByRole.organization
-    const businessUser = identityByRole.business
-    const customerUser = identityByRole.customer
-    const now = new Date()
-    const startsAt = new Date(now)
-    startsAt.setDate(now.getDate() - 21)
-    const endsAt = new Date(now)
-    endsAt.setDate(now.getDate() + 75)
-
-    const { data: organization, error: organizationError } = await admin
+    stage = 'organization'
+    const organizationUser = identityByKey.organization
+    const { data: existingOrganization } = await admin
       .from('organizations')
-      .upsert(
+      .select('id, is_demo, demo_group')
+      .eq('legacy_profile_id', organizationUser.id)
+      .maybeSingle()
+
+    if (existingOrganization && (!existingOrganization.is_demo || existingOrganization.demo_group !== LAKEVIEW_DEMO_GROUP_KEY)) {
+      throw new Error('Refusing to modify a production-owned organization.')
+    }
+
+    const organizationValues = {
+      legacy_profile_id: organizationUser.id,
+      name: 'Lakeview Elementary PTA',
+      description: 'A parent-led organization raising funds for inclusive student programs, campus improvements, and family resources.',
+      organization_type: 'school',
+      email: organizationUser.email,
+      phone: '(806) 555-0104',
+      website_url: 'https://example.com/lakeview-pta',
+      status: 'active',
+      created_by: organizationUser.id,
+      is_demo: true,
+      demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+      town_name: 'Lubbock',
+      state_code: 'TX',
+    }
+
+    const organizationResult = existingOrganization
+      ? await admin.from('organizations').update(organizationValues).eq('id', existingOrganization.id).select('id').single()
+      : await admin.from('organizations').insert(organizationValues).select('id').single()
+    if (organizationResult.error || !organizationResult.data) throw organizationResult.error
+    const organizationId = organizationResult.data.id as string
+
+    await ensureMembership(
+      admin,
+      'organization_memberships',
+      { organization_id: organizationId, user_id: organizationUser.id },
+      {
+        membership_role: 'admin',
+        status: 'active',
+        display_name: 'Elena Ramirez',
+        accepted_at: new Date().toISOString(),
+      },
+      counts
+    )
+
+    stage = 'businesses'
+    const businessIds: Record<string, string> = {}
+    for (const business of LAKEVIEW_BUSINESSES) {
+      const identity = identityByKey[business.key]
+      const { data: existingBusiness } = await admin
+        .from('businesses')
+        .select('id, is_demo, demo_group')
+        .eq('legacy_profile_id', identity.id)
+        .maybeSingle()
+
+      if (existingBusiness && (!existingBusiness.is_demo || existingBusiness.demo_group !== LAKEVIEW_DEMO_GROUP_KEY)) {
+        throw new Error(`Refusing to modify production business ${business.name}.`)
+      }
+
+      const values = {
+        legacy_profile_id: identity.id,
+        name: business.name,
+        legal_name: business.name,
+        description: business.description,
+        category: business.category,
+        phone: business.phone,
+        email: identity.email,
+        website_url: business.websiteUrl,
+        google_maps_url: business.mapsUrl,
+        address: business.address,
+        status: 'active',
+        subscription_tier: business.subscriptionTier,
+        created_by: identity.id,
+        is_demo: true,
+        demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+      }
+
+      const result = existingBusiness
+        ? await admin.from('businesses').update(values).eq('id', existingBusiness.id).select('id').single()
+        : await admin.from('businesses').insert(values).select('id').single()
+      if (result.error || !result.data) throw result.error
+      businessIds[business.key] = result.data.id
+
+      await admin.from('profiles').update({
+        business_name: business.name,
+        display_name: business.name,
+        business_category: business.category,
+        business_description: business.description,
+        phone: business.phone,
+        address: business.address,
+        website_url: business.websiteUrl,
+        google_maps_url: business.mapsUrl,
+      }).eq('id', identity.id)
+
+      await ensureMembership(
+        admin,
+        'business_memberships',
+        { business_id: result.data.id, user_id: identity.id },
         {
-          legacy_profile_id: organizationUser.id,
-          name: 'Lakeview Elementary PTA',
-          description:
-            'A parent-led organization raising funds for safer, more inclusive playground equipment.',
-          organization_type: 'school',
-          email: organizationUser.email,
-          status: 'active',
-          created_by: organizationUser.id,
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
-          town_name: 'Lubbock',
-          state_code: 'TX',
-        },
-        { onConflict: 'legacy_profile_id' }
-      )
-      .select('id')
-      .single()
-
-    if (organizationError || !organization) throw organizationError
-
-    const { error: organizationMembershipError } = await admin
-      .from('organization_memberships')
-      .upsert(
-        {
-          organization_id: organization.id,
-          user_id: organizationUser.id,
-          membership_role: 'admin',
-          status: 'active',
-          display_name: 'Elena Ramirez',
-          accepted_at: now.toISOString(),
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
-        },
-        { onConflict: 'organization_id,user_id' }
-      )
-
-    if (organizationMembershipError) throw organizationMembershipError
-
-    const { data: business, error: businessError } = await admin
-      .from('businesses')
-      .upsert(
-        {
-          legacy_profile_id: businessUser.id,
-          name: 'Maple Street Coffee Co.',
-          legal_name: 'Maple Street Coffee Co.',
-          description:
-            'A neighborhood coffee shop supporting local schools and community programs.',
-          category: 'Coffee & Bakery',
-          email: businessUser.email,
-          status: 'active',
-          subscription_tier: 'growth',
-          created_by: businessUser.id,
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
-          address: '412 Maple Street, Lubbock, TX',
-        },
-        { onConflict: 'legacy_profile_id' }
-      )
-      .select('id')
-      .single()
-
-    if (businessError || !business) throw businessError
-
-    const { error: businessMembershipError } = await admin
-      .from('business_memberships')
-      .upsert(
-        {
-          business_id: business.id,
-          user_id: businessUser.id,
           membership_role: 'owner',
           status: 'active',
-          accepted_at: now.toISOString(),
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
+          accepted_at: new Date().toISOString(),
         },
-        { onConflict: 'business_id,user_id' }
+        counts
       )
+    }
+    counts.businesses = LAKEVIEW_BUSINESSES.length
 
-    if (businessMembershipError) throw businessMembershipError
-
-    const { data: campaign, error: campaignError } = await admin
-      .from('campaigns')
-      .upsert(
+    stage = 'campaigns'
+    const campaignIds: Record<string, string> = {}
+    for (const campaign of LAKEVIEW_CAMPAIGNS) {
+      const campaignId = await ensureSingleRecord(
+        admin,
+        'campaigns',
         {
           organization_id: organizationUser.id,
-          canonical_organization_id: organization.id,
-          name: 'Lakeview Playground Improvement Fund',
-          description:
-            'Help Lakeview Elementary add inclusive playground equipment, shaded seating, and safer ground surfacing.',
-          goal_amount: 15000,
+          name: campaign.name,
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+        },
+        {
+          canonical_organization_id: organizationId,
+          description: campaign.description,
+          goal_amount: campaign.goalAmount,
           pass_price: 20,
-          starts_at: startsAt.toISOString().slice(0, 10),
-          ends_at: endsAt.toISOString().slice(0, 10),
-          status: 'active',
+          starts_at: dateFromNow(-campaign.daysStartedAgo, false),
+          ends_at: dateFromNow(campaign.daysRemaining, false),
+          status: campaign.status,
           review_status: 'approved',
           content_revision: 1,
           approved_revision: 1,
           is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
         },
-        { onConflict: 'organization_id,name' }
+        counts
       )
-      .select('id')
-      .single()
+      campaignIds[campaign.key] = campaignId
+    }
+    counts.campaigns = LAKEVIEW_CAMPAIGNS.length
 
-    if (campaignError || !campaign) throw campaignError
-
-    const { data: offer, error: offerError } = await admin
-      .from('offers')
-      .upsert(
+    stage = 'offers'
+    const offerIds: Record<string, string> = {}
+    for (const offer of LAKEVIEW_OFFERS) {
+      const businessIdentity = identityByKey[offer.businessKey]
+      const offerId = await ensureSingleRecord(
+        admin,
+        'offers',
         {
-          business_id: businessUser.id,
-          title: 'Buy One Drink, Get One 50% Off',
-          description:
-            'Enjoy a second handcrafted drink for half price while supporting Lakeview Elementary.',
-          usage_rule: 'one-time',
-          discount: '50% off second drink',
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          expires_at: endsAt.toISOString().slice(0, 10),
-          is_active: true,
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
+          business_id: businessIdentity.id,
+          title: offer.title,
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
         },
-        { onConflict: 'business_id,title' }
-      )
-      .select('id')
-      .single()
-
-    if (offerError || !offer) throw offerError
-
-    const { data: existingPurchase } = await admin
-      .from('campaign_purchases')
-      .select('id')
-      .eq('campaign_id', campaign.id)
-      .eq('user_id', customerUser.id)
-      .eq('demo_group', DEMO_GROUP_KEY)
-      .maybeSingle()
-
-    let purchaseId = existingPurchase?.id ?? null
-
-    if (!purchaseId) {
-      const { data: purchase, error: purchaseError } = await admin
-        .from('campaign_purchases')
-        .insert({
-          campaign_id: campaign.id,
-          user_id: customerUser.id,
-          buyer_email: customerUser.email,
-          amount_paid: 25,
-          platform_fee: 2,
-          organization_earnings: 23,
-          selected_organization_id: organizationUser.id,
-          donation_amount: 5,
-          payment_status: 'test_paid',
-          pass_price_charged: 20,
-          platform_fee_percent: 10,
-          organization_pass_earnings: 18,
-          pricing_scope: 'campaign',
-          pricing_resolved_at: now.toISOString(),
-          organization_workspace_id: organization.id,
+        {
+          description: offer.description,
+          usage_rule: offer.usageRule,
+          discount: offer.discount,
+          starts_at: dateFromNow(offer.startOffsetDays),
+          ends_at: dateFromNow(offer.endOffsetDays),
+          expires_at: dateFromNow(offer.endOffsetDays, false),
+          is_active: offer.active,
           is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
-        })
-        .select('id')
-        .single()
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+        },
+        counts
+      )
+      offerIds[offer.key] = offerId
+    }
+    counts.offers = LAKEVIEW_OFFERS.length
 
-      if (purchaseError || !purchase) throw purchaseError
-      purchaseId = purchase.id
+    stage = 'campaign-activity'
+    const customer = identityByKey.customer
+    let primaryPurchaseId: string | null = null
+    for (const campaign of LAKEVIEW_CAMPAIGNS) {
+      for (let index = 1; index <= campaign.purchaseCount; index += 1) {
+        const buyerEmail = `lakeview+${campaign.key}-${String(index).padStart(2, '0')}@raisehub.app`
+        const purchaseId = await ensureSingleRecord(
+          admin,
+          'campaign_purchases',
+          {
+            campaign_id: campaignIds[campaign.key],
+            buyer_email: buyerEmail,
+            demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+          },
+          {
+            user_id: campaign.key === 'playground' && index === 1 ? customer.id : null,
+            amount_paid: index % 5 === 0 ? 25 : 20,
+            platform_fee: 2,
+            organization_earnings: index % 5 === 0 ? 23 : 18,
+            selected_organization_id: organizationUser.id,
+            donation_amount: index % 5 === 0 ? 5 : 0,
+            seller_name: index % 3 === 0 ? `Lakeview Seller ${((index - 1) % 6) + 1}` : null,
+            payment_status: 'test_paid',
+            pass_price_charged: 20,
+            platform_fee_percent: 10,
+            organization_pass_earnings: 18,
+            pricing_scope: 'campaign',
+            pricing_resolved_at: dateFromNow(-Math.min(index, campaign.daysStartedAgo)),
+            organization_workspace_id: organizationId,
+            is_demo: true,
+            demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+          },
+          counts
+        )
+        counts.purchases += 1
+        if (campaign.key === 'playground' && index === 1) primaryPurchaseId = purchaseId
+      }
     }
 
-    const entitlementExpires = new Date(now)
-    entitlementExpires.setMonth(entitlementExpires.getMonth() + 6)
+    if (!primaryPurchaseId) throw new Error('Primary supporter purchase was not created.')
 
-    const { error: entitlementError } = await admin
-      .from('customer_entitlements')
-      .upsert(
-        {
-          user_id: customerUser.id,
-          purchase_id: purchaseId,
-          entitlement_type: 'purchased_pass',
-          status: 'active',
-          starts_at: startsAt.toISOString(),
-          expires_at: entitlementExpires.toISOString(),
-          is_demo: true,
-          demo_group: DEMO_GROUP_KEY,
-        },
-        { onConflict: 'purchase_id' }
-      )
-
-    if (entitlementError) throw entitlementError
-
-    const { error: savedOfferError } = await admin.from('saved_offers').upsert(
+    stage = 'customer-entitlement'
+    await ensureSingleRecord(
+      admin,
+      'customer_entitlements',
       {
-        user_id: customerUser.id,
-        offer_id: offer.id,
-        is_demo: true,
-        demo_group: DEMO_GROUP_KEY,
+        purchase_id: primaryPurchaseId,
+        user_id: customer.id,
+        demo_group: LAKEVIEW_DEMO_GROUP_KEY,
       },
-      { onConflict: 'user_id,offer_id' }
-    )
-
-    if (savedOfferError) throw savedOfferError
-
-    const { data: existingRedemption } = await admin
-      .from('redemptions')
-      .select('id')
-      .eq('offer_id', offer.id)
-      .eq('user_id', customerUser.id)
-      .eq('demo_group', DEMO_GROUP_KEY)
-      .maybeSingle()
-
-    if (!existingRedemption) {
-      const { error } = await admin.from('redemptions').insert({
-        offer_id: offer.id,
-        user_id: customerUser.id,
-        created_at: new Date(now.getTime() - 3 * 86400000).toISOString(),
+      {
+        entitlement_type: 'purchased_pass',
+        status: 'active',
+        starts_at: dateFromNow(-28),
+        expires_at: dateFromNow(152),
         is_demo: true,
-        demo_group: DEMO_GROUP_KEY,
-      })
+        demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+      },
+      counts
+    )
+    counts.entitlements = 1
 
+    stage = 'offer-activity'
+    for (const offerKey of ['coffee-bogo', 'salon-upgrade', 'fitness-class']) {
+      const { error } = await admin.from('saved_offers').upsert(
+        {
+          user_id: customer.id,
+          offer_id: offerIds[offerKey],
+          is_demo: true,
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+        },
+        { onConflict: 'user_id,offer_id' }
+      )
       if (error) throw error
+      counts.savedOffers += 1
     }
+
+    await ensureSingleRecord(
+      admin,
+      'redemptions',
+      {
+        offer_id: offerIds['coffee-bogo'],
+        user_id: customer.id,
+        demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+      },
+      {
+        created_at: dateFromNow(-3),
+        is_demo: true,
+        demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+      },
+      counts
+    )
+    counts.redemptions = 1
 
     return NextResponse.json({
       ok: true,
-      groupKey: DEMO_GROUP_KEY,
-      identities: {
-        customer: DEMO_IDENTITIES.customer.email,
-        business: DEMO_IDENTITIES.business.email,
-        organization: DEMO_IDENTITIES.organization.email,
+      groupKey: LAKEVIEW_DEMO_GROUP_KEY,
+      storyVersion: 2,
+      counts,
+      campaignProgressSource: 'completed demo campaign_purchases and organization_earnings',
+      isolation: {
+        isDemo: true,
+        demoGroup: LAKEVIEW_DEMO_GROUP_KEY,
+        productionRecordsModified: false,
+        ownerIdentityModified: false,
       },
     })
   } catch (error) {
-    console.error('Curated demo seed failed', error)
+    const message = error instanceof Error ? error.message : 'Unknown seed failure.'
+    console.error('Curated demo seed failed', { stage, message })
 
     return NextResponse.json(
-      { error: 'The curated demo story could not be seeded.' },
+      {
+        error: 'The curated demo scenario could not be seeded.',
+        stage,
+        repairable: true,
+      },
       { status: 500 }
     )
   }
