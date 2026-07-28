@@ -22,6 +22,10 @@ export type WorkspaceProfile = {
   website_url: string | null
   logo_url: string | null
   business_description: string | null
+  business_category: string | null
+  facebook_url: string | null
+  instagram_url: string | null
+  tiktok_url: string | null
   subscription_tier: string
   onboarding_completed: boolean
 }
@@ -45,7 +49,7 @@ export async function getWorkspaceProfiles(): Promise<WorkspaceProfilesResult> {
     admin
       .from('profiles')
       .select(
-        'id, email, role, full_name, business_name, display_name, phone, address, website_url, logo_url, business_description, subscription_tier, onboarding_completed, is_demo'
+        'id, email, role, full_name, business_name, display_name, phone, address, website_url, logo_url, business_description, business_category, facebook_url, instagram_url, tiktok_url, subscription_tier, onboarding_completed, is_demo'
       )
       .in('role', ['business', 'organization', 'customer'])
       .order('created_at', { ascending: false }),
