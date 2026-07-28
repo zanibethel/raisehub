@@ -8,78 +8,62 @@ import type {
   WorkspaceRole,
 } from '@/lib/types/identity-access'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 type WorkspaceSelectorProps = {
   workspaces: WorkspaceCardData[]
 }
 
 type WorkspaceFilter = 'all' | WorkspaceRole
+type EnvironmentFilter = 'production' | 'demo' | 'all'
 
-// =============================================================================
-// Filter options
-// =============================================================================
-
-const filterOptions: {
-  value: WorkspaceFilter
-  label: string
-}[] = [
-  {
-    value: 'all',
-    label: 'All',
-  },
-  {
-    value: 'business',
-    label: 'Businesses',
-  },
-  {
-    value: 'organization',
-    label: 'Organizations',
-  },
-  {
-    value: 'customer',
-    label: 'Customers',
-  },
+const filterOptions: { value: WorkspaceFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'business', label: 'Businesses' },
+  { value: 'organization', label: 'Organizations' },
+  { value: 'customer', label: 'Customers' },
 ]
 
-// =============================================================================
-// Component
-// =============================================================================
+const environmentOptions: {
+  value: EnvironmentFilter
+  label: string
+}[] = [
+  { value: 'production', label: 'Production' },
+  { value: 'demo', label: 'Demo' },
+  { value: 'all', label: 'All data' },
+]
 
 export default function WorkspaceSelector({
   workspaces,
 }: WorkspaceSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeFilter, setActiveFilter] =
-    useState<WorkspaceFilter>('all')
+  const [activeFilter, setActiveFilter] = useState<WorkspaceFilter>('all')
+  const [environmentFilter, setEnvironmentFilter] =
+    useState<EnvironmentFilter>('production')
 
   const filteredWorkspaces = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
     return workspaces.filter((workspace) => {
       const matchesRole =
-        activeFilter === 'all' ||
-        workspace.role === activeFilter
-
+        activeFilter === 'all' || workspace.role === activeFilter
+      const matchesEnvironment =
+        environmentFilter === 'all' ||
+        (environmentFilter === 'demo' ? workspace.isDemo : !workspace.isDemo)
       const searchableText = [
         workspace.name,
         workspace.subtitle,
         workspace.status,
         workspace.role,
+        workspace.isDemo ? 'demo' : 'production',
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-
       const matchesSearch =
-        normalizedQuery.length === 0 ||
-        searchableText.includes(normalizedQuery)
+        normalizedQuery.length === 0 || searchableText.includes(normalizedQuery)
 
-      return matchesRole && matchesSearch
+      return matchesRole && matchesEnvironment && matchesSearch
     })
-  }, [activeFilter, searchQuery, workspaces])
+  }, [activeFilter, environmentFilter, searchQuery, workspaces])
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -88,11 +72,9 @@ export default function WorkspaceSelector({
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
             Workspaces
           </p>
-
           <h2 className="mt-2 text-2xl font-bold text-slate-950">
             Find an account
           </h2>
-
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             Search businesses, organizations, and customers without changing
             your permanent owner identity.
@@ -106,7 +88,6 @@ export default function WorkspaceSelector({
           >
             Search workspaces
           </label>
-
           <input
             id="workspace-search"
             type="search"
@@ -118,10 +99,35 @@ export default function WorkspaceSelector({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="mt-6">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+          Data environment
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {environmentOptions.map((option) => {
+            const isActive = environmentFilter === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setEnvironmentFilter(option.value)}
+                aria-pressed={isActive}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
         {filterOptions.map((option) => {
           const isActive = activeFilter === option.value
-
           return (
             <button
               key={option.value}
@@ -142,23 +148,18 @@ export default function WorkspaceSelector({
 
       <div className="mt-6 flex items-center justify-between gap-4">
         <p className="text-sm text-slate-600">
-          Showing{' '}
-          <span className="font-bold text-slate-900">
-            {filteredWorkspaces.length}
-          </span>{' '}
-          of{' '}
-          <span className="font-bold text-slate-900">
-            {workspaces.length}
-          </span>{' '}
+          Showing <span className="font-bold text-slate-900">{filteredWorkspaces.length}</span>{' '}
+          of <span className="font-bold text-slate-900">{workspaces.length}</span>{' '}
           workspaces
         </p>
 
-        {searchQuery || activeFilter !== 'all' ? (
+        {searchQuery || activeFilter !== 'all' || environmentFilter !== 'production' ? (
           <button
             type="button"
             onClick={() => {
               setSearchQuery('')
               setActiveFilter('all')
+              setEnvironmentFilter('production')
             }}
             className="text-sm font-semibold text-blue-700 hover:text-blue-800"
           >
@@ -178,12 +179,9 @@ export default function WorkspaceSelector({
         </div>
       ) : (
         <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-          <h3 className="font-bold text-slate-900">
-            No matching workspaces
-          </h3>
-
+          <h3 className="font-bold text-slate-900">No matching workspaces</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Try a different search or clear the active role filter.
+            Try a different search or clear the active filters.
           </p>
         </div>
       )}
