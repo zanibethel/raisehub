@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { buildProductionUrl } from '@/lib/production-url'
+
 export const metadata = {
   title: 'Get Started | RaiseHub',
   description:
@@ -11,7 +13,7 @@ const choices = [
     title: 'Explore campaigns',
     description:
       'Browse active fundraisers and choose a campaign to support.',
-    href: '/campaigns?live=1',
+    href: buildProductionUrl('/campaigns', { live: '1' }),
     action: 'Browse campaigns',
     accent: 'border-blue-200 bg-blue-50',
     actionClass: 'bg-blue-700 hover:bg-blue-800',
@@ -20,7 +22,7 @@ const choices = [
     title: 'Support a campaign',
     description:
       'Create a supporter account, select a fundraiser, and purchase or share a RaiseHub Pass.',
-    href: '/signup?live=1',
+    href: buildProductionUrl('/signup', { live: '1', role: 'customer' }),
     action: 'Sign up as a supporter',
     accent: 'border-emerald-200 bg-emerald-50',
     actionClass: 'bg-emerald-700 hover:bg-emerald-800',
@@ -29,7 +31,10 @@ const choices = [
     title: 'I own a business',
     description:
       'Join RaiseHub as a local business and create offers that bring supporters through your door.',
-    href: '/signup/business?live=1',
+    href: buildProductionUrl('/signup/business', {
+      live: '1',
+      role: 'business',
+    }),
     action: 'Register my business',
     accent: 'border-amber-200 bg-amber-50',
     actionClass: 'bg-amber-700 hover:bg-amber-800',
@@ -38,7 +43,10 @@ const choices = [
     title: 'Start a fundraiser',
     description:
       'Create an organization workspace and launch a campaign for your school, team, group, or cause.',
-    href: '/signup/organization?live=1',
+    href: buildProductionUrl('/signup/organization', {
+      live: '1',
+      role: 'organization',
+    }),
     action: 'Start a fundraiser',
     accent: 'border-violet-200 bg-violet-50',
     actionClass: 'bg-violet-700 hover:bg-violet-800',
@@ -85,7 +93,7 @@ export default function GoLivePage() {
 
         <div className="mt-6 text-center">
           <Link
-            href="/"
+            href={buildProductionUrl('/')}
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             Return to the homepage
