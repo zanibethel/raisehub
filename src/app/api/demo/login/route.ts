@@ -4,40 +4,21 @@ import { isDemoMode } from '@/lib/app-mode'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-// =============================================================================
-// Types
-// =============================================================================
-
-const ALLOWED_ROLES = [
-  'customer',
-  'business',
-  'organization',
-] as const
-
+const ALLOWED_ROLES = ['customer', 'business', 'organization'] as const
 type AllowedRole = (typeof ALLOWED_ROLES)[number]
-
 type ProfileRole = AllowedRole | 'admin' | 'owner'
-
 type ActorProfile = {
   id: string
   role: ProfileRole
   is_demo: boolean | null
   demo_group: string | null
 }
-
 type DemoGroup = {
   id: string
   group_key: string
   status: string
   is_default: boolean
 }
-
-type DemoProfile = {
-  profile_id: string | null
-  role: string
-  status: string
-}
-
 type PublicDemoProfile = {
   id: string
   email: string | null
@@ -46,9 +27,20 @@ type PublicDemoProfile = {
   demo_group: string | null
 }
 
-// =============================================================================
-// Validation
-// =============================================================================
+type DiagnosticStage =
+  | 'environment'
+  | 'group'
+  | 'profile'
+  | 'authentication'
+  | 'identity'
+  | 'success'
+
+function logDemoLogin(
+  stage: DiagnosticStage,
+  details: Record<string, boolean | string | null>
+) {
+  console.info('[demo-login]', { stage, ...details })
+}
 
 function isAllowedRole(value: unknown): value is AllowedRole {
   return ALLOWED_ROLES.includes(value as AllowedRole)
@@ -56,30 +48,15 @@ function isAllowedRole(value: unknown): value is AllowedRole {
 
 function normalizeGroupKey(value: unknown): string | null {
   if (typeof value !== 'string') return null
-
   const normalized = value.trim().toLowerCase()
-
   if (!normalized) return null
-
   return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalized)
     ? normalized
     : null
 }
 
-// =============================================================================
-// Demo context
-// =============================================================================
-
-function buildOwnerPreviewHref(
-  role: AllowedRole,
-  groupKey: string | null
-): string {
-  const params = new URLSearchParams({ previewRole: role })
-
-  if (groupKey) {
-    params.set('groupKey', groupKey)
-  }
-
+function buildOwnerPreviewHref(role: AllowedRole, groupKey: string): string {
+  const params = new URLSearchParams({ previewRole: role, groupKey })
   return `/dashboard/owner/preview?${params.toString()}`
 }
 
@@ -89,16 +66,15 @@ async function getActorProfile(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
   if (!user) return null
 
-  const { data: profile } = await supabase
+  const { data } = await supabase
     .from('profiles')
     .select('id, role, is_demo, demo_group')
     .eq('id', user.id)
     .maybeSingle<ActorProfile>()
 
-  return profile ?? null
+  return data ?? null
 }
 
 async function resolveDemoGroup(
@@ -106,12 +82,10 @@ async function resolveDemoGroup(
   actorProfile: ActorProfile | null
 ): Promise<DemoGroup | null> {
   const admin = createAdminClient()
-
   const actorGroupKey =
     actorProfile?.is_demo === true
       ? normalizeGroupKey(actorProfile.demo_group)
       : null
-
   const targetGroupKey = requestedGroupKey ?? actorGroupKey
 
   if (targetGroupKey) {
@@ -121,7 +95,6 @@ async function resolveDemoGroup(
       .eq('group_key', targetGroupKey)
       .eq('status', 'active')
       .maybeSingle<DemoGroup>()
-
     return data ?? null
   }
 
@@ -144,7 +117,6 @@ async function resolvePublicDemoProfile(
 ): Promise<PublicDemoProfile | null> {
   const admin = createAdminClient()
   const normalizedEmail = configuredEmail.trim().toLowerCase()
-
   const { data: profile } = await admin
     .from('profiles')
     .select('id, email, role, is_demo, demo_group')
@@ -158,21 +130,15 @@ async function resolvePublicDemoProfile(
 
   const { data: demoProfile } = await admin
     .from('demo_profiles')
-    .select('profile_id, role, status')
+    .select('profile_id')
     .eq('demo_group_id', group.id)
     .eq('profile_id', profile.id)
     .eq('role', role)
     .eq('status', 'active')
-    .maybeSingle<DemoProfile>()
+    .maybeSingle<{ profile_id: string | null }>()
 
-  if (!demoProfile?.profile_id) return null
-
-  return profile
+  return demoProfile?.profile_id ? profile : null
 }
-
-// =============================================================================
-// Demo login route
-// =============================================================================
 
 export async function POST(request: Request) {
   if (!isDemoMode()) {
@@ -183,18 +149,13 @@ export async function POST(request: Request) {
   }
 
   let body: Record<string, unknown>
-
   try {
     body = (await request.json()) as Record<string, unknown>
   } catch {
-    return NextResponse.json(
-      { error: 'Invalid request.' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
 
   const role = body.role
-
   if (!isAllowedRole(role)) {
     return NextResponse.json(
       { error: 'Unsupported demo role.' },
@@ -204,15 +165,41 @@ export async function POST(request: Request) {
 
   const rawGroupKey = body.groupKey
   const requestedGroupKey = normalizeGroupKey(rawGroupKey)
-
   if (
     rawGroupKey !== undefined &&
     rawGroupKey !== null &&
     requestedGroupKey === null
   ) {
+    return NextResponse.json({ error: 'Invalid demo group.' }, { status: 400 })
+  }
+
+  const emailMap: Record<AllowedRole, string | undefined> = {
+    customer: process.env.DEMO_CUSTOMER_EMAIL,
+    business: process.env.DEMO_BUSINESS_EMAIL,
+    organization: process.env.DEMO_ORGANIZATION_EMAIL,
+  }
+  const configuredEmail = emailMap[role]
+  const password = process.env.DEMO_ACCOUNT_PASSWORD
+  const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const hasAnonKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  const hasServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+  if (!configuredEmail || !password || !hasSupabaseUrl || !hasAnonKey || !hasServiceRole) {
+    logDemoLogin('environment', {
+      role,
+      hasEmail: Boolean(configuredEmail),
+      hasPassword: Boolean(password),
+      hasSupabaseUrl,
+      hasAnonKey,
+      hasServiceRole,
+    })
     return NextResponse.json(
-      { error: 'Invalid demo group.' },
-      { status: 400 }
+      {
+        error:
+          'The interactive demo is temporarily unavailable. Please try again later.',
+        code: 'demo_environment_incomplete',
+      },
+      { status: 503 }
     )
   }
 
@@ -221,6 +208,7 @@ export async function POST(request: Request) {
   const group = await resolveDemoGroup(requestedGroupKey, actorProfile)
 
   if (!group) {
+    logDemoLogin('group', { role, groupKey: requestedGroupKey, found: false })
     return NextResponse.json(
       {
         error:
@@ -230,8 +218,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // Owners keep their permanent session and render the selected demo identity
-  // through the dedicated Experience Viewer.
   if (actorProfile?.role === 'owner') {
     return NextResponse.json({
       ok: true,
@@ -241,25 +227,6 @@ export async function POST(request: Request) {
     })
   }
 
-  const emailMap: Record<AllowedRole, string | undefined> = {
-    customer: process.env.DEMO_CUSTOMER_EMAIL,
-    business: process.env.DEMO_BUSINESS_EMAIL,
-    organization: process.env.DEMO_ORGANIZATION_EMAIL,
-  }
-
-  const configuredEmail = emailMap[role]
-  const password = process.env.DEMO_ACCOUNT_PASSWORD
-
-  if (!configuredEmail || !password) {
-    return NextResponse.json(
-      {
-        error:
-          'The interactive demo is temporarily unavailable. Please try again later.',
-      },
-      { status: 503 }
-    )
-  }
-
   const selectedProfile = await resolvePublicDemoProfile(
     role,
     group,
@@ -267,10 +234,16 @@ export async function POST(request: Request) {
   )
 
   if (!selectedProfile?.email) {
+    logDemoLogin('profile', {
+      role,
+      groupKey: group.group_key,
+      found: false,
+    })
     return NextResponse.json(
       {
         error:
           'This role is not ready in the selected demo scenario. Please choose another experience.',
+        code: 'demo_profile_unavailable',
       },
       { status: 409 }
     )
@@ -282,14 +255,43 @@ export async function POST(request: Request) {
       password,
     })
 
-  if (authError || authData.user?.id !== selectedProfile.id) {
+  if (authError) {
     await supabase.auth.signOut()
-
+    logDemoLogin('authentication', {
+      role,
+      groupKey: group.group_key,
+      profileFound: true,
+      errorCode: authError.code ?? 'unknown_auth_error',
+    })
     return NextResponse.json(
-      { error: 'Demo login failed. Please try again.' },
+      {
+        error:
+          'The demo account credentials are temporarily out of sync. Please try again later.',
+        code: 'demo_credentials_out_of_sync',
+      },
+      { status: 503 }
+    )
+  }
+
+  if (!authData.user || authData.user.id !== selectedProfile.id) {
+    await supabase.auth.signOut()
+    logDemoLogin('identity', {
+      role,
+      groupKey: group.group_key,
+      authenticated: Boolean(authData.user),
+      userMatchesProfile: authData.user?.id === selectedProfile.id,
+    })
+    return NextResponse.json(
+      { error: 'Demo login failed. Please try again.', code: 'demo_identity_mismatch' },
       { status: 401 }
     )
   }
+
+  logDemoLogin('success', {
+    role,
+    groupKey: group.group_key,
+    userMatchesProfile: true,
+  })
 
   return NextResponse.json({
     ok: true,
