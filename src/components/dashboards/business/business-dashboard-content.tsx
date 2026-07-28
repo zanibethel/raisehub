@@ -10,6 +10,7 @@ import { getOfferStatus } from '@/lib/rules/offer-status'
 import BusinessDashboardCreateOffer from './business-dashboard-create-offer'
 import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
+import BusinessLifecycleBanner from './business-lifecycle-banner'
 import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
 import BusinessRedemptionSettingsSection from './sections/business-redemption-settings-section'
@@ -47,6 +48,11 @@ type BusinessDashboardContentProps = {
   viewCount: number
   clickCount: number
   conversionRate: string
+  businessId: string | null
+  businessStatus: string
+  archivedAt: string | null
+  archiveReason: string | null
+  restoreRequestedAt: string | null
 }
 
 function buildBusinessNotifications({
@@ -208,6 +214,11 @@ export default function BusinessDashboardContent({
   viewCount,
   clickCount,
   conversionRate,
+  businessId,
+  businessStatus,
+  archivedAt,
+  archiveReason,
+  restoreRequestedAt,
 }: BusinessDashboardContentProps) {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
 
@@ -266,6 +277,16 @@ export default function BusinessDashboardContent({
 
   return (
     <div className="mt-6 space-y-10">
+      {businessId ? (
+        <BusinessLifecycleBanner
+          businessId={businessId}
+          status={businessStatus}
+          archivedAt={archivedAt}
+          archiveReason={archiveReason}
+          restoreRequestedAt={restoreRequestedAt}
+        />
+      ) : null}
+
       <section className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm sm:p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
           Customer activity
