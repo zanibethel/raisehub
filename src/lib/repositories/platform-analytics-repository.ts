@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
@@ -83,6 +84,7 @@ async function getEnvironmentMetrics(
   environment: AnalyticsEnvironment
 ): Promise<PlatformMetricsResult> {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
   const isDemo = environment === 'demo'
   const { now, sevenDaysFromNow } = getExpiringOfferWindow()
 
@@ -140,7 +142,7 @@ async function getEnvironmentMetrics(
       .from('organizations')
       .select('id')
       .eq('is_demo', isDemo),
-    supabase
+    adminSupabase
       .from('organization_stripe_accounts')
       .select('organization_id, payouts_enabled'),
     isDemo
