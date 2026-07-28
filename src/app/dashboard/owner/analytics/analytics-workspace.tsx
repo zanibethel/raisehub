@@ -126,79 +126,79 @@ function getMetricCards(
 
 function MetricCard({
   card,
-  expanded,
-  onToggle,
+  selected,
+  onSelect,
 }: {
   card: MetricCardConfig
-  expanded: boolean
-  onToggle: () => void
+  selected: boolean
+  onSelect: () => void
 }) {
   const tone = toneClasses[card.tone]
 
   return (
-    <article
-      className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition ${
-        expanded ? `${tone.border} ${tone.surface}` : 'border-slate-200'
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`relative min-h-36 rounded-2xl border bg-white p-3 text-left shadow-sm transition sm:min-h-44 sm:rounded-3xl sm:p-5 ${
+        selected ? `${tone.border} ring-2 ring-offset-1 ${tone.surface}` : 'border-slate-200'
       }`}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-start gap-3 p-4 text-left sm:p-5"
-      >
+      <span className="flex items-start justify-between gap-2">
         <span
           aria-hidden="true"
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl font-bold ${tone.icon}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold sm:h-11 sm:w-11 sm:text-xl ${tone.icon}`}
         >
           {card.icon}
         </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-slate-950 sm:text-base">
-            {card.label}
-          </span>
-          <span className={`mt-1 block text-3xl font-black leading-none ${tone.value}`}>
-            {card.value}
-          </span>
-          <span className="mt-2 block text-xs leading-5 text-slate-600 sm:text-sm">
-            {card.summary}
-          </span>
+        <span className="text-lg font-bold text-slate-600" aria-hidden="true">
+          {selected ? '⌃' : '›'}
         </span>
+      </span>
 
-        <span className="pt-1 text-xl font-bold text-slate-700" aria-hidden="true">
-          {expanded ? '⌃' : '›'}
-        </span>
-      </button>
+      <span className="mt-3 block text-xs font-bold leading-tight text-slate-950 sm:text-base">
+        {card.label}
+      </span>
+      <span className={`mt-1 block text-3xl font-black leading-none sm:text-4xl ${tone.value}`}>
+        {card.value}
+      </span>
+      <span className="mt-2 block text-[11px] leading-4 text-slate-600 sm:text-sm sm:leading-5">
+        {card.summary}
+      </span>
+    </button>
+  )
+}
 
-      {expanded ? (
-        <div className="mx-3 mb-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 sm:mx-4 sm:mb-4">
-          <dl className="divide-y divide-slate-200">
-            {card.details.map((detail) => (
-              <div key={detail.label} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                <dt className="text-sm text-slate-600">{detail.label}</dt>
-                <dd className="text-sm font-bold text-slate-950">{detail.value}</dd>
-              </div>
-            ))}
-          </dl>
-          <Link
-            href={card.href}
-            className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50"
-          >
-            {card.actionLabel}
-            <span aria-hidden="true">›</span>
-          </Link>
+function MetricDetails({ card }: { card: MetricCardConfig }) {
+  const tone = toneClasses[card.tone]
+
+  return (
+    <section className={`mt-3 overflow-hidden rounded-2xl border bg-white shadow-sm sm:rounded-3xl ${tone.border}`}>
+      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5 ${tone.surface}`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Details</p>
+          <h2 className="mt-0.5 text-base font-black text-slate-950 sm:text-lg">{card.label}</h2>
         </div>
-      ) : (
-        <Link
-          href={card.href}
-          className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50 sm:px-5"
-        >
-          View details
-          <span aria-hidden="true">›</span>
-        </Link>
-      )}
-    </article>
+        <span className={`text-2xl font-black ${tone.value}`}>{card.value}</span>
+      </div>
+
+      <dl className="divide-y divide-slate-200">
+        {card.details.map((detail) => (
+          <div key={detail.label} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+            <dt className="text-sm text-slate-600">{detail.label}</dt>
+            <dd className="text-sm font-bold text-slate-950">{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <Link
+        href={card.href}
+        className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50 sm:px-5"
+      >
+        {card.actionLabel}
+        <span aria-hidden="true">›</span>
+      </Link>
+    </section>
   )
 }
 
@@ -211,6 +211,7 @@ export default function AnalyticsWorkspace({
   const [expandedMetric, setExpandedMetric] = useState<MetricKey>('businesses')
   const activeMetrics = metrics[environment]
   const cards = getMetricCards(activeMetrics, environment)
+  const selectedCard = cards.find((card) => card.key === expandedMetric) ?? cards[0]
   const isDemo = environment === 'demo'
 
   const attentionItems = isDemo
@@ -289,30 +290,30 @@ export default function AnalyticsWorkspace({
       </section>
 
       <div
-        className={`mt-3 flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 text-xs sm:text-sm ${
+        className={`mt-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-xs sm:px-4 sm:text-sm ${
           isDemo
             ? 'border-blue-200 bg-blue-50 text-blue-700'
             : 'border-emerald-200 bg-emerald-50 text-emerald-700'
         }`}
       >
         <span className="font-bold">● {isDemo ? 'Demo data' : 'Production data'}</span>
-        <span className="text-slate-600">
+        <span className="text-right text-slate-600">
           {isDemo ? 'Sandbox records only' : 'Excludes demo records'}
         </span>
       </div>
 
-      <section className="mt-5 grid grid-cols-2 items-start gap-3 sm:gap-4 lg:grid-cols-4">
+      <section className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:gap-4 lg:grid-cols-4">
         {cards.map((card) => (
           <MetricCard
             key={card.key}
             card={card}
-            expanded={expandedMetric === card.key}
-            onToggle={() =>
-              setExpandedMetric((current) => (current === card.key ? card.key : card.key))
-            }
+            selected={expandedMetric === card.key}
+            onSelect={() => setExpandedMetric(card.key)}
           />
         ))}
       </section>
+
+      <MetricDetails card={selectedCard} />
 
       <section className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5">
