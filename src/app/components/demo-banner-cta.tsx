@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
+import { buildProductionUrl } from '@/lib/production-url'
+
 import { DemoLauncherModal } from './demo-launcher-modal'
 
 // =========================================
@@ -30,6 +32,10 @@ export default function DemoBannerCTA() {
     )
   }
 
+  const handoffParams = new URLSearchParams(searchParams.toString())
+  handoffParams.set('live', '1')
+  handoffParams.set('from', 'demo')
+
   return (
     <>
       <button
@@ -41,7 +47,7 @@ export default function DemoBannerCTA() {
       </button>
 
       <Link
-        href="/go-live"
+        href={buildProductionUrl('/go-live', handoffParams)}
         className="rounded-full border border-white/70 bg-blue-950/25 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-950/40 sm:text-xs"
       >
         Go Live
