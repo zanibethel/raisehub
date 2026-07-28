@@ -33,6 +33,15 @@ export async function PATCH(request: Request) {
     name?: string
     email?: string
     phone?: string
+    address?: string
+    websiteUrl?: string
+    logoUrl?: string
+    description?: string
+    category?: string
+    facebookUrl?: string
+    instagramUrl?: string
+    tiktokUrl?: string
+    isDemo?: boolean
   }
 
   const workspaceId = body.workspaceId?.trim()
@@ -51,7 +60,19 @@ export async function PATCH(request: Request) {
     if (!data?.legacy_profile_id) return NextResponse.json({ error: 'Business profile connection not found.' }, { status: 404 })
     profileId = data.legacy_profile_id
 
-    const { error: businessError } = await admin.from('businesses').update({ name: clean(body.name), updated_at: now }).eq('id', workspaceId)
+    const { error: businessError } = await admin.from('businesses').update({
+      name: clean(body.name),
+      email: clean(body.email),
+      phone: clean(body.phone),
+      address: clean(body.address),
+      website_url: clean(body.websiteUrl),
+      logo_url: clean(body.logoUrl),
+      description: clean(body.description),
+      category: clean(body.category),
+      is_demo: Boolean(body.isDemo),
+      demo_group: body.isDemo ? 'owner_managed_demo' : null,
+      updated_at: now,
+    }).eq('id', workspaceId)
     if (businessError) return NextResponse.json({ error: businessError.message }, { status: 500 })
   }
 
@@ -61,13 +82,33 @@ export async function PATCH(request: Request) {
     if (!data?.legacy_profile_id) return NextResponse.json({ error: 'Organization profile connection not found.' }, { status: 404 })
     profileId = data.legacy_profile_id
 
-    const { error: organizationError } = await admin.from('organizations').update({ name: clean(body.name), updated_at: now }).eq('id', workspaceId)
+    const { error: organizationError } = await admin.from('organizations').update({
+      name: clean(body.name),
+      email: clean(body.email),
+      phone: clean(body.phone),
+      website_url: clean(body.websiteUrl),
+      logo_url: clean(body.logoUrl),
+      description: clean(body.description),
+      is_demo: Boolean(body.isDemo),
+      demo_group: body.isDemo ? 'owner_managed_demo' : null,
+      updated_at: now,
+    }).eq('id', workspaceId)
     if (organizationError) return NextResponse.json({ error: organizationError.message }, { status: 500 })
   }
 
   const profileValues: Record<string, unknown> = {
     email: clean(body.email),
     phone: clean(body.phone),
+    address: clean(body.address),
+    website_url: clean(body.websiteUrl),
+    logo_url: clean(body.logoUrl),
+    business_description: clean(body.description),
+    business_category: clean(body.category),
+    facebook_url: clean(body.facebookUrl),
+    instagram_url: clean(body.instagramUrl),
+    tiktok_url: clean(body.tiktokUrl),
+    is_demo: Boolean(body.isDemo),
+    demo_group: body.isDemo ? 'owner_managed_demo' : null,
     updated_at: now,
   }
 
