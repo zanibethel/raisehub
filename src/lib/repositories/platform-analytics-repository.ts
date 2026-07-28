@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
@@ -53,6 +54,19 @@ type StripeAccountReadiness = {
   payouts_enabled: boolean
 }
 
+type StripeAccountQueryResult = {
+  data: StripeAccountReadiness[] | null
+  error: { message: string } | null
+}
+
+type StripeAccountAdminClient = {
+  from: (relation: 'organization_stripe_accounts') => {
+    select: (
+      columns: 'organization_id, payouts_enabled'
+    ) => PromiseLike<StripeAccountQueryResult>
+  }
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -83,6 +97,8 @@ async function getEnvironmentMetrics(
   environment: AnalyticsEnvironment
 ): Promise<PlatformMetricsResult> {
   const supabase = await createClient()
+  const adminSupabase =
+    createAdminClient() as unknown as StripeAccountAdminClient
   const isDemo = environment === 'demo'
   const { now, sevenDaysFromNow } = getExpiringOfferWindow()
 
@@ -140,7 +156,7 @@ async function getEnvironmentMetrics(
       .from('organizations')
       .select('id')
       .eq('is_demo', isDemo),
-    supabase
+    adminSupabase
       .from('organization_stripe_accounts')
       .select('organization_id, payouts_enabled'),
     isDemo
@@ -180,7 +196,7 @@ async function getEnvironmentMetrics(
   const organizationWorkspaces =
     (organizationWorkspaceResult.data ?? []) as OrganizationWorkspace[]
   const payoutReadyOrganizationIds = new Set(
-    ((stripeAccountResult.data ?? []) as StripeAccountReadiness[])
+    (stripeAccountResult.data ?? [])
       .filter((account) => account.payouts_enabled)
       .map((account) => account.organization_id)
   )
