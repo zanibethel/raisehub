@@ -50,6 +50,27 @@ const toneClasses = {
   },
 }
 
+function supportListHref({
+  environment,
+  role,
+  search,
+}: {
+  environment: AnalyticsEnvironment
+  role: 'business' | 'organization'
+  search?: string
+}) {
+  const params = new URLSearchParams({
+    environment,
+    role,
+  })
+
+  if (search) {
+    params.set('search', search)
+  }
+
+  return `/dashboard/owner/support?${params.toString()}#workspace-results`
+}
+
 function getMetricCards(
   metrics: PlatformMetrics,
   environment: AnalyticsEnvironment
@@ -64,7 +85,7 @@ function getMetricCards(
       summary: `${metrics.incompleteBusinessCount} incomplete · ${metrics.completeBusinessCount} ready`,
       icon: '▣',
       tone: 'green',
-      href: '/dashboard/owner/businesses',
+      href: supportListHref({ environment, role: 'business' }),
       actionLabel: 'Review businesses',
       details: [
         { label: 'Complete profiles', value: metrics.completeBusinessCount },
@@ -79,7 +100,7 @@ function getMetricCards(
       summary: `${metrics.organizationPayoutSetupCount} need payout setup`,
       icon: '◎',
       tone: 'blue',
-      href: '/dashboard/owner/organizations',
+      href: supportListHref({ environment, role: 'organization' }),
       actionLabel: 'Review organizations',
       details: [
         { label: 'Registered organizations', value: metrics.organizationCount },
@@ -99,7 +120,9 @@ function getMetricCards(
         : 'Campaigns accepting support',
       icon: '⚑',
       tone: 'yellow',
-      href: isDemo ? '/dashboard/owner/demo' : '/dashboard/owner/organizations',
+      href: isDemo
+        ? '/dashboard/owner/demo'
+        : supportListHref({ environment, role: 'organization' }),
       actionLabel: isDemo ? 'Manage demo campaigns' : 'Review campaigns',
       details: [
         { label: 'Active campaigns', value: metrics.activeCampaignCount },
@@ -114,7 +137,7 @@ function getMetricCards(
       summary: isDemo ? 'Demo offers for pass holders' : 'Live offers for pass holders',
       icon: '◇',
       tone: 'slate',
-      href: '/dashboard/owner/businesses',
+      href: supportListHref({ environment, role: 'business' }),
       actionLabel: 'Review offers',
       details: [
         { label: 'Active offers', value: metrics.activeOfferCount },
@@ -227,14 +250,22 @@ export default function AnalyticsWorkspace({
           title: 'Incomplete demo businesses',
           description: 'Useful for setup walkthroughs',
           count: activeMetrics.incompleteBusinessCount,
-          href: '/dashboard/owner/businesses',
+          href: supportListHref({
+            environment: 'demo',
+            role: 'business',
+            search: 'incomplete',
+          }),
           tone: 'blue',
         },
         {
           title: 'Demo payout setup',
           description: 'Organizations available for payout-flow testing',
           count: activeMetrics.organizationPayoutSetupCount,
-          href: '/dashboard/owner/organizations',
+          href: supportListHref({
+            environment: 'demo',
+            role: 'organization',
+            search: 'incomplete',
+          }),
           tone: 'blue',
         },
       ]
@@ -243,21 +274,29 @@ export default function AnalyticsWorkspace({
           title: 'Incomplete businesses',
           description: 'Profiles missing required setup details',
           count: activeMetrics.incompleteBusinessCount,
-          href: '/dashboard/owner/businesses',
+          href: supportListHref({
+            environment: 'production',
+            role: 'business',
+            search: 'incomplete',
+          }),
           tone: 'rose',
         },
         {
           title: 'Organization payout setup',
           description: 'Cannot receive campaign proceeds',
           count: activeMetrics.organizationPayoutSetupCount,
-          href: '/dashboard/owner/organizations',
+          href: supportListHref({
+            environment: 'production',
+            role: 'organization',
+            search: 'incomplete',
+          }),
           tone: 'orange',
         },
         {
           title: 'Offers expiring soon',
           description: 'Offers ending within the next seven days',
           count: activeMetrics.expiringOfferCount,
-          href: '/dashboard/owner/businesses',
+          href: supportListHref({ environment: 'production', role: 'business' }),
           tone: 'amber',
         },
       ]
@@ -321,7 +360,7 @@ export default function AnalyticsWorkspace({
             {isDemo ? 'Demo tools' : 'Needs attention'}
           </h2>
           <Link
-            href={isDemo ? '/dashboard/owner/demo' : '/dashboard'}
+            href={isDemo ? '/dashboard/owner/demo' : '/dashboard/owner/support#workspace-results'}
             className="text-sm font-bold text-blue-700"
           >
             {isDemo ? 'Open demo center' : 'View all'}
