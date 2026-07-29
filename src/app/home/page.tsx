@@ -19,7 +19,7 @@ export default async function PlatformHomePage() {
   } = await supabase.auth.getUser()
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-12 text-gray-900 sm:px-8 sm:py-16">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-6 text-gray-900 sm:px-8 sm:py-16">
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div className="absolute left-1/2 top-[-120px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
         <div className="absolute left-[-80px] top-[280px] h-[260px] w-[260px] rounded-full bg-cyan-300/20 blur-3xl" />
@@ -27,38 +27,36 @@ export default async function PlatformHomePage() {
       </div>
 
       <div className="mx-auto max-w-5xl text-center">
-        <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
+        <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm backdrop-blur sm:px-4 sm:text-sm">
           Fundraising powered by local businesses
         </p>
 
-        <h1 className="mt-6 text-5xl font-bold tracking-tight text-blue-700 sm:text-6xl">
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-blue-700 sm:mt-6 sm:text-6xl">
           RaiseHub
         </h1>
 
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-700">
-          Raise money for schools and organizations while promoting local
-          businesses. Supporters save locally, businesses gain visibility, and
-          communities win together.
+        <p className="mx-auto mt-3 max-w-2xl text-base leading-6 text-gray-700 sm:mt-6 sm:text-lg">
+          Raise money for schools and organizations while promoting local businesses. Supporters save locally, businesses gain visibility, and communities win together.
         </p>
 
-        <div className="mx-auto mt-8 grid max-w-3xl grid-cols-3 gap-2 sm:gap-4">
+        <div className="mx-auto mt-5 grid max-w-3xl grid-cols-3 gap-2 sm:mt-8 sm:gap-4">
           <Link
             href="/campaigns"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:px-5 sm:text-base"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-blue-600 px-2 py-2 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
           >
             Browse Fundraisers
           </Link>
 
           <Link
             href="/signup?source=offers"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 sm:px-5 sm:text-base"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-green-600 px-2 py-2 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
           >
             View Local Deals
           </Link>
 
           <Link
             href={experienceHref}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-3 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:px-5 sm:text-base"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-2 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
           >
             {experienceLabel}
           </Link>
@@ -67,7 +65,7 @@ export default async function PlatformHomePage() {
         {user ? (
           <Link
             href="/dashboard"
-            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white/90 px-5 py-2 text-sm font-medium text-blue-700 shadow-md transition hover:bg-white hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="mt-3 inline-flex min-h-9 items-center justify-center rounded-lg border border-blue-300 bg-white/90 px-4 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:bg-white hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:mt-4 sm:min-h-11 sm:rounded-xl sm:px-5 sm:py-2 sm:text-sm"
           >
             View Dashboard
           </Link>
