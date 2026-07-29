@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { getAppMode } from '@/lib/app-mode'
+
 const liveFeatures = [
   'Create or manage a real organization',
   'Join active campaigns and purchase real coupon passes',
@@ -15,6 +17,10 @@ const demoFeatures = [
 ]
 
 export default function HomePage() {
+  const appMode = getAppMode()
+  const liveHref = appMode === 'production' ? '/home' : 'https://raisehub.app/home'
+  const demoHref = appMode === 'demo' ? '/home' : 'https://demo.raisehub.app/home'
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-8 text-gray-900 sm:px-8 sm:py-12">
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
@@ -58,7 +64,7 @@ export default function HomePage() {
                   <li key={feature} className="flex gap-3"><span className="font-bold text-blue-600" aria-hidden="true">✓</span><span>{feature}</span></li>
                 ))}
               </ul>
-              <Link href="https://raisehub.app/home" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+              <Link href={liveHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 Enter Live Platform
               </Link>
             </article>
@@ -77,7 +83,7 @@ export default function HomePage() {
                   <li key={feature} className="flex gap-3"><span className="font-bold text-green-600" aria-hidden="true">✓</span><span>{feature}</span></li>
                 ))}
               </ul>
-              <Link href="https://demo.raisehub.app/home" className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+              <Link href={demoHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
                 Launch Interactive Demo
               </Link>
             </article>
