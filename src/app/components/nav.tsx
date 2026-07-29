@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 import { isDemoMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
@@ -45,8 +47,6 @@ export default async function Nav() {
     } else if (profile?.role === 'business') {
       profileHref = '/dashboard#business-profile'
     } else if (profile?.role === 'owner' || profile?.role === 'admin') {
-      // Owner/Admin profile settings do not have a dedicated route yet.
-      // Hide the action rather than sending users to a 404.
       profileHref = null
     }
   }
@@ -71,7 +71,7 @@ export default async function Nav() {
     : null
 
   return (
-    <nav className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur">
+    <nav className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur" aria-label="Primary navigation">
       <div className="mx-auto max-w-5xl">
         <NavClient
           key={notificationVersion}
@@ -80,10 +80,32 @@ export default async function Nav() {
           isPublicDemoUser={isPublicDemoUser}
         />
       </div>
-      <MobileNavEnhancements
-        signedIn={Boolean(user)}
-        profileHref={profileHref}
-      />
+
+      <div className={demoMode ? 'border-t border-green-200 bg-green-50' : 'border-t border-blue-100 bg-blue-50/70'}>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2 text-xs sm:text-sm">
+          <p className={demoMode ? 'font-semibold text-green-900' : 'font-semibold text-blue-900'}>
+            RaiseHub · {demoMode ? 'Interactive Demo' : 'Live Platform'}
+            {demoMode ? (
+              <span className="ml-2 hidden font-normal text-green-800 md:inline">
+                Sample data only. Nothing here affects live organizations.
+              </span>
+            ) : null}
+          </p>
+
+          {demoMode ? (
+            <div className="flex shrink-0 items-center gap-3">
+              <Link href="https://raisehub.app" className="font-semibold text-blue-700 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                Switch to Live
+              </Link>
+              <Link href="https://raisehub.app" className="hidden text-gray-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-700 sm:inline">
+                Experience Selection
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <MobileNavEnhancements signedIn={Boolean(user)} profileHref={profileHref} />
       {user ? <NotificationRefreshBridge userId={user.id} /> : null}
     </nav>
   )
