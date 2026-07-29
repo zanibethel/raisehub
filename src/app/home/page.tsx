@@ -11,8 +11,8 @@ import { createClient } from '@/lib/supabase/server'
 export default async function PlatformHomePage() {
   const supabase = await createClient()
   const appMode = getAppMode()
-  const demoHref = appMode === 'demo' ? '/demo' : 'https://demo.raisehub.app/home'
-  const demoLabel = appMode === 'demo' ? 'Explore Demo' : 'Enter Demo'
+  const experienceHref = appMode === 'demo' ? 'https://raisehub.app/home' : 'https://demo.raisehub.app/home'
+  const experienceLabel = appMode === 'demo' ? 'Go Live' : 'Enter Demo'
 
   const {
     data: { user },
@@ -57,10 +57,10 @@ export default async function PlatformHomePage() {
           </Link>
 
           <Link
-            href={demoHref}
+            href={experienceHref}
             className="inline-flex min-h-12 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-3 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:px-5 sm:text-base"
           >
-            {demoLabel}
+            {experienceLabel}
           </Link>
         </div>
 
