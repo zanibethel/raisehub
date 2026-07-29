@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { getAppMode } from '@/lib/app-mode'
+
 const liveFeatures = [
   'Create or manage a real organization',
   'Join active campaigns and purchase real coupon passes',
@@ -15,6 +17,10 @@ const demoFeatures = [
 ]
 
 export default function HomePage() {
+  const appMode = getAppMode()
+  const liveHref = appMode === 'production' ? '/home' : 'https://raisehub.app/home'
+  const demoHref = appMode === 'demo' ? '/home' : 'https://demo.raisehub.app/home'
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-8 text-gray-900 sm:px-8 sm:py-12">
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
@@ -27,9 +33,7 @@ export default function HomePage() {
           <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
             Fundraising that benefits everyone
           </p>
-          <h1 className="mt-5 text-4xl font-bold tracking-tight text-blue-700 sm:text-6xl">
-            RaiseHub
-          </h1>
+          <h1 className="mt-5 text-4xl font-bold tracking-tight text-blue-700 sm:text-6xl">RaiseHub</h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-gray-700 sm:text-lg">
             Support organizations. Reward local businesses. Build stronger communities.
           </p>
@@ -49,9 +53,7 @@ export default function HomePage() {
             <article className="flex flex-col rounded-3xl border border-blue-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Live Platform</p>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                  Real activity
-                </span>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Real activity</span>
               </div>
               <h3 className="mt-4 text-2xl font-bold text-gray-900">Start or join a real fundraiser.</h3>
               <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -59,16 +61,10 @@ export default function HomePage() {
               </p>
               <ul className="mt-5 space-y-3 text-sm text-gray-700">
                 {liveFeatures.map((feature) => (
-                  <li key={feature} className="flex gap-3">
-                    <span className="font-bold text-blue-600" aria-hidden="true">✓</span>
-                    <span>{feature}</span>
-                  </li>
+                  <li key={feature} className="flex gap-3"><span className="font-bold text-blue-600" aria-hidden="true">✓</span><span>{feature}</span></li>
                 ))}
               </ul>
-              <Link
-                href="https://raisehub.app/campaigns"
-                className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
+              <Link href={liveHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                 Enter Live Platform
               </Link>
             </article>
@@ -76,9 +72,7 @@ export default function HomePage() {
             <article className="flex flex-col rounded-3xl border border-green-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Interactive Demo</p>
-                <span className="rounded-full border border-yellow-300 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-900">
-                  Sample data only
-                </span>
+                <span className="rounded-full border border-yellow-300 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-900">Sample data only</span>
               </div>
               <h3 className="mt-4 text-2xl font-bold text-gray-900">Explore before creating an account.</h3>
               <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -86,16 +80,10 @@ export default function HomePage() {
               </p>
               <ul className="mt-5 space-y-3 text-sm text-gray-700">
                 {demoFeatures.map((feature) => (
-                  <li key={feature} className="flex gap-3">
-                    <span className="font-bold text-green-600" aria-hidden="true">✓</span>
-                    <span>{feature}</span>
-                  </li>
+                  <li key={feature} className="flex gap-3"><span className="font-bold text-green-600" aria-hidden="true">✓</span><span>{feature}</span></li>
                 ))}
               </ul>
-              <Link
-                href="https://demo.raisehub.app/demo"
-                className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
-              >
+              <Link href={demoHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
                 Launch Interactive Demo
               </Link>
             </article>
