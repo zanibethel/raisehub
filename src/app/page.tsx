@@ -1,236 +1,111 @@
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 import Link from 'next/link'
-import LogoCarousel from './components/logo-carousel'
-import FeaturedDealsCarousel from './components/featured-deals-carousel'
-import CampaignProgressCarousel from './components/campaign-progress-carousel'
-import { createClient } from '@/lib/supabase/server'
 
-export default async function HomePage() {
-  const supabase = await createClient()
+const liveFeatures = [
+  'Create or manage a real organization',
+  'Join active campaigns and purchase real coupon passes',
+  'Manage a real business or participate as a seller',
+  'Use real accounts, records, and payments',
+]
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+const demoFeatures = [
+  'No signup required and no real payments',
+  'Explore supporter, business, and organization roles',
+  'Use realistic sample campaigns, offers, and activity',
+  'Nothing affects the Live Platform',
+]
 
+export default function HomePage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-8 py-16 text-gray-900">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-1/2 top-[-120px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
-        <div className="absolute left-[-80px] top-[280px] h-[260px] w-[260px] rounded-full bg-cyan-300/20 blur-3xl" />
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-8 text-gray-900 sm:px-8 sm:py-12">
+      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div className="absolute left-1/2 top-[-160px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
         <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-5xl text-center">
-        <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
-          Fundraising powered by local businesses
-        </p>
-
-        <h1 className="mt-6 text-5xl font-bold tracking-tight text-blue-700 sm:text-6xl">
-          RaiseHub
-        </h1>
-
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-700">
-          Raise money for schools and organizations while promoting local
-          businesses. Supporters save locally, businesses gain visibility, and
-          communities win together.
-        </p>
-
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link
-            href="/campaigns"
-            className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl"
-          >
-            Browse Fundraisers
-          </Link>
-
-          <Link
-            href="/signup?source=offers"
-            className="rounded-xl bg-green-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl"
-          >
-            View Local Deals
-          </Link>
-
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="rounded-xl border border-blue-300 bg-white/90 px-6 py-3 font-medium text-blue-700 shadow-lg transition hover:bg-white hover:shadow-xl"
-            >
-              View Dashboard
-            </Link>
-          ) : null}
-        </div>
-      </div>
-
-      <LogoCarousel />
-      <FeaturedDealsCarousel />
-      <CampaignProgressCarousel />
-
-      <div className="mx-auto mt-16 max-w-5xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-blue-700">
-            How RaiseHub Works
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            RaiseHub connects supporters, local businesses, and organizations in
-            one simple fundraising loop.
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
+        <header className="text-center">
+          <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
+            Fundraising that benefits everyone
           </p>
-        </div>
-
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <Link
-            href="/how-it-works/supporters"
-            className="rounded-2xl border border-yellow-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
-          >
-            <h3 className="text-lg font-semibold text-yellow-600">
-              For Supporters
-            </h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Save money locally while helping fund schools, teams, and
-              organizations.
-            </p>
-            <p className="mt-4 text-sm font-medium text-yellow-700">
-              Learn more →
-            </p>
-          </Link>
-
-          <Link
-            href="/how-it-works/businesses"
-            className="rounded-2xl border border-green-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
-          >
-            <h3 className="text-lg font-semibold text-green-700">
-              For Businesses
-            </h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Promote offers, gain visibility, and support local fundraising
-              campaigns.
-            </p>
-            <p className="mt-4 text-sm font-medium text-green-700">
-              Learn more →
-            </p>
-          </Link>
-
-          <Link
-            href="/how-it-works/organizations"
-            className="rounded-2xl border border-blue-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
-          >
-            <h3 className="text-lg font-semibold text-blue-700">
-              For Organizations
-            </h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Launch fundraising campaigns powered by local business deals.
-            </p>
-            <p className="mt-4 text-sm font-medium text-blue-700">
-              Learn more →
-            </p>
-          </Link>
-        </div>
-      </div>
-
-      <div className="mx-auto mt-16 max-w-5xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-blue-700">Choose Your Path</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            RaiseHub works differently depending on your role. Find the path that fits you.
+          <h1 className="mt-5 text-4xl font-bold tracking-tight text-blue-700 sm:text-6xl">
+            RaiseHub
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-gray-700 sm:text-lg">
+            Support organizations. Reward local businesses. Build stronger communities.
           </p>
-        </div>
+        </header>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <div className="flex flex-col rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h2 className="text-lg font-semibold text-blue-700">
-              For schools &amp; organizations
+        <section aria-labelledby="experience-heading" className="mt-8 sm:mt-10">
+          <div className="text-center">
+            <h2 id="experience-heading" className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              How would you like to experience RaiseHub today?
             </h2>
-            <p className="mt-2 flex-1 text-sm text-gray-600">
-              Launch digital fundraising passes that supporters can buy online and
-              use for months.
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
+              Choose the real operating platform or explore safely with sample data first.
             </p>
-            <Link
-              href="/signup/organization"
-              className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Start a Fundraiser
-            </Link>
           </div>
 
-          <div className="flex flex-col rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h2 className="text-lg font-semibold text-green-700">
-              For businesses
-            </h2>
-            <p className="mt-2 flex-1 text-sm text-gray-600">
-              Promote local offers, attract new customers, and track redemption
-              performance in one place.
-            </p>
-            <Link
-              href="/signup/business"
-              className="mt-4 inline-block rounded-xl bg-green-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-green-700"
-            >
-              Join as a Business
-            </Link>
-          </div>
+          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <article className="flex flex-col rounded-3xl border border-blue-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Live Platform</p>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                  Real activity
+                </span>
+              </div>
+              <h3 className="mt-4 text-2xl font-bold text-gray-900">Start or join a real fundraiser.</h3>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Enter RaiseHub&apos;s production experience with normal authentication, onboarding, and Stripe payments.
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-gray-700">
+                {liveFeatures.map((feature) => (
+                  <li key={feature} className="flex gap-3">
+                    <span className="font-bold text-blue-600" aria-hidden="true">✓</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="https://raisehub.app/campaigns"
+                className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                Enter Live Platform
+              </Link>
+            </article>
 
-          <div className="flex flex-col rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h2 className="text-lg font-semibold text-yellow-600">
-              For supporters
-            </h2>
-            <p className="mt-2 flex-1 text-sm text-gray-600">
-              Buy a pass, save money at local businesses, and help fund programs
-              that matter.
-            </p>
-            <Link
-              href="/signup?source=offers"
-              className="mt-4 inline-block rounded-xl bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700"
-            >
-              View Local Deals
-            </Link>
+            <article className="flex flex-col rounded-3xl border border-green-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Interactive Demo</p>
+                <span className="rounded-full border border-yellow-300 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-900">
+                  Sample data only
+                </span>
+              </div>
+              <h3 className="mt-4 text-2xl font-bold text-gray-900">Explore before creating an account.</h3>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Experience every major role using realistic examples. All activity is simulated and separated from live organizations.
+              </p>
+              <ul className="mt-5 space-y-3 text-sm text-gray-700">
+                {demoFeatures.map((feature) => (
+                  <li key={feature} className="flex gap-3">
+                    <span className="font-bold text-green-600" aria-hidden="true">✓</span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="https://demo.raisehub.app/demo"
+                className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+              >
+                Launch Interactive Demo
+              </Link>
+            </article>
           </div>
-        </div>
+        </section>
+
+        <footer className="mt-8 text-center text-xs text-gray-500">
+          Live and Interactive Demo use one RaiseHub product with a strict boundary between real and sample activity.
+        </footer>
       </div>
-
-      <div className="mx-auto mt-16 max-w-5xl rounded-3xl border border-white/60 bg-white/85 p-8 shadow-xl backdrop-blur">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div>
-            <p className="text-3xl font-bold text-blue-700">6 Months</p>
-            <p className="mt-2 text-sm text-gray-600">
-              Reusable digital pass access for supporters
-            </p>
-          </div>
-
-          <div>
-            <p className="text-3xl font-bold text-green-700">Local Growth</p>
-            <p className="mt-2 text-sm text-gray-600">
-              More visibility and foot traffic for participating businesses
-            </p>
-          </div>
-
-          <div>
-            <p className="text-3xl font-bold text-yellow-600">Shared Impact</p>
-            <p className="mt-2 text-sm text-gray-600">
-              Schools, organizations, businesses, and families all benefit
-              together
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <footer className="mx-auto mt-16 max-w-5xl border-t border-blue-100 pt-6 text-center text-sm text-gray-500">
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/terms" className="hover:text-blue-700">
-            Terms
-          </Link>
-
-          <Link href="/privacy" className="hover:text-blue-700">
-            Privacy
-          </Link>
-
-          <Link href="/refund-policy" className="hover:text-blue-700">
-            Refund Policy
-          </Link>
-        </div>
-
-        <p className="mt-4">© {new Date().getFullYear()} RaiseHub</p>
-      </footer>
     </main>
   )
 }
