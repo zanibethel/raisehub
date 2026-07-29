@@ -19,30 +19,26 @@ const demoFeatures = [
 const fundraisingSteps = [
   {
     number: '1',
-    title: 'Businesses add local offers',
-    description:
-      'Participating businesses provide useful discounts that bring supporters back through their doors.',
+    title: 'Businesses add offers',
+    description: 'Local businesses provide discounts that bring supporters back.',
     accent: 'border-green-200 bg-green-50 text-green-800',
   },
   {
     number: '2',
-    title: 'Organizations launch a fundraiser',
-    description:
-      'Schools, teams, and community groups sell a digital RaiseHub Pass through their campaign.',
+    title: 'Organizations launch',
+    description: 'Schools and community groups sell a digital fundraising pass.',
     accent: 'border-blue-200 bg-blue-50 text-blue-800',
   },
   {
     number: '3',
-    title: 'Supporters buy the pass',
-    description:
-      'Each purchase supports the fundraiser and gives the customer months of savings at local businesses.',
+    title: 'Supporters buy',
+    description: 'Each purchase supports the fundraiser and unlocks local savings.',
     accent: 'border-yellow-200 bg-yellow-50 text-yellow-800',
   },
   {
     number: '4',
-    title: 'Everyone shares the benefit',
-    description:
-      'Organizations and sellers earn funds, supporters save money, and businesses gain customers and measurable activity.',
+    title: 'Everyone benefits',
+    description: 'Organizations earn, supporters save, and businesses gain customers.',
     accent: 'border-cyan-200 bg-cyan-50 text-cyan-800',
   },
 ] as const
@@ -72,33 +68,37 @@ export default function HomePage() {
 
         <section
           aria-labelledby="how-raisehub-works"
-          className="mt-8 rounded-3xl border border-white/70 bg-white/90 p-6 shadow-xl backdrop-blur sm:mt-10 sm:p-8"
+          className="mt-8 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur sm:mt-10 sm:p-8"
         >
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 sm:text-sm sm:tracking-[0.18em]">
               One simple fundraising loop
             </p>
-            <h2 id="how-raisehub-works" className="mt-2 text-3xl font-bold text-slate-950">
+            <h2 id="how-raisehub-works" className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">
               How RaiseHub Works
             </h2>
-            <p className="mx-auto mt-3 max-w-3xl text-gray-600">
-              Local offers power a digital fundraising pass that helps organizations raise money while rewarding supporters and bringing customers back to participating businesses.
+            <p className="mx-auto mt-2 max-w-3xl text-sm leading-6 text-gray-600 sm:mt-3 sm:text-base">
+              Local offers power a fundraising pass that helps organizations raise money while rewarding supporters and participating businesses.
             </p>
           </div>
 
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
             {fundraisingSteps.map((step) => (
-              <li key={step.number} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg font-bold ${step.accent}`}>
+              <li key={step.number} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-bold sm:h-10 sm:w-10 sm:text-lg ${step.accent}`}>
                   {step.number}
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-slate-950">{step.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-gray-600">{step.description}</p>
+                <h3 className="mt-3 text-sm font-bold leading-5 text-slate-950 sm:mt-4 sm:text-lg sm:font-semibold">
+                  {step.title}
+                </h3>
+                <p className="mt-1.5 text-xs leading-5 text-gray-600 sm:mt-2 sm:text-sm sm:leading-6">
+                  {step.description}
+                </p>
               </li>
             ))}
           </ol>
 
-          <p className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-center font-semibold leading-6 text-blue-950">
+          <p className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-semibold leading-5 text-blue-950 sm:mt-6 sm:px-5 sm:py-4 sm:text-base sm:leading-6">
             One purchase supports a fundraiser, rewards the seller, saves the customer money, and brings business back to local companies.
           </p>
         </section>
