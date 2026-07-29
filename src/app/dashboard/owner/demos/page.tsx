@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import CreateDemoGroupForm from '@/components/dashboards/owner/create-demo-group-form'
+import DemoBusinessLogoManager from '@/components/dashboards/owner/demo-business-logo-manager'
 import SeedCuratedDemoButton from '@/components/dashboards/owner/seed-curated-demo-button'
 import {
   getDemoGroups,
@@ -96,19 +97,10 @@ export default async function OwnerDemoCenterPage() {
   if (!profile || profile.role !== 'owner') redirect('/dashboard')
 
   const result = await getDemoGroups()
-  const curatedGroup = result.groups.find(
-    (group) => group.groupKey === CURATED_GROUP_KEY
-  )
-  const legacyGroups = result.groups.filter(
-    (group) => group.groupKey !== CURATED_GROUP_KEY
-  )
-  const profileCount = result.groups.reduce(
-    (total, group) => total + group.profileCount,
-    0
-  )
-  const activeGroupCount = result.groups.filter(
-    (group) => group.status === 'active'
-  ).length
+  const curatedGroup = result.groups.find((group) => group.groupKey === CURATED_GROUP_KEY)
+  const legacyGroups = result.groups.filter((group) => group.groupKey !== CURATED_GROUP_KEY)
+  const profileCount = result.groups.reduce((total, group) => total + group.profileCount, 0)
+  const activeGroupCount = result.groups.filter((group) => group.status === 'active').length
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-5 sm:px-8 sm:py-8">
@@ -183,6 +175,8 @@ export default async function OwnerDemoCenterPage() {
             <div className="mt-5"><SeedCuratedDemoButton /></div>
           </section>
         )}
+
+        <DemoBusinessLogoManager />
 
         <details className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
           <summary className="cursor-pointer list-none p-5 sm:p-6">
