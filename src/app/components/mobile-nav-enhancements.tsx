@@ -14,6 +14,7 @@ export default function MobileNavEnhancements({
   profileHref,
 }: MobileNavEnhancementsProps) {
   const [profileSlot, setProfileSlot] = useState<HTMLElement | null>(null)
+  const [roleActionsSlot, setRoleActionsSlot] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     function syncOpenMenu() {
@@ -39,6 +40,31 @@ export default function MobileNavEnhancements({
 
       if (menuLinks?.querySelector('a[href="/login"]')) {
         menuLinks.setAttribute('data-raisehub-auth-menu', 'true')
+      }
+
+      if (menuLinks) {
+        let roleSlot = menuLinks.querySelector<HTMLElement>(
+          '[data-raisehub-role-actions-slot]'
+        )
+
+        if (!roleSlot) {
+          roleSlot = document.createElement('div')
+          roleSlot.setAttribute('data-raisehub-role-actions-slot', 'true')
+
+          const signOutButton = Array.from(
+            menuLinks.querySelectorAll<HTMLButtonElement>('button')
+          ).find((button) => button.textContent?.includes('Sign out'))
+          const loginLink = menuLinks.querySelector('a[href="/login"]')
+
+          menuLinks.insertBefore(
+            roleSlot,
+            signOutButton ?? loginLink ?? menuLinks.firstElementChild
+          )
+        }
+
+        setRoleActionsSlot(roleSlot)
+      } else {
+        setRoleActionsSlot(null)
       }
 
       if (signedIn && menuLinks) {
@@ -106,6 +132,35 @@ export default function MobileNavEnhancements({
 
   return (
     <>
+      {roleActionsSlot
+        ? createPortal(
+            <div className="my-2 border-y border-gray-100 py-2">
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Choose your path
+              </p>
+              <Link
+                href="/signup/organization"
+                className="block rounded-xl px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                Start a Fundraiser
+              </Link>
+              <Link
+                href="/signup/business"
+                className="block rounded-xl px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50"
+              >
+                Join as a Business
+              </Link>
+              <Link
+                href="/signup?source=offers"
+                className="block rounded-xl px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50"
+              >
+                View Local Deals
+              </Link>
+            </div>,
+            roleActionsSlot
+          )
+        : null}
+
       {profileSlot && profileHref
         ? createPortal(
             <Link
@@ -155,6 +210,11 @@ export default function MobileNavEnhancements({
 
           nav [data-raisehub-account-menu='true'] > button {
             display: block;
+          }
+
+          nav [data-raisehub-role-actions-slot='true'] a,
+          nav [data-raisehub-role-actions-slot='true'] p {
+            text-align: right;
           }
         }
       `}</style>
