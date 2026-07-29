@@ -15,6 +15,8 @@ type DemoBusinessProfile = {
   demo_group: string | null
 }
 
+type AdminClient = ReturnType<typeof createAdminClient>
+
 async function requireOwner(): Promise<OwnerProfile | null> {
   const supabase = await createClient()
   const {
@@ -40,7 +42,7 @@ function storagePathFromUrl(url: string | null): string | null {
   return decodeURIComponent(url.slice(index + marker.length))
 }
 
-async function findDemoBusiness(admin: ReturnType<typeof createAdminClient>, profileId: string) {
+async function findDemoBusiness(admin: AdminClient, profileId: string) {
   const { data, error } = await admin
     .from('profiles')
     .select('id, business_name, display_name, logo_url, demo_group')
@@ -59,7 +61,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Owner access required.' }, { status: 403 })
   }
 
-  const admin = createAdminClient()
+  const admin = createAdminClient() as any
   const { data, error } = await admin
     .from('profiles')
     .select('id, business_name, display_name, logo_url, demo_group')
@@ -71,7 +73,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const businesses = (data ?? []).map((profile) => ({
+  const businesses = (data ?? []).map((profile: DemoBusinessProfile) => ({
     id: profile.id,
     name: profile.display_name?.trim() || profile.business_name?.trim() || 'Demo business',
     logoUrl: profile.logo_url,
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Logo must be 5 MB or smaller.' }, { status: 400 })
   }
 
-  const admin = createAdminClient()
+  const admin = createAdminClient() as any
 
   try {
     const profile = await findDemoBusiness(admin, profileId)
@@ -173,7 +175,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Demo business is required.' }, { status: 400 })
   }
 
-  const admin = createAdminClient()
+  const admin = createAdminClient() as any
 
   try {
     const profile = await findDemoBusiness(admin, profileId)
