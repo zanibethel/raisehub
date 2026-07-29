@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 import { buildProductionUrl } from '@/lib/production-url'
@@ -14,27 +13,7 @@ import { DemoLauncherModal } from './demo-launcher-modal'
 // =========================================
 
 export default function DemoBannerCTA() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [showModal, setShowModal] = useState(false)
-
-  const isLiveHandoff =
-    pathname === '/go-live' || searchParams.get('live') === '1'
-
-  if (isLiveHandoff) {
-    return (
-      <Link
-        href="/"
-        className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 sm:text-xs"
-      >
-        Back to Demo Experience
-      </Link>
-    )
-  }
-
-  const handoffParams = new URLSearchParams(searchParams.toString())
-  handoffParams.set('live', '1')
-  handoffParams.set('from', 'demo')
 
   return (
     <>
@@ -47,7 +26,7 @@ export default function DemoBannerCTA() {
       </button>
 
       <Link
-        href={buildProductionUrl('/go-live', handoffParams)}
+        href={buildProductionUrl('/home')}
         className="rounded-full border border-white/70 bg-blue-950/25 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-950/40 sm:text-xs"
       >
         Go Live
