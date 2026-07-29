@@ -28,6 +28,16 @@ type Props = SummaryProps &
 
 export default function OrganizationDashboardContent(props: Props) {
   const topSellers = props.sellers.slice(0, 3)
+  const sellerRosterCampaigns = props.campaigns
+    .filter((campaign) => {
+      const status = campaign.status?.trim().toLowerCase() ?? ''
+      return status !== 'completed' && status !== 'archived'
+    })
+    .map((campaign) => ({
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+    }))
 
   return (
     <div className="mt-8 space-y-8">
@@ -110,7 +120,21 @@ export default function OrganizationDashboardContent(props: Props) {
         </div>
       </details>
 
-      <OrganizationSellerRosterPreview campaigns={props.sellerCampaigns} />
+      {sellerRosterCampaigns.length > 0 ? (
+        <OrganizationSellerRosterPreview campaigns={sellerRosterCampaigns} />
+      ) : (
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm sm:p-6">
+          <p className="text-sm font-bold uppercase tracking-wide text-emerald-700">
+            Seller roster setup
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-gray-900">
+            Create a campaign before adding sellers
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-700">
+            Seller names, referral links, and QR codes are saved to a specific campaign. Create your first draft campaign below, then return here to build the roster before launch.
+          </p>
+        </section>
+      )}
 
       <OrganizationCampaignsSection
         organizationId={props.organizationId}
