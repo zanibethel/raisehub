@@ -5,41 +5,14 @@ import Link from 'next/link'
 import LogoCarousel from '../components/logo-carousel'
 import FeaturedDealsCarousel from '../components/featured-deals-carousel'
 import CampaignProgressCarousel from '../components/campaign-progress-carousel'
+import { getAppMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
-
-const fundraisingSteps = [
-  {
-    number: '1',
-    title: 'Businesses add local offers',
-    description:
-      'Participating businesses provide useful discounts that bring supporters back through their doors.',
-    accent: 'border-green-200 bg-green-50 text-green-800',
-  },
-  {
-    number: '2',
-    title: 'Organizations launch a fundraiser',
-    description:
-      'Schools, teams, and community groups sell a digital RaiseHub Pass through their campaign.',
-    accent: 'border-blue-200 bg-blue-50 text-blue-800',
-  },
-  {
-    number: '3',
-    title: 'Supporters buy the pass',
-    description:
-      'Each purchase supports the fundraiser and gives the customer months of savings at local businesses.',
-    accent: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-  },
-  {
-    number: '4',
-    title: 'Everyone shares the benefit',
-    description:
-      'Organizations and sellers earn funds, supporters save money, and businesses gain customers and measurable activity.',
-    accent: 'border-cyan-200 bg-cyan-50 text-cyan-800',
-  },
-] as const
 
 export default async function PlatformHomePage() {
   const supabase = await createClient()
+  const appMode = getAppMode()
+  const demoHref = appMode === 'demo' ? '/demo' : 'https://demo.raisehub.app/home'
+  const demoLabel = appMode === 'demo' ? 'Explore Demo' : 'Enter Demo'
 
   const {
     data: { user },
@@ -68,64 +41,38 @@ export default async function PlatformHomePage() {
           communities win together.
         </p>
 
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="mx-auto mt-8 grid max-w-3xl grid-cols-3 gap-2 sm:gap-4">
           <Link
             href="/campaigns"
-            className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:px-5 sm:text-base"
           >
             Browse Fundraisers
           </Link>
 
           <Link
             href="/signup?source=offers"
-            className="rounded-xl bg-green-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 sm:px-5 sm:text-base"
           >
             View Local Deals
           </Link>
 
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="rounded-xl border border-blue-300 bg-white/90 px-6 py-3 font-medium text-blue-700 shadow-lg transition hover:bg-white hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              View Dashboard
-            </Link>
-          ) : null}
+          <Link
+            href={demoHref}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-3 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:px-5 sm:text-base"
+          >
+            {demoLabel}
+          </Link>
         </div>
+
+        {user ? (
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white/90 px-5 py-2 text-sm font-medium text-blue-700 shadow-md transition hover:bg-white hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            View Dashboard
+          </Link>
+        ) : null}
       </div>
-
-      <section
-        aria-labelledby="how-raisehub-works"
-        className="mx-auto mt-14 max-w-5xl rounded-3xl border border-white/70 bg-white/90 p-6 shadow-xl backdrop-blur sm:p-8"
-      >
-        <div className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-            One simple fundraising loop
-          </p>
-          <h2 id="how-raisehub-works" className="mt-2 text-3xl font-bold text-slate-950">
-            How RaiseHub Works
-          </h2>
-          <p className="mx-auto mt-3 max-w-3xl text-gray-600">
-            Local offers power a digital fundraising pass that helps organizations raise money while rewarding supporters and bringing customers back to participating businesses.
-          </p>
-        </div>
-
-        <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {fundraisingSteps.map((step) => (
-            <li key={step.number} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg font-bold ${step.accent}`}>
-                {step.number}
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-slate-950">{step.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-gray-600">{step.description}</p>
-            </li>
-          ))}
-        </ol>
-
-        <p className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-center font-semibold leading-6 text-blue-950">
-          One purchase supports a fundraiser, rewards the seller, saves the customer money, and brings business back to local companies.
-        </p>
-      </section>
 
       <LogoCarousel />
       <FeaturedDealsCarousel />
