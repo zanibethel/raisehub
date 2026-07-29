@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 import { isDemoMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
@@ -13,9 +11,6 @@ export default async function Nav() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Determine whether the signed-in user is a public demo account.
-  // Only customer, business, and organization accounts are public demos.
-  // Owner remains excluded intentionally.
   const demoMode = isDemoMode()
   let isPublicDemoUser = false
   let profileHref: string | null = '/dashboard#profile'
@@ -81,29 +76,13 @@ export default async function Nav() {
         />
       </div>
 
-      <div className={demoMode ? 'border-t border-green-200 bg-green-50' : 'border-t border-blue-100 bg-blue-50/70'}>
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2 text-xs sm:text-sm">
-          <p className={demoMode ? 'font-semibold text-green-900' : 'font-semibold text-blue-900'}>
-            RaiseHub · {demoMode ? 'Interactive Demo' : 'Live Platform'}
-            {demoMode ? (
-              <span className="ml-2 hidden font-normal text-green-800 md:inline">
-                Sample data only. Nothing here affects live organizations.
-              </span>
-            ) : null}
-          </p>
-
-          {demoMode ? (
-            <div className="flex shrink-0 items-center gap-3">
-              <Link href="https://raisehub.app" className="font-semibold text-blue-700 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                Switch to Live
-              </Link>
-              <Link href="https://raisehub.app" className="hidden text-gray-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-700 sm:inline">
-                Experience Selection
-              </Link>
-            </div>
-          ) : null}
+      {!demoMode ? (
+        <div className="border-t border-blue-100 bg-blue-50/70">
+          <div className="mx-auto max-w-5xl px-4 py-2 text-xs font-semibold text-blue-900 sm:text-sm">
+            RaiseHub · Live Platform
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <MobileNavEnhancements signedIn={Boolean(user)} profileHref={profileHref} />
       {user ? <NotificationRefreshBridge userId={user.id} /> : null}
