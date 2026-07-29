@@ -16,6 +16,37 @@ const demoFeatures = [
   'Nothing affects the Live Platform',
 ]
 
+const fundraisingSteps = [
+  {
+    number: '1',
+    title: 'Businesses add local offers',
+    description:
+      'Participating businesses provide useful discounts that bring supporters back through their doors.',
+    accent: 'border-green-200 bg-green-50 text-green-800',
+  },
+  {
+    number: '2',
+    title: 'Organizations launch a fundraiser',
+    description:
+      'Schools, teams, and community groups sell a digital RaiseHub Pass through their campaign.',
+    accent: 'border-blue-200 bg-blue-50 text-blue-800',
+  },
+  {
+    number: '3',
+    title: 'Supporters buy the pass',
+    description:
+      'Each purchase supports the fundraiser and gives the customer months of savings at local businesses.',
+    accent: 'border-yellow-200 bg-yellow-50 text-yellow-800',
+  },
+  {
+    number: '4',
+    title: 'Everyone shares the benefit',
+    description:
+      'Organizations and sellers earn funds, supporters save money, and businesses gain customers and measurable activity.',
+    accent: 'border-cyan-200 bg-cyan-50 text-cyan-800',
+  },
+] as const
+
 export default function HomePage() {
   const appMode = getAppMode()
   const liveHref = appMode === 'production' ? '/home' : 'https://raisehub.app/home'
@@ -28,7 +59,7 @@ export default function HomePage() {
         <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center">
+      <div className="mx-auto max-w-5xl">
         <header className="text-center">
           <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
             Fundraising that benefits everyone
@@ -38,6 +69,39 @@ export default function HomePage() {
             Support organizations. Reward local businesses. Build stronger communities.
           </p>
         </header>
+
+        <section
+          aria-labelledby="how-raisehub-works"
+          className="mt-8 rounded-3xl border border-white/70 bg-white/90 p-6 shadow-xl backdrop-blur sm:mt-10 sm:p-8"
+        >
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+              One simple fundraising loop
+            </p>
+            <h2 id="how-raisehub-works" className="mt-2 text-3xl font-bold text-slate-950">
+              How RaiseHub Works
+            </h2>
+            <p className="mx-auto mt-3 max-w-3xl text-gray-600">
+              Local offers power a digital fundraising pass that helps organizations raise money while rewarding supporters and bringing customers back to participating businesses.
+            </p>
+          </div>
+
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {fundraisingSteps.map((step) => (
+              <li key={step.number} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-lg font-bold ${step.accent}`}>
+                  {step.number}
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-600">{step.description}</p>
+              </li>
+            ))}
+          </ol>
+
+          <p className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-center font-semibold leading-6 text-blue-950">
+            One purchase supports a fundraiser, rewards the seller, saves the customer money, and brings business back to local companies.
+          </p>
+        </section>
 
         <section aria-labelledby="experience-heading" className="mt-8 sm:mt-10">
           <div className="text-center">

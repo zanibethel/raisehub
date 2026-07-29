@@ -5,10 +5,14 @@ import Link from 'next/link'
 import LogoCarousel from '../components/logo-carousel'
 import FeaturedDealsCarousel from '../components/featured-deals-carousel'
 import CampaignProgressCarousel from '../components/campaign-progress-carousel'
+import { getAppMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function PlatformHomePage() {
   const supabase = await createClient()
+  const appMode = getAppMode()
+  const experienceHref = appMode === 'demo' ? 'https://raisehub.app/home' : 'https://demo.raisehub.app/home'
+  const experienceLabel = appMode === 'demo' ? 'Go Live' : 'Enter Demo'
 
   const {
     data: { user },
@@ -37,65 +41,42 @@ export default async function PlatformHomePage() {
           communities win together.
         </p>
 
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="mx-auto mt-8 grid max-w-3xl grid-cols-3 gap-2 sm:gap-4">
           <Link
             href="/campaigns"
-            className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:px-5 sm:text-base"
           >
             Browse Fundraisers
           </Link>
 
           <Link
             href="/signup?source=offers"
-            className="rounded-xl bg-green-600 px-6 py-3 font-medium text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-2 py-3 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 sm:px-5 sm:text-base"
           >
             View Local Deals
           </Link>
 
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="rounded-xl border border-blue-300 bg-white/90 px-6 py-3 font-medium text-blue-700 shadow-lg transition hover:bg-white hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-            >
-              View Dashboard
-            </Link>
-          ) : null}
+          <Link
+            href={experienceHref}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-3 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:px-5 sm:text-base"
+          >
+            {experienceLabel}
+          </Link>
         </div>
+
+        {user ? (
+          <Link
+            href="/dashboard"
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white/90 px-5 py-2 text-sm font-medium text-blue-700 shadow-md transition hover:bg-white hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            View Dashboard
+          </Link>
+        ) : null}
       </div>
 
       <LogoCarousel />
       <FeaturedDealsCarousel />
       <CampaignProgressCarousel />
-
-      <div className="mx-auto mt-16 max-w-5xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-blue-700">How RaiseHub Works</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            RaiseHub connects supporters, local businesses, and organizations in
-            one simple fundraising loop.
-          </p>
-        </div>
-
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <Link href="/how-it-works/supporters" className="rounded-2xl border border-yellow-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700">
-            <h3 className="text-lg font-semibold text-yellow-600">For Supporters</h3>
-            <p className="mt-2 text-sm text-gray-600">Save money locally while helping fund schools, teams, and organizations.</p>
-            <p className="mt-4 text-sm font-medium text-yellow-700">Learn more →</p>
-          </Link>
-
-          <Link href="/how-it-works/businesses" className="rounded-2xl border border-green-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
-            <h3 className="text-lg font-semibold text-green-700">For Businesses</h3>
-            <p className="mt-2 text-sm text-gray-600">Promote offers, gain visibility, and support local fundraising campaigns.</p>
-            <p className="mt-4 text-sm font-medium text-green-700">Learn more →</p>
-          </Link>
-
-          <Link href="/how-it-works/organizations" className="rounded-2xl border border-blue-100 bg-white/90 p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-            <h3 className="text-lg font-semibold text-blue-700">For Organizations</h3>
-            <p className="mt-2 text-sm text-gray-600">Launch fundraising campaigns powered by local business deals.</p>
-            <p className="mt-4 text-sm font-medium text-blue-700">Learn more →</p>
-          </Link>
-        </div>
-      </div>
 
       <div className="mx-auto mt-16 max-w-5xl">
         <div className="text-center">
