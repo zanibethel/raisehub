@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import {
-  ClaimableRosterEntry,
+  type ClaimableRosterEntry,
   claimRosterEntryAction,
 } from './actions'
 
@@ -62,8 +62,8 @@ export default function ClaimRosterClient({ entries }: Props) {
         setMessage(result.error)
         return
       }
-      setMessage(`You are now linked to ${selected?.display_name ?? 'this roster entry'}. Your existing QR code and sales history were preserved.`)
-      window.location.reload()
+      setMessage(`You are now linked to ${selected?.display_name ?? 'this roster entry'}. Opening your seller dashboard…`)
+      window.location.assign('/seller/dashboard')
     })
   }
 
@@ -131,7 +131,7 @@ export default function ClaimRosterClient({ entries }: Props) {
         disabled={!campaignSellerId || isPending}
         className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
       >
-        {isPending ? 'Linking profile…' : 'Confirm and link my seller profile'}
+        {isPending ? 'Linking profile…' : 'Confirm and open seller dashboard'}
       </button>
 
       {message ? (
