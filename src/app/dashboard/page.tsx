@@ -7,10 +7,12 @@ import CustomerDashboard from '@/components/dashboards/customer/customer-dashboa
 import SupporterGrowthLinks from '@/components/dashboards/customer/supporter-growth-links'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
+import { getAppMode } from '@/lib/app-mode'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
 } from '@/lib/rules/workspace-selection-rules'
+import { resolveWorkspaceEnvironment } from '@/lib/rules/workspace-environment-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createClient } from '@/lib/supabase/server'
 import type {
@@ -100,6 +102,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const workspaceEnvironment = resolveWorkspaceEnvironment(getAppMode())
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const savedWorkspaceKey =
     (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || undefined
@@ -144,6 +147,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <main
       className="min-h-screen bg-[#F0F6FF]"
+      data-app-mode={workspaceEnvironment.mode}
+      data-workspace-environment={workspaceEnvironment.label}
+      data-uses-sample-data={workspaceEnvironment.usesSampleData}
+      data-allows-real-payments={workspaceEnvironment.allowsRealPayments}
       data-available-workspace-count={availableWorkspaces.length}
       data-selected-workspace-key={selectedWorkspace?.key ?? ''}
     >
