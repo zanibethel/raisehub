@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 import type { SelectableCampaignCard } from '@/lib/types/campaigns'
 
 type CampaignCardProps = {
@@ -59,6 +62,11 @@ function getInitials(value: string) {
     .join('')
 }
 
+function withLogoCacheVersion(url: string) {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}raisehub-logo=2`
+}
+
 export default function CampaignCard({
   campaign,
   actionLabel,
@@ -67,6 +75,7 @@ export default function CampaignCard({
   selected = false,
   className = '',
 }: CampaignCardProps) {
+  const [imageFailed, setImageFailed] = useState(false)
   const goalLabel = formatCurrency(campaign.goalAmount)
   const amountRemainingLabel = formatCurrency(campaign.amountRemaining)
   const passPrice = getPassPrice(campaign)
@@ -80,17 +89,23 @@ export default function CampaignCard({
       : campaign.daysRemaining === 1
         ? '1 day left'
         : `${campaign.daysRemaining} days left`
+  const imageUrl = campaign.imageUrl
+    ? withLogoCacheVersion(campaign.imageUrl)
+    : null
 
   const cardBody = (
     <>
       <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="flex h-40 items-center justify-center bg-gradient-to-br from-blue-100 via-slate-50 to-green-100 p-3">
-          {campaign.imageUrl ? (
+          {imageUrl && !imageFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={campaign.imageUrl}
+              src={imageUrl}
               alt={campaign.organizationName ?? campaign.name}
               className="h-full w-full object-contain"
+              loading="eager"
+              decoding="async"
+              onError={() => setImageFailed(true)}
             />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-blue-700 shadow">
