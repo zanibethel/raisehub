@@ -84,13 +84,13 @@ export default function CampaignCard({
   const cardBody = (
     <>
       <div className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
-        <div className="flex h-40 items-center justify-center bg-gradient-to-br from-blue-100 via-slate-50 to-green-100">
+        <div className="flex h-40 items-center justify-center bg-gradient-to-br from-blue-100 via-slate-50 to-green-100 p-3">
           {campaign.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={campaign.imageUrl}
               alt={campaign.organizationName ?? campaign.name}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/90 text-2xl font-bold text-blue-700 shadow">
