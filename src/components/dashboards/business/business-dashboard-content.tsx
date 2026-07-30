@@ -279,7 +279,7 @@ export default function BusinessDashboardContent({
       id: notification.id,
       title: notification.title,
       description: notification.description,
-      href: notification.href,
+      href: notification.href ?? '/dashboard',
       label: notification.actionLabel,
       tone:
         notification.tone === 'warning'
