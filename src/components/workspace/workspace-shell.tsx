@@ -3,15 +3,10 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-export type WorkspaceTone = 'blue' | 'green' | 'amber' | 'slate'
+import type { WorkspaceNavigationItem } from './workspace-navigation'
 
-export type WorkspaceBottomNavItem = {
-  href?: string
-  label: string
-  icon: ReactNode
-  active?: boolean
-  action?: 'open-workspace-menu'
-}
+export type WorkspaceTone = 'blue' | 'green' | 'amber' | 'slate'
+export type WorkspaceBottomNavItem = WorkspaceNavigationItem
 
 export type WorkspaceIdentity = {
   eyebrow: string
@@ -71,10 +66,6 @@ const TONE_CLASSES: Record<WorkspaceTone, {
   slate: { border: 'border-slate-200', background: 'bg-slate-700', text: 'text-slate-700', soft: 'bg-slate-50' },
 }
 
-function openWorkspaceMenu() {
-  window.dispatchEvent(new Event('raisehub:open-workspace-menu'))
-}
-
 export function WorkspaceShell({ children, bottomNavigation = [], identity, topBar }: WorkspaceShellProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white pb-24 sm:pb-10">
@@ -103,10 +94,10 @@ export function WorkspaceShell({ children, bottomNavigation = [], identity, topB
                 </>
               )
 
-              return item.action === 'open-workspace-menu' ? (
-                <button key={item.label} type="button" onClick={openWorkspaceMenu} className={classes}>{content}</button>
+              return item.onSelect ? (
+                <button key={item.slot} type="button" onClick={item.onSelect} className={classes}>{content}</button>
               ) : (
-                <Link key={`${item.href}-${item.label}`} href={item.href ?? '/dashboard'} aria-current={item.active ? 'page' : undefined} className={classes}>{content}</Link>
+                <Link key={item.slot} href={item.href ?? '/dashboard'} aria-current={item.active ? 'page' : undefined} className={classes}>{content}</Link>
               )
             })}
           </div>
@@ -175,20 +166,22 @@ export function WorkspaceRecommendedActions({ actions, title = 'Recommended acti
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-700">{eyebrow}</p>
-          <h2 className="mt-1 text-lg font-black leading-tight text-slate-950 sm:text-xl">{title}</h2>
+          <h2 className="mt-0.5 text-lg font-black leading-tight text-slate-950 sm:text-xl">{title}</h2>
         </div>
-        <span className="shrink-0 rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-700">{actions.length} {actions.length === 1 ? 'item' : 'items'}</span>
+        <span className="shrink-0 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-black text-rose-700">
+          {actions.length} {actions.length === 1 ? 'item' : 'items'}
+        </span>
       </div>
 
       <div className="mt-3 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200">
-        {actions.map((action) => {
-          const tone = TONE_CLASSES[action.tone ?? 'blue']
+        {actions.map((workspaceAction) => {
+          const tone = TONE_CLASSES[workspaceAction.tone ?? 'blue']
           return (
-            <Link key={action.id} href={action.href} className="group flex items-center gap-3 bg-white px-3 py-3 transition hover:bg-slate-50 sm:px-4">
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tone.background} text-sm font-black text-white`} aria-hidden="true">→</span>
+            <Link key={workspaceAction.id} href={workspaceAction.href} className="group flex items-center gap-3 bg-white px-3 py-3 transition hover:bg-slate-50 sm:px-4">
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tone.background} text-sm font-black text-white`} aria-hidden="true">→</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-black text-slate-950">{action.title}</span>
-                <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-slate-600 sm:text-sm">{action.description}</span>
+                <span className="block truncate text-sm font-black text-slate-950">{workspaceAction.title}</span>
+                <span className="mt-0.5 block line-clamp-2 text-xs leading-4 text-slate-600 sm:text-sm sm:leading-5">{workspaceAction.description}</span>
               </span>
               <span className="text-xl text-slate-400 transition group-hover:translate-x-0.5" aria-hidden="true">›</span>
             </Link>
