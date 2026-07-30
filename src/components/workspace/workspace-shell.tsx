@@ -12,20 +12,21 @@ export type WorkspaceBottomNavItem = {
   active?: boolean
 }
 
-type WorkspaceShellProps = {
-  children: ReactNode
-  bottomNavigation?: WorkspaceBottomNavItem[]
-}
-
-type WorkspaceHeroProps = {
+export type WorkspaceIdentity = {
   eyebrow: string
   title: string
   subtitle?: string | null
   detail?: string | null
   image?: ReactNode
-  selector?: ReactNode
   action?: ReactNode
   tone?: WorkspaceTone
+}
+
+type WorkspaceShellProps = {
+  children: ReactNode
+  bottomNavigation?: WorkspaceBottomNavItem[]
+  identity?: WorkspaceIdentity
+  topBar?: ReactNode
 }
 
 type WorkspaceMetric = {
@@ -92,17 +93,28 @@ const TONE_CLASSES: Record<WorkspaceTone, {
 export function WorkspaceShell({
   children,
   bottomNavigation = [],
+  identity,
+  topBar,
 }: WorkspaceShellProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white pb-24 sm:pb-10">
-      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-        <div className="space-y-6 sm:space-y-8">{children}</div>
-      </div>
+      {topBar ? (
+        <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">{topBar}</div>
+        </div>
+      ) : null}
+
+      <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-7">
+        <div className="space-y-4 sm:space-y-6">
+          {identity ? <WorkspaceIdentityCard {...identity} /> : null}
+          {children}
+        </div>
+      </main>
 
       {bottomNavigation.length > 0 ? (
         <nav
           aria-label="Workspace navigation"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.09)] backdrop-blur sm:hidden"
         >
           <div className="mx-auto grid max-w-xl grid-flow-col auto-cols-fr">
             {bottomNavigation.map((item) => (
@@ -129,51 +141,41 @@ export function WorkspaceShell({
   )
 }
 
-export function WorkspaceHero({
+export function WorkspaceIdentityCard({
   eyebrow,
   title,
   subtitle,
   detail,
   image,
-  selector,
   action,
   tone = 'green',
-}: WorkspaceHeroProps) {
+}: WorkspaceIdentity) {
   const classes = TONE_CLASSES[tone]
 
   return (
-    <section
-      className={`overflow-hidden rounded-[2rem] border ${classes.border} bg-white/95 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)] sm:p-7`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <span
-          className={`inline-flex rounded-full border ${classes.border} ${classes.soft} px-4 py-2 text-sm font-bold ${classes.text}`}
-        >
-          {eyebrow}
-        </span>
-        {selector}
-      </div>
-
-      <div className="mt-6 grid gap-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+    <section className={`rounded-3xl border ${classes.border} bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-5`}>
+      <div className="grid grid-cols-[auto_1fr] items-center gap-4 sm:grid-cols-[auto_1fr_auto]">
         {image ? <div className="shrink-0">{image}</div> : null}
 
         <div className="min-w-0">
-          <h1 className={`text-3xl font-black tracking-tight ${classes.text} sm:text-4xl`}>
+          <span className={`inline-flex rounded-full border ${classes.border} ${classes.soft} px-3 py-1 text-xs font-bold ${classes.text}`}>
+            {eyebrow}
+          </span>
+          <h1 className={`mt-2 truncate text-xl font-black tracking-tight ${classes.text} sm:text-2xl`}>
             {title}
           </h1>
-          {subtitle ? (
-            <p className="mt-3 text-lg font-semibold text-slate-700">{subtitle}</p>
-          ) : null}
-          {detail ? (
-            <p className="mt-2 max-w-2xl text-base leading-7 text-slate-500">{detail}</p>
-          ) : null}
+          {subtitle ? <p className="mt-1 text-sm font-semibold text-slate-700">{subtitle}</p> : null}
+          {detail ? <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{detail}</p> : null}
         </div>
 
-        {action ? <div className="sm:justify-self-end">{action}</div> : null}
+        {action ? <div className="col-span-2 sm:col-span-1 sm:justify-self-end">{action}</div> : null}
       </div>
     </section>
   )
 }
+
+/** @deprecated Use WorkspaceIdentityCard through WorkspaceShell identity instead. */
+export const WorkspaceHero = WorkspaceIdentityCard
 
 export function WorkspaceMetricStrip({
   title,
@@ -182,27 +184,25 @@ export function WorkspaceMetricStrip({
   action,
 }: WorkspaceMetricStripProps) {
   return (
-    <section className="rounded-[1.75rem] border border-slate-200 bg-white/95 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black text-slate-900">
+    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="min-w-0 text-base font-black text-slate-900 sm:text-lg">
           {title}
-          {rangeLabel ? (
-            <span className="ml-2 font-medium text-slate-500">({rangeLabel})</span>
-          ) : null}
+          {rangeLabel ? <span className="ml-2 font-medium text-slate-500">({rangeLabel})</span> : null}
         </h2>
-        {action}
+        <div className="shrink-0">{action}</div>
       </div>
 
-      <div className="mt-5 grid gap-0 divide-y divide-slate-200 sm:grid-flow-col sm:auto-cols-fr sm:divide-x sm:divide-y-0">
-        {metrics.map((metric) => {
+      <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200">
+        {metrics.slice(0, 3).map((metric) => {
           const tone = TONE_CLASSES[metric.tone ?? 'slate']
 
           return (
-            <div key={metric.label} className="px-3 py-4 text-center first:pl-0 last:pr-0 sm:py-2">
-              <p className={`text-sm font-bold ${tone.text}`}>{metric.label}</p>
-              <div className="mt-1 text-3xl font-black text-slate-950">{metric.value}</div>
+            <div key={metric.label} className="min-w-0 px-2 text-center first:pl-0 last:pr-0 sm:px-4">
+              <p className={`truncate text-xs font-bold sm:text-sm ${tone.text}`}>{metric.label}</p>
+              <div className="mt-1 truncate text-2xl font-black text-slate-950 sm:text-3xl">{metric.value}</div>
               {metric.description ? (
-                <p className="mt-1 text-xs text-slate-500">{metric.description}</p>
+                <p className="mt-1 hidden text-xs text-slate-500 sm:block">{metric.description}</p>
               ) : null}
             </div>
           )
@@ -220,20 +220,18 @@ export function WorkspaceRecommendedActions({
   if (actions.length === 0) return null
 
   return (
-    <section className="rounded-[1.75rem] border border-slate-200 bg-white/95 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-6">
+    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-700">
-            {eyebrow}
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">{title}</h2>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-rose-700">{eyebrow}</p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">{title}</h2>
         </div>
-        <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-black text-rose-700">
+        <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-700">
           {actions.length} {actions.length === 1 ? 'item' : 'items'}
         </span>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-4 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200">
         {actions.map((action) => {
           const tone = TONE_CLASSES[action.tone ?? 'blue']
 
@@ -241,30 +239,16 @@ export function WorkspaceRecommendedActions({
             <Link
               key={action.id}
               href={action.href}
-              className={`group flex items-center gap-4 rounded-2xl border ${tone.border} ${tone.soft} p-4 transition hover:-translate-y-0.5 hover:shadow-md`}
+              className="group flex items-center gap-3 bg-white px-3 py-3 transition hover:bg-slate-50 sm:px-4"
             >
-              <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone.background} text-sm font-black text-white`}
-                aria-hidden="true"
-              >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tone.background} text-sm font-black text-white`} aria-hidden="true">
                 →
               </span>
               <span className="min-w-0 flex-1">
-                {action.label ? (
-                  <span className={`text-xs font-black uppercase tracking-wide ${tone.text}`}>
-                    {action.label}
-                  </span>
-                ) : null}
-                <span className="mt-1 block text-base font-black text-slate-950">
-                  {action.title}
-                </span>
-                <span className="mt-1 block text-sm leading-5 text-slate-600">
-                  {action.description}
-                </span>
+                <span className="block truncate text-sm font-black text-slate-950">{action.title}</span>
+                <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-slate-600 sm:text-sm">{action.description}</span>
               </span>
-              <span className="text-2xl text-slate-400 transition group-hover:translate-x-1" aria-hidden="true">
-                ›
-              </span>
+              <span className="text-xl text-slate-400 transition group-hover:translate-x-0.5" aria-hidden="true">›</span>
             </Link>
           )
         })}
