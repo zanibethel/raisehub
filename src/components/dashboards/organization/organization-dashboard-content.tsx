@@ -1,5 +1,6 @@
 import OrganizationAnalyticsSection from './sections/organization-analytics-section'
 import OrganizationCampaignsSection from './sections/organization-campaigns-section'
+import OrganizationLogoManager from './organization-logo-manager'
 import OrganizationPayoutCenter from './organization-payout-center'
 import OrganizationPayoutDashboardCard from './organization-payout-dashboard-card'
 import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
@@ -45,6 +46,10 @@ export default function OrganizationDashboardContent(props: Props) {
         <OrganizationProfileSetupLoader statusOnly />
         <OrganizationPayoutDashboardCard />
       </OrganizationWorkspaceStatus>
+
+      {props.organizationId ? (
+        <OrganizationLogoManager organizationId={props.organizationId} />
+      ) : null}
 
       <OrganizationPayoutCenter organizationId={props.organizationId} />
 
