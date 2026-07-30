@@ -1,7 +1,7 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 
 import AccountMenu from '@/app/components/account-menu'
 import type { SelectableWorkspace } from '@/lib/types/identity-access'
@@ -26,13 +26,33 @@ export default function AuthenticatedWorkspaceHeader({
   selectedWorkspaceKey,
 }: AuthenticatedWorkspaceHeaderProps) {
   const initial = workspaceName.trim().charAt(0).toUpperCase() || 'R'
+  const menuRootRef = useRef<HTMLDivElement | null>(null)
+  const [logoFailed, setLogoFailed] = useState(false)
+
+  useEffect(() => {
+    function openWorkspaceMenu() {
+      const details = menuRootRef.current?.querySelector('details')
+      if (details) details.open = true
+    }
+
+    window.addEventListener('raisehub:open-workspace-menu', openWorkspaceMenu)
+    return () => {
+      window.removeEventListener('raisehub:open-workspace-menu', openWorkspaceMenu)
+    }
+  }, [])
 
   return (
     <div className="workspace-global-header mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
       <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
-        {logoUrl ? (
-          <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
-            <Image src={logoUrl} alt="" fill sizes="44px" className="object-contain" />
+        {logoUrl && !logoFailed ? (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt=""
+              className="h-full w-full object-contain"
+              onError={() => setLogoFailed(true)}
+            />
           </span>
         ) : (
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white shadow-sm">
@@ -61,7 +81,7 @@ export default function AuthenticatedWorkspaceHeader({
         </svg>
       </Link>
 
-      <div className="workspace-global-menu shrink-0">
+      <div ref={menuRootRef} className="workspace-global-menu shrink-0">
         <AccountMenu
           email={email}
           workspaces={workspaces}
@@ -97,6 +117,15 @@ export default function AuthenticatedWorkspaceHeader({
         }
 
         @media (max-width: 639px) {
+          .workspace-global-menu details[open]::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 140;
+            background: rgba(15, 23, 42, 0.38);
+            backdrop-filter: blur(2px);
+          }
+
           .workspace-global-menu details > div {
             position: fixed !important;
             left: 0 !important;
@@ -105,12 +134,25 @@ export default function AuthenticatedWorkspaceHeader({
             top: auto !important;
             width: 100% !important;
             max-width: none !important;
-            max-height: 78vh !important;
+            max-height: min(78vh, 42rem) !important;
             overflow-y: auto !important;
             margin: 0 !important;
             border-radius: 1.5rem 1.5rem 0 0 !important;
             z-index: 150 !important;
-            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            padding-top: 0.75rem !important;
+            padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+            box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.2) !important;
+          }
+
+          .workspace-global-menu details > div::before {
+            content: 'Workspace menu';
+            display: block;
+            padding: 0.25rem 1rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #64748b;
           }
         }
       `}</style>
