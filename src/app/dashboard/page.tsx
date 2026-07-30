@@ -1,14 +1,12 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
-import AccountMenu from '@/app/components/account-menu'
 import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
 import SupporterGrowthLinks from '@/components/dashboards/customer/supporter-growth-links'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
-import WorkspaceTopBar from '@/components/workspace/workspace-top-bar'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
@@ -21,82 +19,14 @@ import type {
 } from '@/lib/types/identity-access'
 
 type Profile = { id: string; email: string | null; role: LegacyProfileRole }
-type BusinessHeaderProfile = {
-  business_name: string | null
-  display_name: string | null
-  phone: string | null
-  address: string | null
-  google_maps_url: string | null
-  logo_url: string | null
-  website_url: string | null
-}
 type DashboardPageProps = {
   searchParams?: Promise<{ workspace?: string | string[] }>
-}
-type RoleTheme = {
-  title: string
-  badge: string
-  badgeClass: string
-  headingClass: string
-  panelClass: string
-  intro: string
 }
 
 const WORKSPACE_PREFERENCE_COOKIE = 'raisehub-selected-workspace'
 
 function hasRequestedWorkspace(value?: string | string[]) {
   return Array.isArray(value) ? value.length > 0 : value !== undefined
-}
-
-function getRoleTheme(role: DashboardExperienceRole): RoleTheme {
-  if (role === 'business') {
-    return {
-      title: 'Business Dashboard',
-      badge: 'Business',
-      badgeClass: 'border border-green-200 bg-green-50 text-green-700',
-      headingClass: 'text-green-700',
-      panelClass: 'border border-green-100 bg-white/90 shadow-xl backdrop-blur',
-      intro: 'Manage offers, track redemptions, and grow local visibility.',
-    }
-  }
-  if (role === 'organization') {
-    return {
-      title: 'Organization Dashboard',
-      badge: 'Organization',
-      badgeClass: 'border border-blue-200 bg-blue-50 text-blue-700',
-      headingClass: 'text-blue-700',
-      panelClass: 'border border-blue-100 bg-white/90 shadow-xl backdrop-blur',
-      intro: 'Track fundraising progress, supporters, and business partners.',
-    }
-  }
-  if (role === 'admin') {
-    return {
-      title: 'Admin Dashboard',
-      badge: 'Admin',
-      badgeClass: 'border border-gray-300 bg-gray-100 text-gray-800',
-      headingClass: 'text-gray-800',
-      panelClass: 'border border-gray-200 bg-white/90 shadow-xl backdrop-blur',
-      intro: 'Manage platform activity, users, and campaigns.',
-    }
-  }
-  if (role === 'owner') {
-    return {
-      title: 'RaiseHub Platform Console',
-      badge: 'Owner',
-      badgeClass: 'border border-slate-700 bg-slate-950 text-blue-200',
-      headingClass: 'text-slate-950',
-      panelClass: 'border border-slate-200 bg-white/95 shadow-xl backdrop-blur',
-      intro: 'Run the platform, test role experiences, and assist RaiseHub clients.',
-    }
-  }
-  return {
-    title: 'Supporter Dashboard',
-    badge: 'Supporter',
-    badgeClass: 'border border-yellow-200 bg-yellow-50 text-yellow-700',
-    headingClass: 'text-yellow-600',
-    panelClass: 'border border-yellow-100 bg-white/90 shadow-xl backdrop-blur',
-    intro: 'View your passes, savings, and favorite local businesses.',
-  }
 }
 
 function WorkspaceUnavailable({ workspace }: { workspace: SelectableWorkspace }) {
@@ -165,7 +95,9 @@ function renderDashboard(
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined
@@ -201,7 +133,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   })
   const selectedWorkspace = workspaceSelection.selectedWorkspace
   const experienceRole = workspaceSelection.experienceRole
-  const theme = getRoleTheme(experienceRole)
   const hasBusinessWorkspace = availableWorkspaces.some(
     (workspace) => workspace.kind === 'business'
   )
@@ -209,33 +140,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     (workspace) =>
       workspace.kind === 'organization' || workspace.kind === 'fundraising'
   )
-  const businessLegacyProfileId =
-    experienceRole === 'business'
-      ? selectedWorkspace?.kind === 'business'
-        ? selectedWorkspace.legacyProfileId
-        : user.id
-      : null
-
-  let businessHeaderProfile: BusinessHeaderProfile | null = null
-  if (experienceRole === 'business' && businessLegacyProfileId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select(
-        'business_name, display_name, phone, address, google_maps_url, logo_url, website_url'
-      )
-      .eq('id', businessLegacyProfileId)
-      .maybeSingle<BusinessHeaderProfile>()
-    businessHeaderProfile = data
-  }
-
-  const accountEmail = user.email ?? profile?.email ?? null
-  const workspaceName =
-    businessHeaderProfile?.business_name ||
-    businessHeaderProfile?.display_name ||
-    selectedWorkspace?.name ||
-    theme.title
-  const environmentLabel =
-    process.env.NEXT_PUBLIC_APP_MODE === 'demo' ? 'Demo workspace' : 'Live workspace'
 
   return (
     <main
@@ -243,53 +147,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       data-available-workspace-count={availableWorkspaces.length}
       data-selected-workspace-key={selectedWorkspace?.key ?? ''}
     >
-      <div className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className={`mx-auto px-4 sm:px-6 ${experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'}`}>
-          <WorkspaceTopBar
-            workspaceName={workspaceName}
-            workspaceLabel={theme.badge}
-            environmentLabel={environmentLabel}
-            avatar={businessHeaderProfile?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={businessHeaderProfile.logo_url}
-                alt=""
-                className="h-10 w-10 rounded-full border border-slate-200 bg-white object-cover shadow-sm"
-              />
-            ) : undefined}
-            menuControl={(
-              <div className="workspace-topbar-menu">
-                <AccountMenu
-                  email={accountEmail}
-                  workspaces={availableWorkspaces}
-                  selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
-                />
-                <style>{`
-                  .workspace-topbar-menu details { width: auto !important; align-self: auto !important; }
-                  .workspace-topbar-menu summary {
-                    width: 2.5rem !important;
-                    height: 2.5rem !important;
-                    min-width: 2.5rem !important;
-                    padding: 0 !important;
-                    justify-content: center !important;
-                    border-radius: 9999px !important;
-                  }
-                  .workspace-topbar-menu summary > * { display: none !important; }
-                  .workspace-topbar-menu summary::before {
-                    content: '☰';
-                    display: block;
-                    color: rgb(51 65 85);
-                    font-size: 1.125rem;
-                    line-height: 1;
-                  }
-                `}</style>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-
-      <div className={`mx-auto p-4 sm:p-8 ${experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'}`}>
+      <div
+        className={`mx-auto p-4 sm:p-8 ${
+          experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
+        }`}
+      >
         <div className="relative z-0">
           {renderDashboard(experienceRole, selectedWorkspace)}
         </div>
