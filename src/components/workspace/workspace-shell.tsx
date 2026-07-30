@@ -193,7 +193,7 @@ export function WorkspaceMetricStrip({
         {action}
       </div>
 
-      <div className={`mt-5 grid gap-0 divide-y divide-slate-200 sm:grid-cols-${Math.min(metrics.length, 4)} sm:divide-x sm:divide-y-0`}>
+      <div className="mt-5 grid gap-0 divide-y divide-slate-200 sm:grid-flow-col sm:auto-cols-fr sm:divide-x sm:divide-y-0">
         {metrics.map((metric) => {
           const tone = TONE_CLASSES[metric.tone ?? 'slate']
 
