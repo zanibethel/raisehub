@@ -1,12 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import type { ComponentProps } from 'react'
 
 import BusinessDashboardContent from './business-dashboard-content'
 import {
-  WorkspaceHero,
-  WorkspaceMetricStrip,
   WorkspaceShell,
   type WorkspaceBottomNavItem,
 } from '@/components/workspace/workspace-shell'
@@ -61,10 +58,6 @@ function MoreIcon() {
 }
 
 export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProps) {
-  const businessName = props.profile?.business_name?.trim() || 'Your business'
-  const address = props.profile?.address?.trim() || 'Add your business address'
-  const logoUrl = props.profile?.logo_url?.trim()
-
   const bottomNavigation: WorkspaceBottomNavItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, active: true },
     { href: '#business-offers', label: 'Offers', icon: <OffersIcon /> },
@@ -75,49 +68,6 @@ export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProp
 
   return (
     <WorkspaceShell bottomNavigation={bottomNavigation}>
-      <WorkspaceHero
-        eyebrow="Business"
-        title={businessName}
-        subtitle="Business owner"
-        detail={address}
-        tone="green"
-        image={
-          logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={`${businessName} logo`}
-              className="h-28 w-28 rounded-3xl border border-slate-200 bg-white object-contain p-2 shadow-md"
-            />
-          ) : (
-            <div className="flex h-28 w-28 items-center justify-center rounded-3xl border border-green-200 bg-green-50 text-4xl font-black text-green-700 shadow-md">
-              {businessName.slice(0, 1).toUpperCase()}
-            </div>
-          )
-        }
-        action={
-          <Link
-            href="#business-profile"
-            className="inline-flex min-h-12 items-center justify-center rounded-full border border-green-200 bg-green-50 px-6 font-black text-green-700 transition hover:bg-green-100"
-          >
-            Edit details
-          </Link>
-        }
-      />
-
-      <WorkspaceMetricStrip
-        title="Customer activity"
-        metrics={[
-          { label: 'Views', value: props.viewCount, tone: 'blue' },
-          { label: 'Clicks', value: props.clickCount, tone: 'green' },
-          {
-            label: 'Click rate',
-            value: `${props.conversionRate}%`,
-            description: 'Clicks divided by views',
-            tone: 'amber',
-          },
-        ]}
-      />
-
       <BusinessDashboardContent {...props} />
     </WorkspaceShell>
   )
