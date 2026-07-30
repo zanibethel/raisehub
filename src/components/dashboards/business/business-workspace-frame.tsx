@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import type { ComponentProps } from 'react'
 
 import BusinessCommandCenter from './business-command-center'
@@ -7,6 +8,7 @@ import BusinessDashboardContent from './business-dashboard-content'
 import {
   WorkspaceShell,
   type WorkspaceBottomNavItem,
+  type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
 
 type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardContent>
@@ -67,8 +69,39 @@ export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProp
     { href: '#full-business-tools', label: 'More', icon: <MoreIcon /> },
   ]
 
+  const businessName =
+    props.profile?.business_name || props.profile?.display_name || 'Business workspace'
+
+  const identity: WorkspaceIdentity = {
+    eyebrow: 'Business details',
+    title: businessName,
+    subtitle: props.profile?.phone || 'RaiseHub business partner',
+    detail: props.profile?.address || 'Add your address so customers know where to visit.',
+    tone: 'green',
+    image: props.profile?.logo_url ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={props.profile.logo_url}
+        alt=""
+        className="h-14 w-14 rounded-2xl border border-slate-200 bg-white object-cover"
+      />
+    ) : (
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-xl font-black text-green-700">
+        {businessName.trim().charAt(0).toUpperCase() || 'B'}
+      </span>
+    ),
+    action: (
+      <Link
+        href="#business-profile"
+        className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-green-200 bg-green-50 px-4 text-sm font-bold text-green-700 sm:w-auto"
+      >
+        Edit details
+      </Link>
+    ),
+  }
+
   return (
-    <WorkspaceShell bottomNavigation={bottomNavigation}>
+    <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
       <BusinessCommandCenter {...props} />
     </WorkspaceShell>
   )
