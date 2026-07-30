@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 
-import BusinessDashboardContent from './business-dashboard-content'
+import BusinessWorkspaceFrame from './business-workspace-frame'
 
 type BusinessDashboardProps = {
   businessLegacyProfileId?: string | null
@@ -197,7 +197,7 @@ export default async function BusinessDashboard({
   }
 
   return (
-    <BusinessDashboardContent
+    <BusinessWorkspaceFrame
       profile={profile}
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}
