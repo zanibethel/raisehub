@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 
 import CreateDemoGroupForm from '@/components/dashboards/owner/create-demo-group-form'
 import DemoBusinessLogoManager from '@/components/dashboards/owner/demo-business-logo-manager'
+import DemoOrganizationLogoManager from '@/components/dashboards/owner/demo-organization-logo-manager'
 import SeedCuratedDemoButton from '@/components/dashboards/owner/seed-curated-demo-button'
 import {
   getDemoGroups,
@@ -176,6 +177,7 @@ export default async function OwnerDemoCenterPage() {
           </section>
         )}
 
+        <DemoOrganizationLogoManager />
         <DemoBusinessLogoManager />
 
         <details className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
