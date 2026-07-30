@@ -90,6 +90,7 @@ export default async function Nav() {
         logoUrl={logoUrl}
         workspaces={workspaces}
         selectedWorkspaceKey={selectedWorkspace?.key ?? null}
+        profileHref={profileHref}
       />
     )
   }
