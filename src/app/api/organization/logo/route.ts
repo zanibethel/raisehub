@@ -40,6 +40,16 @@ async function requireManager(organizationId: string) {
   return membership ? { user, organization, admin } : null
 }
 
+export async function GET(request: Request) {
+  const organizationId = new URL(request.url).searchParams.get('organizationId')?.trim()
+  if (!organizationId) return NextResponse.json({ error: 'Organization is required.' }, { status: 400 })
+
+  const access = await requireManager(organizationId)
+  if (!access) return NextResponse.json({ error: 'Organization manager access required.' }, { status: 403 })
+
+  return NextResponse.json({ logoUrl: access.organization.logo_url ?? null })
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData()
   const organizationId = String(formData.get('organizationId') ?? '').trim()
