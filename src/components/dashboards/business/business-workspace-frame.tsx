@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from 'react'
 
+import BusinessCommandCenter from './business-command-center'
 import BusinessDashboardContent from './business-dashboard-content'
 import {
   WorkspaceShell,
@@ -60,15 +61,15 @@ function MoreIcon() {
 export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProps) {
   const bottomNavigation: WorkspaceBottomNavItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, active: true },
-    { href: '#business-offers', label: 'Offers', icon: <OffersIcon /> },
-    { href: '#business-performance', label: 'Reports', icon: <ReportsIcon /> },
+    { href: '#full-offer-management', label: 'Offers', icon: <OffersIcon /> },
+    { href: '#full-business-tools', label: 'Reports', icon: <ReportsIcon /> },
     { href: '/support', label: 'Help', icon: <HelpIcon /> },
-    { href: '#business-redemption-settings', label: 'More', icon: <MoreIcon /> },
+    { href: '#full-business-tools', label: 'More', icon: <MoreIcon /> },
   ]
 
   return (
     <WorkspaceShell bottomNavigation={bottomNavigation}>
-      <BusinessDashboardContent {...props} />
+      <BusinessCommandCenter {...props} />
     </WorkspaceShell>
   )
 }
