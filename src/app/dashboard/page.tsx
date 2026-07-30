@@ -2,13 +2,13 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import AccountMenu from '@/app/components/account-menu'
-import BusinessWorkspaceHeader from '@/components/dashboard/business-workspace-header'
 import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
 import SupporterGrowthLinks from '@/components/dashboards/customer/supporter-growth-links'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
+import WorkspaceTopBar from '@/components/workspace/workspace-top-bar'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
@@ -229,71 +229,67 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const accountEmail = user.email ?? profile?.email ?? null
+  const workspaceName =
+    businessHeaderProfile?.business_name ||
+    businessHeaderProfile?.display_name ||
+    selectedWorkspace?.name ||
+    theme.title
+  const environmentLabel =
+    process.env.NEXT_PUBLIC_APP_MODE === 'demo' ? 'Demo workspace' : 'Live workspace'
 
   return (
     <main
-      className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8"
+      className="min-h-screen bg-[#F0F6FF]"
       data-available-workspace-count={availableWorkspaces.length}
       data-selected-workspace-key={selectedWorkspace?.key ?? ''}
     >
-      <div
-        className={`mx-auto ${
-          experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
-        }`}
-      >
-        {experienceRole === 'business' && businessHeaderProfile ? (
-          <BusinessWorkspaceHeader
-            businessLegacyProfileId={businessLegacyProfileId}
-            businessName={businessHeaderProfile.business_name ?? ''}
-            displayName={businessHeaderProfile.display_name ?? ''}
-            phone={businessHeaderProfile.phone ?? ''}
-            address={businessHeaderProfile.address ?? ''}
-            googleMapsUrl={businessHeaderProfile.google_maps_url ?? ''}
-            logoUrl={businessHeaderProfile.logo_url ?? ''}
-            websiteUrl={businessHeaderProfile.website_url ?? ''}
-            subtitle={selectedWorkspace?.subtitle ?? theme.intro}
-            badgeClass={theme.badgeClass}
-            headingClass={theme.headingClass}
-            panelClass={theme.panelClass}
-            email={accountEmail}
-            workspaces={availableWorkspaces}
-            selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
-          />
-        ) : (
-          <header
-            className={`relative z-50 min-w-0 overflow-visible rounded-3xl p-6 sm:p-8 ${theme.panelClass}`}
-          >
-            <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div
-                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-medium ${theme.badgeClass}`}
-              >
-                {theme.badge}
-              </div>
-              <div
-                className={`min-w-0 max-w-full ${
-                  experienceRole === 'customer'
-                    ? 'supporter-account-menu'
-                    : ''
-                }`}
-              >
+      <div className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className={`mx-auto px-4 sm:px-6 ${experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'}`}>
+          <WorkspaceTopBar
+            workspaceName={workspaceName}
+            workspaceLabel={theme.badge}
+            environmentLabel={environmentLabel}
+            avatar={businessHeaderProfile?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={businessHeaderProfile.logo_url}
+                alt=""
+                className="h-10 w-10 rounded-full border border-slate-200 bg-white object-cover shadow-sm"
+              />
+            ) : undefined}
+            menuControl={(
+              <div className="workspace-topbar-menu">
                 <AccountMenu
                   email={accountEmail}
                   workspaces={availableWorkspaces}
                   selectedWorkspaceKey={workspaceSelection.selectedWorkspaceKey}
                 />
+                <style>{`
+                  .workspace-topbar-menu details { width: auto !important; align-self: auto !important; }
+                  .workspace-topbar-menu summary {
+                    width: 2.5rem !important;
+                    height: 2.5rem !important;
+                    min-width: 2.5rem !important;
+                    padding: 0 !important;
+                    justify-content: center !important;
+                    border-radius: 9999px !important;
+                  }
+                  .workspace-topbar-menu summary > * { display: none !important; }
+                  .workspace-topbar-menu summary::before {
+                    content: '☰';
+                    display: block;
+                    color: rgb(51 65 85);
+                    font-size: 1.125rem;
+                    line-height: 1;
+                  }
+                `}</style>
               </div>
-            </div>
-            <div className="mt-5 min-w-0">
-              <h1 className={`break-words text-3xl font-bold ${theme.headingClass}`}>
-                {selectedWorkspace?.name ?? theme.title}
-              </h1>
-              <p className="mt-2 text-gray-600">
-                {selectedWorkspace?.subtitle ?? theme.intro}
-              </p>
-            </div>
-          </header>
-        )}
+            )}
+          />
+        </div>
+      </div>
 
+      <div className={`mx-auto p-4 sm:p-8 ${experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'}`}>
         <div className="relative z-0">
           {renderDashboard(experienceRole, selectedWorkspace)}
         </div>
@@ -305,19 +301,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           />
         ) : null}
       </div>
-
-      {experienceRole === 'customer' ? (
-        <style>{`
-          .supporter-account-menu summary > span:first-child {
-            font-size: 0;
-          }
-
-          .supporter-account-menu summary > span:first-child::after {
-            content: 'S';
-            font-size: 0.875rem;
-          }
-        `}</style>
-      ) : null}
     </main>
   )
 }
