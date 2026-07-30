@@ -66,7 +66,7 @@ export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProp
     { href: '#full-offer-management', label: 'Offers', icon: <OffersIcon /> },
     { href: '#full-business-tools', label: 'Reports', icon: <ReportsIcon /> },
     { href: '/support', label: 'Help', icon: <HelpIcon /> },
-    { href: '#full-business-tools', label: 'More', icon: <MoreIcon /> },
+    { label: 'More', icon: <MoreIcon />, action: 'open-workspace-menu' },
   ]
 
   const businessName =
@@ -83,19 +83,19 @@ export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProp
       <img
         src={props.profile.logo_url}
         alt=""
-        className="h-14 w-14 rounded-2xl border border-slate-200 bg-white object-cover"
+        className="h-12 w-12 rounded-xl border border-slate-200 bg-white object-contain"
       />
     ) : (
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-xl font-black text-green-700">
+      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-lg font-black text-green-700">
         {businessName.trim().charAt(0).toUpperCase() || 'B'}
       </span>
     ),
     action: (
       <Link
         href="#business-profile"
-        className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-green-200 bg-green-50 px-4 text-sm font-bold text-green-700 sm:w-auto"
+        className="inline-flex min-h-8 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-bold text-green-700"
       >
-        Edit details
+        Edit
       </Link>
     ),
   }
