@@ -1,8 +1,22 @@
+import { cookies } from 'next/headers'
+
 import { isDemoMode } from '@/lib/app-mode'
+import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
 import NavClient from './nav-client'
 import NotificationRefreshBridge from './notification-refresh-bridge'
+import AuthenticatedWorkspaceHeader from './authenticated-workspace-header'
+
+const WORKSPACE_PREFERENCE_COOKIE = 'raisehub-selected-workspace'
+
+function workspaceLabel(kind?: string | null) {
+  if (kind === 'business') return 'Business'
+  if (kind === 'organization') return 'Organization'
+  if (kind === 'fundraising') return 'Fundraising'
+  if (kind === 'owner') return 'Owner'
+  return 'Supporter'
+}
 
 export default async function Nav() {
   const supabase = await createClient()
@@ -15,23 +29,26 @@ export default async function Nav() {
   let isPublicDemoUser = false
   let profileHref: string | null = '/dashboard#profile'
   let notificationVersion = 'signed-out'
+  let authenticatedHeader: React.ReactNode = null
 
   if (user) {
-    const [{ data: profile }, { data: latestNotification }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle(),
-      supabase
-        .from('notifications')
-        .select('id, created_at')
-        .eq('user_id', user.id)
-        .is('dismissed_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ])
+    const [{ data: profile }, { data: latestNotification }, workspaceResult] =
+      await Promise.all([
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', user.id)
+          .is('dismissed_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        getAuthenticatedWorkspaces(),
+      ])
 
     notificationVersion = latestNotification
       ? `${latestNotification.id}:${latestNotification.created_at}`
@@ -44,6 +61,37 @@ export default async function Nav() {
     } else if (profile?.role === 'owner' || profile?.role === 'admin') {
       profileHref = null
     }
+
+    const workspaces = workspaceResult.success ? workspaceResult.workspaces : []
+    const savedWorkspaceKey =
+      (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || null
+    const selectedWorkspace =
+      workspaces.find((workspace) => workspace.key === savedWorkspaceKey) ??
+      workspaces.find((workspace) => workspace.isDefault) ??
+      workspaces[0] ??
+      null
+
+    let logoUrl: string | null = null
+    if (selectedWorkspace?.kind === 'business' && selectedWorkspace.legacyProfileId) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('logo_url')
+        .eq('id', selectedWorkspace.legacyProfileId)
+        .maybeSingle<{ logo_url: string | null }>()
+      logoUrl = data?.logo_url ?? null
+    }
+
+    authenticatedHeader = (
+      <AuthenticatedWorkspaceHeader
+        email={user.email ?? null}
+        workspaceName={selectedWorkspace?.name ?? 'RaiseHub'}
+        workspaceLabel={workspaceLabel(selectedWorkspace?.kind ?? profile?.role)}
+        environmentLabel={demoMode ? 'Demo workspace' : 'Live workspace'}
+        logoUrl={logoUrl}
+        workspaces={workspaces}
+        selectedWorkspaceKey={selectedWorkspace?.key ?? null}
+      />
+    )
   }
 
   if (demoMode && user?.email) {
@@ -66,23 +114,22 @@ export default async function Nav() {
     : null
 
   return (
-    <nav className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur" aria-label="Primary navigation">
-      <div className="mx-auto max-w-5xl">
-        <NavClient
-          key={notificationVersion}
-          user={navUser}
-          isDemoMode={demoMode}
-          isPublicDemoUser={isPublicDemoUser}
-        />
-      </div>
-
-      {!demoMode ? (
-        <div className="border-t border-blue-100 bg-blue-50/70">
-          <div className="mx-auto max-w-5xl px-4 py-2 text-xs font-semibold text-blue-900 sm:text-sm">
-            RaiseHub · Live Platform
-          </div>
+    <nav
+      className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur"
+      aria-label="Primary navigation"
+    >
+      {user ? (
+        authenticatedHeader
+      ) : (
+        <div className="mx-auto max-w-5xl">
+          <NavClient
+            key={notificationVersion}
+            user={navUser}
+            isDemoMode={demoMode}
+            isPublicDemoUser={isPublicDemoUser}
+          />
         </div>
-      ) : null}
+      )}
 
       <MobileNavEnhancements signedIn={Boolean(user)} profileHref={profileHref} />
       {user ? <NotificationRefreshBridge userId={user.id} /> : null}
