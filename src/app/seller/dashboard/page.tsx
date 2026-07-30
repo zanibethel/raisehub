@@ -5,11 +5,14 @@ import AccountMenu from '@/app/components/account-menu'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import type { SelectableWorkspace } from '@/lib/types/identity-access'
 
 import SellerProfileForm from './seller-profile-form'
 import ShareSellerLink from './share-seller-link'
 
 export const dynamic = 'force-dynamic'
+
+const SELLER_WORKSPACE_KEY = 'seller:current'
 
 type SellerProfile = { id: string; display_name: string; bio: string | null; avatar_url: string | null; status: string }
 type CampaignSeller = { id: string; campaign_id: string; organization_id: string; display_name: string; referral_code: string; status: string }
@@ -103,7 +106,22 @@ export default async function SellerDashboardPage() {
   const shareUrl = activeEntry
     ? `https://raisehub.app/campaigns/${activeEntry.campaign_id}?seller=${encodeURIComponent(activeEntry.referral_code)}`
     : null
-  const workspaces = workspacesResult.success ? workspacesResult.workspaces : []
+  const sellerWorkspace: SelectableWorkspace = {
+    key: SELLER_WORKSPACE_KEY,
+    kind: 'fundraising',
+    name: 'Seller Dashboard',
+    subtitle: activeCampaign?.name ?? 'Share campaigns and follow your results',
+    href: '/seller/dashboard',
+    workspaceId: sellerProfile.id,
+    membershipId: null,
+    legacyProfileId: user.id,
+    source: 'campaign-membership',
+    isDefault: false,
+  }
+  const workspaces = [
+    sellerWorkspace,
+    ...(workspacesResult.success ? workspacesResult.workspaces : []),
+  ]
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] p-4 sm:p-8">
@@ -115,7 +133,7 @@ export default async function SellerDashboardPage() {
               <h1 className="mt-4 text-3xl font-bold text-gray-950">{sellerProfile.display_name}</h1>
               <p className="mt-2 text-gray-600">Share your campaign, follow your results, and keep your seller profile current.</p>
             </div>
-            <AccountMenu email={user.email ?? null} workspaces={workspaces} selectedWorkspaceKey={null} />
+            <AccountMenu email={user.email ?? null} workspaces={workspaces} selectedWorkspaceKey={SELLER_WORKSPACE_KEY} />
           </div>
         </header>
 
