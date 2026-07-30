@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState, useTransition } from 'react'
 
-import AccountMenu from '@/app/components/account-menu'
+import { createClient } from '@/lib/supabase/client'
 import type { SelectableWorkspace } from '@/lib/types/identity-access'
 
 type AuthenticatedWorkspaceHeaderProps = {
@@ -14,6 +15,55 @@ type AuthenticatedWorkspaceHeaderProps = {
   logoUrl?: string | null
   workspaces: SelectableWorkspace[]
   selectedWorkspaceKey?: string | null
+  profileHref?: string | null
+}
+
+const WORKSPACE_PREFERENCE_COOKIE = 'raisehub-selected-workspace'
+const WORKSPACE_PREFERENCE_MAX_AGE = 60 * 60 * 24 * 180
+
+function rememberWorkspace(workspaceKey: string) {
+  const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : ''
+
+  document.cookie = [
+    `${WORKSPACE_PREFERENCE_COOKIE}=${encodeURIComponent(workspaceKey)}`,
+    'Path=/',
+    `Max-Age=${WORKSPACE_PREFERENCE_MAX_AGE}`,
+    'SameSite=Lax',
+    secureAttribute,
+  ]
+    .filter(Boolean)
+    .join('; ')
+}
+
+function WorkspaceLogo({
+  logoUrl,
+  workspaceName,
+}: {
+  logoUrl?: string | null
+  workspaceName: string
+}) {
+  const [failed, setFailed] = useState(false)
+  const initial = workspaceName.trim().charAt(0).toUpperCase() || 'R'
+
+  if (!logoUrl || failed) {
+    return (
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white shadow-sm">
+        {initial}
+      </span>
+    )
+  }
+
+  return (
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={logoUrl}
+        alt=""
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain"
+      />
+    </span>
+  )
 }
 
 export default function AuthenticatedWorkspaceHeader({
@@ -24,138 +74,211 @@ export default function AuthenticatedWorkspaceHeader({
   logoUrl,
   workspaces,
   selectedWorkspaceKey,
+  profileHref,
 }: AuthenticatedWorkspaceHeaderProps) {
-  const initial = workspaceName.trim().charAt(0).toUpperCase() || 'R'
-  const menuRootRef = useRef<HTMLDivElement | null>(null)
-  const [logoFailed, setLogoFailed] = useState(false)
+  const router = useRouter()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [switchingWorkspaceKey, setSwitchingWorkspaceKey] = useState<string | null>(null)
+  const [isSwitching, startWorkspaceTransition] = useTransition()
+
+  const hasBusinessWorkspace = workspaces.some((workspace) => workspace.kind === 'business')
+  const hasOrganizationWorkspace = workspaces.some(
+    (workspace) => workspace.kind === 'organization' || workspace.kind === 'fundraising'
+  )
 
   useEffect(() => {
-    function openWorkspaceMenu() {
-      const details = menuRootRef.current?.querySelector('details')
-      if (details) details.open = true
+    function openDrawer() {
+      setDrawerOpen(true)
     }
 
-    window.addEventListener('raisehub:open-workspace-menu', openWorkspaceMenu)
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setDrawerOpen(false)
+    }
+
+    window.addEventListener('raisehub:open-workspace-menu', openDrawer)
+    document.addEventListener('keydown', handleKeyDown)
+
     return () => {
-      window.removeEventListener('raisehub:open-workspace-menu', openWorkspaceMenu)
+      window.removeEventListener('raisehub:open-workspace-menu', openDrawer)
+      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
 
+  useEffect(() => {
+    document.body.style.overflow = drawerOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [drawerOpen])
+
+  function handleWorkspaceSelection(workspace: SelectableWorkspace) {
+    if (isSwitching || workspace.key === selectedWorkspaceKey) return
+
+    rememberWorkspace(workspace.key)
+    setSwitchingWorkspaceKey(workspace.key)
+
+    startWorkspaceTransition(() => {
+      setDrawerOpen(false)
+      router.push(workspace.href)
+      router.refresh()
+    })
+  }
+
+  async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
+
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   return (
-    <div className="workspace-global-header mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-      <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
-        {logoUrl && !logoFailed ? (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoUrl}
-              alt=""
-              className="h-full w-full object-contain"
-              onError={() => setLogoFailed(true)}
-            />
-          </span>
-        ) : (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white shadow-sm">
-            {initial}
-          </span>
-        )}
+    <>
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
+          <WorkspaceLogo logoUrl={logoUrl} workspaceName={workspaceName} />
 
-        <span className="min-w-0">
-          <span className="block truncate text-base font-black text-slate-950 sm:text-lg">
-            {workspaceName}
+          <span className="min-w-0">
+            <span className="block truncate text-base font-black text-slate-950 sm:text-lg">
+              {workspaceName}
+            </span>
+            <span className="block truncate text-xs font-semibold text-slate-500">
+              {workspaceLabel} · {environmentLabel}
+            </span>
           </span>
-          <span className="block truncate text-xs font-semibold text-slate-500">
-            {workspaceLabel} · {environmentLabel}
-          </span>
-        </span>
-      </Link>
+        </Link>
 
-      <Link
-        href="/dashboard/notifications"
-        aria-label="Notifications"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      </Link>
+        <Link
+          href="/dashboard/notifications"
+          aria-label="Notifications"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+        </Link>
 
-      <div ref={menuRootRef} className="workspace-global-menu shrink-0">
-        <AccountMenu
-          email={email}
-          workspaces={workspaces}
-          selectedWorkspaceKey={selectedWorkspaceKey}
-        />
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open workspace menu"
+          aria-expanded={drawerOpen}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
 
-      <style>{`
-        .workspace-global-menu details {
-          width: auto !important;
-          align-self: auto !important;
-        }
+      {drawerOpen ? (
+        <div className="fixed inset-0 z-[180]">
+          <button
+            type="button"
+            aria-label="Close workspace menu"
+            onClick={() => setDrawerOpen(false)}
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]"
+          />
 
-        .workspace-global-menu summary {
-          width: 2.5rem !important;
-          height: 2.5rem !important;
-          min-width: 2.5rem !important;
-          padding: 0 !important;
-          justify-content: center !important;
-          border-radius: 9999px !important;
-        }
+          <section className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-3xl bg-white pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-96 sm:rounded-none">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Workspace menu</p>
+                <p className="mt-1 truncate text-base font-black text-slate-950">{workspaceName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close workspace menu"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-700"
+              >
+                ×
+              </button>
+            </div>
 
-        .workspace-global-menu summary > span,
-        .workspace-global-menu summary > svg {
-          display: none !important;
-        }
+            <div className="space-y-5 p-4">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold text-slate-500">Signed in as</p>
+                <p className="mt-1 truncate text-sm font-bold text-slate-900">{email ?? 'RaiseHub account'}</p>
+              </div>
 
-        .workspace-global-menu summary::after {
-          content: '☰';
-          font-size: 1.25rem;
-          line-height: 1;
-          color: #334155;
-        }
+              <nav className="space-y-1" aria-label="Workspace actions">
+                <Link href="/dashboard" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                  Dashboard <span aria-hidden="true">›</span>
+                </Link>
+                <Link href="/dashboard/notifications" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                  Notifications <span aria-hidden="true">›</span>
+                </Link>
+                {profileHref ? (
+                  <Link href={profileHref} onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                    Edit profile <span aria-hidden="true">›</span>
+                  </Link>
+                ) : null}
+                <Link href="/support" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                  Help and support <span aria-hidden="true">›</span>
+                </Link>
+              </nav>
 
-        @media (max-width: 639px) {
-          .workspace-global-menu details[open]::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            z-index: 140;
-            background: rgba(15, 23, 42, 0.38);
-            backdrop-filter: blur(2px);
-          }
+              {workspaces.length > 0 ? (
+                <div>
+                  <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">Switch experience</p>
+                  <div className="mt-2 space-y-1">
+                    {workspaces.map((workspace) => {
+                      const current = workspace.key === selectedWorkspaceKey
+                      const opening = isSwitching && workspace.key === switchingWorkspaceKey
 
-          .workspace-global-menu details > div {
-            position: fixed !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            top: auto !important;
-            width: 100% !important;
-            max-width: none !important;
-            max-height: min(78vh, 42rem) !important;
-            overflow-y: auto !important;
-            margin: 0 !important;
-            border-radius: 1.5rem 1.5rem 0 0 !important;
-            z-index: 150 !important;
-            padding-top: 0.75rem !important;
-            padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
-            box-shadow: 0 -18px 48px rgba(15, 23, 42, 0.2) !important;
-          }
+                      return (
+                        <button
+                          key={workspace.key}
+                          type="button"
+                          onClick={() => handleWorkspaceSelection(workspace)}
+                          disabled={current || isSwitching}
+                          className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-bold transition ${
+                            current ? 'bg-blue-50 text-blue-700' : 'text-slate-800 hover:bg-slate-50'
+                          } disabled:opacity-70`}
+                        >
+                          <span className="min-w-0 truncate">{workspace.name}</span>
+                          <span className="ml-3 shrink-0 text-xs">{opening ? 'Opening…' : current ? 'Current' : '›'}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
-          .workspace-global-menu details > div::before {
-            content: 'Workspace menu';
-            display: block;
-            padding: 0.25rem 1rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: #64748b;
-          }
-        }
-      `}</style>
-    </div>
+              {!hasBusinessWorkspace || !hasOrganizationWorkspace ? (
+                <div>
+                  <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">Add an experience</p>
+                  <div className="mt-2 space-y-1">
+                    {!hasOrganizationWorkspace ? (
+                      <Link href="/workspace/new/organization" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                        Start a fundraiser <span aria-hidden="true">›</span>
+                      </Link>
+                    ) : null}
+                    {!hasBusinessWorkspace ? (
+                      <Link href="/workspace/new/business" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-green-700 hover:bg-green-50">
+                        Join as a business <span aria-hidden="true">›</span>
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+              >
+                {loggingOut ? 'Signing out…' : 'Sign out'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
   )
 }
