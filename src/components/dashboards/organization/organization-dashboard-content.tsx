@@ -12,6 +12,8 @@ import OrganizationSellerRosterPreview from './organization-seller-roster-previe
 import OrganizationTopSellersSection from './sections/organization-top-sellers-section'
 import OrganizationWorkspaceStatus from './organization-workspace-status'
 
+export type OrganizationWorkspaceView = 'dashboard' | 'campaigns' | 'reports'
+
 type SummaryProps = React.ComponentProps<
   typeof import('./sections/organization-summary-section').default
 >
@@ -29,6 +31,7 @@ type Props = SummaryProps &
   CampaignsProps &
   AnalyticsProps & {
     sellerCampaigns: SellerRosterCampaigns
+    view?: OrganizationWorkspaceView
   }
 
 function campaignStatusLabel(status?: string | null) {
@@ -37,7 +40,10 @@ function campaignStatusLabel(status?: string | null) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-export default function OrganizationDashboardContent(props: Props) {
+export default function OrganizationDashboardContent({
+  view = 'dashboard',
+  ...props
+}: Props) {
   const sellerRosterCampaigns = props.campaigns
     .filter((campaign) => {
       const status = campaign.status?.trim().toLowerCase() ?? ''
@@ -49,16 +55,111 @@ export default function OrganizationDashboardContent(props: Props) {
       status: campaign.status,
     }))
 
+  if (view === 'campaigns') {
+    return (
+      <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+        <OrganizationWorkspaceStatus>
+          <OrganizationProfileSetupLoader statusOnly />
+          <OrganizationPayoutDashboardCard />
+        </OrganizationWorkspaceStatus>
+
+        {props.organizationId ? (
+          <OrganizationLogoManager organizationId={props.organizationId} />
+        ) : null}
+
+        <OrganizationPayoutCenter organizationId={props.organizationId} />
+
+        <section id="organization-sellers" className="scroll-mt-24">
+          {sellerRosterCampaigns.length > 0 ? (
+            <OrganizationSellerRosterPreview campaigns={sellerRosterCampaigns} />
+          ) : (
+            <WorkspaceModuleEmpty
+              title="Create a campaign before adding sellers"
+              description="Seller names, referral links, and QR codes are connected to a campaign."
+            />
+          )}
+        </section>
+
+        <OrganizationCampaignsSection
+          organizationId={props.organizationId}
+          campaigns={props.campaigns}
+          metricsByCampaign={props.metricsByCampaign}
+          campaignCreationPricing={props.campaignCreationPricing}
+        />
+      </div>
+    )
+  }
+
+  if (view === 'reports') {
+    return (
+      <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+        <WorkspaceModule
+          title="Fundraising performance"
+          description="Across all campaigns"
+          tone="green"
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ['Raised', `$${props.totalFundsRaised.toLocaleString()}`],
+              ['Passes', props.totalPassesSold.toLocaleString()],
+              ['Supporters', props.totalSupporters.toLocaleString()],
+              ['Campaigns', props.totalCampaigns.toLocaleString()],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-slate-50 p-3 text-center">
+                <p className="text-xs font-bold text-slate-500">{label}</p>
+                <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
+              </div>
+            ))}
+          </div>
+        </WorkspaceModule>
+
+        <OrganizationAnalyticsSection
+          totalCampaigns={props.totalCampaigns}
+          activeSellerCount={props.activeSellerCount}
+        />
+        <OrganizationReportSection
+          grossRevenue={props.grossRevenue}
+          totalFees={props.totalFees}
+          totalEarnings={props.totalEarnings}
+          totalPassesSold={props.totalPassesSold}
+        />
+        <OrganizationTopSellersSection
+          campaigns={props.campaigns}
+          sellers={props.sellers}
+        />
+
+        <Link
+          href="/dashboard/campaigns"
+          className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700"
+        >
+          Manage campaigns
+        </Link>
+      </div>
+    )
+  }
+
   const campaignPreview = props.campaigns.slice(0, 2)
   const recommendedActions = [
     ...(props.activeCampaigns === 0
-      ? [{ title: 'Launch your next fundraiser', description: 'Create or finish a campaign so supporters can begin purchasing passes.', href: '#organization-campaigns' }]
+      ? [{
+          title: 'Launch your next fundraiser',
+          description: 'Create or finish a campaign so supporters can begin purchasing passes.',
+          href: '/dashboard/campaigns',
+        }]
       : []),
     ...(props.totalSellers === 0
-      ? [{ title: 'Add sellers to your roster', description: 'Give participants referral links and QR codes before your fundraiser launches.', href: '#organization-sellers' }]
+      ? [{
+          title: 'Add sellers to your roster',
+          description: 'Give participants referral links and QR codes before your fundraiser launches.',
+          href: '/dashboard/campaigns#organization-sellers',
+        }]
       : []),
     ...(props.totalSupporters === 0 && props.activeCampaigns > 0
-      ? [{ title: 'Share your active fundraiser', description: 'Invite the first supporters and give sellers a clear next step.', href: '#organization-campaigns' }]
+      ? [{
+          title: 'Share your active fundraiser',
+          description: 'Invite the first supporters and give sellers a clear next step.',
+          href: '/dashboard/campaigns',
+        }]
       : []),
   ].slice(0, 3)
 
@@ -69,7 +170,7 @@ export default function OrganizationDashboardContent(props: Props) {
         description="Across all campaigns"
         tone="green"
         action={
-          <Link href="#organization-tools" className="text-sm font-bold text-blue-700">
+          <Link href="/dashboard/reports" className="text-sm font-bold text-blue-700">
             View details
           </Link>
         }
@@ -117,12 +218,11 @@ export default function OrganizationDashboardContent(props: Props) {
         ) : null}
 
         <WorkspaceModule
-          id="organization-campaigns"
           title="Campaigns"
           description={`${props.activeCampaigns} active · ${props.totalCampaigns} total`}
           tone="blue"
           action={
-            <Link href="#organization-tools" className="text-sm font-bold text-blue-700">
+            <Link href="/dashboard/campaigns" className="text-sm font-bold text-blue-700">
               Manage
             </Link>
           }
@@ -155,46 +255,6 @@ export default function OrganizationDashboardContent(props: Props) {
           ) : null}
         </WorkspaceModule>
       </div>
-
-      <WorkspaceModule
-        id="organization-tools"
-        title="Organization tools"
-        description="Profile, payouts, sellers, reports, and campaign management"
-        tone="slate"
-        collapsible
-        defaultCollapsed
-      >
-        <div className="space-y-6">
-          <OrganizationWorkspaceStatus>
-            <OrganizationProfileSetupLoader statusOnly />
-            <OrganizationPayoutDashboardCard />
-          </OrganizationWorkspaceStatus>
-
-          {props.organizationId ? <OrganizationLogoManager organizationId={props.organizationId} /> : null}
-          <OrganizationPayoutCenter organizationId={props.organizationId} />
-          <OrganizationAnalyticsSection totalCampaigns={props.totalCampaigns} activeSellerCount={props.activeSellerCount} />
-          <OrganizationReportSection grossRevenue={props.grossRevenue} totalFees={props.totalFees} totalEarnings={props.totalEarnings} totalPassesSold={props.totalPassesSold} />
-          <OrganizationTopSellersSection campaigns={props.campaigns} sellers={props.sellers} />
-
-          <section id="organization-sellers" className="scroll-mt-24">
-            {sellerRosterCampaigns.length > 0 ? (
-              <OrganizationSellerRosterPreview campaigns={sellerRosterCampaigns} />
-            ) : (
-              <WorkspaceModuleEmpty
-                title="Create a campaign before adding sellers"
-                description="Seller names, referral links, and QR codes are connected to a campaign."
-              />
-            )}
-          </section>
-
-          <OrganizationCampaignsSection
-            organizationId={props.organizationId}
-            campaigns={props.campaigns}
-            metricsByCampaign={props.metricsByCampaign}
-            campaignCreationPricing={props.campaignCreationPricing}
-          />
-        </div>
-      </WorkspaceModule>
     </div>
   )
 }
