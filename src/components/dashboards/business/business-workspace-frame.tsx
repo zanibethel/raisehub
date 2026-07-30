@@ -97,7 +97,7 @@ export default function BusinessWorkspaceFrame({
       {view === 'dashboard' ? (
         <BusinessCommandCenter {...props} />
       ) : (
-        <BusinessDashboardContent {...props} />
+        <BusinessDashboardContent {...props} view={view} />
       )}
     </WorkspaceShell>
   )
