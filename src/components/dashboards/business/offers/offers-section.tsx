@@ -37,6 +37,8 @@ export default function BusinessDashboardOffersSection({
   onBoost,
   showExport = true,
 }: Props) {
+  const canExport = showExport && exportRows.length > 0
+
   return (
     <section id="my-offers" className="scroll-mt-8">
       <SectionHeader
@@ -44,7 +46,7 @@ export default function BusinessDashboardOffersSection({
         description="Create, edit, pause, and review the offers available to customers."
         action={
           <div className="flex items-start gap-2">
-            {showExport ? (
+            {canExport ? (
               <BusinessExportTools
                 rows={exportRows}
                 businessName={businessName}
