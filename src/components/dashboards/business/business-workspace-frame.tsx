@@ -7,9 +7,9 @@ import BusinessCommandCenter from './business-command-center'
 import BusinessDashboardContent from './business-dashboard-content'
 import {
   WorkspaceShell,
-  type WorkspaceBottomNavItem,
   type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
+import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navigation'
 
 type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardContent>
 
@@ -61,13 +61,19 @@ function MoreIcon() {
 }
 
 export default function BusinessWorkspaceFrame(props: BusinessWorkspaceFrameProps) {
-  const bottomNavigation: WorkspaceBottomNavItem[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, active: true },
-    { href: '#full-offer-management', label: 'Offers', icon: <OffersIcon /> },
-    { href: '#full-business-tools', label: 'Reports', icon: <ReportsIcon /> },
-    { href: '/support', label: 'Help', icon: <HelpIcon /> },
-    { label: 'More', icon: <MoreIcon />, action: 'open-workspace-menu' },
-  ]
+  const bottomNavigation = buildWorkspaceNavigation({
+    workLabel: 'Offers',
+    workHref: '#full-offer-management',
+    reportsHref: '#full-business-tools',
+    activeSlot: 'dashboard',
+    icons: {
+      dashboard: <DashboardIcon />,
+      work: <OffersIcon />,
+      reports: <ReportsIcon />,
+      help: <HelpIcon />,
+      more: <MoreIcon />,
+    },
+  })
 
   const businessName =
     props.profile?.business_name || props.profile?.display_name || 'Business workspace'
