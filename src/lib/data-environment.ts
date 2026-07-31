@@ -1,4 +1,4 @@
-import type { AppMode } from '@/lib/app-mode'
+import { getAppMode, type AppMode } from '@/lib/app-mode'
 
 export type DataEnvironment =
   | { mode: 'production'; demoGroup: null }
@@ -8,6 +8,8 @@ export type EnvironmentOwnedRecord = {
   is_demo?: boolean | null
   demo_group?: string | null
 }
+
+const DEFAULT_DEMO_GROUP = 'lakeview_launch_2026'
 
 export function resolveDataEnvironment(
   mode: AppMode,
@@ -25,6 +27,14 @@ export function resolveDataEnvironment(
   return { mode: 'demo', demoGroup: normalizedGroup }
 }
 
+export function getActiveDataEnvironment(
+  demoGroup = process.env.RAISEHUB_DEMO_GROUP ??
+    process.env.NEXT_PUBLIC_DEMO_GROUP ??
+    DEFAULT_DEMO_GROUP
+): DataEnvironment {
+  return resolveDataEnvironment(getAppMode(), demoGroup)
+}
+
 export function recordMatchesEnvironment(
   record: EnvironmentOwnedRecord,
   environment: DataEnvironment
@@ -39,6 +49,16 @@ export function recordMatchesEnvironment(
   return isDemo && demoGroup === environment.demoGroup
 }
 
+export function recordsShareEnvironment(
+  left: EnvironmentOwnedRecord,
+  right: EnvironmentOwnedRecord
+): boolean {
+  const leftGroup = left.demo_group?.trim() || null
+  const rightGroup = right.demo_group?.trim() || null
+
+  return left.is_demo === right.is_demo && leftGroup === rightGroup
+}
+
 export function requireRecordEnvironment<T extends EnvironmentOwnedRecord>(
   record: T | null | undefined,
   environment: DataEnvironment
@@ -48,6 +68,24 @@ export function requireRecordEnvironment<T extends EnvironmentOwnedRecord>(
   }
 
   return record
+}
+
+export function requireRelatedRecordEnvironment<
+  TParent extends EnvironmentOwnedRecord,
+  TChild extends EnvironmentOwnedRecord,
+>(
+  parent: TParent | null | undefined,
+  child: TChild | null | undefined,
+  environment: DataEnvironment
+): { parent: TParent; child: TChild } {
+  const scopedParent = requireRecordEnvironment(parent, environment)
+  const scopedChild = requireRecordEnvironment(child, environment)
+
+  if (!recordsShareEnvironment(scopedParent, scopedChild)) {
+    throw new Error('Related records cross data environments.')
+  }
+
+  return { parent: scopedParent, child: scopedChild }
 }
 
 export function applyEnvironmentScope<
