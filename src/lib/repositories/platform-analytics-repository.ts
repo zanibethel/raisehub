@@ -1,10 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type AnalyticsEnvironment = 'production' | 'demo'
 
 export type PlatformMetrics = {
@@ -45,10 +41,7 @@ type BusinessProfileReadiness = {
   logo_url: string | null
 }
 
-type OrganizationWorkspace = {
-  id: string
-}
-
+type OrganizationWorkspace = { id: string }
 type StripeAccountReadiness = {
   organization_id: string
   payouts_enabled: boolean
@@ -67,13 +60,26 @@ type StripeAccountAdminClient = {
   }
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
+type EnvironmentQuery<T> = T & {
+  eq(column: string, value: unknown): T
+  is(column: string, value: null): T
+  not(column: string, operator: string, value: null): T
+}
 
-function isBusinessProfileIncomplete(
-  profile: BusinessProfileReadiness
-): boolean {
+function applyAnalyticsEnvironmentScope<T>(
+  query: EnvironmentQuery<T>,
+  environment: AnalyticsEnvironment
+): T {
+  if (environment === 'production') {
+    return query.eq('is_demo', false).is('demo_group', null)
+  }
+
+  // Owner analytics intentionally aggregates every valid demo group while
+  // excluding ambiguous demo rows that have no group ownership.
+  return query.eq('is_demo', true).not('demo_group', 'is', null)
+}
+
+function isBusinessProfileIncomplete(profile: BusinessProfileReadiness): boolean {
   return !(
     profile.business_name?.trim() &&
     profile.phone?.trim() &&
@@ -97,10 +103,41 @@ async function getEnvironmentMetrics(
   environment: AnalyticsEnvironment
 ): Promise<PlatformMetricsResult> {
   const supabase = await createClient()
-  const adminSupabase =
-    createAdminClient() as unknown as StripeAccountAdminClient
-  const isDemo = environment === 'demo'
+  const adminSupabase = createAdminClient() as unknown as StripeAccountAdminClient
   const { now, sevenDaysFromNow } = getExpiringOfferWindow()
+
+  const businessQuery = supabase
+    .from('profiles')
+    .select('id, business_name, phone, address, logo_url', { count: 'exact' })
+    .eq('role', 'business')
+  const organizationQuery = supabase
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('role', 'organization')
+  const activeCampaignQuery = supabase
+    .from('campaigns')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active')
+  const draftCampaignQuery = supabase
+    .from('campaigns')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'draft')
+  const inactiveCampaignQuery = supabase
+    .from('campaigns')
+    .select('*', { count: 'exact', head: true })
+    .neq('status', 'active')
+  const activeOfferQuery = supabase
+    .from('offers')
+    .select('business_id', { count: 'exact' })
+    .eq('is_active', true)
+  const expiringOfferQuery = supabase
+    .from('offers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .not('ends_at', 'is', null)
+    .gte('ends_at', now)
+    .lte('ends_at', sevenDaysFromNow)
+  const workspaceQuery = supabase.from('organizations').select('id')
 
   const [
     businessResult,
@@ -114,52 +151,18 @@ async function getEnvironmentMetrics(
     stripeAccountResult,
     demoGroupResult,
   ] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id, business_name, phone, address, logo_url', { count: 'exact' })
-      .eq('role', 'business')
-      .eq('is_demo', isDemo),
-    supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'organization')
-      .eq('is_demo', isDemo),
-    supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
-      .eq('is_demo', isDemo),
-    supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'draft')
-      .eq('is_demo', isDemo),
-    supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
-      .neq('status', 'active')
-      .eq('is_demo', isDemo),
-    supabase
-      .from('offers')
-      .select('business_id', { count: 'exact' })
-      .eq('is_active', true)
-      .eq('is_demo', isDemo),
-    supabase
-      .from('offers')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .eq('is_demo', isDemo)
-      .not('ends_at', 'is', null)
-      .gte('ends_at', now)
-      .lte('ends_at', sevenDaysFromNow),
-    supabase
-      .from('organizations')
-      .select('id')
-      .eq('is_demo', isDemo),
+    applyAnalyticsEnvironmentScope(businessQuery, environment),
+    applyAnalyticsEnvironmentScope(organizationQuery, environment),
+    applyAnalyticsEnvironmentScope(activeCampaignQuery, environment),
+    applyAnalyticsEnvironmentScope(draftCampaignQuery, environment),
+    applyAnalyticsEnvironmentScope(inactiveCampaignQuery, environment),
+    applyAnalyticsEnvironmentScope(activeOfferQuery, environment),
+    applyAnalyticsEnvironmentScope(expiringOfferQuery, environment),
+    applyAnalyticsEnvironmentScope(workspaceQuery, environment),
     adminSupabase
       .from('organization_stripe_accounts')
       .select('organization_id, payouts_enabled'),
-    isDemo
+    environment === 'demo'
       ? supabase
           .from('demo_groups')
           .select('*', { count: 'exact', head: true })
@@ -179,20 +182,16 @@ async function getEnvironmentMetrics(
     stripeAccountResult.error ??
     demoGroupResult.error
 
-  if (firstError) {
-    return { metrics: null, error: firstError.message }
-  }
+  if (firstError) return { metrics: null, error: firstError.message }
 
   const businessProfiles =
     (businessResult.data ?? []) as BusinessProfileReadiness[]
   const incompleteBusinessCount = businessProfiles.filter(
     isBusinessProfileIncomplete
   ).length
-
   const activeOfferBusinessIds = new Set(
     (activeOfferResult.data ?? []).map((offer) => offer.business_id)
   )
-
   const organizationWorkspaces =
     (organizationWorkspaceResult.data ?? []) as OrganizationWorkspace[]
   const payoutReadyOrganizationIds = new Set(
@@ -224,16 +223,10 @@ async function getEnvironmentMetrics(
   }
 }
 
-// =============================================================================
-// Repository
-// =============================================================================
-
-// Existing callers receive production-only metrics.
 export async function getPlatformMetrics(): Promise<PlatformMetricsResult> {
   return getEnvironmentMetrics('production')
 }
 
-// The Owner Analytics workspace receives both isolated environments.
 export async function getPlatformAnalyticsMetrics(): Promise<PlatformAnalyticsMetricsResult> {
   const [productionResult, demoResult] = await Promise.all([
     getEnvironmentMetrics('production'),
@@ -241,7 +234,6 @@ export async function getPlatformAnalyticsMetrics(): Promise<PlatformAnalyticsMe
   ])
 
   const error = productionResult.error ?? demoResult.error
-
   if (error || !productionResult.metrics || !demoResult.metrics) {
     return { metrics: null, error: error ?? 'Analytics metrics unavailable.' }
   }
