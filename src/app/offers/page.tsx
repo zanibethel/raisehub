@@ -1,11 +1,18 @@
 import Link from 'next/link'
+
 import SaveOfferButton from '@/app/components/save-offer-button'
+import {
+  applyEnvironmentScope,
+  getActiveDataEnvironment,
+  recordsShareEnvironment,
+  type EnvironmentOwnedRecord,
+} from '@/lib/data-environment'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-type Offer = {
+type Offer = EnvironmentOwnedRecord & {
   id: string
   title: string | null
   discount: string | null
@@ -15,7 +22,7 @@ type Offer = {
   business_id: string
 }
 
-type BusinessProfile = {
+type BusinessProfile = EnvironmentOwnedRecord & {
   id: string
   business_name: string | null
   display_name: string | null
@@ -29,6 +36,7 @@ type BusinessProfile = {
 
 export default async function OffersPage() {
   const supabase = await createClient()
+  const environment = getActiveDataEnvironment()
   const now = new Date()
   const nowIso = now.toISOString()
 
@@ -44,37 +52,40 @@ export default async function OffersPage() {
     hasActivePass = passAccess.hasActivePass
 
     if (hasActivePass) {
-      const { data: savedOffers } = await supabase
+      const savedOffersQuery = supabase
         .from('saved_offers')
-        .select('offer_id')
+        .select('offer_id, is_demo, demo_group')
         .eq('user_id', user.id)
 
-      savedOfferIds = new Set(
-        (savedOffers ?? []).map(
-          (savedOffer) => savedOffer.offer_id
-        )
+      const { data: savedOffers } = await applyEnvironmentScope(
+        savedOffersQuery,
+        environment
       )
+
+      savedOfferIds = new Set((savedOffers ?? []).map((savedOffer) => savedOffer.offer_id))
     }
   }
 
-  const { data: offers, error: offersError } =
-    await supabase
-      .from('offers')
-      .select(
-        'id, title, discount, description, starts_at, ends_at, business_id'
-      )
-      .eq('is_active', true)
-      .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
-      .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
-      .order('created_at', { ascending: false })
+  const offersQuery = supabase
+    .from('offers')
+    .select(
+      'id, title, discount, description, starts_at, ends_at, business_id, is_demo, demo_group'
+    )
+    .eq('is_active', true)
+    .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+    .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+    .order('created_at', { ascending: false })
+
+  const { data: offers, error: offersError } = await applyEnvironmentScope(
+    offersQuery,
+    environment
+  )
 
   if (offersError) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-12 sm:px-8">
         <div className="mx-auto max-w-6xl rounded-3xl border border-red-100 bg-white p-8 shadow-xl">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Local Deals
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Local Deals</h1>
           <p className="mt-3 text-sm text-gray-600">
             We could not load available offers right now. Please try again.
           </p>
@@ -83,66 +94,48 @@ export default async function OffersPage() {
     )
   }
 
-  const candidateOffers =
-    (offers as Offer[] | null)?.filter(
-      (offer) =>
-        Boolean(offer.business_id) &&
-        Boolean(offer.title?.trim())
-    ) ?? []
+  const candidateOffers = ((offers ?? []) as Offer[]).filter(
+    (offer) => Boolean(offer.business_id) && Boolean(offer.title?.trim())
+  )
+  const businessIds = [...new Set(candidateOffers.map((offer) => offer.business_id))]
 
-  const businessIds = [
-    ...new Set(
-      candidateOffers.map(
-        (offer) => offer.business_id
+  let profiles: BusinessProfile[] = []
+  if (businessIds.length > 0) {
+    const profilesQuery = supabase
+      .from('profiles')
+      .select(
+        'id, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, role, is_demo, demo_group'
       )
-    ),
-  ]
+      .in('id', businessIds)
+      .eq('role', 'business')
 
-  const { data: profiles } =
-    businessIds.length > 0
-      ? await supabase
-          .from('profiles')
-          .select(
-            'id, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, role'
-          )
-          .in('id', businessIds)
-          .eq('role', 'business')
-      : { data: [] }
+    const result = await applyEnvironmentScope(profilesQuery, environment)
+    profiles = (result.data ?? []) as BusinessProfile[]
+  }
 
   const profileById = Object.fromEntries(
-    ((profiles ?? []) as BusinessProfile[])
-      .filter((profile) =>
-        Boolean(
-          profile.business_name?.trim() ||
-            profile.display_name?.trim()
-        )
-      )
+    profiles
+      .filter((profile) => Boolean(profile.business_name?.trim() || profile.display_name?.trim()))
       .map((profile) => [profile.id, profile])
   )
 
-  const visibleOffers = candidateOffers.filter(
-    (offer) => Boolean(profileById[offer.business_id])
-  )
+  const visibleOffers = candidateOffers.filter((offer) => {
+    const profile = profileById[offer.business_id]
+    return Boolean(profile && recordsShareEnvironment(offer, profile))
+  })
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-blue-50 px-4 py-12 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-5 rounded-3xl border border-yellow-100 bg-white/90 p-6 shadow-xl sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div>
-            <Link
-              href="/"
-              className="text-sm font-medium text-blue-700 hover:underline"
-            >
+            <Link href="/" className="text-sm font-medium text-blue-700 hover:underline">
               ← Back to home
             </Link>
-
-            <h1 className="mt-4 text-3xl font-bold text-gray-900">
-              Exclusive Local Deals
-            </h1>
-
+            <h1 className="mt-4 text-3xl font-bold text-gray-900">Exclusive Local Deals</h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Preview participating local offers. Full savings and redemption
-              details are available with an active RaiseHub pass.
+              Preview participating local offers. Full savings and redemption details are
+              available with an active RaiseHub pass.
             </p>
           </div>
 
@@ -154,7 +147,6 @@ export default async function OffersPage() {
               >
                 Have an active pass? Log in here
               </Link>
-
               <Link
                 href="/signup?source=offers"
                 className="text-center text-sm font-semibold text-yellow-700 hover:underline sm:text-right"
@@ -179,14 +171,10 @@ export default async function OffersPage() {
         {visibleOffers.length > 0 ? (
           <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {visibleOffers.map((offer) => {
-              const profile =
-                profileById[offer.business_id] as BusinessProfile
+              const profile = profileById[offer.business_id]
               const businessName =
-                profile.display_name ||
-                profile.business_name ||
-                'Local Business'
-              const isSaved =
-                savedOfferIds.has(offer.id)
+                profile.display_name || profile.business_name || 'Local Business'
+              const isSaved = savedOfferIds.has(offer.id)
 
               return (
                 <article
@@ -194,23 +182,18 @@ export default async function OffersPage() {
                   className="overflow-hidden rounded-3xl border border-yellow-100 bg-white/95 shadow-xl"
                 >
                   <div className="flex items-center gap-4 border-b border-yellow-100 p-6">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={
-                        profile.logo_url ||
-                        '/default-business-logo.png'
-                      }
+                      src={profile.logo_url || '/default-business-logo.png'}
                       alt={`${businessName} logo`}
                       className="h-14 w-14 rounded-xl border border-gray-200 object-cover"
                     />
-
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold uppercase tracking-wide text-yellow-700">
                         {businessName}
                       </p>
                       <h2 className="mt-1 text-xl font-bold text-gray-900">
-                        {hasActivePass
-                          ? offer.title
-                          : 'Exclusive Local Deal'}
+                        {hasActivePass ? offer.title : 'Exclusive Local Deal'}
                       </h2>
                     </div>
                   </div>
@@ -219,42 +202,27 @@ export default async function OffersPage() {
                     {hasActivePass ? (
                       <>
                         <p className="text-lg font-semibold text-green-700">
-                          {offer.discount ||
-                            'Special savings available'}
+                          {offer.discount || 'Special savings available'}
                         </p>
-
                         <p className="mt-3 text-sm text-gray-700">
-                          {offer.description ||
-                            'Exclusive customer offer'}
+                          {offer.description || 'Exclusive customer offer'}
                         </p>
-
                         <div className="mt-5 space-y-2 text-sm text-gray-600">
-                          {profile.address ? (
-                            <p>📍 {profile.address}</p>
-                          ) : null}
-
-                          {profile.phone ? (
-                            <p>📞 {profile.phone}</p>
-                          ) : null}
-
+                          {profile.address ? <p>📍 {profile.address}</p> : null}
+                          {profile.phone ? <p>📞 {profile.phone}</p> : null}
                           <p>
                             Valid until:{' '}
                             {offer.ends_at
-                              ? new Date(
-                                  offer.ends_at
-                                ).toLocaleDateString()
+                              ? new Date(offer.ends_at).toLocaleDateString()
                               : 'No listed expiration'}
                           </p>
                         </div>
-
                         {isSaved ? (
                           <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700">
                             Added to your pass
                           </div>
                         ) : (
-                          <SaveOfferButton
-                            offerId={offer.id}
-                          />
+                          <SaveOfferButton offerId={offer.id} />
                         )}
                       </>
                     ) : (
@@ -262,32 +230,19 @@ export default async function OffersPage() {
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-yellow-100 text-lg">
                           🔒
                         </div>
-
                         <p className="mt-3 text-sm font-semibold text-gray-900">
                           Active pass required
                         </p>
-
                         <p className="mt-2 text-xs leading-5 text-gray-600">
-                          Purchase a qualifying fundraiser pass to reveal the
-                          discount, full offer description, location details,
-                          and redemption information.
+                          Purchase a qualifying fundraiser pass to reveal the discount, full
+                          offer description, location details, and redemption information.
                         </p>
-
-                        {!user ? (
-                          <Link
-                            href="/signup?source=offers"
-                            className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
-                          >
-                            Choose a Fundraiser
-                          </Link>
-                        ) : (
-                          <Link
-                            href="/campaigns"
-                            className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
-                          >
-                            Choose a Fundraiser
-                          </Link>
-                        )}
+                        <Link
+                          href={user ? '/campaigns' : '/signup?source=offers'}
+                          className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
+                        >
+                          Choose a Fundraiser
+                        </Link>
                       </div>
                     )}
 
