@@ -60,46 +60,69 @@ export default async function BusinessOfferPreviewPage({
             No active business preview was found
           </h1>
           <Link
-            href="/offers"
+            href="/dashboard"
             className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white"
           >
-            Back to Local Deals
+            Back to Dashboard
           </Link>
         </div>
       </main>
     )
   }
 
-  const [{ data: offers }, { data: profile }] = await Promise.all([
-    supabase
-      .from('offers')
-      .select('id, title, discount, description, starts_at, ends_at')
-      .eq('business_id', anchorOffer.business_id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('profiles')
-      .select(
-        'business_name, display_name, logo_url, phone, address, website_url, google_maps_url'
-      )
-      .eq('id', anchorOffer.business_id)
-      .maybeSingle(),
-  ])
+  const [{ data: offers }, { data: profile }, { data: viewerProfile }] =
+    await Promise.all([
+      supabase
+        .from('offers')
+        .select('id, title, discount, description, starts_at, ends_at')
+        .eq('business_id', anchorOffer.business_id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select(
+          'business_name, display_name, logo_url, phone, address, website_url, google_maps_url'
+        )
+        .eq('id', anchorOffer.business_id)
+        .maybeSingle(),
+      authData.user
+        ? supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authData.user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
 
   const availableOffers = (offers ?? []).filter(isCurrentlyAvailable)
   const businessName =
     profile?.display_name || profile?.business_name || 'Local Business'
-  const canReveal = authData.user?.id === anchorOffer.business_id
+  const viewerRole = viewerProfile?.role?.toLowerCase()
+  const canReveal =
+    authData.user?.id === anchorOffer.business_id ||
+    viewerRole === 'owner' ||
+    viewerRole === 'admin'
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-blue-50 px-4 py-8 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/offers"
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-yellow-700 underline-offset-4 hover:underline"
-        >
-          ← Back to Local Deals
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href={canReveal ? '/dashboard' : '/offers'}
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-yellow-700 underline-offset-4 hover:underline"
+          >
+            ← {canReveal ? 'Back to Business Dashboard' : 'Back to Local Deals'}
+          </Link>
+
+          {canReveal ? (
+            <Link
+              href="/dashboard/offers"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+            >
+              Manage Offers
+            </Link>
+          ) : null}
+        </div>
 
         <section className="mt-4 rounded-3xl border border-yellow-100 bg-white/95 p-5 shadow-xl sm:mt-6 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700">
