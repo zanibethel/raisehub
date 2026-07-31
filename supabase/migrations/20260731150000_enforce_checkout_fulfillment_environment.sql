@@ -16,11 +16,15 @@ immutable
 set search_path = public
 as $$
 begin
+  if p_is_demo is null then
+    raise exception '% requires an explicit environment marker', p_record_name;
+  end if;
+
   if p_is_demo is true and nullif(btrim(p_demo_group), '') is null then
     raise exception '% requires a demo group', p_record_name;
   end if;
 
-  if coalesce(p_is_demo, false) is false and nullif(btrim(p_demo_group), '') is not null then
+  if p_is_demo is false and nullif(btrim(p_demo_group), '') is not null then
     raise exception '% cannot carry a demo group in production', p_record_name;
   end if;
 end;
@@ -38,7 +42,9 @@ immutable
 set search_path = public
 as $$
   select
-    coalesce(p_left_is_demo, false) = coalesce(p_right_is_demo, false)
+    p_left_is_demo is not null
+    and p_right_is_demo is not null
+    and p_left_is_demo = p_right_is_demo
     and nullif(btrim(p_left_demo_group), '') is not distinct from
         nullif(btrim(p_right_demo_group), '');
 $$;
