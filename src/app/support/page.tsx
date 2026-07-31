@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import CustomerSupportHistory from './customer-support-history'
 import SupportContactForm from './support-contact-form'
 
 export const metadata = {
@@ -84,6 +85,8 @@ export default function SupportPage() {
             ← Return to dashboard
           </Link>
         </header>
+
+        <CustomerSupportHistory />
 
         <section className="mt-6">
           <div className="mb-4">
