@@ -1,3 +1,9 @@
+import {
+  applyEnvironmentScope,
+  getActiveDataEnvironment,
+  recordsShareEnvironment,
+  type EnvironmentOwnedRecord,
+} from '../data-environment'
 import { createClient } from '../supabase/server'
 import type { CustomerEntitlementRecord } from '../types/identity-access'
 
@@ -14,15 +20,20 @@ const CUSTOMER_ENTITLEMENT_SELECT_COLUMNS = `
   replacement_entitlement_id,
   created_at,
   updated_at,
-  campaign_purchases(payment_status)
+  is_demo,
+  demo_group,
+  campaign_purchases(payment_status, is_demo, demo_group)
 `
 
 type RawCustomerEntitlementRecord = Omit<
   CustomerEntitlementRecord,
   'purchase_payment_status'
-> & {
-  campaign_purchases: { payment_status: string } | null
-}
+> &
+  EnvironmentOwnedRecord & {
+    campaign_purchases:
+      | (EnvironmentOwnedRecord & { payment_status: string })
+      | null
+  }
 
 type CustomerEntitlementsResult = {
   entitlements: CustomerEntitlementRecord[]
@@ -33,21 +44,26 @@ export async function getCustomerEntitlementsForUser(
   userId: string
 ): Promise<CustomerEntitlementsResult> {
   const supabase = await createClient()
-
-  const { data, error } = await supabase
+  const environment = getActiveDataEnvironment()
+  const query = supabase
     .from('customer_entitlements')
     .select(CUSTOMER_ENTITLEMENT_SELECT_COLUMNS)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
-  if (error) {
-    return { entitlements: [], error: error.message }
-  }
+  const { data, error } = await applyEnvironmentScope(query, environment)
+  if (error) return { entitlements: [], error: error.message }
 
   const rows = (data ?? []) as unknown as RawCustomerEntitlementRecord[]
+  const scopedRows = rows.filter((row) => {
+    if (!row.purchase_id) return true
+    return Boolean(
+      row.campaign_purchases && recordsShareEnvironment(row, row.campaign_purchases)
+    )
+  })
 
   return {
-    entitlements: rows.map((row) => ({
+    entitlements: scopedRows.map((row) => ({
       id: row.id,
       user_id: row.user_id,
       purchase_id: row.purchase_id,
@@ -60,8 +76,7 @@ export async function getCustomerEntitlementsForUser(
       replacement_entitlement_id: row.replacement_entitlement_id,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      purchase_payment_status:
-        row.campaign_purchases?.payment_status ?? null,
+      purchase_payment_status: row.campaign_purchases?.payment_status ?? null,
     })),
     error: null,
   }
