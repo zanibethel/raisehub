@@ -60,23 +60,14 @@ type StripeAccountAdminClient = {
   }
 }
 
-type ScopeableQuery = {
-  eq(column: string, value: unknown): ScopeableQuery
-  is(column: string, value: null): ScopeableQuery
-  not(column: string, operator: string, value: null): ScopeableQuery
-}
-
-function applyAnalyticsEnvironmentScope<T extends ScopeableQuery>(
-  query: T,
-  environment: AnalyticsEnvironment
-): T {
+function applyAnalyticsEnvironmentScope(query: any, environment: AnalyticsEnvironment) {
   if (environment === 'production') {
-    return query.eq('is_demo', false).is('demo_group', null) as T
+    return query.eq('is_demo', false).is('demo_group', null)
   }
 
   // Owner analytics intentionally aggregates every valid demo group while
   // excluding ambiguous demo rows that have no group ownership.
-  return query.eq('is_demo', true).not('demo_group', 'is', null) as T
+  return query.eq('is_demo', true).not('demo_group', 'is', null)
 }
 
 function isBusinessProfileIncomplete(profile: BusinessProfileReadiness): boolean {
@@ -190,7 +181,7 @@ async function getEnvironmentMetrics(
     isBusinessProfileIncomplete
   ).length
   const activeOfferBusinessIds = new Set(
-    (activeOfferResult.data ?? []).map((offer) => offer.business_id)
+    (activeOfferResult.data ?? []).map((offer: { business_id: string }) => offer.business_id)
   )
   const organizationWorkspaces =
     (organizationWorkspaceResult.data ?? []) as OrganizationWorkspace[]
