@@ -36,7 +36,6 @@ type EnvironmentTables = Omit<
   | 'saved_offers'
   | 'redemptions'
   | 'customer_entitlements'
-  | 'checkout_attempts'
 > & {
   campaigns: ExtendTableWithEnvironment<BaseTables['campaigns']>
   organizations: ExtendTableWithEnvironment<BaseTables['organizations']>
@@ -47,13 +46,13 @@ type EnvironmentTables = Omit<
   customer_entitlements: ExtendTableWithEnvironment<
     BaseTables['customer_entitlements']
   >
-  checkout_attempts: ExtendTableWithEnvironment<BaseTables['checkout_attempts']>
 }
 
 /**
- * Temporary strongly typed bridge for environment-owned tables.
- * Regenerate the canonical Supabase database types from the live project and
- * remove this bridge once every table includes is_demo and demo_group.
+ * Temporary strongly typed bridge for environment-owned tables already present
+ * in the generated schema. Newer service-role-only tables such as
+ * checkout_attempts continue through their existing narrow untyped adapters
+ * until the canonical Supabase types are regenerated from the live project.
  */
 export type EnvironmentDatabase = Omit<GiftPassDatabase, 'public'> & {
   public: Omit<GiftPassDatabase['public'], 'Tables'> & {
