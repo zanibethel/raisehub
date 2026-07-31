@@ -40,6 +40,7 @@ export function openWorkspaceMenu() {
 export function buildWorkspaceNavigation({
   workLabel,
   workHref,
+  reportsLabel = 'Reports',
   reportsHref,
   helpHref = '/support',
   activeSlot = 'dashboard',
@@ -47,6 +48,7 @@ export function buildWorkspaceNavigation({
 }: {
   workLabel: string
   workHref: string
+  reportsLabel?: string
   reportsHref: string
   helpHref?: string
   activeSlot?: WorkspaceNavigationSlot
@@ -69,7 +71,7 @@ export function buildWorkspaceNavigation({
     },
     reports: {
       slot: 'reports',
-      label: 'Reports',
+      label: reportsLabel,
       href: reportsHref,
       icon: icons.reports,
       active: activeSlot === 'reports',
