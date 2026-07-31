@@ -60,23 +60,23 @@ type StripeAccountAdminClient = {
   }
 }
 
-type EnvironmentQuery<T> = T & {
-  eq(column: string, value: unknown): T
-  is(column: string, value: null): T
-  not(column: string, operator: string, value: null): T
+type ScopeableQuery = {
+  eq(column: string, value: unknown): ScopeableQuery
+  is(column: string, value: null): ScopeableQuery
+  not(column: string, operator: string, value: null): ScopeableQuery
 }
 
-function applyAnalyticsEnvironmentScope<T>(
-  query: EnvironmentQuery<T>,
+function applyAnalyticsEnvironmentScope<T extends ScopeableQuery>(
+  query: T,
   environment: AnalyticsEnvironment
 ): T {
   if (environment === 'production') {
-    return query.eq('is_demo', false).is('demo_group', null)
+    return query.eq('is_demo', false).is('demo_group', null) as T
   }
 
   // Owner analytics intentionally aggregates every valid demo group while
   // excluding ambiguous demo rows that have no group ownership.
-  return query.eq('is_demo', true).not('demo_group', 'is', null)
+  return query.eq('is_demo', true).not('demo_group', 'is', null) as T
 }
 
 function isBusinessProfileIncomplete(profile: BusinessProfileReadiness): boolean {
