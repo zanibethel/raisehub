@@ -2,6 +2,12 @@
 
 import { headers } from 'next/headers'
 
+import {
+  getActiveDataEnvironment,
+  recordMatchesEnvironment,
+  recordsShareEnvironment,
+  type EnvironmentOwnedRecord,
+} from '@/lib/data-environment'
 import { getCampaignById } from '@/lib/repositories/campaign-repository'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
@@ -36,7 +42,12 @@ type CheckoutResult =
 
 type DatabaseError = { message: string }
 type CheckoutAttemptRow = { id: string }
-type ManagedSellerRow = { id: string; display_name: string }
+type ManagedSellerRow = {
+  id: string
+  display_name: string
+  campaign_id: string
+  organization_id: string
+}
 type UntypedQueryResult<T> = Promise<{ data: T | null; error: DatabaseError | null }>
 type UntypedTable = {
   insert(values: Record<string, unknown>): {
@@ -51,9 +62,8 @@ type UntypedTable = {
 }
 type UntypedAdminClient = { from(table: string): UntypedTable }
 
-type DemoClassification = {
-  is_demo: boolean
-  demo_group: string | null
+type ClassifiedRecord = EnvironmentOwnedRecord & {
+  id?: string
 }
 
 function mapRecovery(result: CampaignRecoveryResult): CheckoutResult {
@@ -62,9 +72,10 @@ function mapRecovery(result: CampaignRecoveryResult): CheckoutResult {
   if (result.status === 'no-valid-campaign') return result
   return {
     status: 'error',
-    message: result.status === 'lookup-failure'
-      ? 'We could not refresh campaign availability. Please try again.'
-      : 'We could not start checkout. Please try again.',
+    message:
+      result.status === 'lookup-failure'
+        ? 'We could not refresh campaign availability. Please try again.'
+        : 'We could not start checkout. Please try again.',
   }
 }
 
@@ -90,35 +101,45 @@ async function resolveOrigin() {
   return 'http://localhost:3000'
 }
 
-function resolveDemoGroup(
-  classifications: DemoClassification[]
-): string | null {
-  const demoRows = classifications.filter((row) => row.is_demo)
+function recordsBelongToEnvironment(
+  records: ClassifiedRecord[],
+  environment: ReturnType<typeof getActiveDataEnvironment>
+) {
+  const first = records[0]
 
-  if (demoRows.length === 0) {
-    return null
-  }
-
-  const groups = new Set(
-    demoRows.map((row) => row.demo_group).filter(Boolean)
+  return (
+    Boolean(first) &&
+    records.every((record) => recordMatchesEnvironment(record, environment)) &&
+    records.every((record) => recordsShareEnvironment(first, record))
   )
-
-  return groups.size === 1
-    ? Array.from(groups)[0] ?? null
-    : null
 }
 
-export async function createCampaignCheckoutAction(input: CheckoutInput): Promise<CheckoutResult> {
+export async function createCampaignCheckoutAction(
+  input: CheckoutInput
+): Promise<CheckoutResult> {
+  const environment = getActiveDataEnvironment()
   const supabase = await createClient()
   const now = new Date()
   const { campaign, error: campaignError } = await getCampaignById(input.campaign_id)
-  if (campaignError) return { status: 'error', message: 'We could not confirm this campaign. Please try again.' }
+
+  if (campaignError) {
+    return { status: 'error', message: 'We could not confirm this campaign. Please try again.' }
+  }
+
   if (!campaign || !isCampaignCurrentlySellable(campaign, now)) {
     return mapRecovery(await resolveCampaignRecovery(input.campaign_id, now))
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { status: 'error', message: 'Create an account or log in before purchasing a fundraiser pass.' }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return {
+      status: 'error',
+      message: 'Create an account or log in before purchasing a fundraiser pass.',
+    }
+  }
 
   const admin = createAdminClient()
   const untypedAdmin = admin as unknown as UntypedAdminClient
@@ -130,10 +151,29 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     userProfileResult,
     campaignClassificationResult,
   ] = await Promise.all([
-    admin.from('organizations').select('id').eq('legacy_profile_id', selectedOrganizationId).eq('status', 'active').is('archived_at', null).maybeSingle(),
-    admin.from('profiles').select('is_demo, demo_group, role').eq('id', selectedOrganizationId).eq('role', 'organization').maybeSingle(),
-    admin.from('profiles').select('is_demo, demo_group').eq('id', user.id).maybeSingle(),
-    admin.from('campaigns').select('is_demo, demo_group').eq('id', campaign.id).maybeSingle(),
+    admin
+      .from('organizations')
+      .select('id, is_demo, demo_group')
+      .eq('legacy_profile_id', selectedOrganizationId)
+      .eq('status', 'active')
+      .is('archived_at', null)
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('id, is_demo, demo_group, role')
+      .eq('id', selectedOrganizationId)
+      .eq('role', 'organization')
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('id, is_demo, demo_group')
+      .eq('id', user.id)
+      .maybeSingle(),
+    admin
+      .from('campaigns')
+      .select('id, is_demo, demo_group')
+      .eq('id', campaign.id)
+      .maybeSingle(),
   ])
 
   if (
@@ -146,74 +186,130 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     campaignClassificationResult.error ||
     !campaignClassificationResult.data
   ) {
-    return { status: 'error', message: 'We could not confirm the campaign organization. Please try again.' }
+    return {
+      status: 'error',
+      message: 'We could not confirm the campaign organization. Please try again.',
+    }
   }
 
-  const classifications: DemoClassification[] = [
-    userProfileResult.data as DemoClassification,
-    organizationProfileResult.data as DemoClassification,
-    campaignClassificationResult.data as unknown as DemoClassification,
-  ]
-  const containsDemoData = classifications.some((row) => row.is_demo)
-  const demoGroup = resolveDemoGroup(classifications)
+  const classifiedRecords = [
+    userProfileResult.data,
+    organizationProfileResult.data,
+    canonicalOrganizationResult.data,
+    campaignClassificationResult.data,
+  ] as ClassifiedRecord[]
 
-  if (containsDemoData) {
-    const allDemo = classifications.every((row) => row.is_demo)
-    const allSameGroup =
-      Boolean(demoGroup) &&
-      classifications.every((row) => row.demo_group === demoGroup)
-
-    if (!allDemo || !allSameGroup) {
-      return {
-        status: 'error',
-        message: 'This demo checkout is not safely connected to one demo group. No payment was started.',
-      }
+  if (!recordsBelongToEnvironment(classifiedRecords, environment)) {
+    return {
+      status: 'error',
+      message:
+        'This campaign is not available in the active RaiseHub environment. No payment was started.',
     }
   }
 
   const passAccess = await getCustomerPassAccess(user.id, now)
-  if (passAccess.error) return { status: 'error', message: 'We could not confirm your current pass access. Please try again.' }
+  if (passAccess.error) {
+    return {
+      status: 'error',
+      message: 'We could not confirm your current pass access. Please try again.',
+    }
+  }
 
   const donationAmount = normalizeDonationAmount(input.donation_amount)
   const isDonationOnly = passAccess.hasActivePass
+
   if (isDonationOnly && donationAmount <= 0) {
     return { status: 'error', message: 'Choose a donation amount to support this fundraiser.' }
   }
 
   let managedSeller: ManagedSellerRow | null = null
   const sellerReferral = cleanOptionalText(input.seller_referral, 64)
+
   if (sellerReferral) {
     const { data, error } = await untypedAdmin
       .from('campaign_sellers')
-      .select('id, display_name')
+      .select('id, display_name, campaign_id, organization_id')
       .eq('campaign_id', campaign.id)
       .eq('referral_code', sellerReferral)
       .eq('status', 'active')
       .maybeSingle()
 
-    if (error) return { status: 'error', message: 'We could not confirm the selected seller. Please try again.' }
+    if (error) {
+      return {
+        status: 'error',
+        message: 'We could not confirm the selected seller. Please try again.',
+      }
+    }
+
+    if (
+      data &&
+      (data.campaign_id !== campaign.id ||
+        data.organization_id !== canonicalOrganizationResult.data.id)
+    ) {
+      return {
+        status: 'error',
+        message: 'The selected seller does not belong to this fundraiser.',
+      }
+    }
+
     managedSeller = data
   }
 
-  const effectivePricing = isDonationOnly ? null : await resolveEffectivePricing({
-    campaignId: campaign.id,
-    organizationId: canonicalOrganizationResult.data.id,
-    donationAmount,
-    isDemo: containsDemoData,
-    now,
-  })
+  const effectivePricing = isDonationOnly
+    ? null
+    : await resolveEffectivePricing({
+        campaignId: campaign.id,
+        organizationId: canonicalOrganizationResult.data.id,
+        donationAmount,
+        isDemo: environment.mode === 'demo',
+        now,
+      })
 
   if (!isDonationOnly && (!effectivePricing || effectivePricing.passPrice <= 0)) {
-    return { status: 'error', message: 'This fundraiser does not currently have valid pass pricing.' }
+    return {
+      status: 'error',
+      message: 'This fundraiser does not currently have valid pass pricing.',
+    }
   }
 
-  const snapshot = createPurchasePricingSnapshot({ isDonationOnly, donationAmount, effectivePricing, pricingResolvedAt: now })
+  if (effectivePricing?.pricingRuleId) {
+    const { data: pricingRule, error: pricingRuleError } = await admin
+      .from('pricing_rules')
+      .select('id, is_demo, demo_group')
+      .eq('id', effectivePricing.pricingRuleId)
+      .maybeSingle()
+
+    if (
+      pricingRuleError ||
+      !pricingRule ||
+      !recordsBelongToEnvironment(
+        [campaignClassificationResult.data, pricingRule] as ClassifiedRecord[],
+        environment
+      )
+    ) {
+      return {
+        status: 'error',
+        message: 'The fundraiser pricing rule is not valid in this environment.',
+      }
+    }
+  }
+
+  const snapshot = createPurchasePricingSnapshot({
+    isDonationOnly,
+    donationAmount,
+    effectivePricing,
+    pricingResolvedAt: now,
+  })
   const expectedAmountCents = Math.round(snapshot.amountPaid * 100)
-  if (expectedAmountCents <= 0) return { status: 'error', message: 'Choose an amount greater than zero.' }
 
-  const sellerNameSnapshot = managedSeller?.display_name ?? cleanOptionalText(input.seller_name, 120)
+  if (expectedAmountCents <= 0) {
+    return { status: 'error', message: 'Choose an amount greater than zero.' }
+  }
 
-  if (containsDemoData && demoGroup) {
+  const sellerNameSnapshot =
+    managedSeller?.display_name ?? cleanOptionalText(input.seller_name, 120)
+
+  if (environment.mode === 'demo') {
     const { data: simulatedRows, error: simulatedError } = await admin.rpc(
       'create_campaign_purchase_with_entitlement',
       {
@@ -227,7 +323,7 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
         p_platform_fee: snapshot.platformFee,
         p_organization_earnings: snapshot.organizationEarnings,
         p_is_demo: true,
-        p_demo_group: demoGroup,
+        p_demo_group: environment.demoGroup,
         p_grant_entitlement: snapshot.grantEntitlement,
         p_pricing_rule_id: snapshot.pricingRuleId,
         p_pricing_scope: snapshot.pricingScope,
@@ -243,7 +339,8 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     if (simulatedError || !simulated?.purchase_id) {
       return {
         status: 'error',
-        message: 'The simulated purchase could not be completed. No real payment was attempted.',
+        message:
+          'The simulated purchase could not be completed. No real payment was attempted.',
       }
     }
 
@@ -258,7 +355,10 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
   }
 
   if (!stripeIsConfigured()) {
-    return { status: 'error', message: 'Secure checkout is not configured yet. Please try again later.' }
+    return {
+      status: 'error',
+      message: 'Secure checkout is not configured yet. Please try again later.',
+    }
   }
 
   const { data: attempt, error: attemptError } = await untypedAdmin
@@ -291,7 +391,12 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     .select('id')
     .single()
 
-  if (attemptError || !attempt) return { status: 'error', message: 'We could not prepare secure checkout. Please try again.' }
+  if (attemptError || !attempt) {
+    return {
+      status: 'error',
+      message: 'We could not prepare secure checkout. Please try again.',
+    }
+  }
 
   try {
     const origin = await resolveOrigin()
@@ -306,21 +411,35 @@ export async function createCampaignCheckoutAction(input: CheckoutInput): Promis
     })
 
     if (!session.url) throw new Error('Stripe did not return a checkout URL')
-    const expiresAt = session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
-    const { error: updateError } = await untypedAdmin.from('checkout_attempts').update({
-      status: 'open',
-      stripe_checkout_session_id: session.id,
-      expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    }).eq('id', attempt.id)
+
+    const expiresAt = session.expires_at
+      ? new Date(session.expires_at * 1000).toISOString()
+      : null
+    const { error: updateError } = await untypedAdmin
+      .from('checkout_attempts')
+      .update({
+        status: 'open',
+        stripe_checkout_session_id: session.id,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', attempt.id)
+
     if (updateError) throw new Error(updateError.message)
     return { status: 'checkout-ready', url: session.url }
   } catch {
-    await untypedAdmin.from('checkout_attempts').update({
-      status: 'failed',
-      failed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', attempt.id)
-    return { status: 'error', message: 'Secure checkout could not be started. Please try again.' }
+    await untypedAdmin
+      .from('checkout_attempts')
+      .update({
+        status: 'failed',
+        failed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', attempt.id)
+
+    return {
+      status: 'error',
+      message: 'Secure checkout could not be started. Please try again.',
+    }
   }
 }
