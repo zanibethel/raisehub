@@ -17,8 +17,13 @@ export async function updateSupportRequest(formData: FormData) {
   const status = value(formData, 'status', 40)
   const internalNotes = value(formData, 'internal_notes', 5000)
   const customerReply = value(formData, 'customer_reply', 5000)
+  const intent = value(formData, 'intent', 40)
 
   if (!id || !VALID_STATUSES.has(status)) {
+    return
+  }
+
+  if (intent === 'publish_reply' && !customerReply) {
     return
   }
 
@@ -37,6 +42,7 @@ export async function updateSupportRequest(formData: FormData) {
 
   if (profile?.role !== 'owner') redirect('/dashboard')
 
+  const now = new Date().toISOString()
   const { error } = await supabase
     .from('support_requests')
     .update({
@@ -44,7 +50,13 @@ export async function updateSupportRequest(formData: FormData) {
       assigned_to: user.id,
       internal_notes: internalNotes || null,
       customer_reply: customerReply || null,
-      updated_at: new Date().toISOString(),
+      customer_reply_sent_at:
+        intent === 'publish_reply'
+          ? now
+          : intent === 'save_draft'
+            ? null
+            : undefined,
+      updated_at: now,
     })
     .eq('id', id)
 
@@ -54,4 +66,5 @@ export async function updateSupportRequest(formData: FormData) {
   }
 
   revalidatePath('/dashboard/owner/support/requests')
+  revalidatePath('/support')
 }
