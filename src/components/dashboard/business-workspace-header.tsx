@@ -62,11 +62,11 @@ export default function BusinessWorkspaceHeader({
   return (
     <header
       id="business-profile"
-      className={`relative z-50 scroll-mt-6 rounded-3xl p-6 sm:p-8 ${panelClass}`}
+      className={`relative z-50 scroll-mt-6 overflow-visible rounded-[1.75rem] p-4 sm:p-6 ${panelClass}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <div
-          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-sm font-medium ${badgeClass}`}
+          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-bold sm:text-sm ${badgeClass}`}
         >
           Business
         </div>
@@ -80,39 +80,42 @@ export default function BusinessWorkspaceHeader({
         </div>
       </div>
 
-      <div className="mt-6 flex items-start gap-4">
+      <div className="mt-4 grid min-w-0 grid-cols-[4.75rem_minmax(0,1fr)] items-center gap-4 sm:grid-cols-[5.5rem_minmax(0,1fr)_auto] sm:gap-5">
         <img
           src={logoUrl || '/default-business-logo.png'}
           alt={`${publicName} logo`}
-          className="h-16 w-16 shrink-0 rounded-2xl border border-gray-200 object-cover shadow-sm sm:h-20 sm:w-20"
+          className="h-[4.75rem] w-[4.75rem] rounded-2xl border border-gray-200 bg-white object-contain p-1 shadow-sm sm:h-[5.5rem] sm:w-[5.5rem]"
         />
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <h1
-            className={`break-words text-2xl font-bold leading-tight sm:text-3xl ${headingClass}`}
+            className={`break-words text-2xl font-black leading-tight sm:text-3xl ${headingClass}`}
           >
             {publicName}
           </h1>
-          <p className="mt-2 text-gray-600">{subtitle}</p>
+          <p className="mt-1 text-sm font-semibold text-gray-700 sm:text-base">
+            {subtitle}
+          </p>
           {address ? (
-            <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-500">
+            <p className="mt-2 line-clamp-2 text-sm leading-5 text-gray-500">
+              <span aria-hidden="true">⌖ </span>
               {address}
             </p>
           ) : null}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setEditing((current) => !current)}
+          aria-expanded={editing}
+          className="col-span-2 inline-flex min-h-10 items-center justify-center rounded-full border border-green-200 bg-green-50 px-5 text-sm font-bold text-green-700 transition hover:bg-green-100 sm:col-span-1 sm:justify-self-end"
+        >
+          {editing ? 'Close details' : 'Edit details'}
+        </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setEditing((current) => !current)}
-        aria-expanded={editing}
-        className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
-      >
-        {editing ? 'Close details' : 'Edit details'}
-      </button>
-
       {editing ? (
-        <div className="mt-6 border-t border-green-100 pt-6">
+        <div className="mt-5 border-t border-green-100 pt-5">
           <BusinessProfileForm
             businessLegacyProfileId={businessLegacyProfileId}
             initialBusinessName={businessName}

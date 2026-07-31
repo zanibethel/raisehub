@@ -23,6 +23,7 @@ type Props = {
   exportRows: BusinessExportRow[]
   businessName?: string | null
   onBoost: () => void
+  showExport?: boolean
 }
 
 export default function BusinessDashboardOffersSection({
@@ -34,18 +35,23 @@ export default function BusinessDashboardOffersSection({
   exportRows,
   businessName,
   onBoost,
+  showExport = true,
 }: Props) {
+  const canExport = showExport && exportRows.length > 0
+
   return (
     <section id="my-offers" className="scroll-mt-8">
       <SectionHeader
         title="My Offers"
-        description="Review performance, public visibility, dates, and redemption activity."
+        description="Create, edit, pause, and review the offers available to customers."
         action={
           <div className="flex items-start gap-2">
-            <BusinessExportTools
-              rows={exportRows}
-              businessName={businessName}
-            />
+            {canExport ? (
+              <BusinessExportTools
+                rows={exportRows}
+                businessName={businessName}
+              />
+            ) : null}
             {!hasReachedLimit ? (
               <Link
                 href="/dashboard/offers/new"

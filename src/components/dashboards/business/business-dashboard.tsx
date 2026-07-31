@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 
-import BusinessDashboardContent from './business-dashboard-content'
+import BusinessWorkspaceFrame from './business-workspace-frame'
+
+export type BusinessWorkspaceView = 'dashboard' | 'offers' | 'reports'
 
 type BusinessDashboardProps = {
   businessLegacyProfileId?: string | null
+  view?: BusinessWorkspaceView
 }
 
 type BusinessProfile = {
@@ -35,9 +38,7 @@ const BUSINESS_PROFILE_FIELDS =
 const BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION =
   `${BUSINESS_PROFILE_FIELDS}, redemption_method`
 
-function isMissingRedemptionMethodError(
-  error: ProfileQueryError | null
-): boolean {
+function isMissingRedemptionMethodError(error: ProfileQueryError | null): boolean {
   if (!error) return false
 
   return (
@@ -49,6 +50,7 @@ function isMissingRedemptionMethodError(
 
 export default async function BusinessDashboard({
   businessLegacyProfileId,
+  view = 'dashboard',
 }: BusinessDashboardProps = {}) {
   const supabase = await createClient()
 
@@ -83,7 +85,6 @@ export default async function BusinessDashboard({
       : null
   }
 
-  // Generated types may temporarily lag additive lifecycle columns.
   const { data: businessWorkspace } = await (supabase as any)
     .from('businesses')
     .select('id, status, archived_at, archive_reason, restore_requested_at')
@@ -197,7 +198,8 @@ export default async function BusinessDashboard({
   }
 
   return (
-    <BusinessDashboardContent
+    <BusinessWorkspaceFrame
+      view={view}
       profile={profile}
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}

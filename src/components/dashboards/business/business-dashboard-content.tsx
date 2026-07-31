@@ -1,17 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import UpgradePlanModal from '@/app/components/upgrade-plan-modal'
-import AttentionCenter from '@/components/dashboard/attention-center'
-import { getDashboardAlerts } from '@/lib/rules/dashboard-alerts'
+import { WorkspaceMetricStrip } from '@/components/workspace/workspace-shell'
+import { WorkspaceModule } from '@/components/workspace/workspace-module'
 import { getOfferStatus } from '@/lib/rules/offer-status'
 
 import BusinessDashboardCreateOffer from './business-dashboard-create-offer'
 import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
+import BusinessExportTools, { type BusinessExportRow } from './business-export-tools'
 import BusinessLifecycleBanner from './business-lifecycle-banner'
-import BusinessNotificationCenter from './business-notification-center'
 import BusinessDashboardOffersSection from './offers/offers-section'
 import BusinessRedemptionSettingsSection from './sections/business-redemption-settings-section'
 
@@ -19,8 +20,7 @@ import type {
   BusinessOffer,
   OfferRedemption,
 } from '@/app/components/business-offer-card'
-import type { BusinessExportRow } from './business-export-tools'
-import type { BusinessNotification } from './business-notification-center'
+import type { BusinessWorkspaceView } from './business-dashboard'
 
 type BusinessProfile = {
   business_name: string | null
@@ -33,7 +33,8 @@ type BusinessProfile = {
   redemption_method?: string | null
 }
 
-type BusinessDashboardContentProps = {
+export type BusinessDashboardContentProps = {
+  view?: BusinessWorkspaceView
   profile: BusinessProfile | null
   offers: BusinessOffer[]
   totalRedemptions: number
@@ -53,110 +54,6 @@ type BusinessDashboardContentProps = {
   archivedAt: string | null
   archiveReason: string | null
   restoreRequestedAt: string | null
-}
-
-function buildBusinessNotifications({
-  profileComplete,
-  activeOffersCount,
-  pausedOffersCount,
-  expiringSoonCount,
-  hasReachedLimit,
-  activeOfferLimit,
-  totalRedemptions,
-  topOfferTitle,
-  topOfferCount,
-}: {
-  profileComplete: boolean
-  activeOffersCount: number
-  pausedOffersCount: number
-  expiringSoonCount: number
-  hasReachedLimit: boolean
-  activeOfferLimit: number
-  totalRedemptions: number
-  topOfferTitle: string
-  topOfferCount: number
-}): BusinessNotification[] {
-  const notifications: BusinessNotification[] = []
-
-  if (!profileComplete) {
-    notifications.push({
-      id: 'complete-business-profile',
-      title: 'Complete your business profile',
-      description:
-        'Add the business name, phone number, address, and logo so customers can recognize and trust this business.',
-      tone: 'warning',
-      href: '#business-profile',
-      actionLabel: 'Complete profile',
-    })
-  }
-
-  if (activeOffersCount === 0) {
-    notifications.push({
-      id: 'publish-first-offer',
-      title: 'Publish an active offer',
-      description:
-        'This business does not currently have an active offer. Create or reactivate an offer so supporters can begin sharing it.',
-      tone: 'danger',
-      href: '#create-offer',
-      actionLabel: 'Create an offer',
-    })
-  }
-
-  if (expiringSoonCount > 0) {
-    notifications.push({
-      id: 'offers-expiring-soon',
-      title:
-        expiringSoonCount === 1
-          ? 'One offer is expiring soon'
-          : `${expiringSoonCount} offers are expiring soon`,
-      description:
-        'Review the expiration dates and extend any offers you want supporters and customers to keep using.',
-      tone: 'warning',
-      href: '#business-offers',
-      actionLabel: 'Review offers',
-    })
-  }
-
-  if (pausedOffersCount > 0) {
-    notifications.push({
-      id: 'paused-offers',
-      title:
-        pausedOffersCount === 1
-          ? 'One offer is paused'
-          : `${pausedOffersCount} offers are paused`,
-      description:
-        'Paused offers are not available to customers. Review them and reactivate any offer that should be visible.',
-      tone: 'info',
-      href: '#business-offers',
-      actionLabel: 'Review paused offers',
-    })
-  }
-
-  if (hasReachedLimit) {
-    notifications.push({
-      id: 'active-offer-limit',
-      title: 'Active offer limit reached',
-      description: `This business is using all ${activeOfferLimit} active offer slots. Pause an existing offer or review upgrade options before publishing another.`,
-      tone: 'info',
-      href: '#business-offers',
-      actionLabel: 'Manage active offers',
-    })
-  }
-
-  if (totalRedemptions > 0 && topOfferTitle && topOfferCount > 0) {
-    notifications.push({
-      id: 'top-performing-offer',
-      title: `${topOfferTitle} is leading redemptions`,
-      description: `${topOfferCount} ${
-        topOfferCount === 1 ? 'redemption has' : 'redemptions have'
-      } been recorded for this offer. Consider using its structure as a guide for future offers.`,
-      tone: 'success',
-      href: '#business-performance',
-      actionLabel: 'View performance',
-    })
-  }
-
-  return notifications
 }
 
 function formatExportDate(value: string): string {
@@ -187,9 +84,8 @@ function buildBusinessExportRows({
       endsAt: offer.ends_at,
       isActive: offer.is_active,
     })
-    const offerRedemptions = redemptionsByOfferId[offer.id] ?? []
 
-    return offerRedemptions.map((redemption) => ({
+    return (redemptionsByOfferId[offer.id] ?? []).map((redemption) => ({
       offerTitle: offer.title?.trim() || 'Untitled offer',
       offerStatus: offerStatus.label,
       customerEmail:
@@ -199,7 +95,19 @@ function buildBusinessExportRows({
   })
 }
 
+function ReportsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+      <path d="M4 20V10" />
+      <path d="M10 20V4" />
+      <path d="M16 20v-7" />
+      <path d="M22 20H2" />
+    </svg>
+  )
+}
+
 export default function BusinessDashboardContent({
+  view = 'offers',
   profile,
   offers,
   totalRedemptions,
@@ -229,45 +137,11 @@ export default function BusinessDashboardContent({
       isActive: offer.is_active,
     })
   )
-
-  const pausedOffersCount = offerStatuses.filter(
-    (status) => status.status === 'paused'
-  ).length
-  const expiringSoonCount = offerStatuses.filter(
-    (status) => status.status === 'expiring-soon'
-  ).length
   const publicOfferId =
     offers.find((offer, index) => {
       const status = offerStatuses[index]?.status
       return status === 'active' || status === 'expiring-soon'
     })?.id ?? null
-
-  const profileComplete = Boolean(
-    profile?.business_name &&
-      profile?.phone &&
-      profile?.address &&
-      profile?.logo_url
-  )
-
-  const dashboardAlerts = getDashboardAlerts({
-    activeOffers: activeOffersCount,
-    pausedOffers: hasReachedLimit ? 0 : pausedOffersCount,
-    expiringSoon: expiringSoonCount,
-    reviewRecommended: 0,
-    profileComplete,
-  })
-
-  const businessNotifications = buildBusinessNotifications({
-    profileComplete,
-    activeOffersCount,
-    pausedOffersCount,
-    expiringSoonCount,
-    hasReachedLimit,
-    activeOfferLimit,
-    totalRedemptions,
-    topOfferTitle,
-    topOfferCount,
-  })
 
   const businessExportRows = buildBusinessExportRows({
     offers,
@@ -275,8 +149,82 @@ export default function BusinessDashboardContent({
     profileEmailById,
   })
 
+  if (view === 'reports') {
+    return (
+      <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+        <WorkspaceMetricStrip
+          title="Customer activity"
+          rangeLabel="all offers"
+          metrics={[
+            { label: 'Views', value: viewCount, tone: 'blue' },
+            { label: 'Clicks', value: clickCount, tone: 'green' },
+            {
+              label: 'Click rate',
+              value: `${conversionRate}%`,
+              description: 'Clicks divided by views',
+              tone: 'amber',
+            },
+          ]}
+        />
+
+        <BusinessDashboardSnapshot
+          activeOffersCount={activeOffersCount}
+          activeOfferLimit={activeOfferLimit}
+          totalRedemptions={totalRedemptions}
+          topOfferTitle={topOfferTitle}
+          topOfferCount={topOfferCount}
+          publishedOffersCount={offers.length}
+        />
+
+        <WorkspaceModule
+          title="Redemption records"
+          eyebrow="Customer activity"
+          description="Review recent redemptions or export the complete record for reporting."
+          icon={<ReportsIcon />}
+          tone="blue"
+          action={
+            <BusinessExportTools
+              rows={businessExportRows}
+              businessName={profile?.business_name}
+            />
+          }
+        >
+          {businessExportRows.length > 0 ? (
+            <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+              {businessExportRows.slice(0, 8).map((row, index) => (
+                <div key={`${row.offerTitle}-${row.redeemedAt}-${index}`} className="grid gap-1 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-slate-950">{row.offerTitle}</p>
+                    <p className="mt-1 text-xs font-semibold text-blue-700">{row.offerStatus}</p>
+                  </div>
+                  <p className="truncate text-sm text-slate-600">{row.customerEmail}</p>
+                  <p className="text-sm text-slate-500">{row.redeemedAt}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
+              <p className="font-bold text-slate-900">No redemptions recorded yet</p>
+              <p className="mt-1 text-sm text-slate-500">Redemption activity will appear here once customers begin using offers.</p>
+            </div>
+          )}
+
+          {businessExportRows.length > 8 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              Showing the 8 most recent records. Export CSV for the complete report.
+            </p>
+          ) : null}
+        </WorkspaceModule>
+
+        <Link href="/dashboard/offers" className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700">
+          Manage offers
+        </Link>
+      </div>
+    )
+  }
+
   return (
-    <div className="mt-6 space-y-10">
+    <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
       {businessId ? (
         <BusinessLifecycleBanner
           businessId={businessId}
@@ -287,79 +235,36 @@ export default function BusinessDashboardContent({
         />
       ) : null}
 
-      <section className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm sm:p-5">
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-          Customer activity
-        </p>
-
-        <div className="mt-3 grid grid-cols-3 divide-x divide-gray-200">
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-blue-700 sm:text-sm">Views</p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {viewCount}
-            </p>
-          </div>
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-green-700 sm:text-sm">Clicks</p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {clickCount}
-            </p>
-          </div>
-          <div className="px-2 text-center sm:px-4">
-            <p className="text-xs font-semibold text-amber-700 sm:text-sm">
-              Conversion
-            </p>
-            <p className="mt-1 text-xl font-bold text-gray-950 sm:text-2xl">
-              {conversionRate}%
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <AttentionCenter alerts={dashboardAlerts} />
-      <BusinessNotificationCenter notifications={businessNotifications} />
-
-      <BusinessDashboardQuickActions
-        hasReachedLimit={hasReachedLimit}
-        publicOfferId={publicOfferId}
-      />
-
-      <section id="business-redemption-settings" className="scroll-mt-6">
-        <BusinessRedemptionSettingsSection
-          redemptionMethod={profile?.redemption_method}
-        />
-      </section>
-
-      <section id="business-performance" className="scroll-mt-6">
-        <BusinessDashboardSnapshot
-          activeOffersCount={activeOffersCount}
-          activeOfferLimit={activeOfferLimit}
-          totalRedemptions={totalRedemptions}
-          topOfferTitle={topOfferTitle}
-          topOfferCount={topOfferCount}
-          publishedOffersCount={offers.length}
-        />
-      </section>
-
-      <section id="create-offer" className="scroll-mt-6">
-        <BusinessDashboardCreateOffer
-          activeOffersCount={activeOffersCount}
-          activeOfferLimit={activeOfferLimit}
-          hasReachedLimit={hasReachedLimit}
-          onViewUpgrade={() => setIsUpgradeOpen(true)}
-        />
-      </section>
-
-      <section id="business-offers" className="scroll-mt-6">
+      <section id="business-offers" className="scroll-mt-24">
         <BusinessDashboardOffersSection
           offers={offers}
           hasReachedLimit={hasReachedLimit}
           redemptionCountByOfferId={redemptionCountByOfferId}
           redemptionsByOfferId={redemptionsByOfferId}
           profileEmailById={profileEmailById}
-          exportRows={businessExportRows}
+          exportRows={[]}
           businessName={profile?.business_name}
           onBoost={() => setIsUpgradeOpen(true)}
+        />
+      </section>
+
+      <BusinessDashboardQuickActions
+        hasReachedLimit={hasReachedLimit}
+        publicOfferId={publicOfferId}
+      />
+
+      <section id="business-redemption-settings" className="scroll-mt-24">
+        <BusinessRedemptionSettingsSection
+          redemptionMethod={profile?.redemption_method}
+        />
+      </section>
+
+      <section id="create-offer" className="scroll-mt-24">
+        <BusinessDashboardCreateOffer
+          activeOffersCount={activeOffersCount}
+          activeOfferLimit={activeOfferLimit}
+          hasReachedLimit={hasReachedLimit}
+          onViewUpgrade={() => setIsUpgradeOpen(true)}
         />
       </section>
 

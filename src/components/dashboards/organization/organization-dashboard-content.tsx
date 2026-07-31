@@ -1,3 +1,6 @@
+import Link from 'next/link'
+
+import { WorkspaceModule, WorkspaceModuleEmpty } from '@/components/workspace/workspace-module'
 import OrganizationAnalyticsSection from './sections/organization-analytics-section'
 import OrganizationCampaignsSection from './sections/organization-campaigns-section'
 import OrganizationLogoManager from './organization-logo-manager'
@@ -6,11 +9,14 @@ import OrganizationPayoutDashboardCard from './organization-payout-dashboard-car
 import OrganizationProfileSetupLoader from './organization-profile-setup-loader'
 import OrganizationReportSection from './sections/organization-report-section'
 import OrganizationSellerRosterPreview from './organization-seller-roster-preview'
-import OrganizationSummarySection from './sections/organization-summary-section'
 import OrganizationTopSellersSection from './sections/organization-top-sellers-section'
 import OrganizationWorkspaceStatus from './organization-workspace-status'
 
-type SummaryProps = React.ComponentProps<typeof OrganizationSummarySection>
+export type OrganizationWorkspaceView = 'dashboard' | 'campaigns' | 'reports'
+
+type SummaryProps = React.ComponentProps<
+  typeof import('./sections/organization-summary-section').default
+>
 type ReportProps = React.ComponentProps<typeof OrganizationReportSection>
 type TopSellersProps = React.ComponentProps<typeof OrganizationTopSellersSection>
 type CampaignsProps = React.ComponentProps<typeof OrganizationCampaignsSection>
@@ -25,10 +31,19 @@ type Props = SummaryProps &
   CampaignsProps &
   AnalyticsProps & {
     sellerCampaigns: SellerRosterCampaigns
+    view?: OrganizationWorkspaceView
   }
 
-export default function OrganizationDashboardContent(props: Props) {
-  const topSellers = props.sellers.slice(0, 3)
+function campaignStatusLabel(status?: string | null) {
+  const value = status?.trim().toLowerCase()
+  if (!value) return 'Draft'
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+export default function OrganizationDashboardContent({
+  view = 'dashboard',
+  ...props
+}: Props) {
   const sellerRosterCampaigns = props.campaigns
     .filter((campaign) => {
       const status = campaign.status?.trim().toLowerCase() ?? ''
@@ -40,113 +55,206 @@ export default function OrganizationDashboardContent(props: Props) {
       status: campaign.status,
     }))
 
-  return (
-    <div className="mt-8 space-y-8">
-      <OrganizationWorkspaceStatus>
-        <OrganizationProfileSetupLoader statusOnly />
-        <OrganizationPayoutDashboardCard />
-      </OrganizationWorkspaceStatus>
+  if (view === 'campaigns') {
+    return (
+      <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+        <OrganizationWorkspaceStatus>
+          <OrganizationProfileSetupLoader statusOnly />
+          <OrganizationPayoutDashboardCard />
+        </OrganizationWorkspaceStatus>
 
-      {props.organizationId ? (
-        <OrganizationLogoManager organizationId={props.organizationId} />
-      ) : null}
+        {props.organizationId ? (
+          <OrganizationLogoManager organizationId={props.organizationId} />
+        ) : null}
 
-      <OrganizationPayoutCenter organizationId={props.organizationId} />
+        <OrganizationPayoutCenter organizationId={props.organizationId} />
 
-      <OrganizationSummarySection
-        activeCampaigns={props.activeCampaigns}
-        totalFundsRaised={props.totalFundsRaised}
-        totalSellers={props.totalSellers}
-        totalSupporters={props.totalSupporters}
-      />
-
-      <details className="group rounded-2xl border border-blue-100 bg-white/90 shadow-xl backdrop-blur">
-        <summary className="cursor-pointer list-none px-5 py-4 sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-gray-900">
-                Campaign performance
-              </p>
-              <p className="mt-1 truncate text-sm text-gray-600">
-                {props.totalPassesSold.toLocaleString()} passes sold · $
-                {props.totalEarnings.toLocaleString()} organization earnings ·{' '}
-                {props.totalCampaigns.toLocaleString()} campaigns
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">
-              View reports
-            </span>
-            <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">
-              Hide
-            </span>
-          </div>
-
-          <div className="mt-3 border-t border-blue-100 pt-3 group-open:hidden">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-              Recent seller leaders
-            </p>
-            {topSellers.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                {topSellers.map((seller) => (
-                  <span
-                    key={seller.seller}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <span className="font-semibold text-gray-900">
-                      {seller.seller}
-                    </span>
-                    <span className="text-gray-600">{seller.sold} sold</span>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-gray-600">
-                No seller referrals tracked yet.
-              </p>
-            )}
-          </div>
-        </summary>
-
-        <div className="space-y-6 border-t border-blue-100 p-5 sm:p-6">
-          <OrganizationAnalyticsSection
-            totalCampaigns={props.totalCampaigns}
-            activeSellerCount={props.activeSellerCount}
-          />
-          <OrganizationReportSection
-            grossRevenue={props.grossRevenue}
-            totalFees={props.totalFees}
-            totalEarnings={props.totalEarnings}
-            totalPassesSold={props.totalPassesSold}
-          />
-          <OrganizationTopSellersSection
-            campaigns={props.campaigns}
-            sellers={props.sellers}
-          />
-        </div>
-      </details>
-
-      {sellerRosterCampaigns.length > 0 ? (
-        <OrganizationSellerRosterPreview campaigns={sellerRosterCampaigns} />
-      ) : (
-        <section className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm sm:p-6">
-          <p className="text-sm font-bold uppercase tracking-wide text-emerald-700">
-            Seller roster setup
-          </p>
-          <h2 className="mt-2 text-xl font-bold text-gray-900">
-            Create a campaign before adding sellers
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-700">
-            Seller names, referral links, and QR codes are saved to a specific campaign. Create your first draft campaign below, then return here to build the roster before launch.
-          </p>
+        <section id="organization-sellers" className="scroll-mt-24">
+          {sellerRosterCampaigns.length > 0 ? (
+            <OrganizationSellerRosterPreview campaigns={sellerRosterCampaigns} />
+          ) : (
+            <WorkspaceModuleEmpty
+              title="Create a campaign before adding sellers"
+              description="Seller names, referral links, and QR codes are connected to a campaign."
+            />
+          )}
         </section>
-      )}
 
-      <OrganizationCampaignsSection
-        organizationId={props.organizationId}
-        campaigns={props.campaigns}
-        metricsByCampaign={props.metricsByCampaign}
-        campaignCreationPricing={props.campaignCreationPricing}
-      />
+        <OrganizationCampaignsSection
+          organizationId={props.organizationId}
+          campaigns={props.campaigns}
+          metricsByCampaign={props.metricsByCampaign}
+          campaignCreationPricing={props.campaignCreationPricing}
+        />
+      </div>
+    )
+  }
+
+  if (view === 'reports') {
+    return (
+      <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+        <WorkspaceModule
+          title="Fundraising performance"
+          description="Across all campaigns"
+          tone="green"
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ['Raised', `$${props.totalFundsRaised.toLocaleString()}`],
+              ['Passes', props.totalPassesSold.toLocaleString()],
+              ['Supporters', props.totalSupporters.toLocaleString()],
+              ['Campaigns', props.totalCampaigns.toLocaleString()],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-slate-50 p-3 text-center">
+                <p className="text-xs font-bold text-slate-500">{label}</p>
+                <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
+              </div>
+            ))}
+          </div>
+        </WorkspaceModule>
+
+        <OrganizationAnalyticsSection
+          totalCampaigns={props.totalCampaigns}
+          activeSellerCount={props.activeSellerCount}
+        />
+        <OrganizationReportSection
+          grossRevenue={props.grossRevenue}
+          totalFees={props.totalFees}
+          totalEarnings={props.totalEarnings}
+          totalPassesSold={props.totalPassesSold}
+        />
+        <OrganizationTopSellersSection
+          campaigns={props.campaigns}
+          sellers={props.sellers}
+        />
+
+        <Link
+          href="/dashboard/campaigns"
+          className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700"
+        >
+          Manage campaigns
+        </Link>
+      </div>
+    )
+  }
+
+  const campaignPreview = props.campaigns.slice(0, 2)
+  const recommendedActions = [
+    ...(props.activeCampaigns === 0
+      ? [{
+          title: 'Launch your next fundraiser',
+          description: 'Create or finish a campaign so supporters can begin purchasing passes.',
+          href: '/dashboard/campaigns',
+        }]
+      : []),
+    ...(props.totalSellers === 0
+      ? [{
+          title: 'Add sellers to your roster',
+          description: 'Give participants referral links and QR codes before your fundraiser launches.',
+          href: '/dashboard/campaigns#organization-sellers',
+        }]
+      : []),
+    ...(props.totalSupporters === 0 && props.activeCampaigns > 0
+      ? [{
+          title: 'Share your active fundraiser',
+          description: 'Invite the first supporters and give sellers a clear next step.',
+          href: '/dashboard/campaigns',
+        }]
+      : []),
+  ].slice(0, 3)
+
+  return (
+    <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+      <WorkspaceModule
+        title="Fundraising performance"
+        description="Across all campaigns"
+        tone="green"
+        action={
+          <Link href="/dashboard/reports" className="text-sm font-bold text-blue-700">
+            View details
+          </Link>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ['Raised', `$${props.totalFundsRaised.toLocaleString()}`],
+            ['Passes', props.totalPassesSold.toLocaleString()],
+            ['Supporters', props.totalSupporters.toLocaleString()],
+            ['Campaigns', props.totalCampaigns.toLocaleString()],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl bg-slate-50 p-3 text-center">
+              <p className="text-xs font-bold text-slate-500">{label}</p>
+              <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
+            </div>
+          ))}
+        </div>
+      </WorkspaceModule>
+
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        {recommendedActions.length > 0 ? (
+          <WorkspaceModule
+            title="Recommended actions"
+            eyebrow="Needs your attention"
+            badge={
+              <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">
+                {recommendedActions.length} {recommendedActions.length === 1 ? 'item' : 'items'}
+              </span>
+            }
+            tone="rose"
+          >
+            <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+              {recommendedActions.map((action) => (
+                <Link key={action.title} href={action.href} className="flex items-center gap-3 p-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 font-black text-white">→</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-slate-950">{action.title}</span>
+                    <span className="mt-0.5 block text-sm leading-5 text-slate-500">{action.description}</span>
+                  </span>
+                  <span className="text-xl text-slate-400">›</span>
+                </Link>
+              ))}
+            </div>
+          </WorkspaceModule>
+        ) : null}
+
+        <WorkspaceModule
+          title="Campaigns"
+          description={`${props.activeCampaigns} active · ${props.totalCampaigns} total`}
+          tone="blue"
+          action={
+            <Link href="/dashboard/campaigns" className="text-sm font-bold text-blue-700">
+              Manage
+            </Link>
+          }
+          emptyState={
+            <WorkspaceModuleEmpty
+              title="No campaigns yet"
+              description="Create your first fundraiser to get started."
+            />
+          }
+        >
+          {campaignPreview.length > 0 ? (
+            <div className="space-y-3">
+              {campaignPreview.map((campaign) => {
+                const metrics = props.metricsByCampaign[campaign.id]
+                return (
+                  <div key={campaign.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-black text-slate-950">{campaign.name || 'Untitled campaign'}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {metrics?.supporterCount ?? 0} supporters · ${metrics?.amountRaised?.toLocaleString() ?? '0'} raised
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                      {campaignStatusLabel(campaign.status)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+        </WorkspaceModule>
+      </div>
     </div>
   )
 }

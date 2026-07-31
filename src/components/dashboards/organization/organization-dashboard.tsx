@@ -1,15 +1,15 @@
-import Link from 'next/link'
-
 import { evaluateCampaignPublishingEligibility } from '@/lib/campaign-publishing/evaluate'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import OrganizationDashboardContent from './organization-dashboard-content'
+import type { OrganizationWorkspaceView } from './organization-dashboard-content'
+import OrganizationWorkspaceFrame from './organization-workspace-frame'
 
 type OrganizationDashboardProps = {
   organizationLegacyProfileId?: string | null
+  view?: OrganizationWorkspaceView
 }
 
 type CampaignPurchase = {
@@ -53,7 +53,9 @@ type StripeReadinessRow = {
   requirements_currently_due: unknown
 }
 
-function organizationProfileIsReady(organization: CanonicalOrganizationPricingRow | null) {
+function organizationProfileIsReady(
+  organization: CanonicalOrganizationPricingRow | null
+) {
   const stateCode = organization?.state_code?.trim().toUpperCase() ?? ''
   return Boolean(
     organization?.name?.trim() &&
@@ -96,21 +98,30 @@ function netPurchaseAmounts(purchase: CampaignPurchase) {
 
 export default async function OrganizationDashboard({
   organizationLegacyProfileId,
+  view = 'dashboard',
 }: OrganizationDashboardProps = {}) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return null
 
-  const organizationProfileId = organizationLegacyProfileId?.trim() || user.id
+  const organizationProfileId =
+    organizationLegacyProfileId?.trim() || user.id
 
-  const [{ data: organizationProfile }, { data: canonicalOrganization }] = await Promise.all([
-    supabase.from('profiles').select('is_demo').eq('id', organizationProfileId).maybeSingle(),
-    supabase
-      .from('organizations')
-      .select('id, legacy_profile_id, name, town_name, state_code')
-      .eq('legacy_profile_id', organizationProfileId)
-      .maybeSingle<CanonicalOrganizationPricingRow>(),
-  ])
+  const [{ data: organizationProfile }, { data: canonicalOrganization }] =
+    await Promise.all([
+      supabase
+        .from('profiles')
+        .select('is_demo')
+        .eq('id', organizationProfileId)
+        .maybeSingle(),
+      supabase
+        .from('organizations')
+        .select('id, legacy_profile_id, name, town_name, state_code')
+        .eq('legacy_profile_id', organizationProfileId)
+        .maybeSingle<CanonicalOrganizationPricingRow>(),
+    ])
 
   const canonicalOrganizationId = canonicalOrganization?.id ?? null
   const { data: organizationMembership } = canonicalOrganizationId
@@ -122,7 +133,9 @@ export default async function OrganizationDashboard({
         .eq('status', 'active')
         .maybeSingle<OrganizationMembershipRoleRow>()
     : { data: null }
-  const isSellerWorkspace = organizationMembership?.membership_role === 'seller'
+
+  const isSellerWorkspace =
+    organizationMembership?.membership_role === 'seller'
   const canManageOrganization = Boolean(
     canonicalOrganization?.legacy_profile_id === user.id ||
       organizationMembership?.membership_role === 'admin' ||
@@ -136,7 +149,9 @@ export default async function OrganizationDashboard({
 
   let campaignQuery = supabase.from('campaigns').select('*')
   campaignQuery = canonicalOrganizationId
-    ? campaignQuery.or(`canonical_organization_id.eq.${canonicalOrganizationId},organization_id.eq.${organizationProfileId}`)
+    ? campaignQuery.or(
+        `canonical_organization_id.eq.${canonicalOrganizationId},organization_id.eq.${organizationProfileId}`
+      )
     : campaignQuery.eq('organization_id', organizationProfileId)
 
   const [{ data: campaigns }, stripeAccountResult] = await Promise.all([
@@ -144,15 +159,22 @@ export default async function OrganizationDashboard({
     canonicalOrganizationId
       ? (createAdminClient() as any)
           .from('organization_stripe_accounts')
-          .select('livemode, onboarding_status, details_submitted, payouts_enabled, disabled_reason, requirements_currently_due')
+          .select(
+            'livemode, onboarding_status, details_submitted, payouts_enabled, disabled_reason, requirements_currently_due'
+          )
           .eq('organization_id', canonicalOrganizationId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ])
 
-  const stripeAccount = (stripeAccountResult.data ?? null) as StripeReadinessRow | null
-  const expectedLivemode = process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
-  const profileReady = organizationProfileIsReady(canonicalOrganization ?? null)
+  const stripeAccount = (stripeAccountResult.data ??
+    null) as StripeReadinessRow | null
+  const expectedLivemode =
+    process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
+  const profileReady = organizationProfileIsReady(
+    canonicalOrganization ?? null
+  )
+
   const organizationCampaigns = (campaigns ?? []).map((campaign) => {
     const status = campaign.status?.trim().toLowerCase() ?? ''
     const approvalCurrent =
@@ -165,7 +187,8 @@ export default async function OrganizationDashboard({
       ...campaign,
       publishingEligibility: evaluateCampaignPublishingEligibility({
         campaignId: campaign.id,
-        campaignStatus: status === 'paused' ? 'draft' : campaign.status,
+        campaignStatus:
+          status === 'paused' ? 'draft' : campaign.status,
         reviewStatus: campaign.review_status,
         authorized: canManageOrganization,
         profileReady,
@@ -178,11 +201,13 @@ export default async function OrganizationDashboard({
           detailsSubmitted: stripeAccount?.details_submitted ?? false,
           payoutsEnabled: stripeAccount?.payouts_enabled ?? false,
           disabledReason: stripeAccount?.disabled_reason ?? null,
-          requirementsCurrentlyDue: stripeAccount?.requirements_currently_due ?? [],
+          requirementsCurrentlyDue:
+            stripeAccount?.requirements_currently_due ?? [],
         },
       }),
     }
   })
+
   const now = new Date()
   const sellableCampaigns = organizationCampaigns.filter((campaign) =>
     isCampaignCurrentlySellable(campaign, now)
@@ -192,13 +217,15 @@ export default async function OrganizationDashboard({
 
   let purchases: CampaignPurchase[] = []
   if (campaignIds.length > 0) {
-    // The checked-in generated Supabase types predate the refund reconciliation
-    // columns. Keep the compatibility cast local until types are regenerated.
     const { data } = await (supabase.from('campaign_purchases') as any)
-      .select('id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status')
+      .select(
+        'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status'
+      )
       .in('campaign_id', campaignIds)
 
-    purchases = ((data ?? []) as CampaignPurchase[]).filter(isProgressPurchase)
+    purchases = ((data ?? []) as CampaignPurchase[]).filter(
+      isProgressPurchase
+    )
   }
 
   const totalPassesSold = purchases.length
@@ -211,7 +238,8 @@ export default async function OrganizationDashboard({
     0
   )
   const totalEarnings = purchases.reduce(
-    (sum, purchase) => sum + netPurchaseAmounts(purchase).organizationEarnings,
+    (sum, purchase) =>
+      sum + netPurchaseAmounts(purchase).organizationEarnings,
     0
   )
 
@@ -236,14 +264,16 @@ export default async function OrganizationDashboard({
 
     const supporterKey = generateSupporterKey(purchase)
     supporterKeys.add(supporterKey)
-    const campaignSupporters = supportersByCampaign.get(purchase.campaign_id) ?? new Set<string>()
+    const campaignSupporters =
+      supportersByCampaign.get(purchase.campaign_id) ?? new Set<string>()
     campaignSupporters.add(supporterKey)
     existing.supporterCount = campaignSupporters.size
     supportersByCampaign.set(purchase.campaign_id, campaignSupporters)
 
     const seller = purchase.seller_name?.trim()
     if (seller) {
-      const campaignSellers = sellersByCampaign.get(purchase.campaign_id) ?? new Set<string>()
+      const campaignSellers =
+        sellersByCampaign.get(purchase.campaign_id) ?? new Set<string>()
       campaignSellers.add(seller)
       existing.sellerCount = campaignSellers.size
       sellersByCampaign.set(purchase.campaign_id, campaignSellers)
@@ -252,65 +282,71 @@ export default async function OrganizationDashboard({
     metricsByCampaign.set(purchase.campaign_id, existing)
   }
 
-  const sellerStats = new Map<string, { sold: number; earnings: number }>()
+  const sellerStats = new Map<
+    string,
+    { sold: number; earnings: number }
+  >()
+
   for (const purchase of purchases) {
     const seller = purchase.seller_name?.trim()
     if (!seller) continue
-    const existing = sellerStats.get(seller) ?? { sold: 0, earnings: 0 }
+
+    const existing = sellerStats.get(seller) ?? {
+      sold: 0,
+      earnings: 0,
+    }
     existing.sold += 1
-    existing.earnings += netPurchaseAmounts(purchase).organizationEarnings
+    existing.earnings +=
+      netPurchaseAmounts(purchase).organizationEarnings
     sellerStats.set(seller, existing)
   }
 
   const topSellers = [...sellerStats.entries()]
-    .map(([seller, stats]) => ({ seller, sold: stats.sold, earnings: stats.earnings }))
+    .map(([seller, stats]) => ({
+      seller,
+      sold: stats.sold,
+      earnings: stats.earnings,
+    }))
     .sort((first, second) => second.sold - first.sold)
 
-  return (
-    <>
-      {isSellerWorkspace ? (
-        <section className="mt-6 rounded-3xl border border-violet-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">Seller setup</p>
-              <h2 className="mt-1 text-xl font-bold text-gray-900">Link your roster name</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                Select your name from this organization’s available campaign rosters. Your existing QR code, referral link, and sales history will stay connected.
-              </p>
-            </div>
-            <Link
-              href="/seller/claim-roster"
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700"
-            >
-              Link my roster name
-            </Link>
-          </div>
-        </section>
-      ) : null}
+  const organizationName =
+    canonicalOrganization?.name?.trim() || 'Organization workspace'
+  const organizationLocation = [
+    canonicalOrganization?.town_name?.trim(),
+    canonicalOrganization?.state_code?.trim().toUpperCase(),
+  ]
+    .filter(Boolean)
+    .join(', ') || 'RaiseHub fundraising organization'
 
-      <OrganizationDashboardContent
-        organizationId={canonicalOrganizationId}
-        totalPassesSold={totalPassesSold}
-        totalEarnings={totalEarnings}
-        activeCampaigns={activeCampaigns}
-        totalFundsRaised={totalEarnings}
-        totalSellers={sellerStats.size}
-        totalSupporters={supporterKeys.size}
-        grossRevenue={grossRevenue}
-        totalFees={totalFees}
-        sellers={topSellers}
-        campaigns={organizationCampaigns}
-        sellerCampaigns={sellableCampaigns}
-        metricsByCampaign={Object.fromEntries(metricsByCampaign)}
-        totalCampaigns={organizationCampaigns.length}
-        activeSellerCount={sellerStats.size}
-        campaignCreationPricing={{
-          passPrice: campaignCreationPricing.passPrice,
-          platformFeePercent: campaignCreationPricing.platformFeePercent,
-          organizationPassEarnings: campaignCreationPricing.organizationPassEarnings,
-          usedFallback: campaignCreationPricing.usedFallback,
-        }}
-      />
-    </>
+  return (
+    <OrganizationWorkspaceFrame
+      view={view}
+      organizationName={organizationName}
+      organizationLocation={organizationLocation}
+      isSellerWorkspace={isSellerWorkspace}
+      organizationId={canonicalOrganizationId}
+      totalPassesSold={totalPassesSold}
+      totalEarnings={totalEarnings}
+      activeCampaigns={activeCampaigns}
+      totalFundsRaised={totalEarnings}
+      totalSellers={sellerStats.size}
+      totalSupporters={supporterKeys.size}
+      grossRevenue={grossRevenue}
+      totalFees={totalFees}
+      sellers={topSellers}
+      campaigns={organizationCampaigns}
+      sellerCampaigns={sellableCampaigns}
+      metricsByCampaign={Object.fromEntries(metricsByCampaign)}
+      totalCampaigns={organizationCampaigns.length}
+      activeSellerCount={sellerStats.size}
+      campaignCreationPricing={{
+        passPrice: campaignCreationPricing.passPrice,
+        platformFeePercent:
+          campaignCreationPricing.platformFeePercent,
+        organizationPassEarnings:
+          campaignCreationPricing.organizationPassEarnings,
+        usedFallback: campaignCreationPricing.usedFallback,
+      }}
+    />
   )
 }
