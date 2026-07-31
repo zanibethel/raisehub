@@ -54,7 +54,7 @@ export default function BusinessOffersSummary({ offers, redemptionCountByOfferId
       icon={<OffersIcon />}
       tone="green"
       action={(
-        <Link href="#full-offer-management" className="text-sm font-bold text-green-700">
+        <Link href="/dashboard/offers" className="text-sm font-bold text-green-700">
           Manage offers
         </Link>
       )}
