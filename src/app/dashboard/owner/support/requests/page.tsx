@@ -18,6 +18,7 @@ type SupportRequest = {
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
   internal_notes: string | null
   customer_reply: string | null
+  customer_reply_sent_at: string | null
   created_at: string
   updated_at: string
 }
@@ -60,7 +61,7 @@ export default async function OwnerSupportRequestsPage() {
 
   const { data, error } = await supabase
     .from('support_requests')
-    .select('id, requester_name, requester_email, topic, message, source_page, environment, status, internal_notes, customer_reply, created_at, updated_at')
+    .select('id, requester_name, requester_email, topic, message, source_page, environment, status, internal_notes, customer_reply, customer_reply_sent_at, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -80,7 +81,7 @@ export default async function OwnerSupportRequestsPage() {
             Support Requests
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Review customer messages, record private investigation notes, draft a response, and move each request through the support workflow.
+            Review customer messages, record private investigation notes, save reply drafts, and publish completed responses to the customer Help page.
           </p>
         </header>
 
@@ -127,12 +128,26 @@ export default async function OwnerSupportRequestsPage() {
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
                       {statusLabel(request.status)}
                     </span>
+                    {request.customer_reply_sent_at ? (
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                        Reply published
+                      </span>
+                    ) : request.customer_reply ? (
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                        Draft saved
+                      </span>
+                    ) : null}
                   </div>
                   <h2 className="mt-3 text-xl font-black text-slate-950">{request.requester_name}</h2>
                   <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">
                     {request.requester_email}
                   </a>
                   <p className="mt-1 text-xs text-slate-500">Received {formatDate(request.created_at)}</p>
+                  {request.customer_reply_sent_at ? (
+                    <p className="mt-1 text-xs font-bold text-emerald-700">
+                      Published {formatDate(request.customer_reply_sent_at)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -172,22 +187,32 @@ export default async function OwnerSupportRequestsPage() {
                 </label>
 
                 <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">Customer reply draft</span>
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">Customer reply</span>
                   <textarea
                     name="customer_reply"
                     defaultValue={request.customer_reply ?? ''}
                     rows={6}
-                    placeholder="Draft the customer-facing response here. Saving does not send an email yet."
+                    placeholder="Write the customer-facing response here. Save it as a draft or publish it when complete."
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
                   />
                 </label>
 
-                <div className="lg:col-span-2">
+                <div className="flex flex-col gap-3 lg:col-span-2 sm:flex-row">
                   <button
                     type="submit"
+                    name="intent"
+                    value="save_draft"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-5 text-sm font-black text-blue-700 hover:bg-blue-100 sm:w-auto"
+                  >
+                    Save draft
+                  </button>
+                  <button
+                    type="submit"
+                    name="intent"
+                    value="publish_reply"
                     className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-700 px-5 text-sm font-black text-white hover:bg-blue-800 sm:w-auto"
                   >
-                    Save support update
+                    Publish reply to customer
                   </button>
                 </div>
               </form>
