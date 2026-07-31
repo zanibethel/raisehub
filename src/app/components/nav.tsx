@@ -5,6 +5,7 @@ import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspa
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
 import NavClient from './nav-client'
+import NotificationMobileLayoutFix from './notification-mobile-layout-fix'
 import NotificationRefreshBridge from './notification-refresh-bridge'
 import AuthenticatedWorkspaceHeader from './authenticated-workspace-header'
 
@@ -133,6 +134,7 @@ export default async function Nav() {
       )}
 
       <MobileNavEnhancements signedIn={Boolean(user)} profileHref={profileHref} />
+      <NotificationMobileLayoutFix />
       {user ? <NotificationRefreshBridge userId={user.id} /> : null}
     </nav>
   )
