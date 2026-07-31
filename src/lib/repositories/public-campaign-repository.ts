@@ -121,7 +121,9 @@ export async function getPublicSellableCampaigns(
     }
   }
 
-  const campaignRows = (campaignData ?? []) as CampaignRow[]
+  // The generated Supabase types lag the live schema's environment columns.
+  // Keep the cast isolated here until types are regenerated from the project.
+  const campaignRows = (campaignData ?? []) as unknown as CampaignRow[]
 
   if (campaignRows.length === 0) {
     return { campaigns: [], error: null, errorSource: null }
@@ -154,8 +156,8 @@ export async function getPublicSellableCampaigns(
     }),
   ])
 
-  const organizations = (organizationData ?? []) as OrganizationRow[]
-  const profiles = (profileData ?? []) as ProfileRow[]
+  const organizations = (organizationData ?? []) as unknown as OrganizationRow[]
+  const profiles = (profileData ?? []) as unknown as ProfileRow[]
   const progress = (progressData ?? []) as ProgressRow[]
 
   const organizationByLegacyId = new Map(
