@@ -39,14 +39,13 @@ export function recordMatchesEnvironment(
   record: EnvironmentOwnedRecord,
   environment: DataEnvironment
 ): boolean {
-  const isDemo = record.is_demo === true
   const demoGroup = record.demo_group?.trim() || null
 
   if (environment.mode === 'production') {
-    return !isDemo && demoGroup === null
+    return record.is_demo === false && demoGroup === null
   }
 
-  return isDemo && demoGroup === environment.demoGroup
+  return record.is_demo === true && demoGroup === environment.demoGroup
 }
 
 export function recordsShareEnvironment(
