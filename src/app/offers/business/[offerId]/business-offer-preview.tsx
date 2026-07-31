@@ -49,28 +49,35 @@ export default function BusinessOfferPreview({
 }: Props) {
   const [showUnlockedView, setShowUnlockedView] = useState(false)
   const revealed = canReveal && showUnlockedView
+  const lockedViewEnabled = !showUnlockedView
 
   return (
     <>
       {canReveal ? (
-        <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+        <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
                 Preview controls
               </p>
               <p className="mt-1 text-sm text-slate-600">
-                Switch views without changing what customers can access.
+                Locked view shows exactly what customers see before purchasing a pass.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowUnlockedView((current) => !current)}
-              aria-pressed={showUnlockedView}
-              className="shrink-0 rounded-full bg-blue-700 px-4 py-2 text-sm font-bold text-white"
-            >
-              {showUnlockedView ? 'Locked View' : 'Unlocked View'}
-            </button>
+
+            <label className="flex shrink-0 cursor-pointer items-center gap-3">
+              <span className="text-sm font-bold text-slate-900">Locked view</span>
+              <input
+                type="checkbox"
+                checked={lockedViewEnabled}
+                onChange={() => setShowUnlockedView((current) => !current)}
+                className="peer sr-only"
+                aria-label="Toggle locked customer view"
+              />
+              <span className="relative h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-blue-700 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-700">
+                <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+              </span>
+            </label>
           </div>
         </div>
       ) : null}
