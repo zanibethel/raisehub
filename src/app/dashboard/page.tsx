@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation'
 import AdminDashboard from '@/components/dashboards/admin/admin-dashboard'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
-import SupporterGrowthLinks from '@/components/dashboards/customer/supporter-growth-links'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
 import { getAppMode } from '@/lib/app-mode'
@@ -136,13 +135,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   })
   const selectedWorkspace = workspaceSelection.selectedWorkspace
   const experienceRole = workspaceSelection.experienceRole
-  const hasBusinessWorkspace = availableWorkspaces.some(
-    (workspace) => workspace.kind === 'business'
-  )
-  const hasOrganizationWorkspace = availableWorkspaces.some(
-    (workspace) =>
-      workspace.kind === 'organization' || workspace.kind === 'fundraising'
-  )
 
   return (
     <main
@@ -162,13 +154,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <div className="relative z-0">
           {renderDashboard(experienceRole, selectedWorkspace)}
         </div>
-
-        {experienceRole === 'customer' ? (
-          <SupporterGrowthLinks
-            showBusinessLink={!hasBusinessWorkspace}
-            showOrganizationLink={!hasOrganizationWorkspace}
-          />
-        ) : null}
       </div>
     </main>
   )
