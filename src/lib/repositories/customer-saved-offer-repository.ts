@@ -1,34 +1,31 @@
+import {
+  applyEnvironmentScope,
+  getActiveDataEnvironment,
+  recordMatchesEnvironment,
+  recordsShareEnvironment,
+} from '@/lib/data-environment'
 import { createClient } from '@/lib/supabase/server'
-
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * A single saved_offer record enriched with related offer and business names,
- * as needed for read-only owner support.
- *
- * Schema verified against the RaiseHub Supabase project (public.saved_offers):
- *
- *   id         uuid        NOT NULL
- *   user_id    uuid        NOT NULL
- *   offer_id   uuid        NOT NULL
- *   created_at timestamptz NOT NULL
- *
- * RLS: The owner-only SELECT policy (allow_owner_read_customer_activity)
- * was applied as a database prerequisite. No schema or RLS changes are
- * part of this repository.
- *
- * Query strategy:
- * - Supabase relation select loads offer title and business_id via FK on offer_id.
- * - A secondary profiles lookup loads business name by business_id.
- */
 
 type RawSavedOfferRow = {
   id: string
   offer_id: string
   created_at: string
-  offers: { title: string; business_id: string } | null
+  is_demo: boolean
+  demo_group: string | null
+  offers: {
+    title: string
+    business_id: string
+    is_demo: boolean
+    demo_group: string | null
+  } | null
+}
+
+type BusinessProfileRow = {
+  id: string
+  business_name: string | null
+  display_name: string | null
+  is_demo: boolean
+  demo_group: string | null
 }
 
 export type CustomerSavedOfferRecord = {
@@ -44,38 +41,41 @@ type CustomerSavedOffersResult = {
   error: string | null
 }
 
-// =============================================================================
-// Repository
-// =============================================================================
-
 export async function getCustomerSavedOffers(
   customerProfileId: string
 ): Promise<CustomerSavedOffersResult> {
   const supabase = await createClient()
+  const environment = getActiveDataEnvironment()
 
-  const { data: rawData, error: savedOffersError } = await supabase
+  const query = supabase
     .from('saved_offers')
     .select(
       `
         id,
         offer_id,
         created_at,
-        offers(title, business_id)
+        is_demo,
+        demo_group,
+        offers(title, business_id, is_demo, demo_group)
       `
     )
     .eq('user_id', customerProfileId)
     .order('created_at', { ascending: false })
 
+  const { data: rawData, error: savedOffersError } =
+    await applyEnvironmentScope(query, environment)
+
   if (savedOffersError) {
-    return {
-      savedOffers: [],
-      error: savedOffersError.message,
-    }
+    return { savedOffers: [], error: savedOffersError.message }
   }
 
-  const rows = (rawData ?? []) as unknown as RawSavedOfferRow[]
+  const rows = ((rawData ?? []) as unknown as RawSavedOfferRow[]).filter(
+    (row) =>
+      Boolean(row.offers) &&
+      recordMatchesEnvironment(row.offers ?? {}, environment) &&
+      recordsShareEnvironment(row, row.offers ?? {})
+  )
 
-  // Collect unique business IDs for a secondary profiles lookup.
   const businessIds = [
     ...new Set(
       rows
@@ -87,35 +87,44 @@ export async function getCustomerSavedOffers(
   const businessNameById = new Map<string, string>()
 
   if (businessIds.length > 0) {
-    const { data: businessProfiles, error: businessProfilesError } = await supabase
+    const businessQuery = supabase
       .from('profiles')
-      .select('id, business_name')
+      .select('id, business_name, display_name, is_demo, demo_group')
       .in('id', businessIds)
+      .eq('role', 'business')
+
+    const { data: businessProfiles, error: businessProfilesError } =
+      await applyEnvironmentScope(businessQuery, environment)
 
     if (businessProfilesError) {
-      return {
-        savedOffers: [],
-        error: businessProfilesError.message,
-      }
+      return { savedOffers: [], error: businessProfilesError.message }
     }
 
-    for (const profile of businessProfiles ?? []) {
-      if (profile.business_name) {
-        businessNameById.set(profile.id, profile.business_name)
-      }
+    for (const profile of (businessProfiles ?? []) as BusinessProfileRow[]) {
+      businessNameById.set(
+        profile.id,
+        profile.display_name || profile.business_name || 'Local Business'
+      )
     }
   }
 
   return {
-    savedOffers: rows.map((row) => ({
-      id: row.id,
-      offer_id: row.offer_id,
-      offer_title: row.offers?.title ?? null,
-      business_name: row.offers?.business_id
-        ? (businessNameById.get(row.offers.business_id) ?? null)
-        : null,
-      created_at: row.created_at,
-    })),
+    savedOffers: rows
+      .filter((row) =>
+        Boolean(
+          row.offers?.business_id &&
+            businessNameById.has(row.offers.business_id)
+        )
+      )
+      .map((row) => ({
+        id: row.id,
+        offer_id: row.offer_id,
+        offer_title: row.offers?.title ?? null,
+        business_name: row.offers?.business_id
+          ? (businessNameById.get(row.offers.business_id) ?? null)
+          : null,
+        created_at: row.created_at,
+      })),
     error: null,
   }
 }

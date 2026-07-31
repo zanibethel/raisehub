@@ -48,6 +48,136 @@ function connectOnboardingStatus(account: Stripe.Account) {
   return 'not_started'
 }
 
+function assertProductionRecord(
+  record: { is_demo?: boolean | null; demo_group?: string | null } | null,
+  label: string
+) {
+  if (!record || record.is_demo !== false || record.demo_group !== null) {
+    throw new Error(`${label} is not a valid production record`)
+  }
+}
+
+async function validateProductionCheckoutAttempt(
+  admin: any,
+  attemptId: string,
+  checkoutSessionId: string
+) {
+  const { data: attempt, error: attemptError } = await admin
+    .from('checkout_attempts')
+    .select(
+      'id, user_id, campaign_id, selected_organization_id, organization_workspace_id, campaign_seller_id, stripe_checkout_session_id, status, purchase_id, fulfilled_at, is_demo, demo_group'
+    )
+    .eq('id', attemptId)
+    .maybeSingle()
+
+  if (attemptError || !attempt) {
+    throw new Error('Checkout attempt could not be matched')
+  }
+
+  if (attempt.stripe_checkout_session_id !== checkoutSessionId) {
+    throw new Error('Checkout Session does not match the stored attempt')
+  }
+
+  assertProductionRecord(attempt, 'Checkout attempt')
+
+  if (!attempt.user_id || !attempt.campaign_id) {
+    throw new Error('Checkout attempt ownership is incomplete')
+  }
+
+  if (
+    !attempt.selected_organization_id ||
+    !attempt.organization_workspace_id
+  ) {
+    throw new Error('Checkout attempt organization ownership is incomplete')
+  }
+
+  const [
+    userResult,
+    campaignResult,
+    organizationProfileResult,
+    organizationWorkspaceResult,
+  ] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('id, is_demo, demo_group')
+      .eq('id', attempt.user_id)
+      .maybeSingle(),
+    admin
+      .from('campaigns')
+      .select('id, organization_id, is_demo, demo_group')
+      .eq('id', attempt.campaign_id)
+      .maybeSingle(),
+    admin
+      .from('profiles')
+      .select('id, role, is_demo, demo_group')
+      .eq('id', attempt.selected_organization_id)
+      .eq('role', 'organization')
+      .maybeSingle(),
+    admin
+      .from('organizations')
+      .select('id, legacy_profile_id, status, archived_at, is_demo, demo_group')
+      .eq('id', attempt.organization_workspace_id)
+      .maybeSingle(),
+  ])
+
+  if (
+    userResult.error ||
+    campaignResult.error ||
+    organizationProfileResult.error ||
+    organizationWorkspaceResult.error
+  ) {
+    throw new Error('Checkout environment validation failed')
+  }
+
+  const userProfile = userResult.data
+  const campaign = campaignResult.data
+  const organizationProfile = organizationProfileResult.data
+  const organizationWorkspace = organizationWorkspaceResult.data
+
+  assertProductionRecord(userProfile, 'Customer profile')
+  assertProductionRecord(campaign, 'Campaign')
+  assertProductionRecord(organizationProfile, 'Organization profile')
+  assertProductionRecord(organizationWorkspace, 'Organization workspace')
+
+  if (campaign.organization_id !== attempt.selected_organization_id) {
+    throw new Error('Campaign organization does not match checkout attempt')
+  }
+
+  if (
+    organizationWorkspace.legacy_profile_id !==
+    attempt.selected_organization_id
+  ) {
+    throw new Error('Canonical organization does not match checkout attempt')
+  }
+
+  if (
+    organizationWorkspace.status !== 'active' ||
+    organizationWorkspace.archived_at !== null
+  ) {
+    throw new Error('Canonical organization is not active')
+  }
+
+  if (attempt.campaign_seller_id) {
+    const { data: seller, error: sellerError } = await admin
+      .from('campaign_sellers')
+      .select('id, campaign_id, organization_id, status')
+      .eq('id', attempt.campaign_seller_id)
+      .maybeSingle()
+
+    if (
+      sellerError ||
+      !seller ||
+      seller.status !== 'active' ||
+      seller.campaign_id !== attempt.campaign_id ||
+      seller.organization_id !== attempt.organization_workspace_id
+    ) {
+      throw new Error('Managed seller does not match checkout ownership')
+    }
+  }
+
+  return attempt
+}
+
 async function markWebhookEvent(
   admin: any,
   eventId: string,
@@ -288,19 +418,7 @@ export async function POST(request: Request) {
     if (!attemptId) throw new Error('Checkout attempt metadata is missing')
     if (!session.id) throw new Error('Checkout Session ID is missing')
 
-    const { data: attempt, error: attemptLookupError } = await admin
-      .from('checkout_attempts')
-      .select('id, stripe_checkout_session_id')
-      .eq('id', attemptId)
-      .maybeSingle()
-
-    if (attemptLookupError || !attempt) {
-      throw new Error('Checkout attempt could not be matched')
-    }
-
-    if (attempt.stripe_checkout_session_id !== session.id) {
-      throw new Error('Checkout Session does not match the stored attempt')
-    }
+    await validateProductionCheckoutAttempt(admin, attemptId, session.id)
 
     const { error: fulfillmentError } = await admin.rpc(
       'fulfill_paid_checkout_attempt',
