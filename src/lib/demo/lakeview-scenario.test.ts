@@ -12,10 +12,10 @@ import {
 
 test('Lakeview scenario uses stable unique baseline keys', () => {
   assert.deepEqual(validateLakeviewScenario(), {
-    identities: 8,
-    businesses: 6,
+    identities: 12,
+    businesses: 10,
     campaigns: 4,
-    offers: 7,
+    offers: 11,
   })
 })
 
