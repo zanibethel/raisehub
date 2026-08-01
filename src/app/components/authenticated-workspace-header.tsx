@@ -179,6 +179,9 @@ export default function AuthenticatedWorkspaceHeader({
               <Link href="/dashboard/notifications" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
                 Notifications <span aria-hidden="true">›</span>
               </Link>
+              <Link href="/dashboard/business-signup-qr" onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-black text-green-800 hover:bg-green-100">
+                Business signup QR <span aria-hidden="true">▦</span>
+              </Link>
               {profileHref ? (
                 <Link href={profileHref} onClick={() => setDrawerOpen(false)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
                   Edit profile <span aria-hidden="true">›</span>
