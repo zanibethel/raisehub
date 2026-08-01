@@ -59,7 +59,6 @@ export default function BuyCampaignPassButton({
   sellerName = '',
   hasActivePass = false,
   initialDonationAmount,
-  initialSelectedOrganizationId = null,
 }: BuyCampaignPassButtonProps) {
   const router = useRouter()
   const currentSearchParams = useSearchParams()
@@ -74,12 +73,7 @@ export default function BuyCampaignPassButton({
   const [selectedSellerCode, setSelectedSellerCode] = useState(
     hasLockedSeller ? referralFromUrl : ''
   )
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState(
-    initialSelectedOrganizationId ?? defaultOrganizationId ?? organizations[0]?.id ?? ''
-  )
-  const [showOrganizationPicker, setShowOrganizationPicker] = useState(
-    Boolean(initialSelectedOrganizationId && initialSelectedOrganizationId !== defaultOrganizationId)
-  )
+  const selectedOrganizationId = defaultOrganizationId ?? organizations[0]?.id ?? ''
   const [donationAmount, setDonationAmount] = useState(
     initialDonationAmount ?? (hasActivePass ? '10' : '0')
   )
@@ -159,7 +153,9 @@ export default function BuyCampaignPassButton({
   async function handleBuyPass() {
     if (loading) return
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       const signupParams = new URLSearchParams({ campaignId, source: 'campaign' })
@@ -202,26 +198,30 @@ export default function BuyCampaignPassButton({
     }
 
     if (result.status === 'replacement-found') {
-      router.push(buildCampaignHref({
-        campaignId: result.campaignId,
-        sellerReferral: effectiveSellerReferral,
-        notice: 'campaign-replaced',
-        replacedCampaignId: result.replacedCampaignId,
-        donationAmount,
-        selectedOrganizationId,
-      }))
+      router.push(
+        buildCampaignHref({
+          campaignId: result.campaignId,
+          sellerReferral: effectiveSellerReferral,
+          notice: 'campaign-replaced',
+          replacedCampaignId: result.replacedCampaignId,
+          donationAmount,
+          selectedOrganizationId,
+        })
+      )
       return
     }
 
     if (result.status === 'selection-required' || result.status === 'no-valid-campaign') {
-      router.push(buildCampaignHref({
-        campaignId,
-        sellerReferral: effectiveSellerReferral,
-        notice: 'campaign-unavailable',
-        replacedCampaignId: result.replacedCampaignId,
-        donationAmount,
-        selectedOrganizationId,
-      }))
+      router.push(
+        buildCampaignHref({
+          campaignId,
+          sellerReferral: effectiveSellerReferral,
+          notice: 'campaign-unavailable',
+          replacedCampaignId: result.replacedCampaignId,
+          donationAmount,
+          selectedOrganizationId,
+        })
+      )
       return
     }
 
@@ -235,7 +235,12 @@ export default function BuyCampaignPassButton({
       {hasActivePass ? (
         <div className="rounded-xl border border-green-100 bg-green-50 p-4 text-sm text-green-800">
           <p>✅ Pass already active. You can make an additional donation below.</p>
-          <Link href="/dashboard" className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">View My Pass</Link>
+          <Link
+            href="/dashboard"
+            className="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            View My Pass
+          </Link>
         </div>
       ) : null}
 
@@ -282,72 +287,111 @@ export default function BuyCampaignPassButton({
         </div>
       )}
 
-      {organizations.length > 0 ? (
+      {selectedOrganization ? (
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Supporting</p>
           <p className="mt-1 text-lg font-bold text-blue-950">{organizationName(selectedOrganization)}</p>
-          {organizations.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => setShowOrganizationPicker((current) => !current)}
-              className="mt-2 text-sm font-semibold text-blue-700 hover:underline"
-            >
-              {showOrganizationPicker ? 'Keep this organization' : 'Support a different organization'}
-            </button>
-          ) : null}
-          {showOrganizationPicker && organizations.length > 1 ? (
-            <div className="mt-3">
-              <label htmlFor="organization-to-support" className="mb-1 block text-sm font-medium text-gray-700">
-                Choose another organization
-              </label>
-              <select
-                id="organization-to-support"
-                value={selectedOrganizationId}
-                onChange={(event) => setSelectedOrganizationId(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm"
-              >
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organizationName(organization)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
+          <p className="mt-2 text-xs text-blue-800">
+            This campaign supports its sponsoring organization. To support a different organization, choose one of that organization’s campaigns.
+          </p>
         </div>
       ) : null}
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">{hasActivePass ? 'Additional donation' : 'Optional donation add-on'}</label>
+        <label className="mb-2 block text-sm font-medium text-gray-700">
+          {hasActivePass ? 'Additional donation' : 'Optional donation add-on'}
+        </label>
         <div className="flex flex-wrap gap-2">
           {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map((amount) => (
-            <button key={amount} type="button" onClick={() => setDonationAmount(amount)} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${donationAmount === amount ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>
+            <button
+              key={amount}
+              type="button"
+              onClick={() => setDonationAmount(amount)}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                donationAmount === amount
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+              }`}
+            >
               {amount === '0' ? 'No donation' : `$${amount}`}
             </button>
           ))}
-          <button type="button" onClick={() => setDonationAmount('')} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${!['0', '5', '10', '25'].includes(donationAmount) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>Custom</button>
+          <button
+            type="button"
+            onClick={() => setDonationAmount('')}
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
+              !['0', '5', '10', '25'].includes(donationAmount)
+                ? 'border-blue-600 bg-blue-600 text-white'
+                : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+            }`}
+          >
+            Custom
+          </button>
         </div>
         {!['0', '5', '10', '25'].includes(donationAmount) ? (
-          <input type="number" min="0" step="1" value={donationAmount} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm" placeholder="Enter custom amount" />
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={donationAmount}
+            onChange={(event) => setDonationAmount(event.target.value)}
+            className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm"
+            placeholder="Enter custom amount"
+          />
         ) : null}
-        <p className="mt-2 text-xs text-gray-500">Donations go directly toward {organizationName(selectedOrganization)}.</p>
+        <p className="mt-2 text-xs text-gray-500">
+          Donations go directly toward {organizationName(selectedOrganization)}.
+        </p>
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-        {!hasActivePass ? <div className="flex items-center justify-between text-sm text-blue-800"><span>Pass price</span><span>${passPrice.toFixed(2)}</span></div> : null}
-        {hasActivePass || donationNumber > 0 ? <div className="mt-1 flex items-center justify-between text-sm text-blue-800"><span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span><span>${donationNumber.toFixed(2)}</span></div> : null}
-        <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900"><span>Total today</span><span>${totalAmount.toFixed(2)}</span></div>
+        {!hasActivePass ? (
+          <div className="flex items-center justify-between text-sm text-blue-800">
+            <span>Pass price</span>
+            <span>${passPrice.toFixed(2)}</span>
+          </div>
+        ) : null}
+        {hasActivePass || donationNumber > 0 ? (
+          <div className="mt-1 flex items-center justify-between text-sm text-blue-800">
+            <span>{hasActivePass ? 'Donation' : 'Donation add-on'}</span>
+            <span>${donationNumber.toFixed(2)}</span>
+          </div>
+        ) : null}
+        <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900">
+          <span>Total today</span>
+          <span>${totalAmount.toFixed(2)}</span>
+        </div>
       </div>
 
-      <button type="button" onClick={handleBuyPass} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-        {loading ? 'Processing...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
+      <button
+        type="button"
+        onClick={handleBuyPass}
+        disabled={loading}
+        className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loading
+          ? 'Processing...'
+          : hasActivePass
+            ? `Donate Securely - $${totalAmount.toFixed(2)}`
+            : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
       </button>
-      <p className="text-center text-xs text-gray-500">Production payments are completed securely through Stripe. Demo accounts create clearly marked simulated records without charging a card.</p>
+      <p className="text-center text-xs text-gray-500">
+        Production payments are completed securely through Stripe. Demo accounts create clearly marked simulated records without charging a card.
+      </p>
       {message ? (
-        <div className={`rounded-xl border p-4 text-sm ${demoComplete ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+        <div
+          className={`rounded-xl border p-4 text-sm ${
+            demoComplete
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
           <p>{message}</p>
           {demoComplete ? (
-            <Link href="/dashboard" className="mt-3 inline-flex rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800">
+            <Link
+              href="/dashboard"
+              className="mt-3 inline-flex rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800"
+            >
               View demo dashboard
             </Link>
           ) : null}
