@@ -3,18 +3,18 @@ import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 
 import type { DemoDatabase } from './demo-database.types'
-import type { GiftPassDatabase } from './gift-pass-database.types'
+import type { EnvironmentDatabase } from './environment-database.types'
 
 // =============================================================================
 // Unified privileged database type
 // =============================================================================
 
-// The generated database type currently trails a few newer RaiseHub tables.
-// Merge the supplemental Gift Pass and Demo Platform bridges so privileged
-// server code can remain strongly typed without falling back to `any`.
-type AdminDatabase = Omit<GiftPassDatabase, 'public'> & {
-  public: Omit<GiftPassDatabase['public'], 'Tables'> & {
-    Tables: GiftPassDatabase['public']['Tables'] &
+// The generated database type currently trails a few newer RaiseHub tables and
+// environment columns. Merge the supplemental environment and Demo Platform
+// bridges so privileged server code remains strongly typed without `any`.
+type AdminDatabase = Omit<EnvironmentDatabase, 'public'> & {
+  public: Omit<EnvironmentDatabase['public'], 'Tables'> & {
+    Tables: EnvironmentDatabase['public']['Tables'] &
       Pick<
         DemoDatabase['public']['Tables'],
         'demo_groups' | 'demo_profiles'
@@ -52,15 +52,11 @@ export function createAdminClient() {
     )
   }
 
-  return createClient<AdminDatabase>(
-    supabaseUrl,
-    serviceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false,
-      },
-    }
-  )
+  return createClient<AdminDatabase>(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+  })
 }

@@ -1,39 +1,31 @@
+import {
+  applyEnvironmentScope,
+  getActiveDataEnvironment,
+  recordMatchesEnvironment,
+  recordsShareEnvironment,
+} from '@/lib/data-environment'
 import { createClient } from '@/lib/supabase/server'
-
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * A single redemption record enriched with related offer and business names,
- * as needed for read-only owner support.
- *
- * Schema verified against the RaiseHub Supabase project (public.redemptions):
- *
- *   id         uuid        NOT NULL
- *   offer_id   uuid        NULL
- *   user_id    uuid        NULL
- *   created_at timestamptz NULL
- *
- * RLS: The owner-only SELECT policy (allow_owner_read_customer_activity)
- * was applied as a database prerequisite. No schema or RLS changes are
- * part of this repository.
- *
- * Nullable fields:
- * - offer_id may be null; the offers relation is omitted in that case.
- * - created_at may be null; callers must handle null timestamps safely.
- *
- * Query strategy:
- * - Supabase relation select loads offer title and business_id via FK on offer_id.
- * - A secondary profiles lookup loads business name by business_id.
- * - Null offer_id produces a null offers relation, handled in mapping.
- */
 
 type RawRedemptionRow = {
   id: string
   offer_id: string | null
   created_at: string | null
-  offers: { title: string; business_id: string } | null
+  is_demo: boolean
+  demo_group: string | null
+  offers: {
+    title: string
+    business_id: string
+    is_demo: boolean
+    demo_group: string | null
+  } | null
+}
+
+type BusinessProfileRow = {
+  id: string
+  business_name: string | null
+  display_name: string | null
+  is_demo: boolean
+  demo_group: string | null
 }
 
 export type CustomerRedemptionRecord = {
@@ -49,38 +41,41 @@ type CustomerRedemptionsResult = {
   error: string | null
 }
 
-// =============================================================================
-// Repository
-// =============================================================================
-
 export async function getCustomerRedemptions(
   customerProfileId: string
 ): Promise<CustomerRedemptionsResult> {
   const supabase = await createClient()
+  const environment = getActiveDataEnvironment()
 
-  const { data: rawData, error: redemptionsError } = await supabase
+  const query = supabase
     .from('redemptions')
     .select(
       `
         id,
         offer_id,
         created_at,
-        offers(title, business_id)
+        is_demo,
+        demo_group,
+        offers(title, business_id, is_demo, demo_group)
       `
     )
     .eq('user_id', customerProfileId)
     .order('created_at', { ascending: false })
 
+  const { data: rawData, error: redemptionsError } =
+    await applyEnvironmentScope(query, environment)
+
   if (redemptionsError) {
-    return {
-      redemptions: [],
-      error: redemptionsError.message,
-    }
+    return { redemptions: [], error: redemptionsError.message }
   }
 
-  const rows = (rawData ?? []) as unknown as RawRedemptionRow[]
+  const rows = ((rawData ?? []) as unknown as RawRedemptionRow[]).filter(
+    (row) =>
+      Boolean(row.offer_id && row.offers) &&
+      recordMatchesEnvironment(row.offers ?? {}, environment) &&
+      recordsShareEnvironment(row, row.offers ?? {})
+  )
 
-  // Collect unique business IDs for a secondary profiles lookup.
   const businessIds = [
     ...new Set(
       rows
@@ -92,35 +87,44 @@ export async function getCustomerRedemptions(
   const businessNameById = new Map<string, string>()
 
   if (businessIds.length > 0) {
-    const { data: businessProfiles, error: businessProfilesError } = await supabase
+    const businessQuery = supabase
       .from('profiles')
-      .select('id, business_name')
+      .select('id, business_name, display_name, is_demo, demo_group')
       .in('id', businessIds)
+      .eq('role', 'business')
+
+    const { data: businessProfiles, error: businessProfilesError } =
+      await applyEnvironmentScope(businessQuery, environment)
 
     if (businessProfilesError) {
-      return {
-        redemptions: [],
-        error: businessProfilesError.message,
-      }
+      return { redemptions: [], error: businessProfilesError.message }
     }
 
-    for (const profile of businessProfiles ?? []) {
-      if (profile.business_name) {
-        businessNameById.set(profile.id, profile.business_name)
-      }
+    for (const profile of (businessProfiles ?? []) as BusinessProfileRow[]) {
+      businessNameById.set(
+        profile.id,
+        profile.display_name || profile.business_name || 'Local Business'
+      )
     }
   }
 
   return {
-    redemptions: rows.map((row) => ({
-      id: row.id,
-      offer_id: row.offer_id,
-      offer_title: row.offers?.title ?? null,
-      business_name: row.offers?.business_id
-        ? (businessNameById.get(row.offers.business_id) ?? null)
-        : null,
-      created_at: row.created_at,
-    })),
+    redemptions: rows
+      .filter((row) =>
+        Boolean(
+          row.offers?.business_id &&
+            businessNameById.has(row.offers.business_id)
+        )
+      )
+      .map((row) => ({
+        id: row.id,
+        offer_id: row.offer_id,
+        offer_title: row.offers?.title ?? null,
+        business_name: row.offers?.business_id
+          ? (businessNameById.get(row.offers.business_id) ?? null)
+          : null,
+        created_at: row.created_at,
+      })),
     error: null,
   }
 }
