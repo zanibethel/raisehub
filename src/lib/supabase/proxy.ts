@@ -23,7 +23,7 @@ export function isRecoverableSessionError(error: unknown) {
   return (
     code === 'refresh_token_not_found' ||
     code === 'invalid_refresh_token' ||
-    candidate.status === 400 && message.includes('refresh token')
+    (candidate.status === 400 && message.includes('refresh token'))
   )
 }
 
@@ -69,10 +69,17 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  let claimsError: unknown = null
+
   try {
-    await supabase.auth.getClaims()
+    const { error } = await supabase.auth.getClaims()
+    claimsError = error
   } catch (error) {
-    if (!isRecoverableSessionError(error)) throw error
+    claimsError = error
+  }
+
+  if (claimsError) {
+    if (!isRecoverableSessionError(claimsError)) throw claimsError
 
     clearSupabaseAuthCookies(request, response)
   }
