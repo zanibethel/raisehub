@@ -27,7 +27,6 @@ type BuyCampaignPassButtonProps = {
   sellerName?: string
   hasActivePass?: boolean
   initialDonationAmount?: string
-  initialSelectedOrganizationId?: string | null
 }
 
 function buildCampaignHref(input: {
@@ -59,7 +58,6 @@ export default function BuyCampaignPassButton({
   sellerName = '',
   hasActivePass = false,
   initialDonationAmount,
-  initialSelectedOrganizationId = null,
 }: BuyCampaignPassButtonProps) {
   const router = useRouter()
   const currentSearchParams = useSearchParams()
@@ -74,12 +72,7 @@ export default function BuyCampaignPassButton({
   const [selectedSellerCode, setSelectedSellerCode] = useState(
     hasLockedSeller ? referralFromUrl : ''
   )
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState(
-    initialSelectedOrganizationId ?? defaultOrganizationId ?? organizations[0]?.id ?? ''
-  )
-  const [showOrganizationPicker, setShowOrganizationPicker] = useState(
-    Boolean(initialSelectedOrganizationId && initialSelectedOrganizationId !== defaultOrganizationId)
-  )
+  const selectedOrganizationId = defaultOrganizationId ?? organizations[0]?.id ?? ''
   const [donationAmount, setDonationAmount] = useState(
     initialDonationAmount ?? (hasActivePass ? '10' : '0')
   )
@@ -282,38 +275,13 @@ export default function BuyCampaignPassButton({
         </div>
       )}
 
-      {organizations.length > 0 ? (
+      {selectedOrganization ? (
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Supporting</p>
           <p className="mt-1 text-lg font-bold text-blue-950">{organizationName(selectedOrganization)}</p>
-          {organizations.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => setShowOrganizationPicker((current) => !current)}
-              className="mt-2 text-sm font-semibold text-blue-700 hover:underline"
-            >
-              {showOrganizationPicker ? 'Keep this organization' : 'Support a different organization'}
-            </button>
-          ) : null}
-          {showOrganizationPicker && organizations.length > 1 ? (
-            <div className="mt-3">
-              <label htmlFor="organization-to-support" className="mb-1 block text-sm font-medium text-gray-700">
-                Choose another organization
-              </label>
-              <select
-                id="organization-to-support"
-                value={selectedOrganizationId}
-                onChange={(event) => setSelectedOrganizationId(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm"
-              >
-                {organizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organizationName(organization)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
+          <p className="mt-2 text-xs text-blue-800">
+            This campaign supports its sponsoring organization. To support a different organization, choose one of that organization’s campaigns.
+          </p>
         </div>
       ) : null}
 

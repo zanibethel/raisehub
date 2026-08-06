@@ -57,3 +57,32 @@ test(
     )
   }
 )
+
+test(
+  'campaign checkout organization stays locked to the campaign sponsor',
+  () => {
+    assert.ok(
+      buyButtonSource.includes(
+        "const selectedOrganizationId = defaultOrganizationId ?? organizations[0]?.id ?? ''"
+      )
+    )
+
+    assert.ok(
+      buyButtonSource.includes(
+        'This campaign supports its sponsoring organization.'
+      )
+    )
+
+    assert.ok(
+      !buyButtonSource.includes(
+        'Support a different organization'
+      )
+    )
+
+    assert.ok(
+      !buyButtonSource.includes(
+        'organization-to-support'
+      )
+    )
+  }
+)

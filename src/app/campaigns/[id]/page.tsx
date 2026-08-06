@@ -324,16 +324,13 @@ export default async function CampaignPage({
               sellerName={attributedSellerName}
               hasActivePass={hasActivePass}
               initialDonationAmount={donation}
-              initialSelectedOrganizationId={organization ?? null}
             />
             <div className="flex justify-center">
               <ShareCampaignButton campaignId={campaign.id} campaignName={campaign.name} />
             </div>
           </div>
 
-          <p className="mt-3 text-xs text-gray-500">
-            100% of donations go directly to the selected organization.
-          </p>
+          <p className="mt-3 text-xs text-gray-500">100% of donations go directly to this campaign’s sponsoring organization.</p>
         </div>
 
         <div className="mt-6 space-y-2 text-sm text-gray-600">
