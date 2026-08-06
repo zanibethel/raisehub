@@ -63,7 +63,13 @@ test(
   () => {
     assert.ok(
       buyButtonSource.includes(
-        "const selectedOrganizationId = defaultOrganizationId ?? organizations[0]?.id ?? ''"
+        'const selectedOrganizationId ='
+      )
+    )
+
+    assert.ok(
+      buyButtonSource.includes(
+        'defaultOrganizationId ?? organizations[0]?.id ??'
       )
     )
 
@@ -82,6 +88,18 @@ test(
     assert.ok(
       !buyButtonSource.includes(
         'organization-to-support'
+      )
+    )
+
+    assert.ok(
+      !buyButtonSource.includes(
+        'setSelectedOrganizationId('
+      )
+    )
+
+    assert.ok(
+      !buyButtonSource.includes(
+        'setShowOrganizationPicker('
       )
     )
   }
