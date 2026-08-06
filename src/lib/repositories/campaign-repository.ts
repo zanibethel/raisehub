@@ -1,5 +1,10 @@
 import { createClient } from '../supabase/server'
 import {
+  getActiveDataEnvironment,
+  toRpcEnvironmentExpectation,
+  type DataEnvironment,
+} from '../data-environment'
+import {
   buildSellableCampaignOption,
   compareSellableCampaignOptions,
   type SellableCampaignSource,
@@ -91,6 +96,19 @@ type EffectiveCampaignPricingLookupInput = {
 
 const PUBLIC_CAMPAIGN_PROGRESS_UNAVAILABLE =
   'public-campaign-progress-unavailable'
+
+function isMissingEnvironmentAwareRpc(
+  error: { message?: string | null } | null,
+  functionName: string
+) {
+  const message = error?.message?.toLowerCase() ?? ''
+  return (
+    message.includes(functionName.toLowerCase()) &&
+    (message.includes('schema cache') ||
+      message.includes('does not exist') ||
+      message.includes('could not find the function'))
+  )
+}
 
 function normalizePublicOrganizationName(
   profile: Pick<
@@ -200,7 +218,8 @@ async function loadPublicCampaignProgressWithClient(
   supabase: Awaited<
     ReturnType<typeof createClient>
   >,
-  campaignIds: string[]
+  campaignIds: string[],
+  environment: DataEnvironment = getActiveDataEnvironment()
 ): Promise<{
   amountRaisedByCampaignId: Map<
     string,
@@ -208,12 +227,34 @@ async function loadPublicCampaignProgressWithClient(
   >
   error: string | null
 }> {
-  const { data, error } = await supabase.rpc(
+  const rpcArgs = {
+    p_campaign_ids: campaignIds,
+    ...toRpcEnvironmentExpectation(
+      environment
+    ),
+  }
+
+  let { data, error } = await supabase.rpc(
     'get_public_campaign_progress',
-    {
-      p_campaign_ids: campaignIds,
-    }
+    rpcArgs
   )
+
+  if (
+    error &&
+    isMissingEnvironmentAwareRpc(
+      error,
+      'get_public_campaign_progress'
+    )
+  ) {
+    const fallback = await supabase.rpc(
+      'get_public_campaign_progress',
+      {
+        p_campaign_ids: campaignIds,
+      }
+    )
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     return {
@@ -234,7 +275,8 @@ async function loadPublicCampaignProgressWithClient(
 }
 
 export async function getPublicCampaignProgress(
-  campaignIds: string[]
+  campaignIds: string[],
+  environment: DataEnvironment = getActiveDataEnvironment()
 ): Promise<{
   amountRaisedByCampaignId: Map<
     string,
@@ -246,7 +288,8 @@ export async function getPublicCampaignProgress(
 
   return loadPublicCampaignProgressWithClient(
     supabase,
-    campaignIds
+    campaignIds,
+    environment
   )
 }
 
@@ -621,7 +664,8 @@ export async function getCampaignById(
 }
 
 export async function getCampaignRecoveryContext(
-  campaignId: string
+  campaignId: string,
+  environment: DataEnvironment = getActiveDataEnvironment()
 ): Promise<{
   context:
     | CampaignRecoveryContextRow
@@ -630,13 +674,36 @@ export async function getCampaignRecoveryContext(
 }> {
   const supabase = await createClient()
 
-  const { data, error } =
+  const rpcArgs = {
+    p_campaign_id: campaignId,
+    ...toRpcEnvironmentExpectation(
+      environment
+    ),
+  }
+
+  let { data, error } =
     await supabase.rpc(
       'get_campaign_recovery_context',
-      {
-        p_campaign_id: campaignId,
-      }
+      rpcArgs
     )
+
+  if (
+    error &&
+    isMissingEnvironmentAwareRpc(
+      error,
+      'get_campaign_recovery_context'
+    )
+  ) {
+    const fallback =
+      await supabase.rpc(
+        'get_campaign_recovery_context',
+        {
+          p_campaign_id: campaignId,
+        }
+      )
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     return {

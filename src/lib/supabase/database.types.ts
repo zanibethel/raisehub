@@ -917,6 +917,8 @@ export type Database = {
       get_campaign_recovery_context: {
         Args: {
           p_campaign_id: string
+          p_expected_demo_group: string | null
+          p_expected_environment_mode: string
         }
         Returns: {
           campaign_id: string
@@ -926,10 +928,37 @@ export type Database = {
       get_public_campaign_progress: {
         Args: {
           p_campaign_ids: string[]
+          p_expected_demo_group: string | null
+          p_expected_environment_mode: string
         }
         Returns: {
-          campaign_id: string
           amount_raised: number
+          campaign_id: string
+        }[]
+      }
+      get_public_campaign_sellers: {
+        Args: {
+          p_campaign_id: string
+          p_expected_demo_group: string | null
+          p_expected_environment_mode: string
+        }
+        Returns: {
+          display_name: string
+          id: string
+          referral_code: string
+        }[]
+      }
+      resolve_campaign_seller_referral: {
+        Args: {
+          p_campaign_id: string
+          p_expected_demo_group: string | null
+          p_expected_environment_mode: string
+          p_referral_code: string
+        }
+        Returns: {
+          campaign_seller_id: string
+          display_name: string
+          valid_for_attribution: boolean
         }[]
       }
       is_owner: { Args: never; Returns: boolean }
