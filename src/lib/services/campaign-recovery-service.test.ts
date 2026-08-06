@@ -5,6 +5,7 @@ import {
   createCampaignRecoveryService,
   type CampaignRecoveryCampaign,
 } from './campaign-recovery-service'
+import { resolveDataEnvironment } from '../data-environment'
 import type { SellableCampaignOption } from '../types/campaigns'
 
 function createCampaign(
@@ -369,6 +370,70 @@ test(
       {
         status: 'lookup-failure',
       }
+    )
+  }
+)
+
+test(
+  'recovery lookup threads the resolved environment into replacement campaign selection',
+  async () => {
+    const requestedOptions: Array<{
+      environmentMode?: string
+      environmentDemoGroup?: string | null
+    }> = []
+
+    const service =
+      createCampaignRecoveryService({
+        now: () =>
+          new Date(
+            '2026-07-15T00:00:00.000Z'
+          ),
+        loadCampaignById:
+          async () =>
+            createCampaign({
+              ends_at:
+                '2026-07-10T00:00:00.000Z',
+            }),
+        loadCampaignRecoveryContext:
+          async () => null,
+        loadSellableCampaigns:
+          async (options) => {
+            requestedOptions.push({
+              environmentMode:
+                options.environment?.mode,
+              environmentDemoGroup:
+                options.environment?.demoGroup ??
+                null,
+            })
+
+            return [createOption()]
+          },
+      })
+
+    const productionEnvironment =
+      resolveDataEnvironment(
+        'production'
+      )
+
+    const result =
+      await service.resolveCampaignRecovery(
+        'campaign-1',
+        productionEnvironment
+      )
+
+    assert.equal(
+      result.status,
+      'replacement-found'
+    )
+    assert.deepEqual(
+      requestedOptions,
+      [
+        {
+          environmentMode:
+            'production',
+          environmentDemoGroup: null,
+        },
+      ]
     )
   }
 )

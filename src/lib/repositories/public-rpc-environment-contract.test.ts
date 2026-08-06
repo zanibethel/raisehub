@@ -22,6 +22,14 @@ test('campaign recovery and progress RPCs include explicit environment expectati
 
 test('campaign detail route preserves live mode while passing environment to referral and progress RPC access', () => {
   assert.match(campaignPageSource, /resolveDataEnvironment\('production'\)/)
+  assert.match(
+    campaignPageSource,
+    /getCampaignById\(\s*id,\s*environment\s*\)/
+  )
+  assert.match(
+    campaignPageSource,
+    /resolveCampaignRecovery\(\s*id,\s*now,\s*environment\s*\)/
+  )
   assert.match(campaignPageSource, /toRpcEnvironmentExpectation\(environment\)/)
   assert.match(
     campaignPageSource,

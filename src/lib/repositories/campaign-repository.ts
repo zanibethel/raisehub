@@ -1,7 +1,9 @@
 import { createClient } from '../supabase/server'
 import {
+  applyEnvironmentScope,
   getActiveDataEnvironment,
   isMissingEnvironmentAwareRpc,
+  recordMatchesEnvironment,
   toRpcEnvironmentExpectation,
   type DataEnvironment,
 } from '../data-environment'
@@ -26,7 +28,9 @@ const CAMPAIGN_SELECT_COLUMNS = `
   starts_at,
   ends_at,
   status,
-  created_at
+  created_at,
+  is_demo,
+  demo_group
 `
 
 export type CampaignLookupRow = {
@@ -39,6 +43,8 @@ export type CampaignLookupRow = {
   ends_at: string | null
   status: string
   created_at: string
+  is_demo: boolean
+  demo_group: string | null
 }
 
 type CampaignResult = {
@@ -200,6 +206,19 @@ function mapPublicCampaignProgressRows(
   }
 
   return amountRaisedByCampaignId
+}
+
+export function campaignMatchesEnvironment(
+  campaign: Pick<
+    CampaignLookupRow,
+    'is_demo' | 'demo_group'
+  >,
+  environment: DataEnvironment
+) {
+  return recordMatchesEnvironment(
+    campaign,
+    environment
+  )
 }
 
 async function loadPublicCampaignProgressWithClient(
@@ -628,20 +647,38 @@ export function createSellableCampaignLookupService(
 }
 
 export async function getCampaignById(
-  campaignId: string
+  campaignId: string,
+  environment: DataEnvironment = getActiveDataEnvironment()
 ): Promise<CampaignResult> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const query = supabase
     .from('campaigns')
     .select(CAMPAIGN_SELECT_COLUMNS)
     .eq('id', campaignId)
-    .maybeSingle<CampaignLookupRow>()
+
+  const { data, error } = await applyEnvironmentScope(
+    query,
+    environment
+  ).maybeSingle<CampaignLookupRow>()
 
   if (error) {
     return {
       campaign: null,
       error: error.message,
+    }
+  }
+
+  if (
+    data &&
+    !campaignMatchesEnvironment(
+      data,
+      environment
+    )
+  ) {
+    return {
+      campaign: null,
+      error: null,
     }
   }
 
@@ -710,6 +747,9 @@ export async function getSellableCampaigns(
   options: SellableCampaignQueryOptions = {}
 ): Promise<SellableCampaignsResult> {
   const supabase = await createClient()
+  const environment =
+    options.environment ??
+    getActiveDataEnvironment()
 
   const service =
     createSellableCampaignLookupService({
@@ -768,6 +808,22 @@ export async function getSellableCampaigns(
           )
 
         if (
+          environment.mode ===
+          'production'
+        ) {
+          query = query
+            .eq('is_demo', false)
+            .is('demo_group', null)
+        } else {
+          query = query
+            .eq('is_demo', true)
+            .eq(
+              'demo_group',
+              environment.demoGroup
+            )
+        }
+
+        if (
           input.organizationLegacyProfileId
         ) {
           query = query.eq(
@@ -813,6 +869,57 @@ export async function getSellableCampaigns(
       async loadOrganizationsByLegacyProfileIds(
         organizationLegacyProfileIds
       ) {
+        const organizationsQuery =
+          supabase
+            .from('organizations')
+            .select(
+              'id, legacy_profile_id, name, logo_url'
+            )
+            .in(
+              'legacy_profile_id',
+              organizationLegacyProfileIds
+            )
+
+        const profilesQuery = supabase
+          .from('profiles')
+          .select(
+            'id, display_name, business_name, logo_url'
+          )
+          .in(
+            'id',
+            organizationLegacyProfileIds
+          )
+          .eq(
+            'role',
+            'organization'
+          )
+
+        const scopedOrganizationsQuery =
+          environment.mode ===
+          'production'
+            ? organizationsQuery
+                .eq('is_demo', false)
+                .is('demo_group', null)
+            : organizationsQuery
+                .eq('is_demo', true)
+                .eq(
+                  'demo_group',
+                  environment.demoGroup
+                )
+
+        const scopedProfilesQuery =
+          environment.mode ===
+          'production'
+            ? profilesQuery
+                .eq('is_demo', false)
+                .is('demo_group', null)
+            : profilesQuery
+                .eq('is_demo', true)
+                .eq(
+                  'demo_group',
+                  environment.demoGroup
+                )
+
         const [
           {
             data: organizationRows,
@@ -823,28 +930,8 @@ export async function getSellableCampaigns(
             error: profilesError,
           },
         ] = await Promise.all([
-          supabase
-            .from('organizations')
-            .select(
-              'id, legacy_profile_id, name, logo_url'
-            )
-            .in(
-              'legacy_profile_id',
-              organizationLegacyProfileIds
-            ),
-          supabase
-            .from('profiles')
-            .select(
-              'id, display_name, business_name, logo_url'
-            )
-            .in(
-              'id',
-              organizationLegacyProfileIds
-            )
-            .eq(
-              'role',
-              'organization'
-            ),
+          scopedOrganizationsQuery,
+          scopedProfilesQuery,
         ])
 
         const lookupError =
@@ -879,7 +966,8 @@ export async function getSellableCampaigns(
       ) {
         return loadPublicCampaignProgressWithClient(
           supabase,
-          campaignIds
+          campaignIds,
+          environment
         )
       },
 

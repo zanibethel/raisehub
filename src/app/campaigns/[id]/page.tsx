@@ -85,7 +85,10 @@ export default async function CampaignPage({
   const environment = forceProduction
     ? resolveDataEnvironment('production')
     : getActiveDataEnvironment()
-  const { campaign, error } = await getCampaignById(id)
+  const { campaign, error } = await getCampaignById(
+    id,
+    environment
+  )
 
   if (error) {
     return (
@@ -106,7 +109,12 @@ export default async function CampaignPage({
   }
 
   if (!campaign || !isCampaignCurrentlySellable(campaign, now)) {
-    const recoveryResult = await resolveCampaignRecovery(id, now)
+    const recoveryResult =
+      await resolveCampaignRecovery(
+        id,
+        now,
+        environment
+      )
 
     if (recoveryResult.status === 'replacement-found') {
       redirect(buildCampaignHref({
