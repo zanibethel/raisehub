@@ -4,6 +4,11 @@ export type DataEnvironment =
   | { mode: 'production'; demoGroup: null }
   | { mode: 'demo'; demoGroup: string }
 
+export type RpcEnvironmentExpectation = {
+  p_expected_environment_mode: DataEnvironment['mode']
+  p_expected_demo_group: string | null
+}
+
 export type EnvironmentOwnedRecord = {
   is_demo?: boolean | null
   demo_group?: string | null
@@ -33,6 +38,32 @@ export function getActiveDataEnvironment(
     DEFAULT_DEMO_GROUP
 ): DataEnvironment {
   return resolveDataEnvironment(getAppMode(), demoGroup)
+}
+
+export function toRpcEnvironmentExpectation(
+  environment: DataEnvironment
+): RpcEnvironmentExpectation {
+  return {
+    p_expected_environment_mode: environment.mode,
+    p_expected_demo_group:
+      environment.mode === 'demo'
+        ? environment.demoGroup
+        : null,
+  }
+}
+
+export function isMissingEnvironmentAwareRpc(
+  error: { message?: string | null } | null,
+  functionName: string
+): boolean {
+  const message = error?.message?.toLowerCase() ?? ''
+  const normalizedFunctionName = functionName.toLowerCase()
+  return (
+    message.includes(normalizedFunctionName) &&
+    (message.includes('schema cache') ||
+      message.includes('does not exist') ||
+      message.includes('could not find the function'))
+  )
 }
 
 export function recordMatchesEnvironment(

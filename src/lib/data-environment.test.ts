@@ -5,6 +5,7 @@ import {
   recordMatchesEnvironment,
   requireRecordEnvironment,
   resolveDataEnvironment,
+  toRpcEnvironmentExpectation,
 } from './data-environment'
 
 test('production accepts only explicit live records', () => {
@@ -53,4 +54,22 @@ test('missing or ambiguous metadata fails closed', () => {
     () => requireRecordEnvironment({ is_demo: true, demo_group: null }, lakeview),
     /unavailable in the active data environment/
   )
+})
+
+test('RPC environment expectations preserve strict mode and group', () => {
+  const production = toRpcEnvironmentExpectation(
+    resolveDataEnvironment('production')
+  )
+  const demo = toRpcEnvironmentExpectation(
+    resolveDataEnvironment('demo', 'lakeview_launch_2026')
+  )
+
+  assert.deepEqual(production, {
+    p_expected_environment_mode: 'production',
+    p_expected_demo_group: null,
+  })
+  assert.deepEqual(demo, {
+    p_expected_environment_mode: 'demo',
+    p_expected_demo_group: 'lakeview_launch_2026',
+  })
 })

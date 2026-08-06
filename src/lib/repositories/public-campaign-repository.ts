@@ -3,9 +3,11 @@ import 'server-only'
 import {
   applyEnvironmentScope,
   getActiveDataEnvironment,
+  isMissingEnvironmentAwareRpc,
   recordMatchesEnvironment,
   recordsShareEnvironment,
   resolveDataEnvironment,
+  toRpcEnvironmentExpectation,
   type DataEnvironment,
 } from '@/lib/data-environment'
 import { resolveEffectiveCampaignPricingBatch } from '@/lib/services/pricing-resolution-service'
@@ -147,14 +149,30 @@ export async function getPublicSellableCampaigns(
   const [
     { data: organizationData },
     { data: profileData },
-    { data: progressData },
+    progressResult,
   ] = await Promise.all([
     applyEnvironmentScope(organizationQuery, environment),
     applyEnvironmentScope(profileQuery, environment),
     admin.rpc('get_public_campaign_progress', {
       p_campaign_ids: campaignRows.map((campaign) => campaign.id),
+      ...toRpcEnvironmentExpectation(environment),
     }),
   ])
+
+  let progressData = progressResult.data
+
+  if (
+    progressResult.error &&
+    isMissingEnvironmentAwareRpc(
+      progressResult.error,
+      'get_public_campaign_progress'
+    )
+  ) {
+    const fallback = await (admin as any).rpc('get_public_campaign_progress', {
+      p_campaign_ids: campaignRows.map((campaign) => campaign.id),
+    })
+    progressData = fallback.data
+  }
 
   const organizations = (organizationData ?? []) as unknown as OrganizationRow[]
   const profiles = (profileData ?? []) as unknown as ProfileRow[]

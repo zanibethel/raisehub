@@ -49,3 +49,8 @@ test('loads environment metadata needed to fail closed', () => {
     )
   )
 })
+
+test('passes explicit environment expectations to public campaign progress RPCs', () => {
+  assert.ok(repositorySource.includes('toRpcEnvironmentExpectation'))
+  assert.ok(repositorySource.includes('toRpcEnvironmentExpectation(environment)'))
+})

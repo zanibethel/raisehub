@@ -11,6 +11,12 @@ import {
   getCampaignById,
   getPublicCampaignProgress,
 } from '@/lib/repositories/campaign-repository'
+import {
+  getActiveDataEnvironment,
+  isMissingEnvironmentAwareRpc,
+  resolveDataEnvironment,
+  toRpcEnvironmentExpectation,
+} from '@/lib/data-environment'
 import { resolveCampaignRecovery } from '@/lib/services/campaign-recovery-service'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
@@ -29,6 +35,7 @@ type CampaignPageProps = {
     replaced?: string
     donation?: string
     organization?: string
+    live?: string | string[]
   }>
 }
 
@@ -70,10 +77,18 @@ export default async function CampaignPage({
   searchParams,
 }: CampaignPageProps) {
   const { id } = await params
-  const { seller, notice, donation, organization } = await searchParams
+  const { seller, notice, donation, organization, live } = await searchParams
   const supabase = await createClient()
   const now = new Date()
-  const { campaign, error } = await getCampaignById(id)
+  const forceProduction =
+    (Array.isArray(live) ? live[0] : live) === '1'
+  const environment = forceProduction
+    ? resolveDataEnvironment('production')
+    : getActiveDataEnvironment()
+  const { campaign, error } = await getCampaignById(
+    id,
+    environment
+  )
 
   if (error) {
     return (
@@ -94,7 +109,12 @@ export default async function CampaignPage({
   }
 
   if (!campaign || !isCampaignCurrentlySellable(campaign, now)) {
-    const recoveryResult = await resolveCampaignRecovery(id, now)
+    const recoveryResult =
+      await resolveCampaignRecovery(
+        id,
+        now,
+        environment
+      )
 
     if (recoveryResult.status === 'replacement-found') {
       redirect(buildCampaignHref({
@@ -177,10 +197,26 @@ export default async function CampaignPage({
   let managedSeller: ManagedSellerResolution | null = null
 
   if (seller && isManagedSellerCode) {
-    const { data } = await (admin as any).rpc('resolve_campaign_seller_referral', {
+    let rpcResult = await (admin as any).rpc('resolve_campaign_seller_referral', {
       p_campaign_id: campaign.id,
       p_referral_code: seller,
+      ...toRpcEnvironmentExpectation(environment),
     })
+
+    if (
+      rpcResult.error &&
+      isMissingEnvironmentAwareRpc(
+        rpcResult.error,
+        'resolve_campaign_seller_referral'
+      )
+    ) {
+      rpcResult = await (admin as any).rpc('resolve_campaign_seller_referral', {
+        p_campaign_id: campaign.id,
+        p_referral_code: seller,
+      })
+    }
+
+    const { data } = rpcResult
     managedSeller = ((data ?? [])[0] ?? null) as ManagedSellerResolution | null
   }
 
@@ -214,7 +250,10 @@ export default async function CampaignPage({
   })
 
   const goal = Number(campaign.goal_amount ?? 0)
-  const { amountRaisedByCampaignId, error: progressError } = await getPublicCampaignProgress([campaign.id])
+  const { amountRaisedByCampaignId, error: progressError } = await getPublicCampaignProgress(
+    [campaign.id],
+    environment
+  )
   const progressState = buildCampaignDetailProgressState({
     amountRaised: amountRaisedByCampaignId.get(campaign.id),
     goalAmount: campaign.goal_amount,

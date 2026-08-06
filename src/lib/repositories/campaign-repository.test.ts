@@ -3,8 +3,10 @@ import test from 'node:test'
 
 import {
   buildPublicCampaignOrganizationMetadata,
+  campaignMatchesEnvironment,
   createSellableCampaignLookupService,
 } from './campaign-repository'
+import { resolveDataEnvironment } from '../data-environment'
 import type {
   SellableCampaignSource,
 } from '../rules/campaign-progress-rules'
@@ -514,6 +516,65 @@ test(
     assert.equal(
       result.campaigns[0]?.passPrice,
       27
+    )
+  }
+)
+
+test(
+  'campaign lookup environment guard blocks cross-environment access and preserves in-scope access',
+  () => {
+    const productionEnvironment =
+      resolveDataEnvironment(
+        'production'
+      )
+    const demoGroupAEnvironment =
+      resolveDataEnvironment(
+        'demo',
+        'group-a'
+      )
+
+    assert.equal(
+      campaignMatchesEnvironment(
+        {
+          is_demo: true,
+          demo_group: 'group-a',
+        },
+        productionEnvironment
+      ),
+      false
+    )
+
+    assert.equal(
+      campaignMatchesEnvironment(
+        {
+          is_demo: true,
+          demo_group: 'group-b',
+        },
+        demoGroupAEnvironment
+      ),
+      false
+    )
+
+    assert.equal(
+      campaignMatchesEnvironment(
+        {
+          is_demo: true,
+          demo_group: 'group-a',
+        },
+        demoGroupAEnvironment
+      ),
+      true
+    )
+
+    assert.equal(
+      campaignMatchesEnvironment(
+        {
+          is_demo: false,
+          demo_group: null,
+        },
+        productionEnvironment
+      ),
+      true
     )
   }
 )

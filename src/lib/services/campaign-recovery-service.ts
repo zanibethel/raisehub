@@ -1,5 +1,9 @@
 import { isCampaignCurrentlySellable } from '../rules/identity-access-rules'
 import {
+  getActiveDataEnvironment,
+  type DataEnvironment,
+} from '../data-environment'
+import {
   getCampaignById,
   getCampaignRecoveryContext,
   getSellableCampaigns,
@@ -43,7 +47,8 @@ export function createCampaignRecoveryService(
     dependencies.now?.() ?? new Date()
 
   async function resolveCampaignRecovery(
-    campaignId: string
+    campaignId: string,
+    environment: DataEnvironment = getActiveDataEnvironment()
   ): Promise<CampaignRecoveryResult> {
     try {
       const campaign =
@@ -98,6 +103,7 @@ export function createCampaignRecoveryService(
             excludeCampaignId:
               campaign?.id ??
               campaignId,
+            environment,
             now,
           }
         )
@@ -144,7 +150,8 @@ export function createCampaignRecoveryService(
 
 export async function resolveCampaignRecovery(
   campaignId: string,
-  now = new Date()
+  now = new Date(),
+  environment: DataEnvironment = getActiveDataEnvironment()
 ): Promise<CampaignRecoveryResult> {
   const service =
     createCampaignRecoveryService({
@@ -152,7 +159,10 @@ export async function resolveCampaignRecovery(
 
       async loadCampaignById(id) {
         const { campaign, error } =
-          await getCampaignById(id)
+          await getCampaignById(
+            id,
+            environment
+          )
 
         if (error) {
           throw new Error(error)
@@ -166,7 +176,8 @@ export async function resolveCampaignRecovery(
       ) {
         const { context, error } =
           await getCampaignRecoveryContext(
-            id
+            id,
+            environment
           )
 
         if (error) {
@@ -202,6 +213,7 @@ export async function resolveCampaignRecovery(
     })
 
   return service.resolveCampaignRecovery(
-    campaignId
+    campaignId,
+    environment
   )
 }

@@ -1,3 +1,5 @@
+import type { DataEnvironment } from '../data-environment'
+
 export type SelectableCampaignCard = {
   id: string
   organizationId: string | null
@@ -26,6 +28,7 @@ export type SellableCampaignQueryOptions = {
   organizationLegacyProfileId?: string
   organizationMembershipIds?: string[]
   excludeCampaignId?: string
+  environment?: DataEnvironment
   now?: Date
 }
 
