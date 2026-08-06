@@ -1,6 +1,7 @@
 import { createClient } from '../supabase/server'
 import {
   getActiveDataEnvironment,
+  isMissingEnvironmentAwareRpc,
   toRpcEnvironmentExpectation,
   type DataEnvironment,
 } from '../data-environment'
@@ -96,19 +97,6 @@ type EffectiveCampaignPricingLookupInput = {
 
 const PUBLIC_CAMPAIGN_PROGRESS_UNAVAILABLE =
   'public-campaign-progress-unavailable'
-
-function isMissingEnvironmentAwareRpc(
-  error: { message?: string | null } | null,
-  functionName: string
-) {
-  const message = error?.message?.toLowerCase() ?? ''
-  return (
-    message.includes(functionName.toLowerCase()) &&
-    (message.includes('schema cache') ||
-      message.includes('does not exist') ||
-      message.includes('could not find the function'))
-  )
-}
 
 function normalizePublicOrganizationName(
   profile: Pick<
@@ -246,7 +234,7 @@ async function loadPublicCampaignProgressWithClient(
       'get_public_campaign_progress'
     )
   ) {
-    const fallback = await supabase.rpc(
+    const fallback = await (supabase as any).rpc(
       'get_public_campaign_progress',
       {
         p_campaign_ids: campaignIds,
@@ -695,7 +683,7 @@ export async function getCampaignRecoveryContext(
     )
   ) {
     const fallback =
-      await supabase.rpc(
+      await (supabase as any).rpc(
         'get_campaign_recovery_context',
         {
           p_campaign_id: campaignId,

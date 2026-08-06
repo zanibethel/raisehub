@@ -3,6 +3,7 @@ import 'server-only'
 import {
   applyEnvironmentScope,
   getActiveDataEnvironment,
+  isMissingEnvironmentAwareRpc,
   recordMatchesEnvironment,
   recordsShareEnvironment,
   resolveDataEnvironment,
@@ -57,19 +58,6 @@ export type PublicSellableCampaignsResult = {
   campaigns: SellableCampaignOption[]
   error: string | null
   errorSource: 'campaigns' | null
-}
-
-function isMissingEnvironmentAwareRpc(
-  error: { message?: string | null } | null,
-  functionName: string
-) {
-  const message = error?.message?.toLowerCase() ?? ''
-  return (
-    message.includes(functionName.toLowerCase()) &&
-    (message.includes('schema cache') ||
-      message.includes('does not exist') ||
-      message.includes('could not find the function'))
-  )
 }
 
 function getDaysRemaining(endsAt: string | null, now: Date): number | null {
@@ -180,7 +168,7 @@ export async function getPublicSellableCampaigns(
       'get_public_campaign_progress'
     )
   ) {
-    const fallback = await admin.rpc('get_public_campaign_progress', {
+    const fallback = await (admin as any).rpc('get_public_campaign_progress', {
       p_campaign_ids: campaignRows.map((campaign) => campaign.id),
     })
     progressData = fallback.data

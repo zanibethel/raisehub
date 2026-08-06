@@ -13,6 +13,7 @@ import {
 } from '@/lib/repositories/campaign-repository'
 import {
   getActiveDataEnvironment,
+  isMissingEnvironmentAwareRpc,
   resolveDataEnvironment,
   toRpcEnvironmentExpectation,
 } from '@/lib/data-environment'
@@ -42,19 +43,6 @@ type ManagedSellerResolution = {
   campaign_seller_id: string
   display_name: string
   valid_for_attribution: boolean
-}
-
-function isMissingEnvironmentAwareRpc(
-  error: { message?: string | null } | null,
-  functionName: string
-) {
-  const message = error?.message?.toLowerCase() ?? ''
-  return (
-    message.includes(functionName.toLowerCase()) &&
-    (message.includes('schema cache') ||
-      message.includes('does not exist') ||
-      message.includes('could not find the function'))
-  )
 }
 
 function buildCampaignHref(input: {

@@ -951,9 +951,9 @@ export type Database = {
       resolve_campaign_seller_referral: {
         Args: {
           p_campaign_id: string
+          p_referral_code: string
           p_expected_demo_group: string | null
           p_expected_environment_mode: string
-          p_referral_code: string
         }
         Returns: {
           campaign_seller_id: string

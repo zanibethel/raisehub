@@ -52,6 +52,20 @@ export function toRpcEnvironmentExpectation(
   }
 }
 
+export function isMissingEnvironmentAwareRpc(
+  error: { message?: string | null } | null,
+  functionName: string
+): boolean {
+  const message = error?.message?.toLowerCase() ?? ''
+  const normalizedFunctionName = functionName.toLowerCase()
+  return (
+    message.includes(normalizedFunctionName) &&
+    (message.includes('schema cache') ||
+      message.includes('does not exist') ||
+      message.includes('could not find the function'))
+  )
+}
+
 export function recordMatchesEnvironment(
   record: EnvironmentOwnedRecord,
   environment: DataEnvironment

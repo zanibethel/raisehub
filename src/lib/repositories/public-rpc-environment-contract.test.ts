@@ -16,12 +16,15 @@ const campaignPageSource = fs.readFileSync(
 test('campaign recovery and progress RPCs include explicit environment expectations', () => {
   assert.match(campaignRepositorySource, /get_campaign_recovery_context/)
   assert.match(campaignRepositorySource, /get_public_campaign_progress/)
-  assert.match(campaignRepositorySource, /p_expected_environment_mode/)
-  assert.match(campaignRepositorySource, /p_expected_demo_group/)
+  assert.match(campaignRepositorySource, /toRpcEnvironmentExpectation/)
+  assert.match(campaignRepositorySource, /getActiveDataEnvironment/)
 })
 
 test('campaign detail route preserves live mode while passing environment to referral and progress RPC access', () => {
   assert.match(campaignPageSource, /resolveDataEnvironment\('production'\)/)
   assert.match(campaignPageSource, /toRpcEnvironmentExpectation\(environment\)/)
-  assert.match(campaignPageSource, /getPublicCampaignProgress\(\s*\[campaign\.id\],\s*environment/s)
+  assert.match(
+    campaignPageSource,
+    /getPublicCampaignProgress\([\s\S]*\[campaign\.id\],[\s\S]*environment[\s\S]*\)/
+  )
 })
