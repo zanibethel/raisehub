@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import {
+  inferOfferUsageRuleFromDescription,
   isOfferUsageRule,
   type OfferUsageRule,
 } from '@/lib/redemption-rules'
@@ -27,7 +28,8 @@ export async function createOfferAction(input: CreateOfferInput) {
     return { error: 'You must be logged in.' }
   }
 
-  const usageRule = input.usage_rule ?? 'one-time'
+  const usageRule = input.usage_rule
+    ?? inferOfferUsageRuleFromDescription(input.description)
   if (!isOfferUsageRule(usageRule)) {
     return { error: 'Choose a valid redemption frequency.' }
   }
