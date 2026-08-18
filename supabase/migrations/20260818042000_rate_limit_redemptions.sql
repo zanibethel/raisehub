@@ -7,7 +7,7 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_request_role text := nullif(current_setting('request.jwt.claim.role', true), '');
+  v_request_role text := coalesce(auth.jwt() ->> 'role', '');
   v_actor_id uuid := auth.uid();
   v_offer_is_demo boolean;
   v_offer_demo_group text;
