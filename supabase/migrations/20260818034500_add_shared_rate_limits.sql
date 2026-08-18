@@ -98,10 +98,65 @@ revoke execute on function public.consume_rate_limit(text, text, integer, intege
 grant execute on function public.consume_rate_limit(text, text, integer, integer)
   to service_role;
 
+create or replace function public.enforce_checkout_attempt_rate_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_scope text;
+  v_subject_hash text;
+  v_decision record;
+begin
+  if new.user_id is null then
+    raise exception 'checkout attempt requires an authenticated user';
+  end if;
+
+  v_scope := case
+    when coalesce(new.is_demo, false)
+      then 'campaign_checkout:create:demo:' || coalesce(new.demo_group, 'missing')
+    else 'campaign_checkout:create:live'
+  end;
+
+  v_subject_hash := md5(v_scope || ':' || new.user_id::text);
+
+  select *
+  into v_decision
+  from public.consume_rate_limit(
+    v_scope,
+    v_subject_hash,
+    5,
+    60
+  );
+
+  if v_decision.allowed is distinct from true then
+    raise exception 'checkout rate limit exceeded; retry after % seconds',
+      greatest(coalesce(v_decision.retry_after_seconds, 1), 1);
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.enforce_checkout_attempt_rate_limit()
+  from public, anon, authenticated;
+grant execute on function public.enforce_checkout_attempt_rate_limit()
+  to service_role;
+
+drop trigger if exists checkout_attempt_rate_limit on public.checkout_attempts;
+create trigger checkout_attempt_rate_limit
+before insert on public.checkout_attempts
+for each row
+execute function public.enforce_checkout_attempt_rate_limit();
+
 comment on table public.rate_limit_buckets is
   'Server-only shared fixed-window rate-limit state. Subjects are stored as hashes, never raw user IDs or IP addresses.';
 
 comment on function public.consume_rate_limit(text, text, integer, integer) is
   'Atomically consumes one shared fixed-window rate-limit token. Callable only by the service role.';
+
+comment on function public.enforce_checkout_attempt_rate_limit() is
+  'Blocks more than five checkout-attempt inserts per authenticated buyer and environment in a rolling fixed 60-second window, before Stripe session creation.';
 
 commit;
