@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import ClaimGiftButton from './claim-gift-button'
 import GiftClaimAuth from './gift-claim-auth'
-import { hashGiftClaimToken } from '@/app/gifts/actions'
+import { hashGiftClaimToken } from '@/lib/gifts/claim-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
