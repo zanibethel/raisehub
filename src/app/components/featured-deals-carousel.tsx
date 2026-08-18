@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import FeaturedDealsCarouselClient from './featured-deals-carousel-client'
 import { isDemoMode } from '@/lib/app-mode'
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 
 type Profile = {
   id: string
@@ -91,21 +92,14 @@ export default async function FeaturedDealsCarousel() {
     .order('created_at', { ascending: false })
     .limit(12)
 
-  if (offersError) {
-    return null
-  }
+  if (offersError) return null
 
   const candidateOffers =
     (offers as Offer[] | null)?.filter(
-      (offer) =>
-        Boolean(offer.business_id) &&
-        Boolean(offer.title?.trim())
+      (offer) => Boolean(offer.business_id) && Boolean(offer.title?.trim())
     ) ?? []
 
-  if (
-    candidateOffers.length === 0 &&
-    demoMode
-  ) {
+  if (candidateOffers.length === 0 && demoMode) {
     return (
       <FeaturedDealsCarouselClient
         offers={DEMO_SAMPLE_OFFERS}
@@ -114,57 +108,31 @@ export default async function FeaturedDealsCarousel() {
     )
   }
 
-  if (candidateOffers.length === 0) {
-    return null
-  }
+  if (candidateOffers.length === 0) return null
 
-  const businessIds = [
-    ...new Set(
-      candidateOffers.map(
-        (offer) => offer.business_id
-      )
-    ),
-  ]
+  const businessIds = [...new Set(candidateOffers.map((offer) => offer.business_id))]
+  const { profiles, error: profilesError } = await getPublicPartnerProfiles(
+    businessIds,
+    { role: 'business' }
+  )
 
-  const { data: profiles, error: profilesError } =
-    await supabase
-      .from('profiles')
-      .select(
-        'id, business_name, display_name, logo_url, role'
-      )
-      .in('id', businessIds)
-      .eq('role', 'business')
-      .eq('is_demo', demoMode)
+  if (profilesError) return null
 
-  if (profilesError) {
-    return null
-  }
-
-  const validProfiles =
-    (profiles as Profile[] | null)?.filter(
-      (profile) =>
-        profile.role === 'business' &&
-        Boolean(
-          profile.business_name?.trim() ||
-            profile.display_name?.trim()
-        )
-    ) ?? []
+  const validProfiles = profiles.filter(
+    (profile) =>
+      profile.role === 'business' &&
+      Boolean(profile.business_name?.trim() || profile.display_name?.trim())
+  )
 
   const profileById = Object.fromEntries(
-    validProfiles.map((profile) => [
-      profile.id,
-      profile,
-    ])
+    validProfiles.map((profile) => [profile.id, profile])
   )
 
-  const validOffers = candidateOffers.filter(
-    (offer) => Boolean(profileById[offer.business_id])
+  const validOffers = candidateOffers.filter((offer) =>
+    Boolean(profileById[offer.business_id])
   )
 
-  if (
-    validOffers.length === 0 &&
-    demoMode
-  ) {
+  if (validOffers.length === 0 && demoMode) {
     return (
       <FeaturedDealsCarouselClient
         offers={DEMO_SAMPLE_OFFERS}
@@ -173,9 +141,7 @@ export default async function FeaturedDealsCarousel() {
     )
   }
 
-  if (validOffers.length === 0) {
-    return null
-  }
+  if (validOffers.length === 0) return null
 
   return (
     <FeaturedDealsCarouselClient
