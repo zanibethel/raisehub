@@ -1,12 +1,14 @@
 import Link from 'next/link'
 
+import GiftSharePanel from './gift-share-panel'
+import { hashGiftClaimToken } from '@/app/gifts/actions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
 type PageProps = {
-  searchParams: Promise<{ session_id?: string }>
+  searchParams: Promise<{ session_id?: string; gift?: string }>
 }
 
 type CheckoutAttempt = {
@@ -16,6 +18,8 @@ type CheckoutAttempt = {
   donation_amount: number
   grant_entitlement: boolean
   purchase_id: string | null
+  purchase_kind: 'self' | 'gift'
+  gift_pass_id: string | null
 }
 
 function currencyFromCents(value: number) {
@@ -26,26 +30,42 @@ function currencyFromCents(value: number) {
 }
 
 export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
-  const { session_id: sessionId } = await searchParams
+  const { session_id: sessionId, gift: giftToken } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   let attempt: CheckoutAttempt | null = null
+  let giftTokenMatchesAttempt = false
 
   if (user && sessionId) {
     const admin = createAdminClient() as any
     const { data } = await admin
       .from('checkout_attempts')
       .select(
-        'status, campaign_id, expected_amount_cents, donation_amount, grant_entitlement, purchase_id'
+        'status, campaign_id, expected_amount_cents, donation_amount, grant_entitlement, purchase_id, purchase_kind, gift_pass_id'
       )
       .eq('stripe_checkout_session_id', sessionId)
       .eq('user_id', user.id)
       .maybeSingle()
 
     attempt = data as CheckoutAttempt | null
+
+    if (
+      attempt?.purchase_kind === 'gift' &&
+      attempt.gift_pass_id &&
+      giftToken
+    ) {
+      const { data: gift } = await admin
+        .from('gift_passes')
+        .select('id')
+        .eq('id', attempt.gift_pass_id)
+        .eq('claim_token_hash', hashGiftClaimToken(giftToken))
+        .maybeSingle()
+
+      giftTokenMatchesAttempt = Boolean(gift)
+    }
   }
 
   const paidAttempt =
@@ -55,6 +75,11 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
   const campaignHref = attempt
     ? `/campaigns/${attempt.campaign_id}`
     : '/campaigns'
+  const isGift = attempt?.purchase_kind === 'gift'
+  const claimPath =
+    isGift && giftTokenMatchesAttempt && giftToken
+      ? `/gifts/claim/${encodeURIComponent(giftToken)}`
+      : null
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-2xl items-center px-4 py-12">
@@ -66,14 +91,12 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
         {paidAttempt ? (
           <>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              Payment confirmed
+              {isGift ? 'Gift payment confirmed 🎁' : 'Payment confirmed'}
             </h1>
             <p className="mt-3 text-slate-600">
-              Your{' '}
-              {paidAttempt.grant_entitlement
-                ? 'RaiseHub Pass and support'
-                : 'support'}{' '}
-              have been recorded successfully.
+              {isGift
+                ? 'Your gift purchase and fundraiser support have been recorded. No pass was added to your account—the recipient receives their own access when they claim the gift.'
+                : `Your ${paidAttempt.grant_entitlement ? 'RaiseHub Pass and support' : 'support'} have been recorded successfully.`}
             </p>
             <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
               <p className="font-semibold">
@@ -89,19 +112,28 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
                 </p>
               ) : null}
             </div>
+
+            {isGift ? (
+              claimPath ? (
+                <GiftSharePanel claimPath={claimPath} />
+              ) : (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Payment is confirmed, but this return page no longer has the private claim token. Your gift record is safe; use My Gifts or support to regenerate a private link before sending it.
+                </div>
+              )
+            ) : null}
           </>
         ) : stillConfirming ? (
           <>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              Payment received — confirming access
+              Payment received — confirming {isGift ? 'your gift' : 'access'}
             </h1>
             <p className="mt-3 text-slate-600">
               Stripe returned you successfully. RaiseHub is waiting for the
-              signed payment confirmation before adding pass access.
+              signed payment confirmation before finalizing this {isGift ? 'gift' : 'purchase'}.
             </p>
             <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-              This usually completes quickly. Refresh this page or check your
-              dashboard in a moment.
+              This usually completes quickly. Refresh this page in a moment.
             </div>
           </>
         ) : (
@@ -110,8 +142,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               We could not confirm this checkout yet
             </h1>
             <p className="mt-3 text-slate-600">
-              No pass access is granted from this page. Check your dashboard
-              before trying another payment.
+              No pass access or gift claim is created from this return page alone. Check your dashboard before trying another payment.
             </p>
           </>
         )}
