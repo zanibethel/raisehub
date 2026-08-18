@@ -88,25 +88,60 @@ export async function POST(request: Request) {
     .eq('business_id', businessId)
     .maybeSingle()
 
+  const stripe = getStripeClient()
+
   if (
     existingBilling &&
-    ['incomplete', 'trialing', 'active', 'past_due'].includes(
-      existingBilling.subscription_status
-    )
+    ['trialing', 'active', 'past_due'].includes(existingBilling.subscription_status)
   ) {
     return NextResponse.json(
-      {
-        error:
-          existingBilling.subscription_status === 'incomplete'
-            ? 'An upgrade checkout is already in progress. Finish or cancel that checkout before starting another.'
-            : 'This business already has a Growth subscription. Manage billing instead.',
-      },
+      { error: 'This business already has a Growth subscription. Manage billing instead.' },
       { status: 409 }
     )
   }
 
+  if (
+    existingBilling?.subscription_status === 'incomplete' &&
+    existingBilling.stripe_customer_id
+  ) {
+    const openSessions = await stripe.checkout.sessions.list({
+      customer: existingBilling.stripe_customer_id,
+      status: 'open',
+      limit: 10,
+    })
+    const resumable = openSessions.data.find(
+      (session) =>
+        session.mode === 'subscription' &&
+        session.metadata?.raisehub_flow === BUSINESS_BILLING_FLOW &&
+        session.metadata?.raisehub_business_id === business.id &&
+        Boolean(session.url)
+    )
+
+    if (resumable?.url) {
+      return NextResponse.json({
+        url: resumable.url,
+        resumed: true,
+        planCode: resumable.metadata?.raisehub_plan_code ?? null,
+      })
+    }
+
+    const resetTime = new Date().toISOString()
+    const { error: resetError } = await admin
+      .from('business_billing_accounts')
+      .update({
+        plan_code: 'free',
+        subscription_status: 'inactive',
+        last_synced_at: resetTime,
+        updated_at: resetTime,
+      })
+      .eq('business_id', business.id)
+      .eq('subscription_status', 'incomplete')
+      .is('stripe_subscription_id', null)
+
+    if (resetError) throw resetError
+  }
+
   const plan = BUSINESS_PLANS[planCode]
-  const stripe = getStripeClient()
 
   let customerId = existingBilling?.stripe_customer_id ?? null
   if (!customerId) {
@@ -220,7 +255,7 @@ export async function POST(request: Request) {
       throw new Error('Stripe Checkout URL was not created.')
     }
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: session.url, resumed: false, planCode })
   } catch (error) {
     await admin
       .from('business_billing_accounts')
