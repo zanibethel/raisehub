@@ -3,6 +3,12 @@ import 'server-only'
 import Stripe from 'stripe'
 
 const SIGNATURE_TOLERANCE_SECONDS = 300
+const SENSITIVE_RETURN_PARAM_NAMES = new Set([
+  'gift',
+  'claim_token',
+  'claimtoken',
+  'token',
+])
 
 export type StripeCheckoutSessionInput = {
   attemptId: string
@@ -41,6 +47,22 @@ function configuredWebhookSecrets() {
   ].filter((secret): secret is string => Boolean(secret?.startsWith('whsec_')))
 }
 
+function stripSensitiveReturnParams(url: string) {
+  const questionMarkIndex = url.indexOf('?')
+  if (questionMarkIndex < 0) return url
+
+  const base = url.slice(0, questionMarkIndex)
+  const query = url.slice(questionMarkIndex + 1)
+  const safeParams = query.split('&').filter((entry) => {
+    const separatorIndex = entry.indexOf('=')
+    const rawName = separatorIndex >= 0 ? entry.slice(0, separatorIndex) : entry
+    const name = decodeURIComponent(rawName).toLowerCase()
+    return !SENSITIVE_RETURN_PARAM_NAMES.has(name)
+  })
+
+  return safeParams.length > 0 ? `${base}?${safeParams.join('&')}` : base
+}
+
 export function stripeIsConfigured() {
   const secretKey = process.env.STRIPE_SECRET_KEY?.trim()
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim()
@@ -73,8 +95,8 @@ export async function createStripeCheckoutSession(
   return stripe.checkout.sessions.create(
     {
       mode: 'payment',
-      success_url: input.successUrl,
-      cancel_url: input.cancelUrl,
+      success_url: stripSensitiveReturnParams(input.successUrl),
+      cancel_url: stripSensitiveReturnParams(input.cancelUrl),
       client_reference_id: input.attemptId,
       customer_email: input.customerEmail ?? undefined,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
