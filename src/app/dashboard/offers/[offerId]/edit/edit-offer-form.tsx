@@ -4,6 +4,11 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { updateOfferAction } from '@/app/dashboard/actions'
+import {
+  getOfferUsageRuleLabel,
+  isOfferUsageRule,
+  type OfferUsageRule,
+} from '@/lib/redemption-rules'
 
 type Props = {
   offer: {
@@ -13,6 +18,7 @@ type Props = {
     description: string | null
     starts_at: string | null
     ends_at: string | null
+    usage_rule: string | null
   }
 }
 
@@ -24,6 +30,9 @@ export default function EditOfferForm({ offer }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const initialUsageRule: OfferUsageRule = isOfferUsageRule(offer.usage_rule)
+    ? offer.usage_rule
+    : 'one-time'
 
   return (
     <form
@@ -33,6 +42,12 @@ export default function EditOfferForm({ offer }: Props) {
         setError(null)
 
         const formData = new FormData(event.currentTarget)
+        const rawUsageRule = String(formData.get('usage_rule') ?? '')
+
+        if (!isOfferUsageRule(rawUsageRule)) {
+          setError('Choose a valid redemption frequency.')
+          return
+        }
 
         startTransition(async () => {
           const result = await updateOfferAction({
@@ -42,6 +57,7 @@ export default function EditOfferForm({ offer }: Props) {
             description: String(formData.get('description') ?? ''),
             starts_at: String(formData.get('starts_at') ?? ''),
             ends_at: String(formData.get('ends_at') ?? ''),
+            usage_rule: rawUsageRule,
           })
 
           if (result.error) {
@@ -67,6 +83,23 @@ export default function EditOfferForm({ offer }: Props) {
       <label className="block">
         <span className="text-sm font-bold text-slate-800">Description</span>
         <textarea name="description" defaultValue={offer.description ?? ''} required rows={5} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3" />
+      </label>
+
+      <label className="block rounded-2xl border border-green-100 bg-green-50 p-4">
+        <span className="text-sm font-bold text-green-900">Redemption frequency</span>
+        <p className="mt-1 text-xs leading-5 text-green-800">
+          Reusable offers become available to the member again automatically when the selected window opens.
+        </p>
+        <select
+          name="usage_rule"
+          defaultValue={initialUsageRule}
+          className="mt-3 w-full rounded-xl border border-green-200 bg-white px-4 py-3 font-semibold text-slate-800"
+        >
+          <option value="one-time">{getOfferUsageRuleLabel('one-time')}</option>
+          <option value="daily">{getOfferUsageRuleLabel('daily')}</option>
+          <option value="weekly">{getOfferUsageRuleLabel('weekly')}</option>
+          <option value="unlimited">{getOfferUsageRuleLabel('unlimited')}</option>
+        </select>
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2">
