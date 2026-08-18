@@ -89,11 +89,18 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (
-    existingBilling?.stripe_subscription_id &&
-    ['trialing', 'active', 'past_due'].includes(existingBilling.subscription_status)
+    existingBilling &&
+    ['incomplete', 'trialing', 'active', 'past_due'].includes(
+      existingBilling.subscription_status
+    )
   ) {
     return NextResponse.json(
-      { error: 'This business already has an active Growth subscription. Manage billing instead.' },
+      {
+        error:
+          existingBilling.subscription_status === 'incomplete'
+            ? 'An upgrade checkout is already in progress. Finish or cancel that checkout before starting another.'
+            : 'This business already has a Growth subscription. Manage billing instead.',
+      },
       { status: 409 }
     )
   }
@@ -135,55 +142,102 @@ export async function POST(request: Request) {
     if (billingUpsertError) throw billingUpsertError
   }
 
-  const session = await stripe.checkout.sessions.create(
-    {
-      mode: 'subscription',
-      customer: customerId,
-      success_url: safeReturnUrl(
-        request,
-        `/upgrade?business=${encodeURIComponent(business.id)}&checkout=success`
-      ),
-      cancel_url: safeReturnUrl(
-        request,
-        `/upgrade?business=${encodeURIComponent(business.id)}&checkout=canceled`
-      ),
-      allow_promotion_codes: true,
-      client_reference_id: business.id,
-      metadata: {
-        raisehub_flow: BUSINESS_BILLING_FLOW,
-        raisehub_business_id: business.id,
-        raisehub_plan_code: planCode,
-      },
-      subscription_data: {
+  const reservationTime = new Date().toISOString()
+  const { data: reservation, error: reservationError } = await admin
+    .from('business_billing_accounts')
+    .update({
+      plan_code: planCode,
+      subscription_status: 'incomplete',
+      last_synced_at: reservationTime,
+      updated_at: reservationTime,
+    })
+    .eq('business_id', business.id)
+    .in('subscription_status', [
+      'inactive',
+      'canceled',
+      'incomplete_expired',
+      'unpaid',
+    ])
+    .select('business_id')
+    .maybeSingle()
+
+  if (reservationError) throw reservationError
+  if (!reservation) {
+    return NextResponse.json(
+      { error: 'Another billing change is already in progress.' },
+      { status: 409 }
+    )
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'subscription',
+        customer: customerId,
+        success_url: safeReturnUrl(
+          request,
+          `/upgrade?business=${encodeURIComponent(business.id)}&checkout=success`
+        ),
+        cancel_url: safeReturnUrl(
+          request,
+          `/upgrade?business=${encodeURIComponent(business.id)}&checkout=canceled`
+        ),
+        allow_promotion_codes: true,
+        client_reference_id: business.id,
         metadata: {
           raisehub_flow: BUSINESS_BILLING_FLOW,
           raisehub_business_id: business.id,
           raisehub_plan_code: planCode,
         },
-      },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'usd',
-            unit_amount: plan.amountCents,
-            recurring: { interval: plan.interval },
-            product_data: {
-              name: plan.label,
-              description: 'RaiseHub Growth business subscription',
-            },
+        subscription_data: {
+          metadata: {
+            raisehub_flow: BUSINESS_BILLING_FLOW,
+            raisehub_business_id: business.id,
+            raisehub_plan_code: planCode,
           },
         },
-      ],
-    },
-    {
-      idempotencyKey: `raisehub-business-upgrade-${business.id}-${planCode}-${Date.now()}`,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: plan.amountCents,
+              recurring: { interval: plan.interval },
+              product_data: {
+                name: plan.label,
+                description: 'RaiseHub Growth business subscription',
+              },
+            },
+          },
+        ],
+      },
+      {
+        idempotencyKey: `raisehub-business-upgrade-${business.id}-${planCode}-${reservationTime}`,
+      }
+    )
+
+    if (!session.url) {
+      throw new Error('Stripe Checkout URL was not created.')
     }
-  )
 
-  if (!session.url) {
-    return NextResponse.json({ error: 'Stripe Checkout URL was not created.' }, { status: 500 })
+    return NextResponse.json({ url: session.url })
+  } catch (error) {
+    await admin
+      .from('business_billing_accounts')
+      .update({
+        plan_code: 'free',
+        subscription_status: 'inactive',
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('business_id', business.id)
+      .eq('subscription_status', 'incomplete')
+      .is('stripe_subscription_id', null)
+
+    console.error('Business Stripe checkout creation failed', error)
+    return NextResponse.json(
+      { error: 'Stripe Checkout could not be started.' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({ url: session.url })
 }
