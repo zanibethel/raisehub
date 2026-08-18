@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 
 import { isDemoMode } from '@/lib/app-mode'
+import { buildPublicRateLimitSubject } from '@/lib/security/request-identity'
+import { consumeRateLimit } from '@/lib/security/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 
 type SupportRequestBody = {
@@ -45,6 +47,33 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  try {
+    const decision = await consumeRateLimit({
+      scope: isDemoMode() ? 'support_request:create:demo' : 'support_request:create:live',
+      subject: user?.id
+        ? `user:${user.id}`
+        : buildPublicRateLimitSubject({ request, discriminator: email }),
+      limit: 5,
+      windowSeconds: 15 * 60,
+    })
+
+    if (!decision.allowed) {
+      return NextResponse.json(
+        { error: 'Too many support requests. Please try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.max(decision.retryAfterSeconds, 1)) },
+        }
+      )
+    }
+  } catch (error) {
+    console.error('Unable to confirm support-request rate limit:', error)
+    return NextResponse.json(
+      { error: 'RaiseHub Support is temporarily unavailable. Please try again later.' },
+      { status: 503 }
+    )
+  }
 
   const { error } = await supabase.from('support_requests').insert({
     requester_user_id: user?.id ?? null,
