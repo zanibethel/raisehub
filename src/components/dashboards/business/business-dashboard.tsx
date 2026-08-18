@@ -23,6 +23,7 @@ type BusinessProfile = {
 type BusinessWorkspaceLifecycle = {
   id: string
   status: string
+  subscription_tier: string
   archived_at: string | null
   archive_reason: string | null
   restore_requested_at: string | null
@@ -87,11 +88,14 @@ export default async function BusinessDashboard({
 
   const { data: businessWorkspace } = await (supabase as any)
     .from('businesses')
-    .select('id, status, archived_at, archive_reason, restore_requested_at')
+    .select(
+      'id, status, subscription_tier, archived_at, archive_reason, restore_requested_at'
+    )
     .eq('legacy_profile_id', businessProfileId)
     .maybeSingle()
 
   const lifecycle = businessWorkspace as BusinessWorkspaceLifecycle | null
+  const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
   const { data: offers } = await supabase
     .from('offers')
@@ -159,8 +163,9 @@ export default async function BusinessDashboard({
       (!offer.ends_at || new Date(offer.ends_at) >= new Date())
   )
 
-  const ACTIVE_OFFER_LIMIT = 3
-  const hasReachedLimit = activeOffers.length >= ACTIVE_OFFER_LIMIT
+  const FREE_ACTIVE_OFFER_LIMIT = 3
+  const hasReachedLimit =
+    !isGrowthPlan && activeOffers.length >= FREE_ACTIVE_OFFER_LIMIT
 
   let topOfferId: string | null = null
   let topOfferCount = 0
@@ -204,8 +209,9 @@ export default async function BusinessDashboard({
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}
       activeOffersCount={activeOffers.length}
-      activeOfferLimit={ACTIVE_OFFER_LIMIT}
+      activeOfferLimit={FREE_ACTIVE_OFFER_LIMIT}
       hasReachedLimit={hasReachedLimit}
+      isGrowthPlan={isGrowthPlan}
       topOfferTitle={topOffer?.title || ''}
       topOfferCount={topOfferCount}
       redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
