@@ -40,54 +40,24 @@ const DEMO_SAMPLE_PARTNERS = [
 
 export default async function LogoCarousel() {
   const demoMode = isDemoMode()
-  const { profiles: partners, error } = await getPublicPartnerProfiles([], {
+  const { profiles: partners, error } = await getPublicPartnerProfiles(null, {
     role: 'business',
+    limit: 20,
   })
 
-  // No IDs means the helper deliberately returns no rows; the homepage carousel
-  // needs a bounded list, so load the presentation-safe partner rows directly
-  // through the server-only admin client below.
-  const { createAdminClient } = await import('@/lib/supabase/admin')
-  const admin = createAdminClient()
-  const { data: partnerRows, error: partnerError } = await admin
-    .from('profiles')
-    .select(
-      'id, business_name, display_name, logo_url, website_url, role, phone, address, google_maps_url'
-    )
-    .eq('role', 'business')
-    .eq('is_demo', demoMode)
-    .limit(20)
+  if (error) return null
 
-  if (error || partnerError) return null
-
-  const validBusinessPartners =
-    partnerRows?.filter(
-      (partner) =>
-        partner.role === 'business' &&
-        Boolean(
-          partner.business_name?.trim() ||
-            partner.display_name?.trim()
-        )
-    ) ?? partners
-
-  if (
-    validBusinessPartners.length === 0 &&
-    demoMode
-  ) {
-    return (
-      <LogoCarouselClient
-        partners={DEMO_SAMPLE_PARTNERS}
-      />
-    )
-  }
-
-  if (validBusinessPartners.length === 0) {
-    return null
-  }
-
-  return (
-    <LogoCarouselClient
-      partners={validBusinessPartners}
-    />
+  const validBusinessPartners = partners.filter(
+    (partner) =>
+      partner.role === 'business' &&
+      Boolean(partner.business_name?.trim() || partner.display_name?.trim())
   )
+
+  if (validBusinessPartners.length === 0 && demoMode) {
+    return <LogoCarouselClient partners={DEMO_SAMPLE_PARTNERS} />
+  }
+
+  if (validBusinessPartners.length === 0) return null
+
+  return <LogoCarouselClient partners={validBusinessPartners} />
 }
