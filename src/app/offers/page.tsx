@@ -7,6 +7,7 @@ import {
   recordsShareEnvironment,
   type EnvironmentOwnedRecord,
 } from '@/lib/data-environment'
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
@@ -101,16 +102,11 @@ export default async function OffersPage() {
 
   let profiles: BusinessProfile[] = []
   if (businessIds.length > 0) {
-    const profilesQuery = supabase
-      .from('profiles')
-      .select(
-        'id, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, role, is_demo, demo_group'
-      )
-      .in('id', businessIds)
-      .eq('role', 'business')
-
-    const result = await applyEnvironmentScope(profilesQuery, environment)
-    profiles = (result.data ?? []) as BusinessProfile[]
+    const result = await getPublicPartnerProfiles(businessIds, {
+      role: 'business',
+      environment,
+    })
+    profiles = result.profiles as BusinessProfile[]
   }
 
   const profileById = Object.fromEntries(
