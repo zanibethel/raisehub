@@ -17,8 +17,12 @@ function unixSecondsToIso(value: unknown) {
     : null
 }
 
+function subscriptionRecord(subscription: Stripe.Subscription) {
+  return subscription as unknown as Record<string, unknown>
+}
+
 function subscriptionPeriod(subscription: Stripe.Subscription) {
-  const subscriptionRecord = subscription as unknown as Record<string, unknown>
+  const record = subscriptionRecord(subscription)
   const itemRecord = (subscription.items.data[0] ?? {}) as unknown as Record<
     string,
     unknown
@@ -26,12 +30,23 @@ function subscriptionPeriod(subscription: Stripe.Subscription) {
 
   return {
     start: unixSecondsToIso(
-      subscriptionRecord.current_period_start ?? itemRecord.current_period_start
+      record.current_period_start ?? itemRecord.current_period_start
     ),
     end: unixSecondsToIso(
-      subscriptionRecord.current_period_end ?? itemRecord.current_period_end
+      record.current_period_end ?? itemRecord.current_period_end
     ),
   }
+}
+
+function hasScheduledCancellation(subscription: Stripe.Subscription) {
+  if (subscription.cancel_at_period_end) return true
+
+  const cancelAt = subscriptionRecord(subscription).cancel_at
+  return (
+    typeof cancelAt === 'number' &&
+    Number.isFinite(cancelAt) &&
+    cancelAt > Math.floor(Date.now() / 1000)
+  )
 }
 
 export async function refreshBusinessBillingFromStripe(
@@ -77,7 +92,8 @@ export async function refreshBusinessBillingFromStripe(
   const now = new Date().toISOString()
   const customerId = expandableId(subscription.customer)
   const priceId = subscription.items.data[0]?.price?.id ?? null
-  const planCode = subscription.metadata?.raisehub_plan_code?.trim() ||
+  const planCode =
+    subscription.metadata?.raisehub_plan_code?.trim() ||
     (grantsGrowth ? 'growth' : 'free')
 
   const { error: accountUpdateError } = await admin
@@ -88,7 +104,7 @@ export async function refreshBusinessBillingFromStripe(
       livemode: Boolean((subscription as any).livemode),
       plan_code: planCode,
       subscription_status: subscription.status,
-      cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+      cancel_at_period_end: hasScheduledCancellation(subscription),
       current_period_start: period.start,
       current_period_end: period.end,
       trial_end: unixSecondsToIso(subscription.trial_end),
