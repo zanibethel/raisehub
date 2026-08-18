@@ -101,7 +101,7 @@ function createClaimToken() {
   return randomBytes(32).toString('base64url')
 }
 
-export function hashGiftClaimToken(token: string) {
+function hashGiftClaimToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
 
