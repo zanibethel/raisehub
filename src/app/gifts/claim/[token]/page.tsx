@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import ClaimGiftButton from './claim-gift-button'
+import GiftClaimAuth from './gift-claim-auth'
 import { hashGiftClaimToken } from '@/app/gifts/actions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -66,7 +67,6 @@ export default async function GiftClaimPage({ params }: PageProps) {
   const claimedBySomeoneElse = Boolean(
     gift?.status === 'claimed' && (!user || gift.claimed_by_user_id !== user.id)
   )
-  const nextPath = `/gifts/claim/${encodeURIComponent(cleanToken)}`
   const recipientHint = maskedEmail(gift?.recipient_email ?? null)
 
   return (
@@ -152,20 +152,7 @@ export default async function GiftClaimPage({ params }: PageProps) {
               ) : user ? (
                 <ClaimGiftButton token={cleanToken} />
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Link
-                    href={`/login?next=${encodeURIComponent(nextPath)}`}
-                    className="rounded-xl bg-emerald-700 px-5 py-3 text-center font-bold text-white hover:bg-emerald-800"
-                  >
-                    Log In to Claim
-                  </Link>
-                  <Link
-                    href={`/signup?next=${encodeURIComponent(nextPath)}`}
-                    className="rounded-xl border border-emerald-300 bg-white px-5 py-3 text-center font-bold text-emerald-800 hover:bg-emerald-50"
-                  >
-                    Create Account
-                  </Link>
-                </div>
+                <GiftClaimAuth token={cleanToken} />
               )}
             </div>
           </>
