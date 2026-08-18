@@ -33,10 +33,14 @@ export default function BusinessCommandCenter(props: Props) {
           href: '/dashboard/offers#business-profile',
         }
       : null,
-    props.activeOffersCount < props.activeOfferLimit
+    props.isGrowthPlan || props.activeOffersCount < props.activeOfferLimit
       ? {
-          title: 'You have room for more offers',
-          description: 'Add another strong offer to give customers more reasons to visit.',
+          title: props.isGrowthPlan
+            ? 'Growth gives you room for another offer'
+            : 'You have room for more offers',
+          description: props.isGrowthPlan
+            ? 'Create another focused offer whenever it supports a useful customer goal.'
+            : 'Add another strong offer to give customers more reasons to visit.',
           href: '/dashboard/offers#create-offer',
         }
       : null,
