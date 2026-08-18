@@ -1,28 +1,32 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 
-import { describe, expect, it } from 'vitest'
+const dashboardSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/app/seller/dashboard/page.tsx'),
+  'utf8'
+)
+const shareSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/app/seller/dashboard/share-seller-link.tsx'),
+  'utf8'
+)
 
-const dashboardSource = fs.readFileSync(path.join(process.cwd(), 'src/app/seller/dashboard/page.tsx'), 'utf8')
-const shareSource = fs.readFileSync(path.join(process.cwd(), 'src/app/seller/dashboard/share-seller-link.tsx'), 'utf8')
+test('seller campaign selection stays explicit and attributed', () => {
+  assert.match(dashboardSource, /searchParams: Promise<\{ campaign\?: string \}>/)
+  assert.match(dashboardSource, /selectedCampaignId/)
+  assert.match(dashboardSource, /\/seller\/dashboard\?campaign=/)
+  assert.match(dashboardSource, /seller_profile_id/)
+})
 
-describe('seller dashboard launch polish', () => {
-  it('keeps seller campaign selection explicit and attributed', () => {
-    expect(dashboardSource).toContain("searchParams: Promise<{ campaign?: string }>")
-    expect(dashboardSource).toContain("selectedCampaignId")
-    expect(dashboardSource).toContain("/seller/dashboard?campaign=")
-    expect(dashboardSource).toContain("seller_profile_id")
-  })
+test('seller next action stays focused on the attributed campaign link', () => {
+  assert.match(dashboardSource, /What should I do next\?/)
+  assert.match(dashboardSource, /Share your personal fundraiser link/)
+  assert.match(dashboardSource, /\?seller=/)
+})
 
-  it('keeps the next action focused on sharing the attributed campaign link', () => {
-    expect(dashboardSource).toContain('What should I do next?')
-    expect(dashboardSource).toContain('Share your personal fundraiser link')
-    expect(dashboardSource).toContain('?seller=')
-  })
-
-  it('supports a downloadable QR code without sending the seller URL to another service', () => {
-    expect(shareSource).toContain("QRCode.toDataURL(url")
-    expect(shareSource).toContain('Download QR code')
-    expect(shareSource).toContain("link.download = `${safeFileName(campaignName)}-raisehub-qr.png`")
-  })
+test('seller QR can be downloaded without sending the seller URL to another service', () => {
+  assert.match(shareSource, /QRCode\.toDataURL\(url/)
+  assert.match(shareSource, /Download QR code/)
+  assert.match(shareSource, /link\.download = `\$\{safeFileName\(campaignName\)\}-raisehub-qr\.png`/)
 })
