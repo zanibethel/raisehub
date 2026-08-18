@@ -30,6 +30,24 @@ export function getOfferUsageRuleLabel(rule: OfferUsageRule): string {
   }
 }
 
+export function inferOfferUsageRuleFromDescription(
+  description: string
+): OfferUsageRule {
+  if (description.includes('once every 24 hours per member')) {
+    return 'daily'
+  }
+
+  if (description.includes('once every 7 days per member')) {
+    return 'weekly'
+  }
+
+  if (description.includes('Reusable while this offer remains active')) {
+    return 'unlimited'
+  }
+
+  return 'one-time'
+}
+
 export function getRedemptionAvailability({
   usageRule,
   lastRedeemedAt,
