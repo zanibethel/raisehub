@@ -10,7 +10,7 @@
     "test": "sh -c 'files=$(find src -type f -name \"*.test.ts\"); if [ -z \"$files\" ]; then echo \"No test files found\"; exit 0; fi; node --conditions=react-server --import tsx --test $files'"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.10.2",
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.103.0",
     "next": "16.3.1",
     "qrcode": "^1.5.4",
