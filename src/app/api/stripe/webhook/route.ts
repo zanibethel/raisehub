@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
+import { isPendingAsyncCheckoutCompletion } from '@/lib/stripe/checkout-event-state'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyStripeWebhook } from '@/lib/stripe/server'
 
@@ -419,6 +420,16 @@ export async function POST(request: Request) {
     if (!session.id) throw new Error('Checkout Session ID is missing')
 
     await validateProductionCheckoutAttempt(admin, attemptId, session.id)
+
+    if (
+      isPendingAsyncCheckoutCompletion({
+        type: event.type,
+        paymentStatus: session.payment_status,
+      })
+    ) {
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true, paymentPending: true })
+    }
 
     const { error: fulfillmentError } = await admin.rpc(
       'fulfill_paid_checkout_attempt',
