@@ -13,6 +13,11 @@ import {
   removeSavedOfferAction,
 } from '@/app/offers/actions'
 import {
+  getOfferUsageRuleLabel,
+  getRedemptionAvailability,
+  isOfferUsageRule,
+} from '@/lib/redemption-rules'
+import {
   getCustomerReadyToUseDealCountLabel,
   getCustomerSavedDealGroups,
   getCustomerUsedDealCountLabel,
@@ -51,6 +56,7 @@ type Props = {
     CustomerDashboardOffer[]
   savedOfferIds: Set<string>
   redeemedOfferIds: Set<string>
+  redeemableOfferIds?: Set<string>
   redemptionDateByOfferId: Map<
     string,
     string
@@ -166,6 +172,7 @@ function SavedDealCard({
   const {
     offer,
     isRedeemed,
+    isRedeemable,
   } = deal
 
   const offerTitle =
@@ -203,6 +210,23 @@ function SavedDealCard({
       offer
     )
 
+  const lastRedeemedAt =
+    redemptionDateByOfferId.get(
+      offer.id
+    )
+
+  const availability =
+    getRedemptionAvailability({
+      usageRule: offer.usage_rule,
+      lastRedeemedAt,
+    })
+
+  const usageRule = isOfferUsageRule(
+    offer.usage_rule
+  )
+    ? offer.usage_rule
+    : 'one-time'
+
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-green-100 bg-white/90 p-4 shadow-xl backdrop-blur sm:p-6">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -218,14 +242,14 @@ function SavedDealCard({
 
         <span
           className={
-            isRedeemed
-              ? 'w-fit shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
-              : 'w-fit shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
+            isRedeemable
+              ? 'w-fit shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700'
+              : 'w-fit shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700'
           }
         >
-          {isRedeemed
-            ? 'Used'
-            : 'Ready'}
+          {isRedeemable
+            ? 'Ready'
+            : availability.label}
         </span>
       </div>
 
@@ -278,6 +302,15 @@ function SavedDealCard({
             )}
           </dd>
         </div>
+
+        <div className="min-w-0">
+          <dt className="font-semibold text-gray-900">
+            Reuse
+          </dt>
+          <dd className="mt-1 text-gray-600">
+            {getOfferUsageRuleLabel(usageRule)}
+          </dd>
+        </div>
       </dl>
 
       {mapUrl ? (
@@ -299,28 +332,34 @@ function SavedDealCard({
           View Deal Details
         </Link>
 
-        {isRedeemed ? (
-          <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
-            <p className="text-sm font-semibold text-gray-700">
-              Used
-            </p>
-
-            <p className="mt-1 break-words text-xs leading-5 text-gray-500">
-              Used on{' '}
-              {formatCustomerSavedDealRedemptionDate(
-                redemptionDateByOfferId.get(
-                  offer.id
-                )
-              )}
-            </p>
-          </div>
-        ) : (
+        {isRedeemable ? (
           <UseOfferButton
             offerId={offer.id}
           />
+        ) : (
+          <div className="rounded-xl bg-gray-100 px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-gray-700">
+              {availability.label}
+            </p>
+
+            {isRedeemed ? (
+              <p className="mt-1 break-words text-xs leading-5 text-gray-500">
+                Last used{' '}
+                {formatCustomerSavedDealRedemptionDate(
+                  lastRedeemedAt
+                )}
+              </p>
+            ) : null}
+          </div>
         )}
 
-        {!isRedeemed ? (
+        {isRedeemed && isRedeemable ? (
+          <p className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-center text-xs leading-5 text-green-800">
+            Last used {formatCustomerSavedDealRedemptionDate(lastRedeemedAt)}. This offer is available again now.
+          </p>
+        ) : null}
+
+        {isRedeemable ? (
           <RemoveSavedOfferButton
             offerId={offer.id}
             offerTitle={offerTitle}
@@ -344,6 +383,7 @@ export default function CustomerSavedDealsSection({
   enrichedOffers,
   savedOfferIds,
   redeemedOfferIds,
+  redeemableOfferIds,
   redemptionDateByOfferId,
 }: Props) {
   const savedDeals =
@@ -351,6 +391,7 @@ export default function CustomerSavedDealsSection({
       offers: enrichedOffers,
       savedOfferIds,
       redeemedOfferIds,
+      redeemableOfferIds,
     })
 
   const {
@@ -409,9 +450,7 @@ export default function CustomerSavedDealsSection({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Ready-to-use deals appear
-              first. Used deals remain
-              available for your records.
+              Ready-to-use deals appear first. Reusable deals return here automatically when their reuse window opens.
             </p>
           </div>
 
@@ -503,19 +542,18 @@ export default function CustomerSavedDealsSection({
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                History
+                History / Cooldown
               </p>
 
               <h3
                 id="customer-used-deals-heading"
                 className="mt-1 text-xl font-bold text-gray-900"
               >
-                Used Deals
+                Not Currently Available
               </h3>
 
               <p className="mt-1 text-sm leading-6 text-gray-600">
-                These saved deals have
-                already been redeemed.
+                Single-use deals stay in your history. Reusable deals return to Ready to Use automatically when eligible again.
               </p>
             </div>
 
