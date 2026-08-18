@@ -5,6 +5,7 @@ import { refreshBusinessBillingFromStripe } from '@/lib/stripe/business-billing-
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
+import BusinessWorkspaceContext from './business-workspace-context'
 import UpgradeActions from './upgrade-actions'
 
 type UpgradePageProps = {
@@ -121,99 +122,104 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
     current_period_end: null,
   }
   const currentPeriodEnd = periodEndLabel(billingState.current_period_end)
+  const businessWorkspaceKey = `business:${business.id}`
+  const businessDashboardHref = `/dashboard?workspace=${encodeURIComponent(businessWorkspaceKey)}`
 
   return (
-    <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-6 sm:py-14">
-      <div className="mx-auto max-w-3xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-green-700">
-              {business.name}
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-              Grow beyond the free plan
-            </h1>
-            <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-              Free businesses can keep up to 3 active offers. Growth removes that limit and unlocks the paid growth tier while community participation stays available on every plan.
-            </p>
-          </div>
-
-          <Link
-            href="/dashboard"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-
-        {params.checkout === 'success' ? (
-          <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
-            <p className="font-bold">Stripe Checkout completed.</p>
-            <p className="mt-1 text-sm leading-6">
-              RaiseHub activates Growth from signed Stripe subscription events. If the status below has not refreshed yet, return to the dashboard in a moment rather than purchasing again.
-            </p>
-          </div>
-        ) : null}
-
-        {params.checkout === 'canceled' ? (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-            <p className="font-bold">Checkout canceled.</p>
-            <p className="mt-1 text-sm">No plan change was made.</p>
-          </div>
-        ) : null}
-
-        {billingState.cancel_at_period_end ? (
-          <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
-            <p className="font-black">Growth cancellation scheduled</p>
-            <p className="mt-1 text-sm leading-6">
-              Your subscription will not renew{currentPeriodEnd ? ` after ${currentPeriodEnd}` : ' after the current billing period'}. Growth remains active until then.
-            </p>
-          </div>
-        ) : null}
-
-        <section className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="grid gap-6 md:grid-cols-[1fr_1.2fr] md:items-start">
+    <>
+      <BusinessWorkspaceContext workspaceKey={businessWorkspaceKey} />
+      <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.16em] text-blue-700">Growth includes</p>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-                <li>✓ More than 3 active offers</li>
-                <li>✓ Growth-tier placement and promotion eligibility</li>
-                <li>✓ Access to future paid marketing tools as they launch</li>
-                <li>✓ Existing redemption and reporting history stays intact</li>
-                <li>✓ Secure billing management through Stripe</li>
-              </ul>
-
-              <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                <p className="font-bold text-slate-900">Current RaiseHub tier</p>
-                <p className="mt-1 capitalize">{business.subscription_tier || 'free'}</p>
-                <p className="mt-3 font-bold text-slate-900">Stripe status</p>
-                <p className="mt-1 capitalize">{billingState.subscription_status.replaceAll('_', ' ')}</p>
-                <p className="mt-3 font-bold text-slate-900">Renewal</p>
-                <p className="mt-1">
-                  {billingState.cancel_at_period_end
-                    ? `Cancels${currentPeriodEnd ? ` ${currentPeriodEnd}` : ' at period end'}`
-                    : currentPeriodEnd
-                      ? `Renews after ${currentPeriodEnd}`
-                      : 'Active'}
-                </p>
-              </div>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-green-700">
+                {business.name}
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                Grow beyond the free plan
+              </h1>
+              <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+                Free businesses can keep up to 3 active offers. Growth removes that limit and unlocks the paid growth tier while community participation stays available on every plan.
+              </p>
             </div>
 
-            <UpgradeActions
-              businessId={business.id}
-              currentPlanCode={billingState.plan_code}
-              subscriptionStatus={billingState.subscription_status}
-              cancelAtPeriodEnd={billingState.cancel_at_period_end}
-              currentPeriodEnd={billingState.current_period_end}
-              isDemo={isDemo}
-            />
+            <Link
+              href={businessDashboardHref}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700"
+            >
+              Back to Dashboard
+            </Link>
           </div>
-        </section>
 
-        <p className="mt-5 text-center text-xs leading-5 text-slate-500">
-          Billing is processed by Stripe. RaiseHub does not store card numbers. Canceling at period end keeps Growth access through the paid billing period.
-        </p>
-      </div>
-    </main>
+          {params.checkout === 'success' ? (
+            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
+              <p className="font-bold">Stripe Checkout completed.</p>
+              <p className="mt-1 text-sm leading-6">
+                RaiseHub activates Growth from signed Stripe subscription events. If the status below has not refreshed yet, return to the dashboard in a moment rather than purchasing again.
+              </p>
+            </div>
+          ) : null}
+
+          {params.checkout === 'canceled' ? (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+              <p className="font-bold">Checkout canceled.</p>
+              <p className="mt-1 text-sm">No plan change was made.</p>
+            </div>
+          ) : null}
+
+          {billingState.cancel_at_period_end ? (
+            <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+              <p className="font-black">Growth cancellation scheduled</p>
+              <p className="mt-1 text-sm leading-6">
+                Your subscription will not renew{currentPeriodEnd ? ` after ${currentPeriodEnd}` : ' after the current billing period'}. Growth remains active until then.
+              </p>
+            </div>
+          ) : null}
+
+          <section className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="grid gap-6 md:grid-cols-[1fr_1.2fr] md:items-start">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.16em] text-blue-700">Growth includes</p>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                  <li>✓ More than 3 active offers</li>
+                  <li>✓ Growth-tier placement and promotion eligibility</li>
+                  <li>✓ Access to future paid marketing tools as they launch</li>
+                  <li>✓ Existing redemption and reporting history stays intact</li>
+                  <li>✓ Secure billing management through Stripe</li>
+                </ul>
+
+                <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+                  <p className="font-bold text-slate-900">Current RaiseHub tier</p>
+                  <p className="mt-1 capitalize">{business.subscription_tier || 'free'}</p>
+                  <p className="mt-3 font-bold text-slate-900">Stripe status</p>
+                  <p className="mt-1 capitalize">{billingState.subscription_status.replaceAll('_', ' ')}</p>
+                  <p className="mt-3 font-bold text-slate-900">Renewal</p>
+                  <p className="mt-1">
+                    {billingState.cancel_at_period_end
+                      ? `Cancels${currentPeriodEnd ? ` ${currentPeriodEnd}` : ' at period end'}`
+                      : currentPeriodEnd
+                        ? `Renews after ${currentPeriodEnd}`
+                        : 'Active'}
+                  </p>
+                </div>
+              </div>
+
+              <UpgradeActions
+                businessId={business.id}
+                currentPlanCode={billingState.plan_code}
+                subscriptionStatus={billingState.subscription_status}
+                cancelAtPeriodEnd={billingState.cancel_at_period_end}
+                currentPeriodEnd={billingState.current_period_end}
+                isDemo={isDemo}
+              />
+            </div>
+          </section>
+
+          <p className="mt-5 text-center text-xs leading-5 text-slate-500">
+            Billing is processed by Stripe. RaiseHub does not store card numbers. Canceling at period end keeps Growth access through the paid billing period.
+          </p>
+        </div>
+      </main>
+    </>
   )
 }
