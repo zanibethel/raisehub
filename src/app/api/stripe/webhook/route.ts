@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
+import { handleBusinessBillingEvent } from '@/lib/stripe/business-billing'
 import { isPendingAsyncCheckoutCompletion } from '@/lib/stripe/checkout-event-state'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyStripeWebhook } from '@/lib/stripe/server'
@@ -390,6 +391,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (await handleBusinessBillingEvent(admin, event)) {
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true, businessBilling: true })
+    }
+
     if (event.type === 'account.updated') {
       await synchronizeConnectedAccount(admin, event)
       await markWebhookEvent(admin, event.id, 'processed')

@@ -70,7 +70,9 @@ export default function BusinessWorkspaceFrame({
       view === 'dashboard'
         ? props.profile?.address || 'Add your address so customers know where to visit.'
         : view === 'offers'
-          ? `${props.activeOffersCount} of ${props.activeOfferLimit} active offer slots are currently in use.`
+          ? props.isGrowthPlan
+            ? `${props.activeOffersCount} active offers · Growth plan`
+            : `${props.activeOffersCount} of ${props.activeOfferLimit} active offer slots are currently in use.`
           : `${props.totalRedemptions} total redemptions recorded.`,
     tone: 'green',
     image: props.profile?.logo_url ? (

@@ -9,6 +9,7 @@ type BusinessDashboardCreateOfferProps = {
   activeOffersCount: number
   activeOfferLimit: number
   hasReachedLimit: boolean
+  isGrowthPlan: boolean
   onViewUpgrade: () => void
 }
 
@@ -21,6 +22,7 @@ export default function BusinessDashboardCreateOffer({
   activeOffersCount,
   activeOfferLimit,
   hasReachedLimit,
+  isGrowthPlan,
   onViewUpgrade,
 }: BusinessDashboardCreateOfferProps) {
   const [savedDraft, setSavedDraft] = useState<SavedDraftSummary | null>(null)
@@ -90,7 +92,7 @@ export default function BusinessDashboardCreateOffer({
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-yellow-800">
-            Pause an existing offer or review upgrade options before publishing
+            Pause an existing offer or review Growth options before publishing
             another.
           </p>
 
@@ -99,7 +101,7 @@ export default function BusinessDashboardCreateOffer({
             onClick={onViewUpgrade}
             className="mt-4 rounded-xl bg-yellow-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-yellow-700"
           >
-            View Upgrade Options
+            View Growth Plans
           </button>
         </section>
       </div>
@@ -113,14 +115,18 @@ export default function BusinessDashboardCreateOffer({
         title={
           activeOffersCount === 0
             ? 'Create your first exclusive offer'
-            : `You can publish ${remainingOfferSlots} more free offer${
-                remainingOfferSlots === 1 ? '' : 's'
-              }`
+            : isGrowthPlan
+              ? 'Create another Growth offer'
+              : `You can publish ${remainingOfferSlots} more free offer${
+                  remainingOfferSlots === 1 ? '' : 's'
+                }`
         }
         description={
           activeOffersCount === 0
             ? 'Use the guided RaiseHub wizard to create a members-only offer.'
-            : 'Create an offer aimed at a different customer goal than your existing promotions.'
+            : isGrowthPlan
+              ? 'Growth removes the free active-offer limit, so you can build offers around multiple customer goals.'
+              : 'Create an offer aimed at a different customer goal than your existing promotions.'
         }
         recommendation="Choose one high-value offer that stays inexpensive to fulfill."
         tone="green"

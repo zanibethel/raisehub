@@ -41,6 +41,7 @@ export type BusinessDashboardContentProps = {
   activeOffersCount: number
   activeOfferLimit: number
   hasReachedLimit: boolean
+  isGrowthPlan: boolean
   topOfferTitle: string
   topOfferCount: number
   redemptionCountByOfferId: Record<string, number>
@@ -114,6 +115,7 @@ export default function BusinessDashboardContent({
   activeOffersCount,
   activeOfferLimit,
   hasReachedLimit,
+  isGrowthPlan,
   topOfferTitle,
   topOfferCount,
   redemptionCountByOfferId,
@@ -170,6 +172,7 @@ export default function BusinessDashboardContent({
         <BusinessDashboardSnapshot
           activeOffersCount={activeOffersCount}
           activeOfferLimit={activeOfferLimit}
+          isGrowthPlan={isGrowthPlan}
           totalRedemptions={totalRedemptions}
           topOfferTitle={topOfferTitle}
           topOfferCount={topOfferCount}
@@ -235,6 +238,21 @@ export default function BusinessDashboardContent({
         />
       ) : null}
 
+      {isGrowthPlan && businessId ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">Growth plan</p>
+            <p className="mt-1 text-sm text-green-900">Your active-offer limit is removed while Growth remains active.</p>
+          </div>
+          <Link
+            href={`/upgrade?business=${encodeURIComponent(businessId)}`}
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-green-300 bg-white px-4 text-sm font-bold text-green-800"
+          >
+            Manage billing
+          </Link>
+        </div>
+      ) : null}
+
       <section id="business-offers" className="scroll-mt-24">
         <BusinessDashboardOffersSection
           offers={offers}
@@ -264,6 +282,7 @@ export default function BusinessDashboardContent({
           activeOffersCount={activeOffersCount}
           activeOfferLimit={activeOfferLimit}
           hasReachedLimit={hasReachedLimit}
+          isGrowthPlan={isGrowthPlan}
           onViewUpgrade={() => setIsUpgradeOpen(true)}
         />
       </section>
@@ -271,6 +290,7 @@ export default function BusinessDashboardContent({
       <UpgradePlanModal
         isOpen={isUpgradeOpen}
         onClose={() => setIsUpgradeOpen(false)}
+        businessId={businessId}
       />
     </div>
   )
