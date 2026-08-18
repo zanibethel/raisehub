@@ -2,11 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 export default function ForgotPasswordPage() {
-  const supabase = createClient()
-
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -18,23 +15,32 @@ export default function ForgotPasswordPage() {
     setMessage('')
     setErrorMessage('')
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-      '/update-password'
-    )}`
+    try {
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo,
-    })
+      const result = (await response.json()) as {
+        error?: string
+        message?: string
+      }
 
-    if (error) {
-      setErrorMessage(error.message)
-      setLoading(false)
-      return
+      if (!response.ok) {
+        setErrorMessage(result.error || 'Password recovery is temporarily unavailable.')
+        setLoading(false)
+        return
+      }
+
+      setMessage(
+        result.message ||
+          'If an account matches that email, a password-reset link will be sent shortly.'
+      )
+    } catch {
+      setErrorMessage('Password recovery is temporarily unavailable. Please try again later.')
     }
 
-    setMessage(
-      'Check your email for a password-reset link. You can close this page after opening the email.'
-    )
     setLoading(false)
   }
 
