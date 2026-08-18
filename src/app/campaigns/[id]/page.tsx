@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import BuyCampaignPassButton from '@/app/components/buy-campaign-pass-button'
+import GiftCampaignPassButton from '@/app/components/gift-campaign-pass-button'
 import SelectableCampaignCarousel from '@/app/components/selectable-campaign-carousel'
 import ShareCampaignButton from '@/app/components/share-campaign-button'
 import {
@@ -335,8 +336,8 @@ export default async function CampaignPage({
           </p>
           <p className="mt-1 text-sm text-gray-600">
             {hasActivePass
-              ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation.'
-              : 'One purchase gives you access to exclusive local deals while supporting this campaign.'}
+              ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation or give a separate pass to someone else.'
+              : 'One purchase gives you access to exclusive local deals while supporting this campaign. You can also buy a separate pass as a gift.'}
           </p>
 
           {hasActivePass ? (
@@ -346,11 +347,8 @@ export default async function CampaignPage({
                 {activePassExpiresAt ? new Date(activePassExpiresAt).toLocaleDateString() : 'No expiration date'}
               </p>
               <p className="mt-2 text-xs leading-5 text-green-700">
-                Supporting another fundraiser will soon let you extend this date, gift a separate six-month pass, or donate without changing your current pass.
+                Your current pass stays unchanged when you buy a gift. The recipient gets their own six-month access when they claim it.
               </p>
-              <button type="button" disabled className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-green-300 bg-white px-4 py-3 text-sm font-semibold text-green-800 opacity-70 sm:w-auto">
-                🎁 Gift a Pass — Coming Next
-              </button>
             </div>
           ) : null}
 
@@ -364,6 +362,11 @@ export default async function CampaignPage({
               hasActivePass={hasActivePass}
               initialDonationAmount={donation}
               initialSelectedOrganizationId={organization ?? null}
+            />
+            <GiftCampaignPassButton
+              campaignId={campaign.id}
+              passPrice={effectivePricing.passPrice}
+              sellerName={attributedSellerName}
             />
             <div className="flex justify-center">
               <ShareCampaignButton campaignId={campaign.id} campaignName={campaign.name} />

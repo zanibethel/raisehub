@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import GiftSharePanel from './gift-share-panel'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,6 +17,8 @@ type CheckoutAttempt = {
   donation_amount: number
   grant_entitlement: boolean
   purchase_id: string | null
+  purchase_kind: 'self' | 'gift'
+  gift_pass_id: string | null
 }
 
 function currencyFromCents(value: number) {
@@ -39,7 +42,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
     const { data } = await admin
       .from('checkout_attempts')
       .select(
-        'status, campaign_id, expected_amount_cents, donation_amount, grant_entitlement, purchase_id'
+        'status, campaign_id, expected_amount_cents, donation_amount, grant_entitlement, purchase_id, purchase_kind, gift_pass_id'
       )
       .eq('stripe_checkout_session_id', sessionId)
       .eq('user_id', user.id)
@@ -55,6 +58,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
   const campaignHref = attempt
     ? `/campaigns/${attempt.campaign_id}`
     : '/campaigns'
+  const isGift = attempt?.purchase_kind === 'gift'
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-2xl items-center px-4 py-12">
@@ -66,14 +70,12 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
         {paidAttempt ? (
           <>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              Payment confirmed
+              {isGift ? 'Gift payment confirmed 🎁' : 'Payment confirmed'}
             </h1>
             <p className="mt-3 text-slate-600">
-              Your{' '}
-              {paidAttempt.grant_entitlement
-                ? 'RaiseHub Pass and support'
-                : 'support'}{' '}
-              have been recorded successfully.
+              {isGift
+                ? 'Your gift purchase and fundraiser support have been recorded. No pass was added to your account—the recipient receives their own access when they claim the gift.'
+                : `Your ${paidAttempt.grant_entitlement ? 'RaiseHub Pass and support' : 'support'} have been recorded successfully.`}
             </p>
             <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
               <p className="font-semibold">
@@ -89,19 +91,22 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
                 </p>
               ) : null}
             </div>
+
+            {isGift && paidAttempt.gift_pass_id ? (
+              <GiftSharePanel giftId={paidAttempt.gift_pass_id} />
+            ) : null}
           </>
         ) : stillConfirming ? (
           <>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">
-              Payment received — confirming access
+              Payment received — confirming {isGift ? 'your gift' : 'access'}
             </h1>
             <p className="mt-3 text-slate-600">
               Stripe returned you successfully. RaiseHub is waiting for the
-              signed payment confirmation before adding pass access.
+              signed payment confirmation before finalizing this {isGift ? 'gift' : 'purchase'}.
             </p>
             <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-              This usually completes quickly. Refresh this page or check your
-              dashboard in a moment.
+              This usually completes quickly. Refresh this page in a moment.
             </div>
           </>
         ) : (
@@ -110,18 +115,17 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               We could not confirm this checkout yet
             </h1>
             <p className="mt-3 text-slate-600">
-              No pass access is granted from this page. Check your dashboard
-              before trying another payment.
+              No pass access or gift claim is created from this return page alone. Check your dashboard before trying another payment.
             </p>
           </>
         )}
 
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           <Link
-            href="/dashboard"
+            href={isGift ? '/dashboard/gifts' : '/dashboard'}
             className="rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
           >
-            Check My Dashboard
+            {isGift ? 'Open My Gifts' : 'Check My Dashboard'}
           </Link>
           <Link
             href={campaignHref}
