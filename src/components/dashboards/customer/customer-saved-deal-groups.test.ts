@@ -15,205 +15,112 @@ import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
 
-// =============================================================================
-// Test helpers
-// =============================================================================
-
 function createDeal({
   id,
   isRedeemed,
+  isRedeemable,
 }: {
   id: string
   isRedeemed: boolean
+  isRedeemable: boolean
 }): CustomerSavedDeal {
   return {
     offer: {
       id,
     } as CustomerDashboardOffer,
     isRedeemed,
+    isRedeemable,
   }
 }
 
-// =============================================================================
-// Deal grouping
-// =============================================================================
+test('separates currently redeemable deals from unavailable deals', () => {
+  const unusedReadyDeal = createDeal({
+    id: 'unused-ready',
+    isRedeemed: false,
+    isRedeemable: true,
+  })
+  const redeemedReusableDeal = createDeal({
+    id: 'redeemed-reusable',
+    isRedeemed: true,
+    isRedeemable: true,
+  })
+  const redeemedUnavailableDeal = createDeal({
+    id: 'redeemed-unavailable',
+    isRedeemed: true,
+    isRedeemable: false,
+  })
 
-test(
-  'separates ready-to-use deals from used deals',
-  () => {
-    const readyDeal =
-      createDeal({
-        id: 'ready-deal',
-        isRedeemed: false,
-      })
+  const groups = getCustomerSavedDealGroups([
+    unusedReadyDeal,
+    redeemedReusableDeal,
+    redeemedUnavailableDeal,
+  ])
 
-    const usedDeal =
-      createDeal({
-        id: 'used-deal',
-        isRedeemed: true,
-      })
+  assert.deepEqual(groups.readyToUse, [unusedReadyDeal, redeemedReusableDeal])
+  assert.deepEqual(groups.used, [redeemedUnavailableDeal])
+})
 
-    const groups =
-      getCustomerSavedDealGroups([
-        readyDeal,
-        usedDeal,
-      ])
+test('preserves the original order within each current-availability group', () => {
+  const groups = getCustomerSavedDealGroups([
+    createDeal({ id: 'ready-first', isRedeemed: false, isRedeemable: true }),
+    createDeal({ id: 'unavailable-first', isRedeemed: true, isRedeemable: false }),
+    createDeal({ id: 'ready-second', isRedeemed: true, isRedeemable: true }),
+    createDeal({ id: 'unavailable-second', isRedeemed: true, isRedeemable: false }),
+  ])
 
-    assert.deepEqual(
-      groups.readyToUse,
-      [readyDeal]
-    )
+  assert.deepEqual(
+    groups.readyToUse.map(({ offer }) => offer.id),
+    ['ready-first', 'ready-second']
+  )
+  assert.deepEqual(
+    groups.used.map(({ offer }) => offer.id),
+    ['unavailable-first', 'unavailable-second']
+  )
+})
 
-    assert.deepEqual(
-      groups.used,
-      [usedDeal]
-    )
-  }
-)
+test('returns empty groups when there are no saved deals', () => {
+  assert.deepEqual(getCustomerSavedDealGroups([]), {
+    readyToUse: [],
+    used: [],
+  })
+})
 
-test(
-  'preserves the original order within each deal group',
-  () => {
-    const groups =
-      getCustomerSavedDealGroups([
-        createDeal({
-          id: 'ready-first',
-          isRedeemed: false,
-        }),
-        createDeal({
-          id: 'used-first',
-          isRedeemed: true,
-        }),
-        createDeal({
-          id: 'ready-second',
-          isRedeemed: false,
-        }),
-        createDeal({
-          id: 'used-second',
-          isRedeemed: true,
-        }),
-      ])
+test('uses singular generic group wording', () => {
+  assert.equal(
+    getCustomerSavedDealGroupCountLabel({
+      count: 1,
+      singularLabel: 'deal',
+      pluralLabel: 'deals',
+    }),
+    '1 deal'
+  )
+})
 
-    assert.deepEqual(
-      groups.readyToUse.map(
-        ({ offer }) => offer.id
-      ),
-      [
-        'ready-first',
-        'ready-second',
-      ]
-    )
+test('uses plural generic group wording', () => {
+  assert.equal(
+    getCustomerSavedDealGroupCountLabel({
+      count: 0,
+      singularLabel: 'deal',
+      pluralLabel: 'deals',
+    }),
+    '0 deals'
+  )
+  assert.equal(
+    getCustomerSavedDealGroupCountLabel({
+      count: 4,
+      singularLabel: 'deal',
+      pluralLabel: 'deals',
+    }),
+    '4 deals'
+  )
+})
 
-    assert.deepEqual(
-      groups.used.map(
-        ({ offer }) => offer.id
-      ),
-      [
-        'used-first',
-        'used-second',
-      ]
-    )
-  }
-)
+test('formats ready-to-use deal counts', () => {
+  assert.equal(getCustomerReadyToUseDealCountLabel(1), '1 deal')
+  assert.equal(getCustomerReadyToUseDealCountLabel(3), '3 deals')
+})
 
-test(
-  'returns empty groups when there are no saved deals',
-  () => {
-    assert.deepEqual(
-      getCustomerSavedDealGroups(
-        []
-      ),
-      {
-        readyToUse: [],
-        used: [],
-      }
-    )
-  }
-)
-
-// =============================================================================
-// Generic group count wording
-// =============================================================================
-
-test(
-  'uses singular generic group wording',
-  () => {
-    assert.equal(
-      getCustomerSavedDealGroupCountLabel({
-        count: 1,
-        singularLabel: 'deal',
-        pluralLabel: 'deals',
-      }),
-      '1 deal'
-    )
-  }
-)
-
-test(
-  'uses plural generic group wording',
-  () => {
-    assert.equal(
-      getCustomerSavedDealGroupCountLabel({
-        count: 0,
-        singularLabel: 'deal',
-        pluralLabel: 'deals',
-      }),
-      '0 deals'
-    )
-
-    assert.equal(
-      getCustomerSavedDealGroupCountLabel({
-        count: 4,
-        singularLabel: 'deal',
-        pluralLabel: 'deals',
-      }),
-      '4 deals'
-    )
-  }
-)
-
-// =============================================================================
-// Ready-to-use count wording
-// =============================================================================
-
-test(
-  'formats ready-to-use deal counts',
-  () => {
-    assert.equal(
-      getCustomerReadyToUseDealCountLabel(
-        1
-      ),
-      '1 deal'
-    )
-
-    assert.equal(
-      getCustomerReadyToUseDealCountLabel(
-        3
-      ),
-      '3 deals'
-    )
-  }
-)
-
-// =============================================================================
-// Used-deal count wording
-// =============================================================================
-
-test(
-  'formats used-deal counts',
-  () => {
-    assert.equal(
-      getCustomerUsedDealCountLabel(
-        1
-      ),
-      '1 used deal'
-    )
-
-    assert.equal(
-      getCustomerUsedDealCountLabel(
-        5
-      ),
-      '5 used deals'
-    )
-  }
-)
+test('formats unavailable-deal counts', () => {
+  assert.equal(getCustomerUsedDealCountLabel(1), '1 unavailable deal')
+  assert.equal(getCustomerUsedDealCountLabel(5), '5 unavailable deals')
+})
