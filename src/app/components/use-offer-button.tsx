@@ -19,6 +19,38 @@ type UseOfferButtonProps = {
   offerId: string
 }
 
+function getRedemptionErrorMessage(message: string): string | null {
+  if (message.includes('single-use offer has already been redeemed')) {
+    return 'This single-use offer has already been redeemed.'
+  }
+
+  if (message.includes('once every 24 hours')) {
+    return 'This offer can be used again after 24 hours from your last redemption.'
+  }
+
+  if (message.includes('once every 7 days')) {
+    return 'This offer can be used again after 7 days from your last redemption.'
+  }
+
+  if (
+    message.includes('offer is paused') ||
+    message.includes('business is paused') ||
+    message.includes('offer has expired')
+  ) {
+    return 'This offer is no longer available right now.'
+  }
+
+  if (message.includes('active RaiseHub Pass is required')) {
+    return 'An active RaiseHub Pass is required to redeem this offer.'
+  }
+
+  if (message.includes('redemption rate limit exceeded')) {
+    return 'Too many redemption attempts were made. Please wait a moment and try again.'
+  }
+
+  return null
+}
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -38,6 +70,9 @@ export default function UseOfferButton({
   const [message, setMessage] =
     useState('')
 
+  const [success, setSuccess] =
+    useState(false)
+
   async function handleUseOffer() {
     const confirmed =
       window.confirm(
@@ -50,6 +85,7 @@ export default function UseOfferButton({
 
     setLoading(true)
     setMessage('')
+    setSuccess(false)
 
     const {
       data: {
@@ -77,7 +113,11 @@ export default function UseOfferButton({
         })
 
     if (error) {
-      if (
+      const ruleMessage = getRedemptionErrorMessage(error.message)
+
+      if (ruleMessage) {
+        setMessage(ruleMessage)
+      } else if (
         error.code === '23505'
       ) {
         setMessage(
@@ -93,15 +133,16 @@ export default function UseOfferButton({
       return
     }
 
+    setSuccess(true)
     setMessage(
-      guidance.successMessage
+      'Redeemed just now. Show this confirmation to the staff member.'
     )
 
     setLoading(false)
 
     setTimeout(() => {
       window.location.reload()
-    }, 500)
+    }, 1800)
   }
 
   return (
@@ -109,12 +150,14 @@ export default function UseOfferButton({
       <button
         type="button"
         onClick={handleUseOffer}
-        disabled={loading}
+        disabled={loading || success}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading
-          ? guidance.loadingLabel
-          : guidance.buttonLabel}
+        {success
+          ? '✓ Redeemed Just Now'
+          : loading
+            ? guidance.loadingLabel
+            : guidance.buttonLabel}
       </button>
 
       <p className="mt-2 text-center text-xs leading-5 text-gray-500">
@@ -126,7 +169,11 @@ export default function UseOfferButton({
       {message ? (
         <p
           aria-live="polite"
-          className="mt-2 text-center text-xs leading-5 text-gray-600"
+          className={`mt-2 rounded-xl px-3 py-2 text-center text-xs leading-5 ${
+            success
+              ? 'bg-green-50 font-semibold text-green-800'
+              : 'text-gray-600'
+          }`}
         >
           {message}
         </p>
