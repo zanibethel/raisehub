@@ -1,14 +1,13 @@
 import Link from 'next/link'
 
 import GiftSharePanel from './gift-share-panel'
-import { hashGiftClaimToken } from '@/lib/gifts/claim-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
 type PageProps = {
-  searchParams: Promise<{ session_id?: string; gift?: string }>
+  searchParams: Promise<{ session_id?: string }>
 }
 
 type CheckoutAttempt = {
@@ -30,14 +29,13 @@ function currencyFromCents(value: number) {
 }
 
 export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
-  const { session_id: sessionId, gift: giftToken } = await searchParams
+  const { session_id: sessionId } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   let attempt: CheckoutAttempt | null = null
-  let giftTokenMatchesAttempt = false
 
   if (user && sessionId) {
     const admin = createAdminClient() as any
@@ -51,21 +49,6 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
       .maybeSingle()
 
     attempt = data as CheckoutAttempt | null
-
-    if (
-      attempt?.purchase_kind === 'gift' &&
-      attempt.gift_pass_id &&
-      giftToken
-    ) {
-      const { data: gift } = await admin
-        .from('gift_passes')
-        .select('id')
-        .eq('id', attempt.gift_pass_id)
-        .eq('claim_token_hash', hashGiftClaimToken(giftToken))
-        .maybeSingle()
-
-      giftTokenMatchesAttempt = Boolean(gift)
-    }
   }
 
   const paidAttempt =
@@ -76,10 +59,6 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
     ? `/campaigns/${attempt.campaign_id}`
     : '/campaigns'
   const isGift = attempt?.purchase_kind === 'gift'
-  const claimPath =
-    isGift && giftTokenMatchesAttempt && giftToken
-      ? `/gifts/claim/${encodeURIComponent(giftToken)}`
-      : null
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-2xl items-center px-4 py-12">
@@ -113,14 +92,8 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
               ) : null}
             </div>
 
-            {isGift ? (
-              claimPath ? (
-                <GiftSharePanel claimPath={claimPath} />
-              ) : (
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  Payment is confirmed, but this return page no longer has the private claim token. Your gift record is safe; open My Gifts to generate a fresh private link before sending it.
-                </div>
-              )
+            {isGift && paidAttempt.gift_pass_id ? (
+              <GiftSharePanel giftId={paidAttempt.gift_pass_id} />
             ) : null}
           </>
         ) : stillConfirming ? (
