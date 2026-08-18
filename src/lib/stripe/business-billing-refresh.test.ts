@@ -17,8 +17,10 @@ test('billing refresh reads Stripe period dates from subscription items when nee
   assert.match(refreshSource, /itemRecord\.current_period_end/)
 })
 
-test('billing refresh persists scheduled cancellation state from Stripe', () => {
-  assert.match(refreshSource, /cancel_at_period_end: Boolean\(subscription\.cancel_at_period_end\)/)
+test('billing refresh treats either Stripe cancellation signal as scheduled', () => {
+  assert.match(refreshSource, /subscription\.cancel_at_period_end/)
+  assert.match(refreshSource, /subscriptionRecord\(subscription\)\.cancel_at/)
+  assert.match(refreshSource, /cancel_at_period_end: hasScheduledCancellation\(subscription\)/)
   assert.match(refreshSource, /current_period_end: period\.end/)
 })
 
