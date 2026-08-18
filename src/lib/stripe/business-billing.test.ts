@@ -11,6 +11,10 @@ const checkoutSource = fs.readFileSync(
   path.join(process.cwd(), 'src/app/api/business/billing/checkout/route.ts'),
   'utf8'
 )
+const portalSource = fs.readFileSync(
+  path.join(process.cwd(), 'src/app/api/business/billing/portal/route.ts'),
+  'utf8'
+)
 const webhookSource = fs.readFileSync(
   path.join(process.cwd(), 'src/app/api/stripe/webhook/route.ts'),
   'utf8'
@@ -25,6 +29,13 @@ test('business upgrades use recurring Stripe Checkout and reject demo workspaces
   assert.match(checkoutSource, /recurring: \{ interval: plan\.interval \}/)
   assert.match(checkoutSource, /Demo businesses cannot create Stripe subscriptions/)
   assert.match(checkoutSource, /subscription_status: 'incomplete'/)
+})
+
+test('only Business owners can change paid billing', () => {
+  assert.match(checkoutSource, /membership\.membership_role !== 'owner'/)
+  assert.match(checkoutSource, /Only the Business owner can change the paid plan/)
+  assert.match(portalSource, /membership\.membership_role !== 'owner'/)
+  assert.match(portalSource, /Only the Business owner can manage paid billing/)
 })
 
 test('unfinished business upgrade checkouts resume instead of creating duplicates', () => {
