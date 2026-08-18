@@ -98,7 +98,8 @@ async function synchronizeSubscription(
   admin: any,
   event: Stripe.Event,
   subscription: Stripe.Subscription,
-  fallbackBusinessId?: string | null
+  fallbackBusinessId?: string | null,
+  shouldRecordEvent = true
 ) {
   const businessId =
     subscription.metadata?.raisehub_business_id?.trim() ||
@@ -170,11 +171,13 @@ async function synchronizeSubscription(
     if (profileTierError) throw profileTierError
   }
 
-  await recordBillingEvent(admin, event, {
-    businessId,
-    stripeObjectId: subscription.id,
-    subscriptionStatus: subscription.status,
-  })
+  if (shouldRecordEvent) {
+    await recordBillingEvent(admin, event, {
+      businessId,
+      stripeObjectId: subscription.id,
+      subscriptionStatus: subscription.status,
+    })
+  }
 }
 
 async function synchronizeSubscriptionCheckout(
@@ -203,6 +206,38 @@ async function synchronizeSubscriptionCheckout(
   await synchronizeSubscription(admin, event, subscription, businessId)
 }
 
+async function expireSubscriptionCheckout(
+  admin: any,
+  event: Stripe.Event,
+  session: Stripe.Checkout.Session
+) {
+  const businessId = session.metadata?.raisehub_business_id?.trim()
+  if (!businessId) {
+    throw new Error('Expired business checkout is missing business metadata')
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await admin
+    .from('business_billing_accounts')
+    .update({
+      plan_code: 'free',
+      subscription_status: 'incomplete_expired',
+      last_synced_at: now,
+      updated_at: now,
+    })
+    .eq('business_id', businessId)
+    .eq('subscription_status', 'incomplete')
+    .is('stripe_subscription_id', null)
+
+  if (error) throw error
+
+  await recordBillingEvent(admin, event, {
+    businessId,
+    stripeObjectId: session.id,
+    subscriptionStatus: 'incomplete_expired',
+  })
+}
+
 async function synchronizeInvoiceEvent(
   admin: any,
   event: Stripe.Event,
@@ -220,14 +255,17 @@ async function synchronizeInvoiceEvent(
   if (error) throw error
   if (!billingAccount) return false
 
-  await admin
+  const now = new Date().toISOString()
+  const { error: invoiceUpdateError } = await admin
     .from('business_billing_accounts')
     .update({
       last_invoice_status: invoice.status ?? event.type,
-      last_synced_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      last_synced_at: now,
+      updated_at: now,
     })
     .eq('business_id', billingAccount.business_id)
+
+  if (invoiceUpdateError) throw invoiceUpdateError
 
   await recordBillingEvent(admin, event, {
     businessId: billingAccount.business_id,
@@ -242,7 +280,13 @@ async function synchronizeInvoiceEvent(
     const subscription = await stripe.subscriptions.retrieve(
       billingAccount.stripe_subscription_id
     )
-    await synchronizeSubscription(admin, event, subscription, billingAccount.business_id)
+    await synchronizeSubscription(
+      admin,
+      event,
+      subscription,
+      billingAccount.business_id,
+      false
+    )
   }
 
   return true
@@ -259,6 +303,19 @@ export async function handleBusinessBillingEvent(
       BUSINESS_BILLING_FLOW
   ) {
     await synchronizeSubscriptionCheckout(
+      admin,
+      event,
+      event.data.object as Stripe.Checkout.Session
+    )
+    return true
+  }
+
+  if (
+    event.type === 'checkout.session.expired' &&
+    (event.data.object as Stripe.Checkout.Session).metadata?.raisehub_flow ===
+      BUSINESS_BILLING_FLOW
+  ) {
+    await expireSubscriptionCheckout(
       admin,
       event,
       event.data.object as Stripe.Checkout.Session
