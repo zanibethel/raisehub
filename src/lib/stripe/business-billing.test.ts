@@ -29,9 +29,11 @@ test('business upgrades use recurring Stripe Checkout and reject demo workspaces
 
 test('signed Stripe webhook handles business billing before normal checkout fulfillment', () => {
   const billingIndex = webhookSource.indexOf('handleBusinessBillingEvent(admin, event)')
-  const checkoutIndex = webhookSource.indexOf('validateProductionCheckoutAttempt')
+  const fulfillmentIndex = webhookSource.lastIndexOf(
+    'await validateProductionCheckoutAttempt'
+  )
   assert.ok(billingIndex > 0)
-  assert.ok(checkoutIndex > billingIndex)
+  assert.ok(fulfillmentIndex > billingIndex)
 })
 
 test('subscription state controls both canonical and legacy business tiers', () => {
