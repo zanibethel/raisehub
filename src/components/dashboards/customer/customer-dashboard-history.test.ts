@@ -7,33 +7,33 @@ const dashboardSource = readFileSync(
   'utf8'
 )
 
-const historicalSectionStart = dashboardSource.indexOf(
-  'const historicalOfferIds'
-)
 const enrichmentSectionStart = dashboardSource.indexOf(
   'type OfferRow ='
+)
+const historicalSectionStart = dashboardSource.indexOf(
+  'const historicalOfferIds'
 )
 const renderSectionStart = dashboardSource.indexOf(
   'return ('
 )
 
-assert.notEqual(historicalSectionStart, -1)
 assert.notEqual(enrichmentSectionStart, -1)
+assert.notEqual(historicalSectionStart, -1)
 assert.notEqual(renderSectionStart, -1)
-assert.equal(historicalSectionStart < enrichmentSectionStart, true)
+assert.equal(enrichmentSectionStart < historicalSectionStart, true)
 
 const historicalLoaderSource = dashboardSource.slice(
   historicalSectionStart,
-  enrichmentSectionStart
+  renderSectionStart
 )
 
-test('collects active offer ids before loading history', () => {
+test('collects customer-visible active offer ids before loading history', () => {
   const activeIdsIndex = dashboardSource.indexOf('const activeOfferIds')
   assert.notEqual(activeIdsIndex, -1)
   assert.equal(activeIdsIndex < historicalSectionStart, true)
   assert.match(
     dashboardSource,
-    /const activeOfferIds = new Set\(\(offers \?\? \[\]\)\.map\(\(offer\) => offer\.id\)\)/
+    /const activeOfferIds = new Set\(customerVisibleOfferRows\.map\(\(offer\) => offer\.id\)\)/
   )
 })
 
@@ -69,7 +69,7 @@ test('loads historical offers by their redeemed offer ids', () => {
   )
 })
 
-test('keeps the historical query before offer enrichment', () => {
+test('defines offer enrichment before loading historical offers', () => {
   const historicalQueryIndex = dashboardSource.indexOf(
     'const { data: historicalOffersData }'
   )
@@ -77,10 +77,10 @@ test('keeps the historical query before offer enrichment', () => {
 
   assert.notEqual(historicalQueryIndex, -1)
   assert.notEqual(enrichmentIndex, -1)
-  assert.equal(historicalQueryIndex < enrichmentIndex, true)
+  assert.equal(enrichmentIndex < historicalQueryIndex, true)
 })
 
-test('uses one enrichment function for active and historical offers', () => {
+test('uses one enrichment function for visible and historical offers', () => {
   const enrichmentSource = dashboardSource.slice(enrichmentSectionStart)
 
   assert.match(
@@ -89,7 +89,7 @@ test('uses one enrichment function for active and historical offers', () => {
   )
   assert.match(
     enrichmentSource,
-    /const enrichedOffers = \(offers \?\? \[\]\)\.map\(enrichOffer\)/
+    /const enrichedOffers = customerVisibleOfferRows\.map\(enrichOffer\)/
   )
   assert.match(
     enrichmentSource,
