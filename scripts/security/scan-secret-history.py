@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Scan reachable Git history for high-confidence credential patterns.
 
-This intentionally uses `git grep -l`, which returns only revision/path names.
-Matched credential values are never printed into CI logs.
+The scanner uses `git log -G` without patch output, so matched credential values
+never appear in CI logs. Only rule names, commit IDs, and affected paths are
+reported when a historical diff contains a credential pattern.
 """
 
 from __future__ import annotations
@@ -18,8 +19,6 @@ class Rule:
     pattern: str
 
 
-# Patterns are split where practical so this scanner does not match its own
-# source when traversing repository history.
 RULES = [
     Rule("stripe_live_secret", "sk_" + "live_[A-Za-z0-9]{20,}"),
     Rule("stripe_webhook_secret", "wh" + "sec_[A-Za-z0-9]{20,}"),
@@ -41,8 +40,6 @@ RULES = [
     ),
 ]
 
-CHUNK_SIZE = 100
-
 
 def git_lines(*args: str) -> list[str]:
     result = subprocess.run(
@@ -52,34 +49,43 @@ def git_lines(*args: str) -> list[str]:
         stderr=subprocess.PIPE,
         check=False,
     )
-    if result.returncode not in (0, 1):
+    if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "git command failed")
-    return [line for line in result.stdout.splitlines() if line]
+    return result.stdout.splitlines()
 
 
-def scan_rule(rule: Rule, revisions: list[str]) -> set[str]:
-    findings: set[str] = set()
-    for index in range(0, len(revisions), CHUNK_SIZE):
-        chunk = revisions[index : index + CHUNK_SIZE]
-        findings.update(
-            git_lines("grep", "-I", "-l", "-E", "-e", rule.pattern, *chunk, "--")
-        )
+def scan_rule(rule: Rule) -> set[tuple[str, str]]:
+    lines = git_lines(
+        "log",
+        "--all",
+        "--no-renames",
+        "--format=COMMIT:%H",
+        "--name-only",
+        f"-G{rule.pattern}",
+    )
+
+    commit = "<unknown>"
+    findings: set[tuple[str, str]] = set()
+    for line in lines:
+        if line.startswith("COMMIT:"):
+            commit = line.removeprefix("COMMIT:")
+        elif line.strip():
+            findings.add((commit, line.strip()))
     return findings
 
 
 def main() -> int:
-    revisions = git_lines("rev-list", "--all")
-    findings: list[tuple[str, str]] = []
+    findings: list[tuple[str, str, str]] = []
 
     for rule in RULES:
-        for location in sorted(scan_rule(rule, revisions)):
-            findings.append((rule.name, location))
+        for commit, path in sorted(scan_rule(rule)):
+            findings.append((rule.name, commit, path))
 
     if findings:
         print("Potential credential material was found in Git history.")
         print("Matched values are intentionally suppressed. Rotate/inspect before launch.")
-        for name, location in sorted(set(findings)):
-            print(f"- {name}: {location}")
+        for name, commit, path in sorted(set(findings)):
+            print(f"- {name}: commit={commit} path={path}")
         return 1
 
     print("No high-confidence credential patterns found in reachable Git history.")
