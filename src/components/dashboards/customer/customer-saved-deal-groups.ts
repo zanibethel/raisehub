@@ -20,10 +20,10 @@ export function getCustomerSavedDealGroups(
 ): CustomerSavedDealGroups {
   return savedDeals.reduce<CustomerSavedDealGroups>(
     (groups, deal) => {
-      if (deal.isRedeemed) {
-        groups.used.push(deal)
-      } else {
+      if (deal.isRedeemable) {
         groups.readyToUse.push(deal)
+      } else {
+        groups.used.push(deal)
       }
 
       return groups
@@ -68,7 +68,7 @@ export function getCustomerUsedDealCountLabel(
 ): string {
   return getCustomerSavedDealGroupCountLabel({
     count,
-    singularLabel: 'used deal',
-    pluralLabel: 'used deals',
+    singularLabel: 'unavailable deal',
+    pluralLabel: 'unavailable deals',
   })
 }

@@ -2,6 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import {
+  inferOfferUsageRuleFromDescription,
+  isOfferUsageRule,
+  type OfferUsageRule,
+} from '@/lib/redemption-rules'
 
 type CreateOfferInput = {
   title: string
@@ -9,6 +14,7 @@ type CreateOfferInput = {
   description: string
   starts_at?: string
   ends_at?: string
+  usage_rule?: OfferUsageRule
 }
 
 export async function createOfferAction(input: CreateOfferInput) {
@@ -20,6 +26,12 @@ export async function createOfferAction(input: CreateOfferInput) {
 
   if (!user) {
     return { error: 'You must be logged in.' }
+  }
+
+  const usageRule = input.usage_rule
+    ?? inferOfferUsageRuleFromDescription(input.description)
+  if (!isOfferUsageRule(usageRule)) {
+    return { error: 'Choose a valid redemption frequency.' }
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -36,12 +48,12 @@ export async function createOfferAction(input: CreateOfferInput) {
   const ACTIVE_OFFER_LIMIT = 3
   const now = new Date().toISOString()
 
-const { data: activeOffers, error: activeOffersError } = await supabase
-  .from('offers')
-  .select('id')
-  .eq('business_id', user.id)
-  .eq('is_active', true)
-  .or(`ends_at.is.null,ends_at.gte.${now}`)
+  const { data: activeOffers, error: activeOffersError } = await supabase
+    .from('offers')
+    .select('id')
+    .eq('business_id', user.id)
+    .eq('is_active', true)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
 
   if (activeOffersError) {
     return { error: 'Could not check your active offers.' }
@@ -61,14 +73,20 @@ const { data: activeOffers, error: activeOffersError } = await supabase
     description: input.description,
     starts_at: input.starts_at || null,
     ends_at: input.ends_at || null,
+    usage_rule: usageRule,
   })
 
   if (insertError) {
     return { error: insertError.message }
   }
 
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/offers')
+  revalidatePath('/offers')
+
   return { success: true }
 }
+
 // =========================================
 // 📴 DEACTIVATE OFFER
 // Hides an offer without deleting history.
@@ -96,12 +114,12 @@ export async function deactivateOfferAction(offerId: string) {
 
   return { success: true }
 }
+
 // =========================================
 // ▶️ REACTIVATE OFFER
 // Restores a paused offer if the business has
 // an available active-offer slot.
 // =========================================
-
 export async function reactivateOfferAction(offerId: string) {
   const supabase = await createClient()
 
@@ -190,6 +208,7 @@ type UpdateOfferInput = {
   description: string
   starts_at?: string
   ends_at?: string
+  usage_rule: OfferUsageRule
 }
 
 export async function updateOfferAction(input: UpdateOfferInput) {
@@ -213,6 +232,10 @@ export async function updateOfferAction(input: UpdateOfferInput) {
     }
   }
 
+  if (!isOfferUsageRule(input.usage_rule)) {
+    return { error: 'Choose a valid redemption frequency.' }
+  }
+
   if (
     input.starts_at &&
     input.ends_at &&
@@ -231,6 +254,7 @@ export async function updateOfferAction(input: UpdateOfferInput) {
       description: input.description.trim(),
       starts_at: input.starts_at || null,
       ends_at: input.ends_at || null,
+      usage_rule: input.usage_rule,
     })
     .eq('id', input.offerId)
     .eq('business_id', user.id)

@@ -10,11 +10,13 @@ type GetCustomerSavedDealsOptions = {
   offers: CustomerDashboardOffer[]
   savedOfferIds: Set<string>
   redeemedOfferIds: Set<string>
+  redeemableOfferIds?: Set<string>
 }
 
 export type CustomerSavedDeal = {
   offer: CustomerDashboardOffer
   isRedeemed: boolean
+  isRedeemable: boolean
 }
 
 // =============================================================================
@@ -177,6 +179,7 @@ export function getCustomerSavedDeals({
   offers,
   savedOfferIds,
   redeemedOfferIds,
+  redeemableOfferIds,
 }: GetCustomerSavedDealsOptions):
   CustomerSavedDeal[] {
   return offers
@@ -189,6 +192,10 @@ export function getCustomerSavedDeals({
         redeemedOfferIds.has(
           offer.id
         ),
+      isRedeemable:
+        redeemableOfferIds
+          ? redeemableOfferIds.has(offer.id)
+          : !redeemedOfferIds.has(offer.id),
     }))
     .sort(
       (
@@ -196,12 +203,12 @@ export function getCustomerSavedDeals({
         secondDeal
       ) => {
         if (
-          firstDeal.isRedeemed !==
-          secondDeal.isRedeemed
+          firstDeal.isRedeemable !==
+          secondDeal.isRedeemable
         ) {
-          return firstDeal.isRedeemed
-            ? 1
-            : -1
+          return firstDeal.isRedeemable
+            ? -1
+            : 1
         }
 
         const firstEndTimestamp =

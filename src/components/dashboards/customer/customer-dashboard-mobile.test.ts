@@ -243,56 +243,66 @@ test(
 )
 
 // =============================================================================
-// Active marketplace separation
+// Current marketplace availability
 // =============================================================================
 
 test(
-  'keeps deal filters limited to active offers',
+  'derives currently available offers from redemption eligibility',
   () => {
     assert.match(
       dashboardSource,
-      /getCustomerDealFilterCounts\(\{\s*offers: enrichedOffers,\s*savedOfferIds,/
-    )
-
-    assert.match(
-      dashboardSource,
-      /filterCustomerDeals\(\{\s*offers: enrichedOffers,\s*filter: activeDealFilter,/
+      /const currentlyAvailableOffers =\s*enrichedOffers\.filter\(\(offer\) =>\s*redeemableOfferIds\.has\(offer\.id\)\s*\)/
     )
   }
 )
 
 test(
-  'keeps notifications limited to active offers',
+  'keeps deal filters limited to currently redeemable offers',
   () => {
     assert.match(
       dashboardSource,
-      /<CustomerNotificationCenter[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+      /getCustomerDealFilterCounts\(\{\s*offers: currentlyAvailableOffers,\s*savedOfferIds,/
+    )
+
+    assert.match(
+      dashboardSource,
+      /filterCustomerDeals\(\{\s*offers: currentlyAvailableOffers,\s*filter: activeDealFilter,/
     )
   }
 )
 
 test(
-  'keeps nearby businesses limited to active offers',
+  'keeps notifications limited to currently redeemable offers',
   () => {
     assert.match(
       dashboardSource,
-      /<CustomerNearbyBusinessesSection[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+      /<CustomerNotificationCenter[\s\S]*?enrichedOffers=\{\s*currentlyAvailableOffers\s*\}/
     )
   }
 )
 
 test(
-  'keeps recommendations limited to active offers',
+  'keeps nearby businesses limited to currently redeemable offers',
   () => {
     assert.match(
       dashboardSource,
-      /<CustomerRecommendationsSection[\s\S]*?enrichedOffers=\{\s*enrichedOffers\s*\}/
+      /<CustomerNearbyBusinessesSection[\s\S]*?enrichedOffers=\{\s*currentlyAvailableOffers\s*\}/
     )
   }
 )
 
 test(
-  'keeps available deals limited to filtered active offers',
+  'keeps recommendations limited to currently redeemable offers',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerRecommendationsSection[\s\S]*?enrichedOffers=\{\s*currentlyAvailableOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'keeps available deals limited to filtered redeemable offers',
   () => {
     assert.match(
       dashboardSource,
@@ -326,6 +336,16 @@ test(
     assert.match(
       dashboardSource,
       /<CustomerSavedDealsSection[\s\S]*?enrichedOffers=\{\s*customerHistoryOffers\s*\}/
+    )
+  }
+)
+
+test(
+  'passes current redeemability into My Pass',
+  () => {
+    assert.match(
+      dashboardSource,
+      /<CustomerSavedDealsSection[\s\S]*?redeemableOfferIds=\{\s*redeemableOfferIds\s*\}/
     )
   }
 )

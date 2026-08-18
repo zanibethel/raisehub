@@ -65,6 +65,7 @@ type Props = {
     SavedDealsProps['savedOfferIds']
   redeemedOfferIds:
     SavedDealsProps['redeemedOfferIds']
+  redeemableOfferIds: Set<string>
   redemptionDateByOfferId:
     SavedDealsProps['redemptionDateByOfferId']
 
@@ -83,6 +84,7 @@ export default function CustomerDashboardContent({
   historicalOffers = [],
   savedOfferIds,
   redeemedOfferIds,
+  redeemableOfferIds,
   redemptionDateByOfferId,
   hasPurchasedPass,
 }: Props) {
@@ -92,6 +94,11 @@ export default function CustomerDashboardContent({
   ] = useState<CustomerDealFilter>(
     DEFAULT_CUSTOMER_DEAL_FILTER
   )
+
+  const currentlyAvailableOffers =
+    enrichedOffers.filter((offer) =>
+      redeemableOfferIds.has(offer.id)
+    )
 
   const customerHistoryOffers = [
     ...new Map(
@@ -107,13 +114,13 @@ export default function CustomerDashboardContent({
 
   const filterCounts =
     getCustomerDealFilterCounts({
-      offers: enrichedOffers,
+      offers: currentlyAvailableOffers,
       savedOfferIds,
     })
 
   const filteredOffers =
     filterCustomerDeals({
-      offers: enrichedOffers,
+      offers: currentlyAvailableOffers,
       filter: activeDealFilter,
       savedOfferIds,
     })
@@ -135,9 +142,8 @@ export default function CustomerDashboardContent({
 
   const readyToUseDealCount = [
     ...savedOfferIds,
-  ].filter(
-    (offerId) =>
-      !redeemedOfferIds.has(offerId)
+  ].filter((offerId) =>
+    redeemableOfferIds.has(offerId)
   ).length
 
   function selectDealFilter(
@@ -172,7 +178,7 @@ export default function CustomerDashboardContent({
             hasPurchasedPass
           }
           enrichedOffers={
-            enrichedOffers
+            currentlyAvailableOffers
           }
           savedOfferIds={
             savedOfferIds
@@ -186,7 +192,7 @@ export default function CustomerDashboardContent({
       <CustomerNextStepSection
         hasActivePass={hasPurchasedPass}
         availableOfferCount={
-          enrichedOffers.length
+          currentlyAvailableOffers.length
         }
         savedDealCount={
           savedOfferIds.size
@@ -323,7 +329,7 @@ export default function CustomerDashboardContent({
       >
         <CustomerNearbyBusinessesSection
           enrichedOffers={
-            enrichedOffers
+            currentlyAvailableOffers
           }
           hasActivePass={
             hasPurchasedPass
@@ -337,7 +343,7 @@ export default function CustomerDashboardContent({
       >
         <CustomerRecommendationsSection
           enrichedOffers={
-            enrichedOffers
+            currentlyAvailableOffers
           }
           savedOfferIds={
             savedOfferIds
@@ -361,6 +367,9 @@ export default function CustomerDashboardContent({
           }
           redeemedOfferIds={
             redeemedOfferIds
+          }
+          redeemableOfferIds={
+            redeemableOfferIds
           }
           redemptionDateByOfferId={
             redemptionDateByOfferId

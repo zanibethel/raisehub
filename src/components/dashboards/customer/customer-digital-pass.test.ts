@@ -541,45 +541,50 @@ test(
 )
 
 // =============================================================================
-// Active deal connection
+// Redeemable deal connection
 // =============================================================================
 
 test(
-  'passes the enriched active offer count into the digital pass',
+  'passes the currently redeemable offer count into the digital pass',
   () => {
     assertSourceIncludes(
       dashboardSource,
-      'availableOfferCount={'
+      'const availableOfferCount = redeemableOfferIds.size'
     )
 
     assertSourceIncludes(
       dashboardSource,
-      'enrichedOffers.length'
+      'availableOfferCount={availableOfferCount}'
     )
   }
 )
 
 test(
-  'counts the same active offers rendered by the dashboard',
+  'derives the count from visible offers and current redemption eligibility',
   () => {
     assertSourceIncludes(
       dashboardSource,
-      'const enrichedOffers ='
+      'const enrichedOffers = customerVisibleOfferRows.map(enrichOffer)'
     )
 
     assertSourceIncludes(
       dashboardSource,
-      '(offers ?? []).map('
+      'const redeemableOfferIds = new Set('
     )
 
     assertSourceIncludes(
       dashboardSource,
-      'enrichOffer'
+      'getRedemptionAvailability({'
     )
 
     assertSourceIncludes(
       dashboardSource,
-      'enrichedOffers={'
+      '}).canRedeem'
+    )
+
+    assertSourceIncludes(
+      dashboardSource,
+      'redeemableOfferIds={redeemableOfferIds}'
     )
   }
 )
