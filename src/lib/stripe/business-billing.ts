@@ -49,12 +49,36 @@ function unixSecondsToIso(value: unknown) {
     : null
 }
 
+function subscriptionRecord(subscription: Stripe.Subscription) {
+  return subscription as unknown as Record<string, unknown>
+}
+
 function subscriptionPeriod(subscription: Stripe.Subscription) {
-  const record = subscription as unknown as Record<string, unknown>
+  const record = subscriptionRecord(subscription)
+  const itemRecord = (subscription.items.data[0] ?? {}) as unknown as Record<
+    string,
+    unknown
+  >
+
   return {
-    start: unixSecondsToIso(record.current_period_start),
-    end: unixSecondsToIso(record.current_period_end),
+    start: unixSecondsToIso(
+      record.current_period_start ?? itemRecord.current_period_start
+    ),
+    end: unixSecondsToIso(
+      record.current_period_end ?? itemRecord.current_period_end
+    ),
   }
+}
+
+function hasScheduledCancellation(subscription: Stripe.Subscription) {
+  if (subscription.cancel_at_period_end) return true
+
+  const cancelAt = subscriptionRecord(subscription).cancel_at
+  return (
+    typeof cancelAt === 'number' &&
+    Number.isFinite(cancelAt) &&
+    cancelAt > Math.floor(Date.now() / 1000)
+  )
 }
 
 function subscriptionPlanCode(subscription: Stripe.Subscription) {
@@ -141,7 +165,7 @@ async function synchronizeSubscription(
       livemode: Boolean((subscription as any).livemode),
       plan_code: planCode ?? (grantsGrowth ? 'growth' : 'free'),
       subscription_status: subscription.status,
-      cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+      cancel_at_period_end: hasScheduledCancellation(subscription),
       current_period_start: period.start,
       current_period_end: period.end,
       trial_end: unixSecondsToIso(subscription.trial_end),
