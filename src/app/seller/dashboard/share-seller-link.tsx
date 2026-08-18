@@ -8,6 +8,16 @@ type Props = {
   campaignName: string
 }
 
+function safeFileName(value: string) {
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return cleaned || 'raisehub-campaign'
+}
+
 export default function ShareSellerLink({ url, campaignName }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [showQrCode, setShowQrCode] = useState(false)
@@ -65,6 +75,18 @@ export default function ShareSellerLink({ url, campaignName }: Props) {
     }
   }
 
+  function downloadQrCode() {
+    if (!qrCodeDataUrl) return
+
+    const link = document.createElement('a')
+    link.href = qrCodeDataUrl
+    link.download = `${safeFileName(campaignName)}-raisehub-qr.png`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setMessage('QR code downloaded.')
+  }
+
   return (
     <div className="space-y-3">
       <label htmlFor="seller-share-link" className="text-sm font-semibold text-gray-800">
@@ -110,7 +132,7 @@ export default function ShareSellerLink({ url, campaignName }: Props) {
         >
           <p className="text-lg font-bold text-gray-950">Scan to support {campaignName}</p>
           <p className="mt-1 text-sm text-gray-600">
-            Hold this screen where a supporter can scan it with their phone camera.
+            Hold this screen where a supporter can scan it, or save the QR code for flyers and posts.
           </p>
           <div className="mx-auto mt-5 flex min-h-64 max-w-72 items-center justify-center rounded-2xl bg-white p-3">
             {qrCodeDataUrl ? (
@@ -127,6 +149,15 @@ export default function ShareSellerLink({ url, campaignName }: Props) {
               <p className="text-sm font-semibold text-gray-500">Preparing QR code…</p>
             )}
           </div>
+          {qrCodeDataUrl ? (
+            <button
+              type="button"
+              onClick={downloadQrCode}
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-100"
+            >
+              Download QR code
+            </button>
+          ) : null}
           <p className="mt-3 break-all text-xs text-gray-500">{url}</p>
         </section>
       ) : null}
