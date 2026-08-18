@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { getOwnerOperationalHealth } from '@/lib/repositories/owner-operational-health-repository'
 import { createClient } from '@/lib/supabase/server'
 
 type AttentionItem = {
@@ -18,10 +19,35 @@ const toneClasses = {
 
 export default async function OwnerAttentionCenter() {
   const supabase = await createClient()
-  const { count: openSupportCount, error: supportError } = await supabase
-    .from('support_requests')
-    .select('id', { count: 'exact', head: true })
-    .in('status', ['open', 'in_progress'])
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [{ count: openSupportCount, error: supportError }, profileResult] =
+    await Promise.all([
+      supabase
+        .from('support_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['open', 'in_progress']),
+      user
+        ? supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle<{ role: string }>()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+
+  const health =
+    profileResult.data?.role === 'owner'
+      ? await getOwnerOperationalHealth()
+      : null
+  const operationalCount = health
+    ? health.failedWebhooks24h +
+      health.staleProcessingWebhooks +
+      health.failedCheckouts24h +
+      health.failedPayouts24h
+    : null
 
   const items: AttentionItem[] = [
     {
@@ -43,9 +69,19 @@ export default async function OwnerAttentionCenter() {
     },
     {
       title: 'Platform health',
-      description: 'Review operational warnings, payment health, and configuration status.',
+      description: health
+        ? operationalCount
+          ? 'Payment or operational signals need Owner review.'
+          : health.errors.length
+            ? 'Health monitoring is degraded and needs investigation.'
+            : 'Payments and operational monitors are currently clear.'
+        : 'Review operational warnings, payment health, and configuration status.',
       href: '/dashboard/owner/health',
-      tone: 'blue',
+      count: health ? operationalCount : null,
+      tone:
+        health && (operationalCount || health.errors.length > 0)
+          ? 'rose'
+          : 'blue',
     },
   ]
 
