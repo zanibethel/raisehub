@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const { data: membership, error: membershipError } = await (supabase as any)
     .from('business_memberships')
-    .select('business_id, status, is_demo, demo_group')
+    .select('business_id, membership_role, status, is_demo, demo_group')
     .eq('business_id', businessId)
     .eq('user_id', user.id)
     .eq('status', 'active')
@@ -41,6 +41,13 @@ export async function POST(request: Request) {
 
   if (membershipError || !membership) {
     return NextResponse.json({ error: 'Business access was not found.' }, { status: 403 })
+  }
+
+  if (membership.membership_role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Only the Business owner can manage paid billing.' },
+      { status: 403 }
+    )
   }
 
   if (membership.is_demo !== false || membership.demo_group !== null) {
