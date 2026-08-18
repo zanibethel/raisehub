@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 import GiftSharePanel from './gift-share-panel'
-import { hashGiftClaimToken } from '@/app/gifts/actions'
+import { hashGiftClaimToken } from '@/lib/gifts/claim-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -118,7 +118,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
                 <GiftSharePanel claimPath={claimPath} />
               ) : (
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  Payment is confirmed, but this return page no longer has the private claim token. Your gift record is safe; use My Gifts or support to regenerate a private link before sending it.
+                  Payment is confirmed, but this return page no longer has the private claim token. Your gift record is safe; open My Gifts to generate a fresh private link before sending it.
                 </div>
               )
             ) : null}
@@ -149,10 +149,10 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
 
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           <Link
-            href="/dashboard"
+            href={isGift ? '/dashboard/gifts' : '/dashboard'}
             className="rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
           >
-            Check My Dashboard
+            {isGift ? 'Open My Gifts' : 'Check My Dashboard'}
           </Link>
           <Link
             href={campaignHref}
