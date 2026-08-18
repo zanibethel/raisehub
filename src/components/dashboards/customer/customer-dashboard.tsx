@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { WorkspaceModule } from '@/components/workspace/workspace-module'
+import { getRedemptionAvailability } from '@/lib/redemption-rules'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
@@ -31,6 +32,7 @@ type LegacyBusinessProfile = {
 
 type CanonicalBusinessLocation = {
   legacy_profile_id: string | null
+  status: string
   name: string
   phone: string | null
   address: string | null
@@ -131,8 +133,6 @@ export default async function CustomerDashboard({
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
 
-  const activeOfferIds = new Set((offers ?? []).map((offer) => offer.id))
-
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, business_name, phone, address, google_maps_url')
@@ -153,6 +153,7 @@ export default async function CustomerDashboard({
     .from('businesses')
     .select(`
       legacy_profile_id,
+      status,
       name,
       phone,
       address,
@@ -169,7 +170,6 @@ export default async function CustomerDashboard({
       google_rating,
       google_review_count
     `)
-    .eq('status', 'active')
 
   const canonicalBusinesses =
     (canonicalBusinessesData ?? []) as unknown as CanonicalBusinessLocation[]
@@ -195,28 +195,21 @@ export default async function CustomerDashboard({
     .from('redemptions')
     .select('offer_id, created_at')
     .eq('user_id', resolvedCustomerProfileId)
+    .order('created_at', { ascending: true })
 
   const redeemedOfferIds = new Set(
     (redemptions ?? []).map((redemption) => redemption.offer_id)
   )
-  const redemptionDateByOfferId = new Map(
-    (redemptions ?? []).map((redemption) => [
-      redemption.offer_id,
-      redemption.created_at,
-    ])
-  )
+  const redemptionDateByOfferId = new Map<string, string>()
 
-  const historicalOfferIds = [...redeemedOfferIds].filter(
-    (offerId) => !activeOfferIds.has(offerId)
-  )
-
-  const { data: historicalOffersData } = historicalOfferIds.length > 0
-    ? await supabase
-        .from('offers')
-        .select('*')
-        .in('id', historicalOfferIds)
-        .order('created_at', { ascending: false })
-    : { data: [] }
+  for (const redemption of redemptions ?? []) {
+    if (redemption.offer_id && redemption.created_at) {
+      redemptionDateByOfferId.set(
+        redemption.offer_id,
+        redemption.created_at
+      )
+    }
+  }
 
   type OfferRow = NonNullable<typeof offers>[number]
 
@@ -255,8 +248,43 @@ export default async function CustomerDashboard({
     }
   }
 
-  const enrichedOffers = (offers ?? []).map(enrichOffer)
+  // Legacy offers without a canonical business workspace remain visible for
+  // backwards compatibility. Once a canonical workspace exists, its lifecycle
+  // status controls whether its offers appear to customers.
+  const customerVisibleOfferRows = (offers ?? []).filter((offer) => {
+    const canonicalBusiness = canonicalBusinessByLegacyProfileId.get(offer.business_id)
+    return !canonicalBusiness || canonicalBusiness.status === 'active'
+  })
+  const activeOfferIds = new Set(customerVisibleOfferRows.map((offer) => offer.id))
+  const enrichedOffers = customerVisibleOfferRows.map(enrichOffer)
+
+  const redeemableOfferIds = new Set(
+    enrichedOffers
+      .filter((offer) =>
+        getRedemptionAvailability({
+          usageRule: offer.usage_rule,
+          lastRedeemedAt: redemptionDateByOfferId.get(offer.id),
+          now: nowDate,
+        }).canRedeem
+      )
+      .map((offer) => offer.id)
+  )
+
+  const historicalOfferIds = [...redeemedOfferIds].filter(
+    (offerId) => !activeOfferIds.has(offerId)
+  )
+
+  const { data: historicalOffersData } = historicalOfferIds.length > 0
+    ? await supabase
+        .from('offers')
+        .select('*')
+        .in('id', historicalOfferIds)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
   const historicalOffers = (historicalOffersData ?? []).map(enrichOffer)
+  const availableOfferCount = redeemableOfferIds.size
+  const totalRedemptionCount = redemptions?.length ?? 0
 
   const digitalPass = (
     <CustomerDigitalPass
@@ -266,7 +294,7 @@ export default async function CustomerDashboard({
       expiresAt={activeEntitlement?.expires_at}
       supportedOrganizationName={supportedOrganizationName}
       supportedCampaignName={supportedCampaignName}
-      availableOfferCount={enrichedOffers.length}
+      availableOfferCount={availableOfferCount}
     />
   )
 
@@ -275,7 +303,7 @@ export default async function CustomerDashboard({
       view={view}
       customerEmail={user.email}
       hasActivePass={hasPurchasedPass}
-      availableOfferCount={enrichedOffers.length}
+      availableOfferCount={availableOfferCount}
     >
       {view === 'activity' ? (
         <CustomerActivityContent
@@ -296,6 +324,7 @@ export default async function CustomerDashboard({
             historicalOffers={historicalOffers}
             savedOfferIds={savedOfferIds}
             redeemedOfferIds={redeemedOfferIds}
+            redeemableOfferIds={redeemableOfferIds}
             redemptionDateByOfferId={redemptionDateByOfferId}
             hasPurchasedPass={hasPurchasedPass}
           />
@@ -310,8 +339,8 @@ export default async function CustomerDashboard({
               <p className="mt-1 text-sm text-slate-500">Offers saved to your pass</p>
             </WorkspaceModule>
             <WorkspaceModule title="Redemptions" tone="green">
-              <p className="text-3xl font-black text-slate-950">{redeemedOfferIds.size}</p>
-              <p className="mt-1 text-sm text-slate-500">Deals used so far</p>
+              <p className="text-3xl font-black text-slate-950">{totalRedemptionCount}</p>
+              <p className="mt-1 text-sm text-slate-500">Total offer uses recorded</p>
             </WorkspaceModule>
             <WorkspaceModule title="Fundraisers supported" tone="amber">
               <p className="text-3xl font-black text-slate-950">{purchasedPasses.length}</p>
