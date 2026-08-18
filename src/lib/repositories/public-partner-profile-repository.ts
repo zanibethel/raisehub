@@ -21,25 +21,29 @@ export type PublicPartnerProfile = EnvironmentOwnedRecord & {
 }
 
 export async function getPublicPartnerProfiles(
-  profileIds: string[],
+  profileIds: string[] | null,
   options: {
     role?: 'business' | 'organization'
     environment?: DataEnvironment
+    limit?: number
   } = {}
 ): Promise<{ profiles: PublicPartnerProfile[]; error: string | null }> {
-  const ids = [...new Set(profileIds.filter(Boolean))]
-  if (ids.length === 0) return { profiles: [], error: null }
-
   const environment = options.environment ?? getActiveDataEnvironment()
   const admin = createAdminClient()
-  const query = admin
+  let query = admin
     .from('profiles')
     .select(
       'id, role, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, is_demo, demo_group'
     )
-    .in('id', ids)
 
-  if (options.role) query.eq('role', options.role)
+  if (profileIds) {
+    const ids = [...new Set(profileIds.filter(Boolean))]
+    if (ids.length === 0) return { profiles: [], error: null }
+    query = query.in('id', ids)
+  }
+
+  if (options.role) query = query.eq('role', options.role)
+  if (options.limit) query = query.limit(options.limit)
 
   const { data, error } = await applyEnvironmentScope(query, environment)
 
