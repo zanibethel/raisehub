@@ -83,7 +83,7 @@ test(
 )
 
 test(
-  'keeps Ready and Used badges content width',
+  'keeps available and unavailable badges content width',
   () => {
     assert.match(
       sectionSource,
@@ -97,11 +97,11 @@ test(
 )
 
 test(
-  'preserves Ready and Used status labels',
+  'shows Ready for redeemable deals and the availability label otherwise',
   () => {
     assert.match(
       sectionSource,
-      /\? 'Used'\s*: 'Ready'/
+      /\{isRedeemable\s*\? 'Ready'\s*: availability\.label\}/
     )
   }
 )
@@ -173,6 +173,20 @@ test(
     assert.match(
       sectionSource,
       /formatCustomerSavedDealEndDate/
+    )
+  }
+)
+
+test(
+  'shows the configured reuse rule',
+  () => {
+    assert.match(
+      sectionSource,
+      /getOfferUsageRuleLabel\(usageRule\)/
+    )
+    assert.match(
+      sectionSource,
+      /Reuse/
     )
   }
 )
@@ -262,8 +276,12 @@ test(
 )
 
 test(
-  'preserves the use-offer action for ready deals',
+  'preserves the use-offer action for redeemable deals',
   () => {
+    assert.match(
+      sectionSource,
+      /\{isRedeemable \? \(/
+    )
     assert.match(
       sectionSource,
       /<UseOfferButton/
@@ -316,25 +334,25 @@ test(
 )
 
 // =============================================================================
-// Redemption history protection
+// Redemption history and reuse protection
 // =============================================================================
 
 test(
-  'only allows ready deals to be removed from My Pass',
+  'allows removal whenever a saved deal is currently redeemable',
   () => {
     assert.match(
       sectionSource,
-      /\{!isRedeemed \? \(/
+      /\{isRedeemable \? \(\s*<RemoveSavedOfferButton/
     )
     assert.match(
       sectionSource,
-      /<RemoveSavedOfferButton\s+offerId=\{offer\.id\}\s+offerTitle=\{offerTitle\}/
+      /offerTitle=\{offerTitle\}/
     )
   }
 )
 
 test(
-  'keeps redeemed deals in My Pass history',
+  'keeps currently unavailable redeemed deals in My Pass history',
   () => {
     assert.match(
       sectionSource,
@@ -344,27 +362,27 @@ test(
 )
 
 test(
-  'pairs redeemed status with the history retention message',
+  'pairs non-redeemable state with the history retention message',
   () => {
-    const redeemedConditionIndex =
-      sectionSource.indexOf(
-        '{!isRedeemed ? ('
+    const removalConditionIndex =
+      sectionSource.lastIndexOf(
+        '{isRedeemable ? ('
       )
 
     const removalButtonIndex =
       sectionSource.indexOf(
         '<RemoveSavedOfferButton',
-        redeemedConditionIndex
+        removalConditionIndex
       )
 
     const historyMessageIndex =
       sectionSource.indexOf(
         'Kept in My Pass as part of',
-        redeemedConditionIndex
+        removalConditionIndex
       )
 
     assert.notEqual(
-      redeemedConditionIndex,
+      removalConditionIndex,
       -1
     )
     assert.notEqual(
@@ -383,12 +401,26 @@ test(
   }
 )
 
+test(
+  'shows when a previously redeemed reusable offer is available again',
+  () => {
+    assert.match(
+      sectionSource,
+      /\{isRedeemed && isRedeemable \? \(/
+    )
+    assert.match(
+      sectionSource,
+      /This offer is available again now\./
+    )
+  }
+)
+
 // =============================================================================
 // Saved deal organization
 // =============================================================================
 
 test(
-  'keeps ready deals before used deals',
+  'keeps ready deals before unavailable deals',
   () => {
     const readySectionIndex = sectionSource.indexOf(
       'customer-ready-to-use-deals-heading'
@@ -435,7 +467,7 @@ test(
 )
 
 test(
-  'preserves used deals as customer history',
+  'preserves non-redeemable deals as history or cooldown',
   () => {
     assert.match(
       sectionSource,
@@ -443,11 +475,11 @@ test(
     )
     assert.match(
       sectionSource,
-      /History/
+      /History \/ Cooldown/
     )
     assert.match(
       sectionSource,
-      /Used Deals/
+      /Not Currently Available/
     )
     assert.match(
       sectionSource,
@@ -457,7 +489,7 @@ test(
 )
 
 test(
-  'preserves the recorded redemption date',
+  'preserves the most recent redemption date',
   () => {
     assert.match(
       sectionSource,
@@ -469,7 +501,7 @@ test(
     )
     assert.match(
       sectionSource,
-      /Used on/
+      /Last used/
     )
   }
 )
