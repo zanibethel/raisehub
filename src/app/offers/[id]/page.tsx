@@ -9,6 +9,7 @@ import {
   requireRelatedRecordEnvironment,
   type EnvironmentOwnedRecord,
 } from '@/lib/data-environment'
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
 
@@ -74,19 +75,11 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const offer = offerData as OfferRecord | null
   if (!offer) notFound()
 
-  const profileQuery = supabase
-    .from('profiles')
-    .select(
-      'id, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, is_demo, demo_group'
-    )
-    .eq('id', offer.business_id)
-    .eq('role', 'business')
-
-  const { data: profileData } = await applyEnvironmentScope(
-    profileQuery,
-    environment
-  ).maybeSingle()
-  const profile = profileData as BusinessProfile | null
+  const { profiles } = await getPublicPartnerProfiles([offer.business_id], {
+    role: 'business',
+    environment,
+  })
+  const profile = (profiles[0] ?? null) as BusinessProfile | null
 
   try {
     requireRelatedRecordEnvironment(profile, offer, environment)
