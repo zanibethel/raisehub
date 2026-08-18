@@ -47,7 +47,7 @@ export default function SellerProfileForm({
 
       <div>
         <label htmlFor="seller-bio" className="text-sm font-semibold text-gray-800">
-          Short bio
+          Short story <span className="font-normal text-gray-500">(optional)</span>
         </label>
         <textarea
           id="seller-bio"
@@ -55,28 +55,31 @@ export default function SellerProfileForm({
           rows={3}
           maxLength={280}
           defaultValue={bio}
-          placeholder="Tell supporters who you are and why this fundraiser matters to you."
+          placeholder="Why does this fundraiser matter to you?"
           className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
       </div>
 
-      <div>
-        <label htmlFor="seller-avatar-url" className="text-sm font-semibold text-gray-800">
-          Profile image URL
-        </label>
-        <input
-          id="seller-avatar-url"
-          name="avatarUrl"
-          type="url"
-          inputMode="url"
-          defaultValue={avatarUrl}
-          placeholder="https://…"
-          className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-        />
-        <p className="mt-2 text-xs text-gray-500">
-          Direct image upload can be added after the seller workspace is validated. For now, use a secure hosted image URL.
-        </p>
-      </div>
+      <details className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-gray-800">
+          Profile image <span className="font-normal text-gray-500">(optional)</span>
+        </summary>
+        <div className="mt-3">
+          <label htmlFor="seller-avatar-url" className="sr-only">
+            Profile image URL
+          </label>
+          <input
+            id="seller-avatar-url"
+            name="avatarUrl"
+            type="url"
+            inputMode="url"
+            defaultValue={avatarUrl}
+            placeholder="https://…"
+            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+          <p className="mt-2 text-xs text-gray-500">Paste a secure hosted image URL if you want to add a photo.</p>
+        </div>
+      </details>
 
       <button
         type="submit"
