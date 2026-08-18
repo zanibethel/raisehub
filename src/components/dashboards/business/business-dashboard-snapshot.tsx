@@ -3,25 +3,14 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 type BusinessDashboardSnapshotProps = {
   activeOffersCount: number
   activeOfferLimit: number
+  isGrowthPlan: boolean
   totalRedemptions: number
   topOfferTitle: string
   topOfferCount: number
   publishedOffersCount: number
-}
-
-// =============================================================================
-// Report helpers
-// =============================================================================
-
-function formatPercentage(value: number): string {
-  return `${Math.round(value)}%`
 }
 
 function getPerformanceSummary({
@@ -72,13 +61,10 @@ function getPerformanceSummary({
   }
 }
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export default function BusinessDashboardSnapshot({
   activeOffersCount,
   activeOfferLimit,
+  isGrowthPlan,
   totalRedemptions,
   topOfferTitle,
   topOfferCount,
@@ -87,7 +73,7 @@ export default function BusinessDashboardSnapshot({
   const [isExpanded, setIsExpanded] = useState(false)
 
   const offerSlotUtilization =
-    activeOfferLimit > 0
+    !isGrowthPlan && activeOfferLimit > 0
       ? Math.min((activeOffersCount / activeOfferLimit) * 100, 100)
       : 0
 
@@ -146,26 +132,19 @@ export default function BusinessDashboardSnapshot({
             Active
           </p>
           <p className="mt-1 text-lg font-bold text-green-700 sm:text-2xl">
-            {activeOffersCount}/{activeOfferLimit}
+            {isGrowthPlan ? activeOffersCount : `${activeOffersCount}/${activeOfferLimit}`}
           </p>
+          {isGrowthPlan ? <p className="text-[10px] font-bold uppercase tracking-wide text-green-600">Growth</p> : null}
         </div>
 
         <div className="px-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">
-            Uses
-          </p>
-          <p className="mt-1 text-lg font-bold text-blue-700 sm:text-2xl">
-            {totalRedemptions}
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">Uses</p>
+          <p className="mt-1 text-lg font-bold text-blue-700 sm:text-2xl">{totalRedemptions}</p>
         </div>
 
         <div className="px-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">
-            Published
-          </p>
-          <p className="mt-1 text-lg font-bold text-gray-900 sm:text-2xl">
-            {publishedOffersCount}
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">Published</p>
+          <p className="mt-1 text-lg font-bold text-gray-900 sm:text-2xl">{publishedOffersCount}</p>
         </div>
       </div>
 
@@ -175,43 +154,39 @@ export default function BusinessDashboardSnapshot({
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-semibold text-gray-800">Offer capacity</span>
               <span className="text-gray-500">
-                {activeOffersCount} of {activeOfferLimit} active
+                {isGrowthPlan
+                  ? `${activeOffersCount} active · Growth has no free-plan cap`
+                  : `${activeOffersCount} of ${activeOfferLimit} active`}
               </span>
             </div>
-            <div
-              aria-label={`${formatPercentage(offerSlotUtilization)} of active offer capacity used`}
-              className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(offerSlotUtilization)}
-            >
+            {!isGrowthPlan ? (
               <div
-                className="h-full rounded-full bg-green-600"
-                style={{ width: `${offerSlotUtilization}%` }}
-              />
-            </div>
+                aria-label={`${Math.round(offerSlotUtilization)}% of active offer capacity used`}
+                className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(offerSlotUtilization)}
+              >
+                <div
+                  className="h-full rounded-full bg-green-600"
+                  style={{ width: `${offerSlotUtilization}%` }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                Redemption average
-              </p>
-              <p className="mt-1 text-xl font-bold text-gray-900">
-                {averageRedemptions.toFixed(1)}
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Redemption average</p>
+              <p className="mt-1 text-xl font-bold text-gray-900">{averageRedemptions.toFixed(1)}</p>
               <p className="text-sm text-gray-600">per published offer</p>
             </div>
 
             <div className={`rounded-xl border p-4 ${performanceSummary.toneClasses}`}>
-              <p className="text-xs font-bold uppercase tracking-wide opacity-70">
-                Recommended focus
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wide opacity-70">Recommended focus</p>
               <h3 className="mt-1 font-bold">{performanceSummary.title}</h3>
-              <p className="mt-1 text-sm leading-6 opacity-80">
-                {performanceSummary.description}
-              </p>
+              <p className="mt-1 text-sm leading-6 opacity-80">{performanceSummary.description}</p>
               <Link
                 href="#business-offers"
                 className="mt-3 inline-flex text-sm font-semibold underline-offset-4 hover:underline"
