@@ -1,4 +1,8 @@
 import { scoreOffer } from '@/lib/ai/scoring'
+import {
+  getOfferUsageRuleLabel,
+  type OfferUsageRule,
+} from '@/lib/redemption-rules'
 
 export type OfferExclusivity = 'never' | 'occasionally' | 'already-public'
 
@@ -9,7 +13,10 @@ export type OfferDraft = {
   description: string
   startsAt: string
   endsAt: string
+  // Kept for backwards compatibility with saved drafts created before
+  // redemption frequency became an explicit setting.
   limitOnePerMember: boolean
+  usageRule?: OfferUsageRule
   validEveryDay: boolean
   requiresPurchase: boolean
   exclusivity: OfferExclusivity
@@ -27,10 +34,23 @@ function renderStars(score: number) {
   return '★'.repeat(score) + '☆'.repeat(5 - score)
 }
 
+export function getDraftUsageRule(draft: OfferDraft): OfferUsageRule {
+  return draft.usageRule ?? (draft.limitOnePerMember ? 'one-time' : 'unlimited')
+}
+
 export function buildFinePrint(draft: OfferDraft) {
   const rules: string[] = ['Exclusive to RaiseHub members.']
+  const usageRule = getDraftUsageRule(draft)
 
-  if (draft.limitOnePerMember) rules.push('Limit one redemption per member.')
+  if (usageRule === 'one-time') {
+    rules.push('Limit one redemption per member.')
+  } else if (usageRule === 'daily') {
+    rules.push('May be redeemed once every 24 hours per member.')
+  } else if (usageRule === 'weekly') {
+    rules.push('May be redeemed once every 7 days per member.')
+  } else {
+    rules.push('Reusable while this offer remains active.')
+  }
 
   if (draft.requiresPurchase && draft.qualifyingPurchase.trim()) {
     rules.push(`Requires ${draft.qualifyingPurchase.trim()}.`)
@@ -61,12 +81,21 @@ export default function DetailsStep({
     isExclusive,
     requiresPurchase: draft.requiresPurchase,
   })
+  const usageRule = getDraftUsageRule(draft)
 
   function updateDraft<Key extends keyof OfferDraft>(
     key: Key,
     value: OfferDraft[Key]
   ) {
     onChange({ ...draft, [key]: value })
+  }
+
+  function updateUsageRule(value: OfferUsageRule) {
+    onChange({
+      ...draft,
+      usageRule: value,
+      limitOnePerMember: value === 'one-time',
+    })
   }
 
   return (
@@ -201,16 +230,38 @@ export default function DetailsStep({
 
           <section className="rounded-2xl border border-gray-200 bg-white p-5">
             <h2 className="font-bold text-gray-900">Redemption rules</h2>
-            <div className="mt-4 space-y-4">
-              <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
-                <input type="checkbox" checked={draft.limitOnePerMember} onChange={(event) => updateDraft('limitOnePerMember', event.target.checked)} className="h-4 w-4" />
-                Limit one redemption per member
-              </label>
-              <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
-                <input type="checkbox" checked={draft.validEveryDay} onChange={(event) => updateDraft('validEveryDay', event.target.checked)} className="h-4 w-4" />
-                Valid every day
-              </label>
+            <p className="mt-1 text-sm leading-6 text-gray-600">
+              Choose how often each RaiseHub member may use this offer while it remains active.
+            </p>
+
+            <label className="mt-4 block">
+              <span className="text-sm font-semibold text-gray-700">Redemption frequency</span>
+              <select
+                value={usageRule}
+                onChange={(event) => updateUsageRule(event.target.value as OfferUsageRule)}
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500"
+              >
+                <option value="one-time">Single use</option>
+                <option value="daily">Once every 24 hours</option>
+                <option value="weekly">Once every 7 days</option>
+                <option value="unlimited">Reusable anytime</option>
+              </select>
+            </label>
+
+            <div className="mt-4 rounded-xl border border-green-100 bg-green-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-green-700">
+                Member experience
+              </p>
+              <p className="mt-2 text-sm leading-6 text-green-900">
+                {getOfferUsageRuleLabel(usageRule)}. Reusable offers automatically become available again when their reuse window opens, until the offer expires or is paused.
+              </p>
             </div>
+
+            <label className="mt-4 flex items-center gap-3 text-sm font-semibold text-gray-700">
+              <input type="checkbox" checked={draft.validEveryDay} onChange={(event) => updateDraft('validEveryDay', event.target.checked)} className="h-4 w-4" />
+              Valid every day
+            </label>
+
             <div className="mt-5 rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Generated fine print</p>
               <p className="mt-2 text-sm leading-6 text-gray-700">{buildFinePrint(draft)}</p>
@@ -277,7 +328,7 @@ export default function DetailsStep({
               <p className="text-xs font-bold uppercase tracking-wide text-green-700">Estimated member value</p>
               <p className="mt-1 text-2xl font-bold text-green-800">${draft.estimatedRetailValue.toFixed(2)}</p>
             </div>
-            <p className="mt-4 text-xs font-semibold text-blue-700">Exclusive to RaiseHub members</p>
+            <p className="mt-4 text-xs font-semibold text-blue-700">{getOfferUsageRuleLabel(usageRule)} · Exclusive to RaiseHub members</p>
           </section>
         </aside>
       </div>
