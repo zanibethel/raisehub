@@ -16,10 +16,20 @@ Gift-pass creation is limited to five inserts per purchaser and data environment
 
 Gift claiming is not yet implemented in the current application. When a claim mutation is introduced, it must reuse this shared limiter before entitlement creation or transfer.
 
+## Password recovery
+
+Password-reset requests are routed through a RaiseHub server endpoint before calling Supabase Auth. RaiseHub permits three attempts per email/IP-derived subject in a fixed 15-minute window and returns HTTP `429` with `Retry-After` when blocked. The public response is deliberately generic so recovery does not reveal whether an email belongs to an account.
+
+Supabase Auth keeps its own upstream password-reset and email-send limits as a second layer.
+
+## Support requests
+
+Support submissions are limited to five requests per 15 minutes. Signed-in users are keyed by user identity; signed-out requests use a hashed subject derived from the normalized email and available client-IP headers. Demo and Live support buckets remain separate.
+
 ## Shared security boundary
 
 The bucket table is protected by RLS and direct access is revoked from `PUBLIC`, `anon`, and `authenticated`. Only service-role server/database code can consume the shared limiter RPC.
 
-Raw authenticated user IDs are not stored in the rate-limit bucket table. Application helpers use SHA-256 subject hashes; database triggers use deterministic hashes of the environment scope and user identity.
+Raw authenticated user IDs, email addresses, and IP addresses are not stored in the rate-limit bucket table. Application helpers hash rate-limit subjects before persistence; database triggers use deterministic hashes of the environment scope and user identity.
 
-Financial and entitlement-changing mutations should fail closed when rate-limit state cannot be confirmed.
+Financial, entitlement-changing, authentication-sensitive, and public-write mutations should fail closed when rate-limit state cannot be confirmed.
