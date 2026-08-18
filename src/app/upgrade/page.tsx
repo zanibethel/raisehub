@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { refreshBusinessBillingFromStripe } from '@/lib/stripe/business-billing-refresh'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -18,6 +19,17 @@ type BillingState = {
   subscription_status: string
   cancel_at_period_end: boolean
   current_period_end: string | null
+}
+
+function periodEndLabel(value: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 export default async function UpgradePage({ searchParams }: UpgradePageProps) {
@@ -64,18 +76,11 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
   }
 
   const admin = createAdminClient() as any
-  const [{ data: business }, { data: billing }] = await Promise.all([
-    admin
-      .from('businesses')
-      .select('id, name, subscription_tier, status, archived_at, is_demo, demo_group')
-      .eq('id', membership.business_id)
-      .maybeSingle(),
-    admin
-      .from('business_billing_accounts')
-      .select('plan_code, subscription_status, cancel_at_period_end, current_period_end')
-      .eq('business_id', membership.business_id)
-      .maybeSingle(),
-  ])
+  const { data: business } = await admin
+    .from('businesses')
+    .select('id, name, subscription_tier, status, archived_at, is_demo, demo_group')
+    .eq('id', membership.business_id)
+    .maybeSingle()
 
   if (!business) {
     return (
@@ -89,17 +94,33 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
     )
   }
 
+  const isDemo =
+    membership.is_demo !== false ||
+    membership.demo_group !== null ||
+    business.is_demo !== false ||
+    business.demo_group !== null
+
+  if (!isDemo) {
+    try {
+      await refreshBusinessBillingFromStripe(admin, business.id)
+    } catch (error) {
+      console.error('Could not refresh Business billing state from Stripe', error)
+    }
+  }
+
+  const { data: billing } = await admin
+    .from('business_billing_accounts')
+    .select('plan_code, subscription_status, cancel_at_period_end, current_period_end')
+    .eq('business_id', membership.business_id)
+    .maybeSingle()
+
   const billingState: BillingState = billing ?? {
     plan_code: 'free',
     subscription_status: 'inactive',
     cancel_at_period_end: false,
     current_period_end: null,
   }
-  const isDemo =
-    membership.is_demo !== false ||
-    membership.demo_group !== null ||
-    business.is_demo !== false ||
-    business.demo_group !== null
+  const currentPeriodEnd = periodEndLabel(billingState.current_period_end)
 
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-6 sm:py-14">
@@ -141,6 +162,15 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
           </div>
         ) : null}
 
+        {billingState.cancel_at_period_end ? (
+          <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+            <p className="font-black">Growth cancellation scheduled</p>
+            <p className="mt-1 text-sm leading-6">
+              Your subscription will not renew{currentPeriodEnd ? ` after ${currentPeriodEnd}` : ' after the current billing period'}. Growth remains active until then.
+            </p>
+          </div>
+        ) : null}
+
         <section className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="grid gap-6 md:grid-cols-[1fr_1.2fr] md:items-start">
             <div>
@@ -158,6 +188,14 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
                 <p className="mt-1 capitalize">{business.subscription_tier || 'free'}</p>
                 <p className="mt-3 font-bold text-slate-900">Stripe status</p>
                 <p className="mt-1 capitalize">{billingState.subscription_status.replaceAll('_', ' ')}</p>
+                <p className="mt-3 font-bold text-slate-900">Renewal</p>
+                <p className="mt-1">
+                  {billingState.cancel_at_period_end
+                    ? `Cancels${currentPeriodEnd ? ` ${currentPeriodEnd}` : ' at period end'}`
+                    : currentPeriodEnd
+                      ? `Renews after ${currentPeriodEnd}`
+                      : 'Active'}
+                </p>
               </div>
             </div>
 
