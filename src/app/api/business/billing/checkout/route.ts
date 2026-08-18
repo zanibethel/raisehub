@@ -54,6 +54,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Business access was not found.' }, { status: 403 })
   }
 
+  if (membership.membership_role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Only the Business owner can change the paid plan.' },
+      { status: 403 }
+    )
+  }
+
   if (membership.is_demo !== false || membership.demo_group !== null) {
     return NextResponse.json(
       { error: 'Demo businesses cannot create Stripe subscriptions.' },
