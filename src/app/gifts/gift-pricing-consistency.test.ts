@@ -8,26 +8,16 @@ const source = fs.readFileSync(
   'utf8'
 )
 
-test('gift pricing resolves from the campaign organization', () => {
-  assert.match(
-    source,
-    /legacy_profile_id', campaign\.organization_id/
-  )
-  assert.match(
-    source,
-    /campaignOrganizationRecord\?\.id \?\? null/
-  )
-  assert.match(
-    source,
-    /isDemo: campaignOrganizationProfile\.is_demo/
-  )
+test('gift pricing resolves from the campaign organization workspace', () => {
+  assert.match(source, /const selectedOrganizationId = campaign\.organization_id/)
+  assert.match(source, /legacy_profile_id', selectedOrganizationId/)
+  assert.match(source, /organizationId: canonicalOrganizationResult\.data\.id/)
+  assert.match(source, /isDemo: environment\.mode === 'demo'/)
 })
 
-test('selected support recipient does not replace the pricing owner', () => {
-  assert.doesNotMatch(
-    source,
-    /legacy_profile_id', selectedOrganizationId/
-  )
+test('gift support recipient remains the campaign organization', () => {
+  assert.match(source, /p_selected_organization_id: selectedOrganizationId/)
+  assert.match(source, /selected_organization_id: selectedOrganizationId/)
 })
 
 test('gift donations are normalized to cents', () => {
