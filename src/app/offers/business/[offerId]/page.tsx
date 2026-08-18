@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 import { createClient } from '@/lib/supabase/server'
 
 import BusinessOfferPreview from './business-offer-preview'
@@ -70,7 +71,7 @@ export default async function BusinessOfferPreviewPage({
     )
   }
 
-  const [{ data: offers }, { data: profile }, { data: viewerProfile }] =
+  const [{ data: offers }, { data: viewerProfile }, partnerResult] =
     await Promise.all([
       supabase
         .from('offers')
@@ -78,13 +79,6 @@ export default async function BusinessOfferPreviewPage({
         .eq('business_id', anchorOffer.business_id)
         .eq('is_active', true)
         .order('created_at', { ascending: false }),
-      supabase
-        .from('profiles')
-        .select(
-          'business_name, display_name, logo_url, phone, address, website_url, google_maps_url'
-        )
-        .eq('id', anchorOffer.business_id)
-        .maybeSingle(),
       authData.user
         ? supabase
             .from('profiles')
@@ -92,8 +86,10 @@ export default async function BusinessOfferPreviewPage({
             .eq('id', authData.user.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      getPublicPartnerProfiles([anchorOffer.business_id], { role: 'business' }),
     ])
 
+  const profile = partnerResult.profiles[0] ?? null
   const availableOffers = (offers ?? []).filter(isCurrentlyAvailable)
   const businessName =
     profile?.display_name || profile?.business_name || 'Local Business'

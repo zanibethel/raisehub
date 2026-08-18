@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import LogoCarouselClient from './logo-carousel-client'
 import { isDemoMode } from '@/lib/app-mode'
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 
 const DEMO_SAMPLE_PARTNERS = [
   {
@@ -39,48 +39,25 @@ const DEMO_SAMPLE_PARTNERS = [
 ]
 
 export default async function LogoCarousel() {
-  const supabase = await createClient()
   const demoMode = isDemoMode()
-
-  const { data: partners, error } = await supabase
-    .from('profiles')
-    .select(
-      'id, business_name, display_name, logo_url, website_url, role, phone, address, google_maps_url'
-    )
-    .eq('role', 'business')
-    .eq('is_demo', demoMode)
-    .limit(20)
+  const { profiles: partners, error } = await getPublicPartnerProfiles(null, {
+    role: 'business',
+    limit: 20,
+  })
 
   if (error) return null
 
-  const validBusinessPartners =
-    partners?.filter(
-      (partner) =>
-        partner.role === 'business' &&
-        Boolean(
-          partner.business_name?.trim() ||
-            partner.display_name?.trim()
-        )
-    ) ?? []
-
-  if (
-    validBusinessPartners.length === 0 &&
-    demoMode
-  ) {
-    return (
-      <LogoCarouselClient
-        partners={DEMO_SAMPLE_PARTNERS}
-      />
-    )
-  }
-
-  if (validBusinessPartners.length === 0) {
-    return null
-  }
-
-  return (
-    <LogoCarouselClient
-      partners={validBusinessPartners}
-    />
+  const validBusinessPartners = partners.filter(
+    (partner) =>
+      partner.role === 'business' &&
+      Boolean(partner.business_name?.trim() || partner.display_name?.trim())
   )
+
+  if (validBusinessPartners.length === 0 && demoMode) {
+    return <LogoCarouselClient partners={DEMO_SAMPLE_PARTNERS} />
+  }
+
+  if (validBusinessPartners.length === 0) return null
+
+  return <LogoCarouselClient partners={validBusinessPartners} />
 }

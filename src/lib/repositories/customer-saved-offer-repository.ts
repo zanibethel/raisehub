@@ -4,6 +4,7 @@ import {
   recordMatchesEnvironment,
   recordsShareEnvironment,
 } from '@/lib/data-environment'
+import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 import { createClient } from '@/lib/supabase/server'
 
 type RawSavedOfferRow = {
@@ -18,14 +19,6 @@ type RawSavedOfferRow = {
     is_demo: boolean
     demo_group: string | null
   } | null
-}
-
-type BusinessProfileRow = {
-  id: string
-  business_name: string | null
-  display_name: string | null
-  is_demo: boolean
-  demo_group: string | null
 }
 
 export type CustomerSavedOfferRecord = {
@@ -87,20 +80,14 @@ export async function getCustomerSavedOffers(
   const businessNameById = new Map<string, string>()
 
   if (businessIds.length > 0) {
-    const businessQuery = supabase
-      .from('profiles')
-      .select('id, business_name, display_name, is_demo, demo_group')
-      .in('id', businessIds)
-      .eq('role', 'business')
+    const { profiles, error } = await getPublicPartnerProfiles(businessIds, {
+      role: 'business',
+      environment,
+    })
 
-    const { data: businessProfiles, error: businessProfilesError } =
-      await applyEnvironmentScope(businessQuery, environment)
+    if (error) return { savedOffers: [], error }
 
-    if (businessProfilesError) {
-      return { savedOffers: [], error: businessProfilesError.message }
-    }
-
-    for (const profile of (businessProfiles ?? []) as BusinessProfileRow[]) {
+    for (const profile of profiles) {
       businessNameById.set(
         profile.id,
         profile.display_name || profile.business_name || 'Local Business'
