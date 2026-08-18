@@ -27,6 +27,13 @@ test('business upgrades use recurring Stripe Checkout and reject demo workspaces
   assert.match(checkoutSource, /subscription_status: 'incomplete'/)
 })
 
+test('unfinished business upgrade checkouts resume instead of creating duplicates', () => {
+  assert.match(checkoutSource, /checkout\.sessions\.list/)
+  assert.match(checkoutSource, /status: 'open'/)
+  assert.match(checkoutSource, /resumed: true/)
+  assert.match(checkoutSource, /Another billing change is already in progress/)
+})
+
 test('signed Stripe webhook handles business billing before normal checkout fulfillment', () => {
   const billingIndex = webhookSource.indexOf('handleBusinessBillingEvent(admin, event)')
   const fulfillmentIndex = webhookSource.lastIndexOf(
