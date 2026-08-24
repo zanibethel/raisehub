@@ -30,14 +30,22 @@ function requireEnvironmentValue(name: string) {
   return value
 }
 
-function requireTestSecretKey() {
+function isStripeSecretKey(value: string) {
+  return value.startsWith('sk_test_') || value.startsWith('sk_live_')
+}
+
+function requireSecretKey() {
   const key = requireEnvironmentValue('STRIPE_SECRET_KEY')
 
-  if (!key.startsWith('sk_test_')) {
-    throw new Error('RaiseHub Stripe live mode is disabled until payment QA is complete')
+  if (!isStripeSecretKey(key)) {
+    throw new Error('STRIPE_SECRET_KEY must be a Stripe test or live secret key')
   }
 
   return key
+}
+
+function secretKeyIsLive(key: string) {
+  return key.startsWith('sk_live_')
 }
 
 function configuredWebhookSecrets() {
@@ -68,12 +76,14 @@ export function stripeIsConfigured() {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim()
 
   return Boolean(
-    secretKey?.startsWith('sk_test_') && webhookSecret?.startsWith('whsec_')
+    secretKey &&
+      isStripeSecretKey(secretKey) &&
+      webhookSecret?.startsWith('whsec_')
   )
 }
 
 export function getStripeClient() {
-  return new Stripe(requireTestSecretKey(), {
+  return new Stripe(requireSecretKey(), {
     appInfo: {
       name: 'RaiseHub',
       version: '0.1.0',
@@ -141,7 +151,16 @@ export function verifyStripeWebhook(
     throw new Error('No Stripe webhook signing secret is configured')
   }
 
-  const stripe = getStripeClient()
+  const key = requireSecretKey()
+  const expectedLiveMode = secretKeyIsLive(key)
+  const stripe = new Stripe(key, {
+    appInfo: {
+      name: 'RaiseHub',
+      version: '0.1.0',
+    },
+    maxNetworkRetries: 2,
+    timeout: 20_000,
+  })
   let verificationError: unknown
 
   for (const webhookSecret of webhookSecrets) {
@@ -153,9 +172,9 @@ export function verifyStripeWebhook(
         SIGNATURE_TOLERANCE_SECONDS
       )
 
-      if (event.livemode) {
+      if (event.livemode !== expectedLiveMode) {
         throw new Error(
-          'RaiseHub rejected a live-mode Stripe event while live payments are disabled'
+          `Stripe webhook mode mismatch: expected ${expectedLiveMode ? 'live' : 'test'} event`
         )
       }
 
