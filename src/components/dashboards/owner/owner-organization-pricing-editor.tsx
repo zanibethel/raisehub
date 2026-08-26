@@ -7,10 +7,10 @@ import {
 } from 'react'
 
 import {
-  initialOwnerOrganizationPricingActionState,
   publishOrganizationPricingAction,
   retireOrganizationPricingAction,
 } from '@/components/dashboards/owner/owner-organization-pricing-actions'
+import type { OwnerOrganizationPricingActionState } from '@/components/dashboards/owner/owner-organization-pricing-actions'
 import type {
   OwnerOrganizationPricingEnvironment,
   OwnerOrganizationPricingOption,
@@ -19,6 +19,13 @@ import type {
 type PricingEnvironment =
   | 'production'
   | 'demo'
+
+const initialOwnerOrganizationPricingActionState: OwnerOrganizationPricingActionState = {
+  success: false,
+  message: '',
+  organizationId: '',
+  environment: 'production',
+}
 
 function formatMoney(value: number) {
   return `$${value.toFixed(2)}`
