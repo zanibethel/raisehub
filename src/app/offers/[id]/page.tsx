@@ -25,6 +25,7 @@ type OfferRecord = EnvironmentOwnedRecord & {
   starts_at: string | null
   ends_at: string | null
   business_id: string
+  customer_value: number | null
 }
 
 type BusinessProfile = EnvironmentOwnedRecord & {
@@ -51,6 +52,12 @@ function formatOfferDate(value: string | null): string {
   })
 }
 
+function formatCustomerValue(value: number): string {
+  return Number.isInteger(value)
+    ? `$${value.toFixed(0)}`
+    : `$${value.toFixed(2)}`
+}
+
 function normalizeExternalUrl(value: string): string {
   return value.startsWith('http') ? value : `https://${value}`
 }
@@ -66,7 +73,7 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const offerQuery = supabase
     .from('offers')
     .select(
-      'id, title, discount, description, starts_at, ends_at, business_id, is_demo, demo_group'
+      'id, title, discount, description, starts_at, ends_at, business_id, customer_value, is_demo, demo_group'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -168,6 +175,13 @@ export default async function OfferPage({ params }: OfferPageProps) {
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-xl">
                   🔒
                 </div>
+                {offer.customer_value !== null ? (
+                  <div className="mx-auto mt-4 inline-flex items-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-green-800">
+                    <span className="text-lg font-black">
+                      {formatCustomerValue(offer.customer_value)} value
+                    </span>
+                  </div>
+                ) : null}
                 <h2 className="mt-4 text-lg font-bold text-gray-900">
                   Deal details require a RaiseHub Pass
                 </h2>
