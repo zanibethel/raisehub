@@ -13,7 +13,7 @@ export type OwnerTownPricingActionState = {
   environment: 'production' | 'demo'
 }
 
-export const initialOwnerTownPricingActionState: OwnerTownPricingActionState =
+const initialOwnerTownPricingActionState: OwnerTownPricingActionState =
   {
     success: false,
     message: '',
@@ -163,7 +163,7 @@ async function getOwnerUser(): Promise<OwnerUserResult> {
 }
 
 export async function publishTownPricingAction(
-  _previousState: OwnerTownPricingActionState,
+  _previousState: OwnerTownPricingActionState = initialOwnerTownPricingActionState,
   formData: FormData
 ): Promise<OwnerTownPricingActionState> {
   const stateCode = normalizeStateCode(
@@ -479,7 +479,7 @@ export async function publishTownPricingAction(
 }
 
 export async function retireTownPricingAction(
-  _previousState: OwnerTownPricingActionState,
+  _previousState: OwnerTownPricingActionState = initialOwnerTownPricingActionState,
   formData: FormData
 ): Promise<OwnerTownPricingActionState> {
   const stateCode = normalizeStateCode(
