@@ -1,3 +1,5 @@
+'use server'
+
 import { revalidatePath } from 'next/cache'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -143,8 +145,6 @@ export async function publishOrganizationPricingAction(
   _previousState: OwnerOrganizationPricingActionState,
   formData: FormData
 ): Promise<OwnerOrganizationPricingActionState> {
-  'use server'
-
   const organizationId = readFormValue(
     formData,
     'organizationId'
@@ -443,8 +443,6 @@ export async function retireOrganizationPricingAction(
   _previousState: OwnerOrganizationPricingActionState,
   formData: FormData
 ): Promise<OwnerOrganizationPricingActionState> {
-  'use server'
-
   const organizationId = readFormValue(
     formData,
     'organizationId'
