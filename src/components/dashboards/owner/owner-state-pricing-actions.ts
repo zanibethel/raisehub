@@ -1,5 +1,3 @@
-'use server'
-
 import { revalidatePath } from 'next/cache'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -156,6 +154,8 @@ export async function publishStatePricingAction(
   _previousState: OwnerStatePricingActionState,
   formData: FormData
 ): Promise<OwnerStatePricingActionState> {
+  'use server'
+
   const stateCode = normalizeStateCode(
     readFormValue(formData, 'stateCode')
   )
@@ -440,6 +440,8 @@ export async function retireStatePricingAction(
   _previousState: OwnerStatePricingActionState,
   formData: FormData
 ): Promise<OwnerStatePricingActionState> {
+  'use server'
+
   const stateCode = normalizeStateCode(
     readFormValue(formData, 'stateCode')
   )
