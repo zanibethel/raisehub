@@ -15,6 +15,13 @@ type CreateOfferInput = {
   starts_at?: string
   ends_at?: string
   usage_rule?: OfferUsageRule
+  customer_value?: number
+}
+
+function normalizeCustomerValue(value: number | null | undefined) {
+  if (value === null || value === undefined) return null
+  if (!Number.isFinite(value) || value < 0 || value > 100000) return undefined
+  return Math.round(value * 100) / 100
 }
 
 export async function createOfferAction(input: CreateOfferInput) {
@@ -32,6 +39,11 @@ export async function createOfferAction(input: CreateOfferInput) {
     ?? inferOfferUsageRuleFromDescription(input.description)
   if (!isOfferUsageRule(usageRule)) {
     return { error: 'Choose a valid redemption frequency.' }
+  }
+
+  const customerValue = normalizeCustomerValue(input.customer_value)
+  if (customerValue === undefined) {
+    return { error: 'Customer value must be a valid dollar amount.' }
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -74,6 +86,7 @@ export async function createOfferAction(input: CreateOfferInput) {
     starts_at: input.starts_at || null,
     ends_at: input.ends_at || null,
     usage_rule: usageRule,
+    customer_value: customerValue,
   })
 
   if (insertError) {
@@ -209,6 +222,7 @@ type UpdateOfferInput = {
   starts_at?: string
   ends_at?: string
   usage_rule: OfferUsageRule
+  customer_value?: number | null
 }
 
 export async function updateOfferAction(input: UpdateOfferInput) {
@@ -236,6 +250,11 @@ export async function updateOfferAction(input: UpdateOfferInput) {
     return { error: 'Choose a valid redemption frequency.' }
   }
 
+  const customerValue = normalizeCustomerValue(input.customer_value)
+  if (customerValue === undefined) {
+    return { error: 'Customer value must be a valid dollar amount.' }
+  }
+
   if (
     input.starts_at &&
     input.ends_at &&
@@ -255,6 +274,7 @@ export async function updateOfferAction(input: UpdateOfferInput) {
       starts_at: input.starts_at || null,
       ends_at: input.ends_at || null,
       usage_rule: input.usage_rule,
+      customer_value: customerValue,
     })
     .eq('id', input.offerId)
     .eq('business_id', user.id)
