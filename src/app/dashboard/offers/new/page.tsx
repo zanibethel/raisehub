@@ -355,6 +355,7 @@ export default function NewOfferPage() {
         description: completeDescription,
         starts_at: offerDraft.startsAt || undefined,
         ends_at: offerDraft.endsAt || undefined,
+        customer_value: offerDraft.estimatedRetailValue,
       })
 
       if (result.error) {
