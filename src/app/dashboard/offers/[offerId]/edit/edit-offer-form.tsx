@@ -19,6 +19,7 @@ type Props = {
     starts_at: string | null
     ends_at: string | null
     usage_rule: string | null
+    customer_value: number | null
   }
 }
 
@@ -43,9 +44,16 @@ export default function EditOfferForm({ offer }: Props) {
 
         const formData = new FormData(event.currentTarget)
         const rawUsageRule = String(formData.get('usage_rule') ?? '')
+        const rawCustomerValue = String(formData.get('customer_value') ?? '').trim()
 
         if (!isOfferUsageRule(rawUsageRule)) {
           setError('Choose a valid redemption frequency.')
+          return
+        }
+
+        const customerValue = rawCustomerValue === '' ? null : Number(rawCustomerValue)
+        if (customerValue !== null && (!Number.isFinite(customerValue) || customerValue < 0)) {
+          setError('Customer value must be a valid dollar amount.')
           return
         }
 
@@ -58,6 +66,7 @@ export default function EditOfferForm({ offer }: Props) {
             starts_at: String(formData.get('starts_at') ?? ''),
             ends_at: String(formData.get('ends_at') ?? ''),
             usage_rule: rawUsageRule,
+            customer_value: customerValue,
           })
 
           if (result.error) {
@@ -78,6 +87,25 @@ export default function EditOfferForm({ offer }: Props) {
       <label className="block">
         <span className="text-sm font-bold text-slate-800">Member benefit</span>
         <input name="discount" defaultValue={offer.discount ?? ''} required className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3" />
+      </label>
+
+      <label className="block rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <span className="text-sm font-bold text-blue-900">Customer value</span>
+        <p className="mt-1 text-xs leading-5 text-blue-800">
+          Dollar value of the savings or benefit. Supporters can see this value before purchasing a pass, while the actual deal stays locked.
+        </p>
+        <div className="relative mt-3">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-semibold text-slate-500">$</span>
+          <input
+            type="number"
+            name="customer_value"
+            min="0"
+            step="0.01"
+            defaultValue={offer.customer_value ?? ''}
+            placeholder="20.00"
+            className="w-full rounded-xl border border-blue-200 bg-white py-3 pl-7 pr-4 text-slate-900"
+          />
+        </div>
       </label>
 
       <label className="block">
