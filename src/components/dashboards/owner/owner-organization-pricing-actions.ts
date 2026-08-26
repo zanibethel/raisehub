@@ -12,7 +12,7 @@ export type OwnerOrganizationPricingActionState = {
   environment: 'production' | 'demo'
 }
 
-export const initialOwnerOrganizationPricingActionState: OwnerOrganizationPricingActionState =
+const initialOwnerOrganizationPricingActionState: OwnerOrganizationPricingActionState =
   {
     success: false,
     message: '',
@@ -142,7 +142,7 @@ async function getOwnerUser(): Promise<OwnerUserResult> {
 }
 
 export async function publishOrganizationPricingAction(
-  _previousState: OwnerOrganizationPricingActionState,
+  _previousState: OwnerOrganizationPricingActionState = initialOwnerOrganizationPricingActionState,
   formData: FormData
 ): Promise<OwnerOrganizationPricingActionState> {
   const organizationId = readFormValue(
@@ -440,7 +440,7 @@ export async function publishOrganizationPricingAction(
 }
 
 export async function retireOrganizationPricingAction(
-  _previousState: OwnerOrganizationPricingActionState,
+  _previousState: OwnerOrganizationPricingActionState = initialOwnerOrganizationPricingActionState,
   formData: FormData
 ): Promise<OwnerOrganizationPricingActionState> {
   const organizationId = readFormValue(
