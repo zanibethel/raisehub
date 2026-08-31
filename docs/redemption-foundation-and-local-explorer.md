@@ -1,5 +1,7 @@
 # RaiseHub Redemption Foundation & Local Explorer
 
+<!-- Production redeploy marker: Stripe webhook secret refresh 2026-08-31 -->
+
 ## Product Decision
 
 RaiseHub will prioritize a reliable supporter/business redemption workflow before building customer exploration rewards.
