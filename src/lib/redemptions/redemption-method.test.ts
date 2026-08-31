@@ -38,8 +38,9 @@ test('rejects invalid redemption methods', () => {
   assert.equal(isRedemptionMethod(undefined), false)
 })
 
-test('preserves valid redemption methods', () => {
+test('preserves valid redemption method identifiers', () => {
   assert.equal(getRedemptionMethod('auto_validation'), 'auto_validation')
+  assert.equal(getRedemptionMethod('staff_confirmation'), 'staff_confirmation')
   assert.equal(getRedemptionMethod('qr_code'), 'qr_code')
   assert.equal(getRedemptionMethod('square'), 'square')
 })
@@ -58,15 +59,21 @@ test('returns every redemption-method option', () => {
   )
 })
 
-test('marks auto validation and instant staff confirmation as available', () => {
+test('marks only auto validation as the selectable core workflow', () => {
   const availableMethods = getRedemptionMethodOptions()
     .filter(({ availability }) => availability === 'available')
     .map(({ value }) => value)
 
-  assert.deepEqual(availableMethods, ['auto_validation', 'staff_confirmation'])
+  assert.deepEqual(availableMethods, ['auto_validation'])
 })
 
-test('returns the matching presentation option', () => {
+test('marks instant staff verification as supplemental', () => {
+  const option = getRedemptionMethodOption('staff_confirmation')
+  assert.equal(option.label, 'Optional Instant Verification')
+  assert.equal(option.availability, 'supplemental')
+})
+
+test('returns the matching planned POS option', () => {
   const option = getRedemptionMethodOption('staff_code')
   assert.equal(option.value, 'staff_code')
   assert.equal(option.label, 'POS Discount Code')
@@ -79,15 +86,15 @@ test('returns the default option for invalid values', () => {
   assert.equal(option.label, '24-Hour Auto Validation')
 })
 
-test('reports launch availability safely', () => {
+test('reports core workflow availability safely', () => {
   assert.equal(isRedemptionMethodAvailable('auto_validation'), true)
-  assert.equal(isRedemptionMethodAvailable('staff_confirmation'), true)
+  assert.equal(isRedemptionMethodAvailable('staff_confirmation'), false)
   assert.equal(isRedemptionMethodAvailable('qr_code'), false)
   assert.equal(isRedemptionMethodAvailable('staff_code'), false)
   assert.equal(isRedemptionMethodAvailable('square'), false)
 })
 
-test('treats invalid values as the available default method', () => {
+test('treats invalid values as the available default workflow', () => {
   assert.equal(isRedemptionMethodAvailable('invalid'), true)
 })
 
