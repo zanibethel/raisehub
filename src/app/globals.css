@@ -24,6 +24,21 @@ body {
 }
 
 /*
+ * iOS Safari automatically zooms focused form controls whose computed font
+ * size is below 16px. That visual zoom can persist after focus moves to a
+ * workspace menu, making fixed overlays look clipped and horizontally
+ * pannable. Keep interactive form text at 16px on phone-sized viewports while
+ * leaving desktop sizing untouched.
+ */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/*
  * Structural landmarks may safely shrink within grid and flex layouts.
  * Do not include every div here: carousel item wrappers depend on their
  * natural width and were collapsing when div { min-width: 0 } was global.
