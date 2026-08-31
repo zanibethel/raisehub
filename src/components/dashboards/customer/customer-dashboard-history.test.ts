@@ -37,20 +37,27 @@ test('collects customer-visible active offer ids before loading history', () => 
   )
 })
 
-test('loads redemption data before calculating historical offer ids', () => {
+test('loads event-level redemption data before calculating historical offer ids', () => {
   const redemptionsIndex = dashboardSource.indexOf(".from('redemptions')")
   assert.notEqual(redemptionsIndex, -1)
   assert.equal(redemptionsIndex < historicalSectionStart, true)
+  assert.match(dashboardSource, /offer_title_snapshot/)
+  assert.match(dashboardSource, /benefit_snapshot/)
+  assert.match(dashboardSource, /confirmation_method/)
 })
 
-test('selects only redeemed offers missing from the active set', () => {
+test('selects unique redemption-event offer ids missing from the active set', () => {
   assert.match(
     historicalLoaderSource,
-    /const historicalOfferIds = \[\.\.\.redeemedOfferIds\]\.filter\(\s*\(offerId\) => !activeOfferIds\.has\(offerId\)\s*\)/
+    /new Set\(redemptionEvents\.map\(\(redemption\) => redemption\.offer_id\)\)/
+  )
+  assert.match(
+    historicalLoaderSource,
+    /\.filter\(\(offerId\) => !activeOfferIds\.has\(offerId\)\)/
   )
 })
 
-test('skips the historical query when no missing redeemed offers exist', () => {
+test('skips the historical query when no missing redemption offers exist', () => {
   assert.match(
     historicalLoaderSource,
     /historicalOfferIds\.length > 0\s*\? await supabase/
@@ -58,7 +65,7 @@ test('skips the historical query when no missing redeemed offers exist', () => {
   assert.match(historicalLoaderSource, /:\s*\{ data: \[\] \}/)
 })
 
-test('loads historical offers by their redeemed offer ids', () => {
+test('loads historical offers by redemption event offer ids', () => {
   assert.match(
     historicalLoaderSource,
     /\.from\('offers'\)\s+\.select\('\*'\)\s+\.in\('id', historicalOfferIds\)/
@@ -97,10 +104,12 @@ test('uses one enrichment function for visible and historical offers', () => {
   )
 })
 
-test('passes historical offers separately to dashboard content', () => {
+test('passes historical offers and redemption events separately to dashboard content', () => {
   assert.match(dashboardSource, /<CustomerDashboardContent/)
   assert.match(dashboardSource, /enrichedOffers=\{enrichedOffers\}/)
   assert.match(dashboardSource, /historicalOffers=\{historicalOffers\}/)
+  assert.match(dashboardSource, /redemptionEvents=\{redemptionEvents\}/)
+  assert.match(dashboardSource, /confirmedRedemptionEvents=\{confirmedRedemptionEvents\}/)
 })
 
 test('keeps historical loading before dashboard rendering', () => {
