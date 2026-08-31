@@ -81,3 +81,36 @@ test('keeps the redemption settings wrapper isolated from upgrade state', () => 
   assert.doesNotMatch(redemptionSectionSource, /setIsUpgradeOpen/)
   assert.doesNotMatch(redemptionSectionSource, /isUpgradeOpen/)
 })
+
+test('masks supporter email addresses in redemption reporting and exports', () => {
+  assert.match(dashboardSource, /function maskCustomerEmail/)
+  assert.match(
+    dashboardSource,
+    /customerEmail: maskCustomerEmail\(profileEmailById\[redemption\.user_id\]\)/
+  )
+  assert.match(
+    dashboardSource,
+    /maskCustomerEmail\(profileEmailById\[redemption\.user_id\]\)/
+  )
+  assert.match(dashboardSource, /Supporter identifiers are privacy-masked\./)
+})
+
+test('provides status, offer, and date filters for redemption records', () => {
+  assert.match(dashboardSource, /redemptionStatusFilter/)
+  assert.match(dashboardSource, /redemptionOfferFilter/)
+  assert.match(dashboardSource, /redemptionDateFilter/)
+  assert.match(dashboardSource, /<option value="7d">Last 7 days<\/option>/)
+  assert.match(dashboardSource, /<option value="30d">Last 30 days<\/option>/)
+  assert.match(dashboardSource, /<option value="90d">Last 90 days<\/option>/)
+})
+
+test('exports the same filtered redemption records shown in the report', () => {
+  assert.match(
+    dashboardSource,
+    /redemptionActivity: filteredRedemptionActivity/
+  )
+  assert.match(
+    dashboardSource,
+    /filteredRedemptionActivity\.slice\(0, 12\)/
+  )
+})
