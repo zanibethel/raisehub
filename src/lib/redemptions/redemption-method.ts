@@ -3,6 +3,7 @@
 // =============================================================================
 
 export const REDEMPTION_METHODS = [
+  'auto_validation',
   'staff_confirmation',
   'qr_code',
   'staff_code',
@@ -34,7 +35,7 @@ export type RedemptionMethodOption = {
 
 export const DEFAULT_REDEMPTION_METHOD:
   RedemptionMethod =
-    'staff_confirmation'
+    'auto_validation'
 
 // =============================================================================
 // Redemption method options
@@ -43,38 +44,39 @@ export const DEFAULT_REDEMPTION_METHOD:
 const REDEMPTION_METHOD_OPTIONS:
   RedemptionMethodOption[] = [
     {
-      value:
-        'staff_confirmation',
-      label:
-        'Staff Confirmation',
+      value: 'auto_validation',
+      label: '24-Hour Auto Validation',
       description:
-        'The customer redeems the offer while a business staff member is ready to confirm it.',
-      availability:
-        'available',
+        'Customers redeem immediately. No staff action is required unless the business needs to reject an unauthorized redemption within 24 hours.',
+      availability: 'available',
+    },
+    {
+      value: 'staff_confirmation',
+      label: 'Instant Staff Confirmation',
+      description:
+        'Staff can optionally enter the customer’s short verification code to confirm a redemption immediately.',
+      availability: 'available',
     },
     {
       value: 'qr_code',
-      label: 'QR Code',
+      label: 'QR / POS Code',
       description:
-        'Business staff scans a customer redemption code before the offer is marked used.',
-      availability:
-        'planned',
+        'A scannable RaiseHub code can feed the same redemption record into a connected point-of-sale workflow.',
+      availability: 'planned',
     },
     {
       value: 'staff_code',
-      label: 'Staff Code',
+      label: 'POS Discount Code',
       description:
-        'Business staff enters a private confirmation code to approve the redemption.',
-      availability:
-        'planned',
+        'A RaiseHub discount or verification code can be entered through a supported point-of-sale workflow.',
+      availability: 'planned',
     },
     {
       value: 'square',
       label: 'Square Integration',
       description:
-        'RaiseHub confirms the redemption through a connected Square account and location.',
-      availability:
-        'planned',
+        'RaiseHub confirms the redemption automatically through a connected Square account and location.',
+      availability: 'planned',
     },
   ]
 
@@ -114,27 +116,20 @@ export function getRedemptionMethod(
 export function getRedemptionMethodOptions():
   RedemptionMethodOption[] {
   return REDEMPTION_METHOD_OPTIONS.map(
-    (option) => ({
-      ...option,
-    })
+    (option) => ({ ...option })
   )
 }
 
 export function getRedemptionMethodOption(
   value: unknown
 ): RedemptionMethodOption {
-  const method =
-    getRedemptionMethod(value)
-
-  const option =
-    REDEMPTION_METHOD_OPTIONS.find(
-      (candidate) =>
-        candidate.value === method
-    )
+  const method = getRedemptionMethod(value)
+  const option = REDEMPTION_METHOD_OPTIONS.find(
+    (candidate) => candidate.value === method
+  )
 
   return {
-    ...(option ??
-      REDEMPTION_METHOD_OPTIONS[0]),
+    ...(option ?? REDEMPTION_METHOD_OPTIONS[0]),
   }
 }
 
@@ -142,9 +137,7 @@ export function isRedemptionMethodAvailable(
   value: unknown
 ): boolean {
   return (
-    getRedemptionMethodOption(
-      value
-    ).availability ===
+    getRedemptionMethodOption(value).availability ===
     'available'
   )
 }
