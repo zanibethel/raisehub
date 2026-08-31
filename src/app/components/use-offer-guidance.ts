@@ -17,11 +17,11 @@ export type UseOfferGuidance = {
 
 const DEFAULT_USE_OFFER_GUIDANCE: UseOfferGuidance = {
   buttonLabel: 'Redeem Offer',
-  loadingLabel: 'Creating Code...',
+  loadingLabel: 'Recording Redemption...',
   confirmationMessage:
-    'Are you at the business with a staff member ready to confirm this offer? RaiseHub will create a 5-minute confirmation code, but the deal will not count as used until the business confirms it.',
+    'Redeem this offer only when you are using it at the participating business. RaiseHub records it immediately. The business has 24 hours to report an unauthorized redemption; otherwise it confirms automatically. Redeem now?',
   successMessage:
-    'Offer confirmed successfully.',
+    'Offer redeemed successfully.',
   alreadyUsedMessage:
     'This offer has already been redeemed.',
   signInRequiredMessage:
