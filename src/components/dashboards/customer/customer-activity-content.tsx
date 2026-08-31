@@ -12,6 +12,7 @@ type Props = {
   enrichedOffers: CustomerDashboardOffer[]
   historicalOffers: CustomerDashboardOffer[]
   redeemedOfferIds: Set<string>
+  confirmedRedeemedOfferIds: Set<string>
   redemptionDateByOfferId: Map<string, string>
 }
 
@@ -20,7 +21,7 @@ export default function CustomerActivityContent({
   organizationById,
   enrichedOffers,
   historicalOffers,
-  redeemedOfferIds,
+  confirmedRedeemedOfferIds,
   redemptionDateByOfferId,
 }: Props) {
   const customerHistoryOffers = [
@@ -34,7 +35,7 @@ export default function CustomerActivityContent({
       <div id="customer-savings" className="scroll-mt-24">
         <CustomerSavingsSection
           enrichedOffers={customerHistoryOffers}
-          redeemedOfferIds={redeemedOfferIds}
+          redeemedOfferIds={confirmedRedeemedOfferIds}
         />
       </div>
 
