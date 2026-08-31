@@ -7,6 +7,9 @@ export type BusinessExportRow = {
   offerStatus: string
   customerEmail: string
   redeemedAt: string
+  customerValue: string
+  verificationMethod: string
+  redemptionStatus: string
 }
 
 type BusinessExportToolsProps = {
@@ -25,9 +28,25 @@ function escapeCsvValue(value: string): string {
 }
 
 function buildCsv(rows: BusinessExportRow[]): string {
-  const headers = ['Offer', 'Offer Status', 'Customer Email', 'Redeemed At']
+  const headers = [
+    'Offer',
+    'Offer Status',
+    'Customer Email',
+    'Customer Value',
+    'Verification Method',
+    'Redemption Status',
+    'Redeemed At',
+  ]
   const csvRows = rows.map((row) =>
-    [row.offerTitle, row.offerStatus, row.customerEmail, row.redeemedAt]
+    [
+      row.offerTitle,
+      row.offerStatus,
+      row.customerEmail,
+      row.customerValue,
+      row.verificationMethod,
+      row.redemptionStatus,
+      row.redeemedAt,
+    ]
       .map(escapeCsvValue)
       .join(',')
   )
