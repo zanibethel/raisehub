@@ -226,6 +226,7 @@ export default function CustomerDashboardContent({
           enrichedOffers={currentlyAvailableOffers}
           savedOfferIds={savedOfferIds}
           redeemedOfferIds={redeemedOfferIds}
+          hasActivePass={hasPurchasedPass}
         />
       </div>
 
