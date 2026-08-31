@@ -19,85 +19,73 @@ export type RedemptionMethod =
 
 export type RedemptionMethodAvailability =
   | 'available'
+  | 'supplemental'
   | 'planned'
 
 export type RedemptionMethodOption = {
   value: RedemptionMethod
   label: string
   description: string
-  availability:
-    RedemptionMethodAvailability
+  availability: RedemptionMethodAvailability
 }
 
 // =============================================================================
 // Launch default
 // =============================================================================
 
-export const DEFAULT_REDEMPTION_METHOD:
-  RedemptionMethod =
-    'auto_validation'
+export const DEFAULT_REDEMPTION_METHOD: RedemptionMethod =
+  'auto_validation'
 
 // =============================================================================
 // Redemption method options
 // =============================================================================
 
-const REDEMPTION_METHOD_OPTIONS:
-  RedemptionMethodOption[] = [
-    {
-      value: 'auto_validation',
-      label: '24-Hour Auto Validation',
-      description:
-        'Customers redeem immediately. No staff action is required unless the business needs to reject an unauthorized redemption within 24 hours.',
-      availability: 'available',
-    },
-    {
-      value: 'staff_confirmation',
-      label: 'Instant Staff Confirmation',
-      description:
-        'Staff can optionally enter the customer’s short verification code to confirm a redemption immediately.',
-      availability: 'available',
-    },
-    {
-      value: 'qr_code',
-      label: 'QR / POS Code',
-      description:
-        'A scannable RaiseHub code can feed the same redemption record into a connected point-of-sale workflow.',
-      availability: 'planned',
-    },
-    {
-      value: 'staff_code',
-      label: 'POS Discount Code',
-      description:
-        'A RaiseHub discount or verification code can be entered through a supported point-of-sale workflow.',
-      availability: 'planned',
-    },
-    {
-      value: 'square',
-      label: 'Square Integration',
-      description:
-        'RaiseHub confirms the redemption automatically through a connected Square account and location.',
-      availability: 'planned',
-    },
-  ]
-
-// =============================================================================
-// Validation
-// =============================================================================
+const REDEMPTION_METHOD_OPTIONS: RedemptionMethodOption[] = [
+  {
+    value: 'auto_validation',
+    label: '24-Hour Auto Validation',
+    description:
+      'Customers redeem immediately. No staff action is required unless the business needs to reject an unauthorized redemption within 24 hours.',
+    availability: 'available',
+  },
+  {
+    value: 'staff_confirmation',
+    label: 'Optional Instant Verification',
+    description:
+      'Staff may enter a customer’s short verification code to confirm a redemption immediately. This supplements auto validation rather than replacing it.',
+    availability: 'supplemental',
+  },
+  {
+    value: 'qr_code',
+    label: 'QR / POS Code',
+    description:
+      'A scannable RaiseHub code can confirm the same redemption through a supported point-of-sale workflow.',
+    availability: 'planned',
+  },
+  {
+    value: 'staff_code',
+    label: 'POS Discount Code',
+    description:
+      'A RaiseHub discount or verification code can be entered through a supported point-of-sale workflow.',
+    availability: 'planned',
+  },
+  {
+    value: 'square',
+    label: 'Square Integration',
+    description:
+      'RaiseHub confirms the same redemption automatically through a connected Square account and location.',
+    availability: 'planned',
+  },
+]
 
 export function isRedemptionMethod(
   value: unknown
 ): value is RedemptionMethod {
   return (
     typeof value === 'string' &&
-    REDEMPTION_METHODS.includes(
-      value as RedemptionMethod
-    )
+    REDEMPTION_METHODS.includes(value as RedemptionMethod)
   )
 }
-
-// =============================================================================
-// Safe resolution
-// =============================================================================
 
 export function getRedemptionMethod(
   value: unknown
@@ -109,15 +97,8 @@ export function getRedemptionMethod(
   return DEFAULT_REDEMPTION_METHOD
 }
 
-// =============================================================================
-// Presentation
-// =============================================================================
-
-export function getRedemptionMethodOptions():
-  RedemptionMethodOption[] {
-  return REDEMPTION_METHOD_OPTIONS.map(
-    (option) => ({ ...option })
-  )
+export function getRedemptionMethodOptions(): RedemptionMethodOption[] {
+  return REDEMPTION_METHOD_OPTIONS.map((option) => ({ ...option }))
 }
 
 export function getRedemptionMethodOption(
@@ -136,8 +117,5 @@ export function getRedemptionMethodOption(
 export function isRedemptionMethodAvailable(
   value: unknown
 ): boolean {
-  return (
-    getRedemptionMethodOption(value).availability ===
-    'available'
-  )
+  return getRedemptionMethodOption(value).availability === 'available'
 }
