@@ -14,7 +14,8 @@ export type BusinessRedemptionSettingOption =
     isSelected: boolean
     isSelectable: boolean
     statusLabel:
-      | 'Available'
+      | 'Current Workflow'
+      | 'Optional Tool'
       | 'Coming Later'
   }
 
@@ -33,7 +34,7 @@ const BUSINESS_REDEMPTION_DESCRIPTION =
   'RaiseHub records customer redemptions immediately and gives your business a 24-hour review window for exceptions.'
 
 const BUSINESS_REDEMPTION_HELPER_TEXT =
-  '24-Hour Auto Validation is the default. Instant staff code confirmation is optional; QR, discount-code, and POS integrations will use the same redemption record as they are released.'
+  '24-Hour Auto Validation is the core workflow. Instant verification is an optional checkout tool; QR, discount-code, and POS integrations will confirm the same redemption record as they are released.'
 
 function getBusinessRedemptionSettingOption({
   option,
@@ -46,9 +47,16 @@ function getBusinessRedemptionSettingOption({
 
   return {
     ...option,
-    isSelected: option.value === selectedMethod,
+    isSelected:
+      option.value === selectedMethod &&
+      option.availability === 'available',
     isSelectable,
-    statusLabel: isSelectable ? 'Available' : 'Coming Later',
+    statusLabel:
+      option.availability === 'available'
+        ? 'Current Workflow'
+        : option.availability === 'supplemental'
+          ? 'Optional Tool'
+          : 'Coming Later',
   }
 }
 
