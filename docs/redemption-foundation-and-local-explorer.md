@@ -6,13 +6,15 @@ RaiseHub will prioritize a reliable supporter/business redemption workflow befor
 
 The post-launch **Local Explorer** rewards concept depends on trustworthy redemption data. Redemption is therefore launch-foundation work; Local Explorer is an after-launch upgrade.
 
+The launch redemption model is **exception-based review**, not mandatory staff approval.
+
 ---
 
 # Priority 1 — Redemption Foundation
 
 ## Goal
 
-Create a redemption flow that is simple for supporters, fast for businesses, resistant to accidental duplicate use, and strong enough to become the source of truth for business reporting and future rewards.
+Create a redemption flow that is simple for supporters, nearly frictionless for businesses, resistant to accidental or abusive use, and strong enough to become the source of truth for business reporting, POS integrations, and future rewards.
 
 ## Supporter Experience
 
@@ -27,14 +29,15 @@ A supporter with an active RaiseHub Pass should be able to:
    - redemption frequency/rules
    - expiration date
    - participating location details
-4. Tap **Redeem Offer**.
-5. Present a clear redemption screen to the business.
-6. Receive immediate confirmation after successful redemption.
-7. See the offer's next state:
-   - Redeemed / no longer available for one-time offers
-   - Available again at the correct time for daily or weekly offers
-   - Still available for unlimited/reusable offers
-8. View personal redemption history.
+4. Tap **Redeem Offer** only when using the offer at the participating business.
+5. Receive an immediate **Offer Redeemed** screen to show staff.
+6. Have the redemption recorded immediately as `pending` while RaiseHub gives the business a 24-hour exception-review window.
+7. Have the redemption become `confirmed` automatically after the review window unless the business reports it as unauthorized.
+8. See the offer's next state immediately:
+   - unavailable for a one-time offer
+   - in cooldown for a daily/weekly offer
+   - available according to the unlimited/reusable rule
+9. View personal redemption history and confirmed savings.
 
 The supporter should never have to explain RaiseHub mechanics to the employee completing the redemption.
 
@@ -42,56 +45,99 @@ The supporter should never have to explain RaiseHub mechanics to the employee co
 
 ## Business Experience
 
-A participating business should have a fast verification workflow that works well at a checkout counter.
+A participating business should **not** have to approve every RaiseHub transaction at the register.
 
-### Recommended launch workflow
+### Launch workflow
 
-Use a business-confirmed redemption rather than relying only on the supporter tapping a button.
-
-Preferred flow:
-
-1. Supporter opens the offer and taps **Redeem Offer**.
-2. RaiseHub displays a short-lived redemption confirmation screen / QR code.
-3. Business verifies the redemption from its RaiseHub business workspace by scanning the QR code or entering/confirming the displayed redemption token.
-4. RaiseHub validates:
+1. Supporter taps **Redeem Offer** while using the offer at the business.
+2. RaiseHub validates server-side:
    - active supporter pass
    - active offer
-   - correct data environment
+   - active business
+   - correct live/demo environment
    - offer usage rule
-   - prior redemption history
+   - prior pending/confirmed redemption history
    - reuse-window eligibility
-5. Business confirms **Redeem**.
-6. RaiseHub writes one authoritative redemption record.
-7. Both supporter and business receive immediate success feedback.
+   - rate limits
+3. RaiseHub creates one authoritative redemption record immediately with `status = pending`.
+4. The supporter gets a successful redemption screen immediately.
+5. The business sees the pending activity in its RaiseHub report but does not need to take action.
+6. The business has 24 hours to select **Report unauthorized** if the redemption did not legitimately occur.
+7. If no exception is reported, RaiseHub moves the redemption to `confirmed` after the review window.
+8. Rejected redemptions remain in the audit history but do not count toward confirmed analytics, customer savings, Local Explorer, or future rewards.
 
-A manual business confirmation fallback should remain available when camera/QR scanning is inconvenient.
+### Optional instant verification
+
+A supporter may also receive a short-lived verification code. Business staff can enter that code to confirm the same pending redemption immediately.
+
+This is an optional acceleration path, not a required checkout step.
+
+---
+
+# POS / QR Integration Direction
+
+QR codes, POS discount codes, Square, and future POS integrations must feed the **same redemption lifecycle** rather than creating provider-specific redemption systems.
+
+Preferred future flow:
+
+1. Business connects a supported POS provider to RaiseHub.
+2. A RaiseHub offer is mapped to the appropriate POS discount/catalog rule where supported.
+3. Customer presents a RaiseHub QR or discount code.
+4. Staff scans/enters it through the normal POS workflow.
+5. POS verification confirms the existing RaiseHub redemption immediately.
+6. RaiseHub records the appropriate verification method, such as:
+   - `qr_code`
+   - `staff_code`
+   - `square`
+   - future POS provider identifiers
+7. Business staff otherwise continues operating the POS normally.
+
+Businesses without a supported POS integration remain fully usable through 24-hour auto validation.
+
+The manual/instant verification tool remains a fallback for connectivity, camera, or POS limitations.
+
+---
+
+## Redemption Lifecycle
+
+Supported core statuses:
+
+- `pending` — recorded and usable, inside the business review window
+- `confirmed` — finalized after auto validation or an instant verification method
+- `rejected` — business reported the redemption as unauthorized during the review window
+- `voided` — exceptional administrative correction after confirmation
+
+A pending redemption blocks duplicate/reuse attempts in the same way a confirmed redemption does. A rejected or voided redemption does not continue blocking the customer's usage eligibility.
+
+Confirmed-only calculations should be used for business performance, customer savings, Local Explorer, and reward eligibility.
 
 ---
 
 ## Redemption Record Requirements
 
-Every confirmed redemption should preserve enough historical information to support reporting even if the offer later changes.
+Every redemption should preserve enough historical information to support reporting even if the offer later changes.
 
-Recommended fields / snapshots include:
+Recommended/current fields and snapshots include:
 
 - redemption ID
 - offer ID
 - business ID
 - supporter/user ID
-- pass entitlement ID
-- campaign / originating fundraising context when available
-- organization context when available
 - redemption timestamp
-- redemption status
+- status
+- auto-confirm timestamp
+- confirmed timestamp
+- rejected timestamp / rejecting business user / reason
 - usage rule at time of redemption
 - offer title snapshot
 - member-benefit snapshot
 - customer-value snapshot
-- location / business-location ID when supported
-- verification method (QR, manual code, business confirmation, future POS integration)
+- verification method
 - confirming business user when applicable
-- environment (`is_demo` / `demo_group` where applicable)
-- reversal/void information and audit timestamps
+- environment (`is_demo` / `demo_group`)
+- future pass entitlement / campaign / organization context where useful
+- future location / business-location ID when multi-location support requires it
+- future reversal/void audit metadata
 
 Historical redemption records should not be recalculated from the business's current offer configuration.
 
@@ -99,80 +145,80 @@ Historical redemption records should not be recalculated from the business's cur
 
 ## Duplicate & Abuse Protection
 
-The redemption service should enforce eligibility server-side and be idempotent.
+The redemption service must enforce eligibility server-side.
 
 At minimum:
 
-- one-time offers cannot redeem twice for the same eligible supporter
+- one-time offers cannot have a second pending/confirmed redemption for the same eligible supporter
 - daily offers respect the 24-hour reuse window
 - weekly offers respect the 7-day reuse window
-- unlimited offers still create separate redemption events
-- repeated taps/scans cannot create duplicate records
+- unlimited offers create separate redemption events
+- repeated taps cannot bypass server-side rules
 - expired or paused offers cannot redeem
 - inactive/expired passes cannot redeem
-- reversed/voided redemptions remain in history rather than being silently deleted
+- paused/archived businesses cannot accept new redemptions
+- rejected and voided redemptions remain auditable
+- rejected/voided records do not count as valid reward or savings events
 - demo redemptions never affect production reporting
-
-The client should never be the authority for redemption eligibility.
+- the client is never the authority for redemption eligibility
 
 ---
 
 # Business Redemption Reporting
 
-The Business workspace should include a useful **Redemptions** report.
+The Business workspace should answer:
+
+> How many RaiseHub customers actually came through my business, which offers brought them in, and is there anything I need to review?
 
 ## Launch report
 
 Show at minimum:
 
-- total redemptions
-- unique supporters who redeemed
+- confirmed redemptions
+- pending redemptions in the 24-hour review window
+- rejected redemptions retained for audit
+- unique confirmed supporters
+- confirmed customer value delivered
 - redemptions by offer
-- redemptions over time
 - most redeemed offers
-- customer value delivered
 - recent redemption activity
-- active vs paused/expired offer context
+- verification method
+- auto-confirm deadline for pending records
+- **Report unauthorized** action for pending records
 
-## Useful filters
+Normal redemptions require no business action.
+
+## Useful filters — next reporting hardening
 
 - date range
 - offer
-- location (when multi-location support is available)
 - redemption status
+- location when multi-location support is available
 
-## Suggested rows
+## Privacy
 
-Each redemption row can show:
-
-- date/time
-- offer
-- supporter represented safely (avoid unnecessary personal data)
-- customer value
-- verification method
-- status
-
-Businesses should be able to answer:
-
-> How many RaiseHub customers actually came through my business, and which offers brought them in?
-
-This report is part of the core value proposition to participating businesses, not an optional analytics extra.
+Reports should expose only the supporter information the business genuinely needs. Avoid expanding customer personal information simply because it is technically available.
 
 ---
 
-# Supporter Redemption History
+# Supporter Redemption History & Savings
 
-My Pass / customer dashboard should show a simple redemption history including:
+My Pass / customer dashboard should show redemption history including:
 
 - business
 - offer
 - date redeemed
+- redemption state where useful
 - customer value
-- current offer availability when reusable
+- current availability when reusable
 
-This creates trust, gives supporters a visible record of savings, and provides the foundation for future Local Explorer progress.
+A pending redemption should immediately affect offer availability, but only confirmed redemptions should count toward verified savings and rewards.
 
-A future summary can display **Total value redeemed** across the lifetime of the pass.
+### Known hardening item
+
+Reusable offers can create multiple redemption events. Customer history and savings must ultimately operate on **redemption events**, not only unique offer IDs, so daily/weekly/unlimited uses are represented and totaled correctly.
+
+This event-level history upgrade should be completed before Local Explorer uses redemption history for milestone calculations.
 
 ---
 
@@ -186,7 +232,7 @@ Local Explorer should launch only after redemption tracking is proven reliable.
 
 ## Recommended mechanic
 
-Progress is based primarily on **unique participating businesses with verified redemptions**, not dollars spent.
+Progress is based primarily on **unique participating businesses with confirmed redemptions**, not dollars spent.
 
 Example milestones:
 
@@ -214,15 +260,13 @@ Examples:
 - BOGO item
 - special members-only bonus offer
 
-This turns Local Explorer into another acquisition channel for businesses instead of a direct cash liability for RaiseHub.
+## Reward Rules
 
-## Rules
-
-- Count verified redemptions only.
+- Count `confirmed` redemption events only.
 - Favor unique businesses over total redemption count.
-- Do not count voided, fraudulent, demo, or invalid redemptions.
+- Do not count pending, rejected, voided, fraudulent, demo, or invalid production redemptions.
 - Keep milestone calculation server-side.
-- Preserve milestone history and reward-claim history.
+- Preserve milestone and reward-claim history.
 - Reuse the same redemption foundation for reward claims wherever possible.
 
 ---
@@ -232,26 +276,27 @@ This turns Local Explorer into another acquisition channel for businesses instea
 ## Before / At Launch
 
 1. Finish supporter redemption UX.
-2. Finish business confirmation workflow.
-3. Make redemption creation authoritative and idempotent.
+2. Finish 24-hour business exception-review workflow.
+3. Keep redemption creation authoritative and server validated.
 4. Enforce one-time/daily/weekly/unlimited rules server-side.
-5. Add supporter redemption history.
-6. Add business redemption reporting.
+5. Keep confirmed analytics separate from pending/rejected activity.
+6. Complete business redemption reporting and export QA.
 7. Verify redemption and reporting end-to-end on mobile and desktop.
 8. Verify demo/production isolation.
+9. Harden event-level supporter history for reusable offers.
 
 ## After Launch
 
 1. Observe real redemption behavior and business feedback.
-2. Add Local Explorer progress based on unique-business redemptions.
-3. Add milestone badges and progress guidance.
-4. Add business-funded Bonus Deals/rewards.
-5. Add reward reporting and conversion measurement.
+2. Add QR/POS instant confirmation integrations using the same redemption record.
+3. Prioritize Square, then other POS providers based on participating-business demand.
+4. Add Local Explorer progress based on unique-business confirmed redemptions.
+5. Add milestone badges, business-funded Bonus Deals/rewards, and reward reporting.
 
 ---
 
 # Product Principle
 
-The redemption system must become a trusted platform event, not merely a UI interaction.
+**Businesses should manage exceptions, not transactions.**
 
-Once RaiseHub can reliably answer **who redeemed what, where, and when**, customer rewards, business analytics, offer optimization, seller rewards, and future loyalty features can all build on the same foundation.
+The redemption system must remain a trusted platform event rather than merely a UI interaction. Once RaiseHub can reliably answer **who redeemed what, where, when, and with what validation status**, customer rewards, business analytics, POS automation, offer optimization, seller rewards, and future loyalty features can all build on the same foundation.
