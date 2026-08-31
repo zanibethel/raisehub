@@ -6,6 +6,7 @@ import {
   WorkspaceShell,
   type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
+import WorkspacePullToRefresh from '@/components/workspace/workspace-pull-to-refresh'
 import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navigation'
 
 export type CustomerWorkspaceView = 'dashboard' | 'deals' | 'activity'
@@ -87,8 +88,10 @@ export default function CustomerWorkspaceFrame({
   }
 
   return (
-    <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
-      {children}
-    </WorkspaceShell>
+    <WorkspacePullToRefresh>
+      <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
+        {children}
+      </WorkspaceShell>
+    </WorkspacePullToRefresh>
   )
 }
