@@ -149,7 +149,7 @@ export default function CustomerNearbyBusinessesSection({
             Businesses will appear here once usable location details are available.
           </p>
           <Link
-            href="/dashboard#available-offers"
+            href="/dashboard/deals#available-offers"
             className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-green-700 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
           >
             Browse All Deals
