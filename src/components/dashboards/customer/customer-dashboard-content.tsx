@@ -30,6 +30,8 @@ import CustomerRedemptionHistorySection from './sections/customer-redemption-his
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 import CustomerSavingsSection from './sections/customer-savings-section'
 
+import type { CustomerRedemptionEvent } from './customer-redemption-history'
+
 type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
 type SavedDealsProps = React.ComponentProps<typeof CustomerSavedDealsSection>
 type AvailableDealsProps = React.ComponentProps<typeof CustomerAvailableDealsSection>
@@ -41,7 +43,8 @@ type Props = {
   historicalOffers?: AvailableDealsProps['enrichedOffers']
   savedOfferIds: SavedDealsProps['savedOfferIds']
   redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
-  confirmedRedeemedOfferIds: Set<string>
+  redemptionEvents: CustomerRedemptionEvent[]
+  confirmedRedemptionEvents: CustomerRedemptionEvent[]
   redeemableOfferIds: Set<string>
   redemptionDateByOfferId: SavedDealsProps['redemptionDateByOfferId']
   hasPurchasedPass: AvailableDealsProps['hasPurchasedPass']
@@ -54,7 +57,8 @@ export default function CustomerDashboardContent({
   historicalOffers = [],
   savedOfferIds,
   redeemedOfferIds,
-  confirmedRedeemedOfferIds,
+  redemptionEvents,
+  confirmedRedemptionEvents,
   redeemableOfferIds,
   redemptionDateByOfferId,
   hasPurchasedPass,
@@ -238,7 +242,7 @@ export default function CustomerDashboardContent({
       <div id="customer-savings" className="scroll-mt-6">
         <CustomerSavingsSection
           enrichedOffers={customerHistoryOffers}
-          redeemedOfferIds={confirmedRedeemedOfferIds}
+          redemptions={confirmedRedemptionEvents}
         />
       </div>
 
@@ -294,7 +298,7 @@ export default function CustomerDashboardContent({
       <div id="redemption-history" className="scroll-mt-6">
         <CustomerRedemptionHistorySection
           enrichedOffers={customerHistoryOffers}
-          redemptionDateByOfferId={redemptionDateByOfferId}
+          redemptions={redemptionEvents}
         />
       </div>
 
