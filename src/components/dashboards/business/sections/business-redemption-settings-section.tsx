@@ -43,7 +43,7 @@ export function BusinessRedemptionSettingsSection({
       setSelectedMethod(result.redemptionMethod)
       setSaveMessage({
         type: 'success',
-        text: 'Your redemption method has been updated.',
+        text: 'Your redemption workflow has been updated.',
       })
     })
   }
@@ -61,7 +61,7 @@ export function BusinessRedemptionSettingsSection({
       >
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-green-700">
-            Redemption method
+            Redemption workflow
           </p>
           <h2
             id="business-redemption-settings-heading"
@@ -75,7 +75,7 @@ export function BusinessRedemptionSettingsSection({
         </div>
 
         <span className="shrink-0 rounded-full bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
-          {expanded ? 'Close' : 'Change'}
+          {expanded ? 'Close' : 'View'}
         </span>
       </button>
 
@@ -85,7 +85,8 @@ export function BusinessRedemptionSettingsSection({
 
           <div className="mt-4 space-y-3">
             {settings.options.map((option) => {
-              const isAvailable = option.statusLabel === 'Available'
+              const isOptionalTool = option.statusLabel === 'Optional Tool'
+              const isCurrentWorkflow = option.statusLabel === 'Current Workflow'
               const isDisabled =
                 !option.isSelectable || option.isSelected || isPending
 
@@ -95,7 +96,9 @@ export function BusinessRedemptionSettingsSection({
                   className={`rounded-xl border p-4 ${
                     option.isSelected
                       ? 'border-green-300 bg-green-50'
-                      : 'border-gray-200 bg-gray-50'
+                      : isOptionalTool
+                        ? 'border-blue-200 bg-blue-50/50'
+                        : 'border-gray-200 bg-gray-50'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -106,7 +109,7 @@ export function BusinessRedemptionSettingsSection({
                         </h3>
                         {option.isSelected ? (
                           <span className="rounded-full bg-green-700 px-2.5 py-1 text-xs font-semibold text-white">
-                            Current
+                            Active
                           </span>
                         ) : null}
                       </div>
@@ -117,9 +120,11 @@ export function BusinessRedemptionSettingsSection({
 
                     <span
                       className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        isAvailable
+                        isCurrentWorkflow
                           ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-200 text-gray-700'
+                          : isOptionalTool
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-200 text-gray-700'
                       }`}
                     >
                       {option.statusLabel}
@@ -142,14 +147,18 @@ export function BusinessRedemptionSettingsSection({
                       }`}
                     >
                       {option.isSelected
-                        ? 'Current method'
+                        ? 'Current workflow'
                         : isPending
                           ? 'Saving…'
-                          : 'Use this method'}
+                          : 'Use this workflow'}
                     </button>
+                  ) : isOptionalTool ? (
+                    <p className="mt-3 text-xs leading-5 text-blue-800">
+                      Available from the Instant Verify business tool. It does not replace the 24-hour review workflow.
+                    </p>
                   ) : (
                     <p className="mt-3 text-xs leading-5 text-gray-500">
-                      This option cannot be selected yet.
+                      This integration is planned and cannot be selected yet.
                     </p>
                   )}
                 </div>
