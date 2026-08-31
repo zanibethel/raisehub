@@ -4,6 +4,7 @@ import CustomerPassesSection from './sections/customer-passes-section'
 import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
 import CustomerSavingsSection from './sections/customer-savings-section'
 
+import type { CustomerRedemptionEvent } from './customer-redemption-history'
 import type { CustomerDashboardOffer, OrganizationLookup, PurchasedPass } from '@/types/customer-dashboard'
 
 type Props = {
@@ -11,9 +12,8 @@ type Props = {
   organizationById: Map<string, OrganizationLookup>
   enrichedOffers: CustomerDashboardOffer[]
   historicalOffers: CustomerDashboardOffer[]
-  redeemedOfferIds: Set<string>
-  confirmedRedeemedOfferIds: Set<string>
-  redemptionDateByOfferId: Map<string, string>
+  redemptionEvents: CustomerRedemptionEvent[]
+  confirmedRedemptionEvents: CustomerRedemptionEvent[]
 }
 
 export default function CustomerActivityContent({
@@ -21,8 +21,8 @@ export default function CustomerActivityContent({
   organizationById,
   enrichedOffers,
   historicalOffers,
-  confirmedRedeemedOfferIds,
-  redemptionDateByOfferId,
+  redemptionEvents,
+  confirmedRedemptionEvents,
 }: Props) {
   const customerHistoryOffers = [
     ...new Map(
@@ -35,14 +35,14 @@ export default function CustomerActivityContent({
       <div id="customer-savings" className="scroll-mt-24">
         <CustomerSavingsSection
           enrichedOffers={customerHistoryOffers}
-          redeemedOfferIds={confirmedRedeemedOfferIds}
+          redemptions={confirmedRedemptionEvents}
         />
       </div>
 
       <div id="redemption-history" className="scroll-mt-24">
         <CustomerRedemptionHistorySection
           enrichedOffers={customerHistoryOffers}
-          redemptionDateByOfferId={redemptionDateByOfferId}
+          redemptions={redemptionEvents}
         />
       </div>
 
