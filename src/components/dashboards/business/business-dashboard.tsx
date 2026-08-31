@@ -34,7 +34,8 @@ type ProfileQueryError = {
   message?: string | null
 }
 
-type RedemptionRow = {
+export type RedemptionRow = {
+  id: string
   offer_id: string
   user_id: string
   created_at: string
@@ -44,6 +45,10 @@ type RedemptionRow = {
   usage_rule_snapshot: string | null
   confirmation_method: string | null
   status: string | null
+  auto_confirm_at: string | null
+  confirmed_at: string | null
+  rejected_at: string | null
+  rejection_reason: string | null
 }
 
 const BUSINESS_PROFILE_FIELDS =
@@ -81,6 +86,8 @@ export default async function BusinessDashboard({
   } = await supabase.auth.getUser()
 
   if (!user) return null
+
+  await (supabase as any).rpc('finalize_due_redemptions')
 
   const businessProfileId = businessLegacyProfileId?.trim() || user.id
 
@@ -149,39 +156,56 @@ export default async function BusinessDashboard({
 
   const { data: redemptionData } =
     offerIds.length > 0
-      ? await supabase
+      ? await (supabase as any)
           .from('redemptions')
           .select(
-            'offer_id, user_id, created_at, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, status'
+            'id, offer_id, user_id, created_at, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, status, auto_confirm_at, confirmed_at, rejected_at, rejection_reason'
           )
           .in('offer_id', offerIds)
-          .eq('status', 'confirmed')
+          .in('status', ['pending', 'confirmed', 'rejected'])
           .order('created_at', { ascending: false })
       : { data: [] }
 
-  const redemptions = (redemptionData ?? []) as RedemptionRow[]
-  const redeemedUserIds = [...new Set(redemptions.map((redemption) => redemption.user_id))]
+  const redemptionActivity = (redemptionData ?? []) as RedemptionRow[]
+  const confirmedRedemptions = redemptionActivity.filter(
+    (redemption) => redemption.status === 'confirmed'
+  )
+  const pendingRedemptions = redemptionActivity.filter(
+    (redemption) => redemption.status === 'pending'
+  )
+  const rejectedRedemptions = redemptionActivity.filter(
+    (redemption) => redemption.status === 'rejected'
+  )
+
+  const activityUserIds = [
+    ...new Set(redemptionActivity.map((redemption) => redemption.user_id)),
+  ]
+  const confirmedUserIds = [
+    ...new Set(confirmedRedemptions.map((redemption) => redemption.user_id)),
+  ]
 
   const { data: redeemedProfiles } =
-    redeemedUserIds.length > 0
+    activityUserIds.length > 0
       ? await supabase
           .from('profiles')
           .select('id,email')
-          .in('id', redeemedUserIds)
+          .in('id', activityUserIds)
       : { data: [] }
 
   const redemptionCountByOfferId = new Map<string, number>()
 
-  for (const redemption of redemptions) {
+  for (const redemption of confirmedRedemptions) {
     redemptionCountByOfferId.set(
       redemption.offer_id,
       (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
     )
   }
 
-  const totalRedemptions = redemptions.length
-  const uniqueSupporters = redeemedUserIds.length
-  const totalCustomerValueDelivered = redemptions.reduce(
+  const totalRedemptions = confirmedRedemptions.length
+  const uniqueSupporters = confirmedUserIds.length
+  const pendingRedemptionCount = pendingRedemptions.length
+  const rejectedRedemptionCount = rejectedRedemptions.length
+  const totalCustomerValueDelivered = confirmedRedemptions.reduce(
     (total, redemption) => total + toCustomerValue(redemption.customer_value_snapshot),
     0
   )
@@ -215,12 +239,12 @@ export default async function BusinessDashboard({
     ])
   )
 
-  const redemptionsByOfferId = new Map<string, RedemptionRow[]>()
+  const confirmedRedemptionsByOfferId = new Map<string, RedemptionRow[]>()
 
-  for (const redemption of redemptions) {
-    const existing = redemptionsByOfferId.get(redemption.offer_id) ?? []
+  for (const redemption of confirmedRedemptions) {
+    const existing = confirmedRedemptionsByOfferId.get(redemption.offer_id) ?? []
     existing.push(redemption)
-    redemptionsByOfferId.set(redemption.offer_id, existing)
+    confirmedRedemptionsByOfferId.set(redemption.offer_id, existing)
   }
 
   return (
@@ -230,7 +254,10 @@ export default async function BusinessDashboard({
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}
       uniqueSupporters={uniqueSupporters}
+      pendingRedemptionCount={pendingRedemptionCount}
+      rejectedRedemptionCount={rejectedRedemptionCount}
       totalCustomerValueDelivered={totalCustomerValueDelivered}
+      redemptionActivity={redemptionActivity}
       activeOffersCount={activeOffers.length}
       activeOfferLimit={FREE_ACTIVE_OFFER_LIMIT}
       hasReachedLimit={hasReachedLimit}
@@ -238,7 +265,7 @@ export default async function BusinessDashboard({
       topOfferTitle={topOffer?.title || ''}
       topOfferCount={topOfferCount}
       redemptionCountByOfferId={Object.fromEntries(redemptionCountByOfferId)}
-      redemptionsByOfferId={Object.fromEntries(redemptionsByOfferId)}
+      redemptionsByOfferId={Object.fromEntries(confirmedRedemptionsByOfferId)}
       profileEmailById={profileEmailById}
       viewCount={viewCount}
       clickCount={clickCount}
