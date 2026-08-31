@@ -18,6 +18,11 @@ export default function BusinessDashboardQuickActions({
 }: BusinessDashboardQuickActionsProps) {
   const actions: QuickAction[] = [
     {
+      title: 'Confirm Redemption',
+      href: '/dashboard/redeem',
+      detail: 'Enter the supporter’s 6-character checkout code.',
+    },
+    {
       title: hasReachedLimit ? 'Manage Offer Limit' : 'Create Offer',
       href: hasReachedLimit ? '#create-offer' : '/dashboard/offers/new',
       detail: hasReachedLimit
@@ -35,14 +40,9 @@ export default function BusinessDashboardQuickActions({
       external: Boolean(publicOfferId),
     },
     {
-      title: 'Business Details',
-      href: '#business-profile',
-      detail: 'Review and update profile and location information.',
-    },
-    {
       title: 'Offer Reports',
-      href: '#business-offers',
-      detail: 'Review offer details and redemption activity.',
+      href: '/dashboard/reports',
+      detail: 'Review confirmed redemption activity and export records.',
     },
   ]
 
