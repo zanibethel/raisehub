@@ -1,14 +1,13 @@
 import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
-
-// =============================================================================
-// Types
-// =============================================================================
+import type {
+  CustomerRedemptionEvent,
+} from './customer-redemption-history'
 
 type CalculateCustomerSavingsOptions = {
   offers: CustomerDashboardOffer[]
-  redeemedOfferIds: Set<string>
+  redemptions: CustomerRedemptionEvent[]
 }
 
 export type CustomerSavingsSummary = {
@@ -18,16 +17,7 @@ export type CustomerSavingsSummary = {
   verifiedSavingsAmount: number
 }
 
-// =============================================================================
-// Constants
-// =============================================================================
-
-const MAX_REASONABLE_FIXED_SAVINGS =
-  1000
-
-// =============================================================================
-// Currency helpers
-// =============================================================================
+const MAX_REASONABLE_FIXED_SAVINGS = 1000
 
 function normalizeCurrencyAmount(
   value: string
@@ -36,44 +26,26 @@ function normalizeCurrencyAmount(
     .replace(/,/g, '')
     .trim()
 
-  const amount = Number(
-    normalizedValue
-  )
+  const amount = Number(normalizedValue)
 
   if (
     !Number.isFinite(amount) ||
     amount <= 0 ||
-    amount >
-      MAX_REASONABLE_FIXED_SAVINGS
+    amount > MAX_REASONABLE_FIXED_SAVINGS
   ) {
     return null
   }
 
-  return Math.round(
-    amount * 100
-  ) / 100
+  return Math.round(amount * 100) / 100
 }
 
-// =============================================================================
-// Discount parsing
-// =============================================================================
-
 export function getVerifiedFixedSavings(
-  discount:
-    | string
-    | null
-    | undefined
+  discount: string | null | undefined
 ): number | null {
-  if (!discount) {
-    return null
-  }
+  if (!discount) return null
 
-  const normalizedDiscount =
-    discount.trim()
-
-  if (!normalizedDiscount) {
-    return null
-  }
+  const normalizedDiscount = discount.trim()
+  if (!normalizedDiscount) return null
 
   const fixedSavingsPatterns = [
     /\$\s*([\d,]+(?:\.\d{1,2})?)\s*(?:off|discount|savings?)/i,
@@ -81,80 +53,50 @@ export function getVerifiedFixedSavings(
     /(?:off|discount)\s*(?:of\s*)?\$\s*([\d,]+(?:\.\d{1,2})?)/i,
   ]
 
-  for (
-    const pattern
-    of fixedSavingsPatterns
-  ) {
-    const match =
-      normalizedDiscount.match(
-        pattern
-      )
+  for (const pattern of fixedSavingsPatterns) {
+    const match = normalizedDiscount.match(pattern)
+    if (!match?.[1]) continue
 
-    if (!match?.[1]) {
-      continue
-    }
-
-    const amount =
-      normalizeCurrencyAmount(
-        match[1]
-      )
-
-    if (amount !== null) {
-      return amount
-    }
+    const amount = normalizeCurrencyAmount(match[1])
+    if (amount !== null) return amount
   }
 
   return null
 }
 
-// =============================================================================
-// Savings summary
-// =============================================================================
-
 export function calculateCustomerSavings({
   offers,
-  redeemedOfferIds,
-}: CalculateCustomerSavingsOptions):
-  CustomerSavingsSummary {
+  redemptions,
+}: CalculateCustomerSavingsOptions): CustomerSavingsSummary {
+  const offerById = new Map(offers.map((offer) => [offer.id, offer]))
+  const confirmedRedemptions = redemptions.filter(
+    (redemption) => redemption.status === 'confirmed'
+  )
+
   let valuedRedemptionCount = 0
   let verifiedSavingsAmount = 0
 
-  const redeemedOffers =
-    offers.filter((offer) =>
-      redeemedOfferIds.has(offer.id)
+  for (const redemption of confirmedRedemptions) {
+    const offer = offerById.get(redemption.offer_id)
+    const benefitSnapshot = redemption.benefit_snapshot?.trim()
+    const fixedSavings = getVerifiedFixedSavings(
+      benefitSnapshot || offer?.discount
     )
 
-  for (
-    const offer
-    of redeemedOffers
-  ) {
-    const fixedSavings =
-      getVerifiedFixedSavings(
-        offer.discount
-      )
-
-    if (fixedSavings === null) {
-      continue
-    }
+    if (fixedSavings === null) continue
 
     valuedRedemptionCount += 1
-    verifiedSavingsAmount +=
-      fixedSavings
+    verifiedSavingsAmount += fixedSavings
   }
 
-  const redeemedOfferCount =
-    redeemedOffers.length
+  const redeemedOfferCount = confirmedRedemptions.length
 
   return {
     redeemedOfferCount,
     valuedRedemptionCount,
     unvaluedRedemptionCount:
-      redeemedOfferCount -
-      valuedRedemptionCount,
+      redeemedOfferCount - valuedRedemptionCount,
     verifiedSavingsAmount:
-      Math.round(
-        verifiedSavingsAmount *
-          100
-      ) / 100,
+      Math.round(verifiedSavingsAmount * 100) / 100,
   }
 }
