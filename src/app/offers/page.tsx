@@ -21,6 +21,7 @@ type Offer = EnvironmentOwnedRecord & {
   starts_at: string | null
   ends_at: string | null
   business_id: string
+  customer_value: number | null
 }
 
 type BusinessProfile = EnvironmentOwnedRecord & {
@@ -33,6 +34,12 @@ type BusinessProfile = EnvironmentOwnedRecord & {
   website_url: string | null
   google_maps_url: string | null
   role: string | null
+}
+
+function formatCustomerValue(value: number): string {
+  return Number.isInteger(value)
+    ? `$${value.toFixed(0)}`
+    : `$${value.toFixed(2)}`
 }
 
 export default async function OffersPage() {
@@ -70,7 +77,7 @@ export default async function OffersPage() {
   const offersQuery = supabase
     .from('offers')
     .select(
-      'id, title, discount, description, starts_at, ends_at, business_id, is_demo, demo_group'
+      'id, title, discount, description, starts_at, ends_at, business_id, customer_value, is_demo, demo_group'
     )
     .eq('is_active', true)
     .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
@@ -130,8 +137,8 @@ export default async function OffersPage() {
             </Link>
             <h1 className="mt-4 text-3xl font-bold text-gray-900">Exclusive Local Deals</h1>
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Preview participating local offers. Full savings and redemption details are
-              available with an active RaiseHub pass.
+              Preview participating local businesses and the value waiting inside their offers.
+              Exact deal terms and redemption details unlock with an active RaiseHub Pass.
             </p>
           </div>
 
@@ -152,7 +159,7 @@ export default async function OffersPage() {
             </div>
           ) : !hasActivePass ? (
             <Link
-              href="/signup?source=offers"
+              href="/campaigns"
               className="inline-flex shrink-0 items-center justify-center rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-yellow-600"
             >
               Choose a Fundraiser
@@ -226,12 +233,23 @@ export default async function OffersPage() {
                         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-yellow-100 text-lg">
                           🔒
                         </div>
-                        <p className="mt-3 text-sm font-semibold text-gray-900">
+
+                        {offer.customer_value !== null ? (
+                          <div className="mx-auto mt-4 inline-flex items-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-green-800">
+                            <span className="text-base font-black">
+                              {formatCustomerValue(offer.customer_value)} value
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="mt-4 font-bold text-green-700">Member value available</p>
+                        )}
+
+                        <p className="mt-4 text-sm font-semibold text-gray-900">
                           Active pass required
                         </p>
                         <p className="mt-2 text-xs leading-5 text-gray-600">
-                          Purchase a qualifying fundraiser pass to reveal the discount, full
-                          offer description, location details, and redemption information.
+                          Activate a RaiseHub Pass to reveal the exact offer, discount,
+                          description, and redemption details.
                         </p>
                         <Link
                           href={user ? '/campaigns' : '/signup?source=offers'}
