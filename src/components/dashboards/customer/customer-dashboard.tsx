@@ -12,6 +12,7 @@ import CustomerWorkspaceFrame, {
   type CustomerWorkspaceView,
 } from './customer-workspace-frame'
 
+import type { CustomerRedemptionEvent } from './customer-redemption-history'
 import type {
   CustomerDashboardOffer,
   OrganizationLookup,
@@ -48,12 +49,6 @@ type CanonicalBusinessLocation = {
   google_primary_category: string | null
   google_rating: number | null
   google_review_count: number | null
-}
-
-type CustomerRedemptionRow = {
-  offer_id: string
-  created_at: string
-  status: string | null
 }
 
 export default async function CustomerDashboard({
@@ -201,24 +196,24 @@ export default async function CustomerDashboard({
 
   const { data: redemptionData } = await (supabase as any)
     .from('redemptions')
-    .select('offer_id, created_at, status')
+    .select(
+      'id, offer_id, created_at, status, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method'
+    )
     .eq('user_id', resolvedCustomerProfileId)
+    .in('status', ['pending', 'confirmed', 'rejected'])
     .order('created_at', { ascending: true })
 
-  const redemptions = (redemptionData ?? []) as CustomerRedemptionRow[]
-  const activeRedemptions = redemptions.filter(
+  const redemptionEvents = (redemptionData ?? []) as CustomerRedemptionEvent[]
+  const activeRedemptions = redemptionEvents.filter(
     (redemption) =>
       redemption.status === 'pending' || redemption.status === 'confirmed'
   )
-  const confirmedRedemptions = redemptions.filter(
+  const confirmedRedemptionEvents = redemptionEvents.filter(
     (redemption) => redemption.status === 'confirmed'
   )
 
   const redeemedOfferIds = new Set(
     activeRedemptions.map((redemption) => redemption.offer_id)
-  )
-  const confirmedRedeemedOfferIds = new Set(
-    confirmedRedemptions.map((redemption) => redemption.offer_id)
   )
   const redemptionDateByOfferId = new Map<string, string>()
 
@@ -287,9 +282,9 @@ export default async function CustomerDashboard({
       .map((offer) => offer.id)
   )
 
-  const historicalOfferIds = [...redeemedOfferIds].filter(
-    (offerId) => !activeOfferIds.has(offerId)
-  )
+  const historicalOfferIds = [
+    ...new Set(redemptionEvents.map((redemption) => redemption.offer_id)),
+  ].filter((offerId) => !activeOfferIds.has(offerId))
 
   const { data: historicalOffersData } = historicalOfferIds.length > 0
     ? await supabase
@@ -328,9 +323,8 @@ export default async function CustomerDashboard({
           organizationById={organizationById}
           enrichedOffers={enrichedOffers}
           historicalOffers={historicalOffers}
-          redeemedOfferIds={redeemedOfferIds}
-          confirmedRedeemedOfferIds={confirmedRedeemedOfferIds}
-          redemptionDateByOfferId={redemptionDateByOfferId}
+          redemptionEvents={redemptionEvents}
+          confirmedRedemptionEvents={confirmedRedemptionEvents}
         />
       ) : view === 'deals' ? (
         <>
@@ -342,7 +336,8 @@ export default async function CustomerDashboard({
             historicalOffers={historicalOffers}
             savedOfferIds={savedOfferIds}
             redeemedOfferIds={redeemedOfferIds}
-            confirmedRedeemedOfferIds={confirmedRedeemedOfferIds}
+            redemptionEvents={redemptionEvents}
+            confirmedRedemptionEvents={confirmedRedemptionEvents}
             redeemableOfferIds={redeemableOfferIds}
             redemptionDateByOfferId={redemptionDateByOfferId}
             hasPurchasedPass={hasPurchasedPass}
