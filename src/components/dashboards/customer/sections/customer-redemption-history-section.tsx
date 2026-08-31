@@ -28,15 +28,22 @@ function getStatusLabel(status: string | null): string {
       return 'In 24-hour review'
     case 'confirmed':
       return 'Confirmed'
+    case 'rejected':
+      return 'Reported unauthorized'
     default:
       return 'Recorded'
   }
 }
 
 function getStatusClasses(status: string | null): string {
-  return status === 'pending'
-    ? 'bg-amber-50 text-amber-800'
-    : 'bg-green-50 text-green-700'
+  switch (status) {
+    case 'pending':
+      return 'bg-amber-50 text-amber-800'
+    case 'rejected':
+      return 'bg-red-50 text-red-700'
+    default:
+      return 'bg-green-50 text-green-700'
+  }
 }
 
 export default function CustomerRedemptionHistorySection({
@@ -105,6 +112,12 @@ export default function CustomerRedemptionHistorySection({
                       <p className="mt-2 break-words font-semibold leading-6 text-green-700">
                         {benefitLabel}
                       </p>
+
+                      {redemption.status === 'rejected' ? (
+                        <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
+                          This redemption does not count toward confirmed savings or future rewards, and it no longer blocks reuse eligibility.
+                        </p>
+                      ) : null}
 
                       {offer?.description ? (
                         <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-gray-600">
