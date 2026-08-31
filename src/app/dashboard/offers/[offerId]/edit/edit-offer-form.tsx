@@ -92,7 +92,10 @@ export default function EditOfferForm({ offer }: Props) {
       <label className="block rounded-2xl border border-blue-100 bg-blue-50 p-4">
         <span className="text-sm font-bold text-blue-900">Customer value</span>
         <p className="mt-1 text-xs leading-5 text-blue-800">
-          Dollar value of the savings or benefit. Supporters can see this value before purchasing a pass, while the actual deal stays locked.
+          Enter the normal retail value of the benefit the member receives—what that item, service, upgrade, or savings would normally cost a customer. Do not use an inflated marketing estimate.
+        </p>
+        <p className="mt-2 text-xs leading-5 text-blue-800">
+          Example: if a free tire rotation normally costs $25, enter $25. Supporters may see this value before purchasing a pass while the exact deal stays locked.
         </p>
         <div className="relative mt-3">
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-semibold text-slate-500">$</span>
