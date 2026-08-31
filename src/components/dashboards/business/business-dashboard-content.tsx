@@ -33,11 +33,22 @@ type BusinessProfile = {
   redemption_method?: string | null
 }
 
+type BusinessReportRedemption = OfferRedemption & {
+  offer_title_snapshot?: string | null
+  benefit_snapshot?: string | null
+  customer_value_snapshot?: number | string | null
+  usage_rule_snapshot?: string | null
+  confirmation_method?: string | null
+  status?: string | null
+}
+
 export type BusinessDashboardContentProps = {
   view?: BusinessWorkspaceView
   profile: BusinessProfile | null
   offers: BusinessOffer[]
   totalRedemptions: number
+  uniqueSupporters: number
+  totalCustomerValueDelivered: number
   activeOffersCount: number
   activeOfferLimit: number
   hasReachedLimit: boolean
@@ -45,7 +56,7 @@ export type BusinessDashboardContentProps = {
   topOfferTitle: string
   topOfferCount: number
   redemptionCountByOfferId: Record<string, number>
-  redemptionsByOfferId: Record<string, OfferRedemption[]>
+  redemptionsByOfferId: Record<string, BusinessReportRedemption[]>
   profileEmailById: Record<string, string>
   viewCount: number
   clickCount: number
@@ -70,30 +81,76 @@ function formatExportDate(value: string): string {
   })
 }
 
+function formatCustomerValue(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return 'Not set'
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return 'Not set'
+  return `$${parsed.toFixed(2)}`
+}
+
+function formatVerificationMethod(value: string | null | undefined): string {
+  switch (value) {
+    case 'staff_confirmation':
+      return 'Staff confirmation'
+    case 'qr_code':
+      return 'QR code'
+    case 'staff_code':
+      return 'Staff code'
+    case 'square':
+      return 'Square'
+    case 'legacy_self':
+      return 'Legacy redemption'
+    default:
+      return value?.trim() || 'Unknown'
+  }
+}
+
 function buildBusinessExportRows({
   offers,
   redemptionsByOfferId,
   profileEmailById,
 }: {
   offers: BusinessOffer[]
-  redemptionsByOfferId: Record<string, OfferRedemption[]>
+  redemptionsByOfferId: Record<string, BusinessReportRedemption[]>
   profileEmailById: Record<string, string>
 }): BusinessExportRow[] {
-  return offers.flatMap((offer) => {
-    const offerStatus = getOfferStatus({
-      startsAt: offer.starts_at,
-      endsAt: offer.ends_at,
-      isActive: offer.is_active,
-    })
+  const offerById = new Map(offers.map((offer) => [offer.id, offer]))
 
-    return (redemptionsByOfferId[offer.id] ?? []).map((redemption) => ({
-      offerTitle: offer.title?.trim() || 'Untitled offer',
-      offerStatus: offerStatus.label,
-      customerEmail:
-        profileEmailById[redemption.user_id] || 'Email unavailable',
-      redeemedAt: formatExportDate(redemption.created_at),
-    }))
-  })
+  return Object.entries(redemptionsByOfferId)
+    .flatMap(([offerId, redemptions]) => {
+      const offer = offerById.get(offerId)
+      const offerStatus = offer
+        ? getOfferStatus({
+            startsAt: offer.starts_at,
+            endsAt: offer.ends_at,
+            isActive: offer.is_active,
+          })
+        : null
+
+      return redemptions.map((redemption) => ({
+        row: {
+          offerTitle:
+            redemption.offer_title_snapshot?.trim() ||
+            offer?.title?.trim() ||
+            'Untitled offer',
+          offerStatus: offerStatus?.label || 'Historical',
+          customerEmail:
+            profileEmailById[redemption.user_id] || 'Email unavailable',
+          redeemedAt: formatExportDate(redemption.created_at),
+          customerValue: formatCustomerValue(redemption.customer_value_snapshot),
+          verificationMethod: formatVerificationMethod(redemption.confirmation_method),
+          redemptionStatus:
+            redemption.status === 'voided' ? 'Voided' : 'Confirmed',
+        } satisfies BusinessExportRow,
+        createdAt: redemption.created_at,
+      }))
+    })
+    .sort((a, b) => {
+      const bTime = new Date(b.createdAt).getTime()
+      const aTime = new Date(a.createdAt).getTime()
+      return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0)
+    })
+    .map(({ row }) => row)
 }
 
 function ReportsIcon() {
@@ -112,6 +169,8 @@ export default function BusinessDashboardContent({
   profile,
   offers,
   totalRedemptions,
+  uniqueSupporters,
+  totalCustomerValueDelivered,
   activeOffersCount,
   activeOfferLimit,
   hasReachedLimit,
@@ -155,6 +214,31 @@ export default function BusinessDashboardContent({
     return (
       <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
         <WorkspaceMetricStrip
+          title="Confirmed redemptions"
+          rangeLabel="all offers"
+          metrics={[
+            {
+              label: 'Redemptions',
+              value: totalRedemptions,
+              description: 'Business-confirmed offer uses',
+              tone: 'blue',
+            },
+            {
+              label: 'Unique supporters',
+              value: uniqueSupporters,
+              description: 'Distinct customers who redeemed',
+              tone: 'green',
+            },
+            {
+              label: 'Customer value',
+              value: `$${totalCustomerValueDelivered.toFixed(2)}`,
+              description: 'Business-set value delivered',
+              tone: 'amber',
+            },
+          ]}
+        />
+
+        <WorkspaceMetricStrip
           title="Customer activity"
           rangeLabel="all offers"
           metrics={[
@@ -181,8 +265,8 @@ export default function BusinessDashboardContent({
 
         <WorkspaceModule
           title="Redemption records"
-          eyebrow="Customer activity"
-          description="Review recent redemptions or export the complete record for reporting."
+          eyebrow="Verified customer visits"
+          description="Each row is a confirmed redemption. Offer value and verification details are preserved even if the offer changes later."
           icon={<ReportsIcon />}
           tone="blue"
           action={
@@ -195,20 +279,35 @@ export default function BusinessDashboardContent({
           {businessExportRows.length > 0 ? (
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {businessExportRows.slice(0, 8).map((row, index) => (
-                <div key={`${row.offerTitle}-${row.redeemedAt}-${index}`} className="grid gap-1 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                <div
+                  key={`${row.offerTitle}-${row.redeemedAt}-${index}`}
+                  className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto] sm:items-center sm:gap-4"
+                >
                   <div className="min-w-0">
                     <p className="truncate font-bold text-slate-950">{row.offerTitle}</p>
-                    <p className="mt-1 text-xs font-semibold text-blue-700">{row.offerStatus}</p>
+                    <p className="mt-1 text-xs font-semibold text-blue-700">
+                      {row.offerStatus} · {row.verificationMethod}
+                    </p>
                   </div>
-                  <p className="truncate text-sm text-slate-600">{row.customerEmail}</p>
-                  <p className="text-sm text-slate-500">{row.redeemedAt}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-slate-600">{row.customerEmail}</p>
+                    <p className="mt-1 text-xs font-bold text-green-700">
+                      {row.customerValue} customer value
+                    </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <p className="text-sm text-slate-500">{row.redeemedAt}</p>
+                    <p className="mt-1 text-xs font-bold text-green-700">{row.redemptionStatus}</p>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
-              <p className="font-bold text-slate-900">No redemptions recorded yet</p>
-              <p className="mt-1 text-sm text-slate-500">Redemption activity will appear here once customers begin using offers.</p>
+              <p className="font-bold text-slate-900">No confirmed redemptions yet</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Confirmed customer activity will appear here after staff approves a supporter’s redemption code.
+              </p>
             </div>
           )}
 
