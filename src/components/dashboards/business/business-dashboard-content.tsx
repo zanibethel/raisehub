@@ -43,6 +43,15 @@ type BusinessReportRedemption = OfferRedemption & {
   status?: string | null
 }
 
+type RedemptionStatusFilter =
+  | 'all'
+  | 'pending'
+  | 'confirmed'
+  | 'rejected'
+  | 'voided'
+
+type RedemptionDateFilter = 'all' | '7d' | '30d' | '90d'
+
 export type BusinessDashboardContentProps = {
   view?: BusinessWorkspaceView
   profile: BusinessProfile | null
@@ -90,6 +99,17 @@ function formatCustomerValue(value: number | string | null | undefined): string 
   const parsed = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(parsed)) return 'Not set'
   return `$${parsed.toFixed(2)}`
+}
+
+function maskCustomerEmail(value: string | null | undefined): string {
+  const email = value?.trim()
+  if (!email) return 'Supporter'
+
+  const [localPart, domain] = email.split('@')
+  if (!localPart || !domain) return 'Supporter'
+
+  const visiblePrefix = localPart.slice(0, 1)
+  return `${visiblePrefix}***@${domain}`
 }
 
 function formatVerificationMethod(value: string | null | undefined): string {
@@ -155,6 +175,12 @@ function formatAutoConfirm(value: string | null): string {
   })}`
 }
 
+function getDateFilterCutoff(filter: RedemptionDateFilter): number | null {
+  const days = filter === '7d' ? 7 : filter === '30d' ? 30 : filter === '90d' ? 90 : null
+  if (!days) return null
+  return Date.now() - days * 24 * 60 * 60 * 1000
+}
+
 function buildBusinessExportRows({
   offers,
   redemptionActivity,
@@ -182,8 +208,7 @@ function buildBusinessExportRows({
         offer?.title?.trim() ||
         'Untitled offer',
       offerStatus: offerStatus?.label || 'Historical',
-      customerEmail:
-        profileEmailById[redemption.user_id] || 'Email unavailable',
+      customerEmail: maskCustomerEmail(profileEmailById[redemption.user_id]),
       redeemedAt: formatExportDate(redemption.created_at),
       customerValue: formatCustomerValue(redemption.customer_value_snapshot),
       verificationMethod: formatVerificationMethod(redemption.confirmation_method),
@@ -232,6 +257,11 @@ export default function BusinessDashboardContent({
   restoreRequestedAt,
 }: BusinessDashboardContentProps) {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
+  const [redemptionStatusFilter, setRedemptionStatusFilter] =
+    useState<RedemptionStatusFilter>('all')
+  const [redemptionOfferFilter, setRedemptionOfferFilter] = useState('all')
+  const [redemptionDateFilter, setRedemptionDateFilter] =
+    useState<RedemptionDateFilter>('all')
 
   const offerStatuses = offers.map((offer) =>
     getOfferStatus({
@@ -247,9 +277,46 @@ export default function BusinessDashboardContent({
     })?.id ?? null
 
   const offerById = new Map(offers.map((offer) => [offer.id, offer]))
+  const reportOfferOptions = [
+    ...new Map(
+      redemptionActivity.map((redemption) => [
+        redemption.offer_id,
+        redemption.offer_title_snapshot?.trim() ||
+          offerById.get(redemption.offer_id)?.title?.trim() ||
+          'Historical offer',
+      ])
+    ).entries(),
+  ].sort((first, second) => first[1].localeCompare(second[1]))
+
+  const dateFilterCutoff = getDateFilterCutoff(redemptionDateFilter)
+  const filteredRedemptionActivity = redemptionActivity.filter((redemption) => {
+    if (
+      redemptionStatusFilter !== 'all' &&
+      redemption.status !== redemptionStatusFilter
+    ) {
+      return false
+    }
+
+    if (
+      redemptionOfferFilter !== 'all' &&
+      redemption.offer_id !== redemptionOfferFilter
+    ) {
+      return false
+    }
+
+    if (dateFilterCutoff !== null) {
+      const timestamp = new Date(redemption.created_at).getTime()
+      if (Number.isNaN(timestamp) || timestamp < dateFilterCutoff) {
+        return false
+      }
+    }
+
+    return true
+  })
+
   const businessExportRows = buildBusinessExportRows({
     offers,
-    redemptionActivity,
+    redemptionActivity: filteredRedemptionActivity,
     profileEmailById,
   })
 
@@ -327,7 +394,7 @@ export default function BusinessDashboardContent({
         <WorkspaceModule
           title="Redemption records"
           eyebrow="Customer visits and review status"
-          description="Pending, confirmed, and rejected activity stays in one audit trail. Confirmed performance metrics count confirmed records only."
+          description="Filter the audit trail without changing the confirmed performance totals above. Supporter email addresses are masked in the report and CSV export."
           icon={<ReportsIcon />}
           tone="blue"
           action={
@@ -337,9 +404,67 @@ export default function BusinessDashboardContent({
             />
           }
         >
-          {redemptionActivity.length > 0 ? (
+          <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Status
+              <select
+                value={redemptionStatusFilter}
+                onChange={(event) =>
+                  setRedemptionStatusFilter(event.target.value as RedemptionStatusFilter)
+                }
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-800"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending review</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="rejected">Rejected</option>
+                <option value="voided">Voided</option>
+              </select>
+            </label>
+
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Offer
+              <select
+                value={redemptionOfferFilter}
+                onChange={(event) => setRedemptionOfferFilter(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-800"
+              >
+                <option value="all">All offers</option>
+                {reportOfferOptions.map(([offerId, title]) => (
+                  <option key={offerId} value={offerId}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Date
+              <select
+                value={redemptionDateFilter}
+                onChange={(event) =>
+                  setRedemptionDateFilter(event.target.value as RedemptionDateFilter)
+                }
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-800"
+              >
+                <option value="all">All time</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="90d">Last 90 days</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span>
+              {filteredRedemptionActivity.length} matching record{filteredRedemptionActivity.length === 1 ? '' : 's'}
+            </span>
+            <span>Supporter identifiers are privacy-masked.</span>
+          </div>
+
+          {filteredRedemptionActivity.length > 0 ? (
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
-              {redemptionActivity.slice(0, 12).map((redemption) => {
+              {filteredRedemptionActivity.slice(0, 12).map((redemption) => {
                 const offer = offerById.get(redemption.offer_id)
                 const offerTitle =
                   redemption.offer_title_snapshot?.trim() ||
@@ -360,7 +485,7 @@ export default function BusinessDashboardContent({
 
                     <div className="min-w-0">
                       <p className="truncate text-sm text-slate-600">
-                        {profileEmailById[redemption.user_id] || 'Email unavailable'}
+                        {maskCustomerEmail(profileEmailById[redemption.user_id])}
                       </p>
                       <p className="mt-1 text-xs font-bold text-green-700">
                         {formatCustomerValue(redemption.customer_value_snapshot)} customer value
@@ -396,16 +521,22 @@ export default function BusinessDashboardContent({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
-              <p className="font-bold text-slate-900">No redemptions recorded yet</p>
+              <p className="font-bold text-slate-900">
+                {redemptionActivity.length > 0
+                  ? 'No records match these filters'
+                  : 'No redemptions recorded yet'}
+              </p>
               <p className="mt-1 text-sm text-slate-500">
-                Customer redemptions will appear here immediately. Normal activity requires no staff approval.
+                {redemptionActivity.length > 0
+                  ? 'Change a filter above to review other redemption activity.'
+                  : 'Customer redemptions will appear here immediately. Normal activity requires no staff approval.'}
               </p>
             </div>
           )}
 
-          {redemptionActivity.length > 12 ? (
+          {filteredRedemptionActivity.length > 12 ? (
             <p className="mt-3 text-sm text-slate-500">
-              Showing the 12 most recent records. Export CSV for the complete report.
+              Showing the 12 most recent matching records. Export CSV for the complete filtered report.
             </p>
           ) : null}
         </WorkspaceModule>
