@@ -18,9 +18,9 @@ export default function BusinessDashboardQuickActions({
 }: BusinessDashboardQuickActionsProps) {
   const actions: QuickAction[] = [
     {
-      title: 'Confirm Redemption',
-      href: '/dashboard/redeem',
-      detail: 'Enter the supporter’s 6-character checkout code.',
+      title: 'Review Redemptions',
+      href: '/dashboard/reports',
+      detail: 'No action is needed unless a redemption looks unauthorized.',
     },
     {
       title: hasReachedLimit ? 'Manage Offer Limit' : 'Create Offer',
@@ -40,9 +40,9 @@ export default function BusinessDashboardQuickActions({
       external: Boolean(publicOfferId),
     },
     {
-      title: 'Offer Reports',
-      href: '/dashboard/reports',
-      detail: 'Review confirmed redemption activity and export records.',
+      title: 'Instant Verify',
+      href: '/dashboard/redeem',
+      detail: 'Optional: enter a supporter code to confirm immediately.',
     },
   ]
 
