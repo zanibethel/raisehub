@@ -30,52 +30,22 @@ import CustomerRedemptionHistorySection from './sections/customer-redemption-his
 import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
 import CustomerSavingsSection from './sections/customer-savings-section'
 
-// =============================================================================
-// Infer section prop types
-// =============================================================================
-
-type PassesProps = React.ComponentProps<
-  typeof CustomerPassesSection
->
-
-type SavedDealsProps = React.ComponentProps<
-  typeof CustomerSavedDealsSection
->
-
-type AvailableDealsProps = React.ComponentProps<
-  typeof CustomerAvailableDealsSection
->
-
-// =============================================================================
-// Component props
-// =============================================================================
+type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
+type SavedDealsProps = React.ComponentProps<typeof CustomerSavedDealsSection>
+type AvailableDealsProps = React.ComponentProps<typeof CustomerAvailableDealsSection>
 
 type Props = {
-  purchasedPasses:
-    PassesProps['purchasedPasses']
-  organizationById:
-    PassesProps['organizationById']
-
-  enrichedOffers:
-    AvailableDealsProps['enrichedOffers']
-  historicalOffers?:
-    AvailableDealsProps['enrichedOffers']
-
-  savedOfferIds:
-    SavedDealsProps['savedOfferIds']
-  redeemedOfferIds:
-    SavedDealsProps['redeemedOfferIds']
+  purchasedPasses: PassesProps['purchasedPasses']
+  organizationById: PassesProps['organizationById']
+  enrichedOffers: AvailableDealsProps['enrichedOffers']
+  historicalOffers?: AvailableDealsProps['enrichedOffers']
+  savedOfferIds: SavedDealsProps['savedOfferIds']
+  redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
+  confirmedRedeemedOfferIds: Set<string>
   redeemableOfferIds: Set<string>
-  redemptionDateByOfferId:
-    SavedDealsProps['redemptionDateByOfferId']
-
-  hasPurchasedPass:
-    AvailableDealsProps['hasPurchasedPass']
+  redemptionDateByOfferId: SavedDealsProps['redemptionDateByOfferId']
+  hasPurchasedPass: AvailableDealsProps['hasPurchasedPass']
 }
-
-// =============================================================================
-// Component
-// =============================================================================
 
 export default function CustomerDashboardContent({
   purchasedPasses,
@@ -84,125 +54,76 @@ export default function CustomerDashboardContent({
   historicalOffers = [],
   savedOfferIds,
   redeemedOfferIds,
+  confirmedRedeemedOfferIds,
   redeemableOfferIds,
   redemptionDateByOfferId,
   hasPurchasedPass,
 }: Props) {
-  const [
-    activeDealFilter,
-    setActiveDealFilter,
-  ] = useState<CustomerDealFilter>(
+  const [activeDealFilter, setActiveDealFilter] = useState<CustomerDealFilter>(
     DEFAULT_CUSTOMER_DEAL_FILTER
   )
 
-  const currentlyAvailableOffers =
-    enrichedOffers.filter((offer) =>
-      redeemableOfferIds.has(offer.id)
-    )
+  const currentlyAvailableOffers = enrichedOffers.filter((offer) =>
+    redeemableOfferIds.has(offer.id)
+  )
 
   const customerHistoryOffers = [
     ...new Map(
-      [
-        ...enrichedOffers,
-        ...historicalOffers,
-      ].map((offer) => [
-        offer.id,
-        offer,
-      ])
+      [...enrichedOffers, ...historicalOffers].map((offer) => [offer.id, offer])
     ).values(),
   ]
 
-  const filterCounts =
-    getCustomerDealFilterCounts({
-      offers: currentlyAvailableOffers,
-      savedOfferIds,
-    })
+  const filterCounts = getCustomerDealFilterCounts({
+    offers: currentlyAvailableOffers,
+    savedOfferIds,
+  })
 
-  const filteredOffers =
-    filterCustomerDeals({
-      offers: currentlyAvailableOffers,
-      filter: activeDealFilter,
-      savedOfferIds,
-    })
+  const filteredOffers = filterCustomerDeals({
+    offers: currentlyAvailableOffers,
+    filter: activeDealFilter,
+    savedOfferIds,
+  })
 
-  const activeFilterLabel =
-    getCustomerDealFilterLabel(
-      activeDealFilter
-    )
+  const activeFilterLabel = getCustomerDealFilterLabel(activeDealFilter)
+  const filteredOfferMatchLabel = getCustomerDealFilterMatchLabel(
+    filteredOffers.length
+  )
+  const emptyFilterMessage = getCustomerDealEmptyMessage(activeDealFilter)
 
-  const filteredOfferMatchLabel =
-    getCustomerDealFilterMatchLabel(
-      filteredOffers.length
-    )
-
-  const emptyFilterMessage =
-    getCustomerDealEmptyMessage(
-      activeDealFilter
-    )
-
-  const readyToUseDealCount = [
-    ...savedOfferIds,
-  ].filter((offerId) =>
+  const readyToUseDealCount = [...savedOfferIds].filter((offerId) =>
     redeemableOfferIds.has(offerId)
   ).length
 
-  function selectDealFilter(
-    filter: CustomerDealFilter
-  ) {
-    if (filterCounts[filter] === 0) {
-      return
-    }
+  function selectDealFilter(filter: CustomerDealFilter) {
+    if (filterCounts[filter] === 0) return
 
     setActiveDealFilter(filter)
 
     window.requestAnimationFrame(() => {
-      document
-        .getElementById(
-          'available-offers'
-        )
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        })
+      document.getElementById('available-offers')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
     })
   }
 
   return (
     <div className="mt-8 space-y-8">
-      <div
-        id="customer-updates"
-        className="scroll-mt-6"
-      >
+      <div id="customer-updates" className="scroll-mt-6">
         <CustomerNotificationCenter
-          hasActivePass={
-            hasPurchasedPass
-          }
-          enrichedOffers={
-            currentlyAvailableOffers
-          }
-          savedOfferIds={
-            savedOfferIds
-          }
-          redeemedOfferIds={
-            redeemedOfferIds
-          }
+          hasActivePass={hasPurchasedPass}
+          enrichedOffers={currentlyAvailableOffers}
+          savedOfferIds={savedOfferIds}
+          redeemedOfferIds={redeemedOfferIds}
         />
       </div>
 
       <CustomerNextStepSection
         hasActivePass={hasPurchasedPass}
-        availableOfferCount={
-          currentlyAvailableOffers.length
-        }
-        savedDealCount={
-          savedOfferIds.size
-        }
-        readyToUseDealCount={
-          readyToUseDealCount
-        }
-        purchaseCount={
-          purchasedPasses.length
-        }
+        availableOfferCount={currentlyAvailableOffers.length}
+        savedDealCount={savedOfferIds.size}
+        readyToUseDealCount={readyToUseDealCount}
+        purchaseCount={purchasedPasses.length}
       />
 
       <section
@@ -213,188 +134,115 @@ export default function CustomerDashboardContent({
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
             Quick Access
           </p>
-
           <h2
             id="customer-deal-shortcuts-heading"
             className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
           >
             Find the deals you need
           </h2>
-
           <p className="mt-2 text-sm leading-6 text-gray-600">
-            Choose an available filter to
-            update the deal list below.
+            Choose an available filter to update the deal list below.
           </p>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {CUSTOMER_DEAL_FILTER_OPTIONS.map(
-            (option) => {
-              const count =
-                filterCounts[option.id]
+          {CUSTOMER_DEAL_FILTER_OPTIONS.map((option) => {
+            const count = filterCounts[option.id]
+            const isActive = activeDealFilter === option.id
+            const isDisabled = count === 0
+            const shortcutStatus = getCustomerDealShortcutStatus({
+              isActive,
+              isDisabled,
+            })
 
-              const isActive =
-                activeDealFilter ===
-                option.id
-
-              const isDisabled =
-                count === 0
-
-              const shortcutStatus =
-                getCustomerDealShortcutStatus({
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={getCustomerDealShortcutAriaLabel({
+                  label: option.label,
+                  count,
+                })}
+                disabled={isDisabled}
+                onClick={() => selectDealFilter(option.id)}
+                className={`group min-h-32 min-w-0 rounded-2xl border p-4 text-left transition sm:min-h-36 sm:p-5 ${getCustomerDealShortcutCardClasses({
+                  filter: option.id,
                   isActive,
                   isDisabled,
-                })
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  aria-label={getCustomerDealShortcutAriaLabel(
-                    {
-                      label:
-                        option.label,
-                      count,
-                    }
-                  )}
-                  disabled={isDisabled}
-                  onClick={() =>
-                    selectDealFilter(
+                })}`}
+              >
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <span aria-hidden="true" className="shrink-0 text-xl sm:text-2xl">
+                    {option.icon}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getCustomerDealShortcutCountClasses(
                       option.id
-                    )
-                  }
-                  className={`group min-h-32 min-w-0 rounded-2xl border p-4 text-left transition sm:min-h-36 sm:p-5 ${getCustomerDealShortcutCardClasses(
-                    {
-                      filter:
-                        option.id,
-                      isActive,
-                      isDisabled,
-                    }
-                  )}`}
+                    )}`}
+                  >
+                    {count}
+                  </span>
+                </div>
+
+                <h3
+                  className={`mt-3 break-words text-sm font-semibold leading-snug text-gray-900 sm:mt-4 sm:text-base ${getCustomerDealShortcutHeadingClasses({
+                    filter: option.id,
+                    isDisabled,
+                  })}`}
                 >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="shrink-0 text-xl sm:text-2xl"
-                    >
-                      {option.icon}
-                    </span>
-
-                    <span
-                      className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getCustomerDealShortcutCountClasses(
-                        option.id
-                      )}`}
-                    >
-                      {count}
-                    </span>
-                  </div>
-
-                  <h3
-                    className={`mt-3 break-words text-sm font-semibold leading-snug text-gray-900 sm:mt-4 sm:text-base ${getCustomerDealShortcutHeadingClasses(
-                      {
-                        filter:
-                          option.id,
-                        isDisabled,
-                      }
-                    )}`}
-                  >
-                    {option.label}
-                  </h3>
-
-                  <p className="mt-1 hidden break-words text-sm leading-6 text-gray-600 sm:block">
-                    {option.description}
-                  </p>
-
-                  <p
-                    className={`mt-3 text-xs font-semibold ${getCustomerDealShortcutStatusClasses(
-                      {
-                        isActive,
-                        isDisabled,
-                      }
-                    )}`}
-                  >
-                    {shortcutStatus}
-                  </p>
-                </button>
-              )
-            }
-          )}
+                  {option.label}
+                </h3>
+                <p className="mt-1 hidden break-words text-sm leading-6 text-gray-600 sm:block">
+                  {option.description}
+                </p>
+                <p
+                  className={`mt-3 text-xs font-semibold ${getCustomerDealShortcutStatusClasses({
+                    isActive,
+                    isDisabled,
+                  })}`}
+                >
+                  {shortcutStatus}
+                </p>
+              </button>
+            )
+          })}
         </div>
       </section>
 
-      <div
-        id="nearby-businesses"
-        className="scroll-mt-6"
-      >
+      <div id="nearby-businesses" className="scroll-mt-6">
         <CustomerNearbyBusinessesSection
-          enrichedOffers={
-            currentlyAvailableOffers
-          }
-          hasActivePass={
-            hasPurchasedPass
-          }
+          enrichedOffers={currentlyAvailableOffers}
+          hasActivePass={hasPurchasedPass}
         />
       </div>
 
-      <div
-        id="recommended-deals"
-        className="scroll-mt-6"
-      >
+      <div id="recommended-deals" className="scroll-mt-6">
         <CustomerRecommendationsSection
-          enrichedOffers={
-            currentlyAvailableOffers
-          }
-          savedOfferIds={
-            savedOfferIds
-          }
-          redeemedOfferIds={
-            redeemedOfferIds
-          }
+          enrichedOffers={currentlyAvailableOffers}
+          savedOfferIds={savedOfferIds}
+          redeemedOfferIds={redeemedOfferIds}
         />
       </div>
 
-      <div
-        id="my-pass"
-        className="scroll-mt-6"
-      >
+      <div id="my-pass" className="scroll-mt-6">
         <CustomerSavedDealsSection
-          enrichedOffers={
-            customerHistoryOffers
-          }
-          savedOfferIds={
-            savedOfferIds
-          }
-          redeemedOfferIds={
-            redeemedOfferIds
-          }
-          redeemableOfferIds={
-            redeemableOfferIds
-          }
-          redemptionDateByOfferId={
-            redemptionDateByOfferId
-          }
+          enrichedOffers={customerHistoryOffers}
+          savedOfferIds={savedOfferIds}
+          redeemedOfferIds={redeemedOfferIds}
+          redeemableOfferIds={redeemableOfferIds}
+          redemptionDateByOfferId={redemptionDateByOfferId}
         />
       </div>
 
-      <div
-        id="customer-savings"
-        className="scroll-mt-6"
-      >
+      <div id="customer-savings" className="scroll-mt-6">
         <CustomerSavingsSection
-          enrichedOffers={
-            customerHistoryOffers
-          }
-          redeemedOfferIds={
-            redeemedOfferIds
-          }
+          enrichedOffers={customerHistoryOffers}
+          redeemedOfferIds={confirmedRedeemedOfferIds}
         />
       </div>
 
-      <div
-        id="available-offers"
-        className="scroll-mt-6"
-      >
+      <div id="available-offers" className="scroll-mt-6">
         <div
           role="status"
           aria-live="polite"
@@ -404,12 +252,10 @@ export default function CustomerDashboardContent({
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
               Current Filter
             </p>
-
             <p className="mt-1 break-words font-semibold text-gray-900">
               {activeFilterLabel}
             </p>
           </div>
-
           <p className="shrink-0 text-sm text-gray-600">
             {filteredOfferMatchLabel}
           </p>
@@ -417,41 +263,25 @@ export default function CustomerDashboardContent({
 
         {filteredOffers.length > 0 ? (
           <CustomerAvailableDealsSection
-            hasPurchasedPass={
-              hasPurchasedPass
-            }
-            enrichedOffers={
-              filteredOffers
-            }
-            savedOfferIds={
-              savedOfferIds
-            }
+            hasPurchasedPass={hasPurchasedPass}
+            enrichedOffers={filteredOffers}
+            savedOfferIds={savedOfferIds}
           />
         ) : (
           <section className="overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-5 shadow-lg sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
               No Matching Deals
             </p>
-
             <h2 className="mt-2 break-words text-xl font-bold leading-snug text-gray-900">
-              {
-                emptyFilterMessage.title
-              }
+              {emptyFilterMessage.title}
             </h2>
-
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              {
-                emptyFilterMessage.description
-              }
+              {emptyFilterMessage.description}
             </p>
-
-            {activeDealFilter !==
-            'all' ? (
+            {activeDealFilter !== 'all' ? (
               <button
                 type="button"
-                onClick={() =>
-                  selectDealFilter('all')
-                }
+                onClick={() => selectDealFilter('all')}
                 className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800 sm:w-auto"
               >
                 Show All Available Offers
@@ -461,31 +291,17 @@ export default function CustomerDashboardContent({
         )}
       </div>
 
-      <div
-        id="redemption-history"
-        className="scroll-mt-6"
-      >
+      <div id="redemption-history" className="scroll-mt-6">
         <CustomerRedemptionHistorySection
-          enrichedOffers={
-            customerHistoryOffers
-          }
-          redemptionDateByOfferId={
-            redemptionDateByOfferId
-          }
+          enrichedOffers={customerHistoryOffers}
+          redemptionDateByOfferId={redemptionDateByOfferId}
         />
       </div>
 
-      <div
-        id="support-history"
-        className="scroll-mt-6"
-      >
+      <div id="support-history" className="scroll-mt-6">
         <CustomerPassesSection
-          purchasedPasses={
-            purchasedPasses
-          }
-          organizationById={
-            organizationById
-          }
+          purchasedPasses={purchasedPasses}
+          organizationById={organizationById}
         />
       </div>
     </div>
