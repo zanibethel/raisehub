@@ -18,7 +18,7 @@ export default function RedemptionConfirmationForm() {
     setSuccess(false)
 
     if (!/^[A-Z0-9]{6}$/.test(normalized)) {
-      setMessage('Enter the 6-character code shown on the supporter’s screen.')
+      setMessage('Enter the 6-character verification code shown on the supporter’s screen.')
       return
     }
 
@@ -31,7 +31,7 @@ export default function RedemptionConfirmationForm() {
       }
 
       setSuccess(true)
-      setMessage('Redemption confirmed. The supporter’s screen will update automatically and this visit is now in your redemption report.')
+      setMessage('Redemption verified immediately. No further review is required for this visit.')
       setCode('')
     })
   }
@@ -39,9 +39,9 @@ export default function RedemptionConfirmationForm() {
   return (
     <form onSubmit={handleSubmit} className="mt-6">
       <label className="block">
-        <span className="text-sm font-bold text-slate-900">Supporter confirmation code</span>
+        <span className="text-sm font-bold text-slate-900">Supporter verification code</span>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          The supporter taps Redeem Offer in My Pass and shows you a code that is valid for 5 minutes.
+          Enter the code only when you want to confirm a redemption immediately. Normal redemptions do not require this step.
         </p>
         <input
           value={code}
@@ -58,7 +58,7 @@ export default function RedemptionConfirmationForm() {
           autoComplete="off"
           spellCheck={false}
           placeholder="ABC123"
-          aria-label="6-character supporter confirmation code"
+          aria-label="6-character supporter verification code"
           className="mt-3 w-full rounded-2xl border-2 border-slate-300 bg-white px-4 py-4 text-center font-mono text-3xl font-black tracking-[0.18em] text-slate-950 outline-none transition focus:border-green-600"
         />
       </label>
@@ -68,11 +68,11 @@ export default function RedemptionConfirmationForm() {
         disabled={isPending || code.length !== 6}
         className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isPending ? 'Confirming…' : 'Confirm Redemption'}
+        {isPending ? 'Verifying…' : 'Verify Now'}
       </button>
 
       <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-        Only confirm after you have verified the customer is using the displayed RaiseHub offer at your business.
+        This optional verification path is designed to become the same foundation used by future QR and POS integrations.
       </p>
 
       {message ? (
