@@ -50,6 +50,12 @@ type CanonicalBusinessLocation = {
   google_review_count: number | null
 }
 
+type CustomerRedemptionRow = {
+  offer_id: string
+  created_at: string
+  status: string | null
+}
+
 export default async function CustomerDashboard({
   customerProfileId,
   view = 'dashboard',
@@ -63,6 +69,8 @@ export default async function CustomerDashboard({
   } = await supabase.auth.getUser()
 
   if (!user) return null
+
+  await (supabase as any).rpc('finalize_due_redemptions')
 
   const resolvedCustomerProfileId = customerProfileId?.trim() || user.id
   const passAccess = await getCustomerPassAccess(resolvedCustomerProfileId, nowDate)
@@ -191,18 +199,30 @@ export default async function CustomerDashboard({
     (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
   )
 
-  const { data: redemptions } = await supabase
+  const { data: redemptionData } = await (supabase as any)
     .from('redemptions')
-    .select('offer_id, created_at')
+    .select('offer_id, created_at, status')
     .eq('user_id', resolvedCustomerProfileId)
     .order('created_at', { ascending: true })
 
+  const redemptions = (redemptionData ?? []) as CustomerRedemptionRow[]
+  const activeRedemptions = redemptions.filter(
+    (redemption) =>
+      redemption.status === 'pending' || redemption.status === 'confirmed'
+  )
+  const confirmedRedemptions = redemptions.filter(
+    (redemption) => redemption.status === 'confirmed'
+  )
+
   const redeemedOfferIds = new Set(
-    (redemptions ?? []).map((redemption) => redemption.offer_id)
+    activeRedemptions.map((redemption) => redemption.offer_id)
+  )
+  const confirmedRedeemedOfferIds = new Set(
+    confirmedRedemptions.map((redemption) => redemption.offer_id)
   )
   const redemptionDateByOfferId = new Map<string, string>()
 
-  for (const redemption of redemptions ?? []) {
+  for (const redemption of activeRedemptions) {
     if (redemption.offer_id && redemption.created_at) {
       redemptionDateByOfferId.set(
         redemption.offer_id,
@@ -248,9 +268,6 @@ export default async function CustomerDashboard({
     }
   }
 
-  // Legacy offers without a canonical business workspace remain visible for
-  // backwards compatibility. Once a canonical workspace exists, its lifecycle
-  // status controls whether its offers appear to customers.
   const customerVisibleOfferRows = (offers ?? []).filter((offer) => {
     const canonicalBusiness = canonicalBusinessByLegacyProfileId.get(offer.business_id)
     return !canonicalBusiness || canonicalBusiness.status === 'active'
@@ -284,7 +301,7 @@ export default async function CustomerDashboard({
 
   const historicalOffers = (historicalOffersData ?? []).map(enrichOffer)
   const availableOfferCount = redeemableOfferIds.size
-  const totalRedemptionCount = redemptions?.length ?? 0
+  const totalRedemptionCount = activeRedemptions.length
 
   const digitalPass = (
     <CustomerDigitalPass
@@ -312,6 +329,7 @@ export default async function CustomerDashboard({
           enrichedOffers={enrichedOffers}
           historicalOffers={historicalOffers}
           redeemedOfferIds={redeemedOfferIds}
+          confirmedRedeemedOfferIds={confirmedRedeemedOfferIds}
           redemptionDateByOfferId={redemptionDateByOfferId}
         />
       ) : view === 'deals' ? (
@@ -324,6 +342,7 @@ export default async function CustomerDashboard({
             historicalOffers={historicalOffers}
             savedOfferIds={savedOfferIds}
             redeemedOfferIds={redeemedOfferIds}
+            confirmedRedeemedOfferIds={confirmedRedeemedOfferIds}
             redeemableOfferIds={redeemableOfferIds}
             redemptionDateByOfferId={redemptionDateByOfferId}
             hasPurchasedPass={hasPurchasedPass}
@@ -340,7 +359,7 @@ export default async function CustomerDashboard({
             </WorkspaceModule>
             <WorkspaceModule title="Redemptions" tone="green">
               <p className="text-3xl font-black text-slate-950">{totalRedemptionCount}</p>
-              <p className="mt-1 text-sm text-slate-500">Total offer uses recorded</p>
+              <p className="mt-1 text-sm text-slate-500">Recorded offer uses, including the 24-hour review window</p>
             </WorkspaceModule>
             <WorkspaceModule title="Fundraisers supported" tone="amber">
               <p className="text-3xl font-black text-slate-950">{purchasedPasses.length}</p>
