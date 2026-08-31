@@ -270,17 +270,23 @@ export default function DetailsStep({
 
           <section className="rounded-2xl border border-gray-200 bg-white p-5">
             <h2 className="font-bold text-gray-900">Offer value</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              These values are private and help compare customer value with business cost.
+            <p className="mt-1 text-sm leading-6 text-gray-600">
+              Customer value is the normal retail value of the benefit the member receives. Use what that item, service, upgrade, or savings would normally cost a customer—not an inflated marketing estimate.
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-sm font-semibold text-gray-700">Customer value</span>
-                <input type="number" min="0" step="0.01" value={draft.estimatedRetailValue} onChange={(event) => updateDraft('estimatedRetailValue', Number(event.target.value))} className="mt-2 w-full rounded-xl border border-gray-300 p-3" />
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <span className="text-sm font-semibold text-blue-900">Customer value</span>
+                <p className="mt-1 text-xs leading-5 text-blue-800">
+                  Example: if a free tire rotation normally costs $25, enter $25. RaiseHub may show this value before the exact deal is unlocked.
+                </p>
+                <input type="number" min="0" step="0.01" value={draft.estimatedRetailValue} onChange={(event) => updateDraft('estimatedRetailValue', Number(event.target.value))} className="mt-3 w-full rounded-xl border border-blue-200 bg-white p-3" />
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-gray-700">Business cost</span>
-                <input type="number" min="0" step="0.01" value={draft.estimatedBusinessCost} onChange={(event) => updateDraft('estimatedBusinessCost', Number(event.target.value))} className="mt-2 w-full rounded-xl border border-gray-300 p-3" />
+                <p className="mt-1 text-xs leading-5 text-gray-500">
+                  Your approximate internal cost to provide the benefit. This stays private and helps score sustainability.
+                </p>
+                <input type="number" min="0" step="0.01" value={draft.estimatedBusinessCost} onChange={(event) => updateDraft('estimatedBusinessCost', Number(event.target.value))} className="mt-3 w-full rounded-xl border border-gray-300 p-3" />
               </label>
             </div>
           </section>
@@ -325,8 +331,9 @@ export default function DetailsStep({
             {draft.qualifyingPurchase && draft.requiresPurchase ? <p className="mt-2 text-sm text-gray-600">With {draft.qualifyingPurchase}</p> : null}
             <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">{draft.description || 'Your customer-facing description will appear here.'}</p>
             <div className="mt-5 rounded-xl bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-green-700">Estimated member value</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-green-700">Customer value</p>
               <p className="mt-1 text-2xl font-bold text-green-800">${draft.estimatedRetailValue.toFixed(2)}</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">Normal retail value of the member benefit.</p>
             </div>
             <p className="mt-4 text-xs font-semibold text-blue-700">{getOfferUsageRuleLabel(usageRule)} · Exclusive to RaiseHub members</p>
           </section>
