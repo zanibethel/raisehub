@@ -6,10 +6,12 @@ import type { ComponentProps } from 'react'
 import AvailableOffersSection from '@/app/components/available-offers-section'
 
 // Match the offer type already accepted by AvailableOffersSection and include
-// the persisted redemption frequency used by customer availability logic.
+// the persisted redemption frequency and public teaser value used by customer
+// availability and locked-offer preview logic.
 export type CustomerDashboardOffer =
   ComponentProps<typeof AvailableOffersSection>['offers'][number] & {
     usage_rule?: string | null
+    customer_value?: number | null
   }
 
 export type PurchasedPass = {
