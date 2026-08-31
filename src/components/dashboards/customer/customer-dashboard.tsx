@@ -1,6 +1,11 @@
 import Link from 'next/link'
 
 import { WorkspaceModule } from '@/components/workspace/workspace-module'
+import {
+  applyEnvironmentScope,
+  getActiveDataEnvironment,
+  type EnvironmentOwnedRecord,
+} from '@/lib/data-environment'
 import { getRedemptionAvailability } from '@/lib/redemption-rules'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
 import { createClient } from '@/lib/supabase/server'
@@ -24,7 +29,7 @@ type CustomerDashboardProps = {
   view?: CustomerWorkspaceView
 }
 
-type LegacyBusinessProfile = {
+type LegacyBusinessProfile = EnvironmentOwnedRecord & {
   name: string
   phone: string
   address: string
@@ -58,6 +63,7 @@ export default async function CustomerDashboard({
   const supabase = await createClient()
   const nowDate = new Date()
   const now = nowDate.toISOString()
+  const environment = getActiveDataEnvironment()
 
   const {
     data: { user },
@@ -128,7 +134,7 @@ export default async function CustomerDashboard({
     activePassOrganization?.display_name || activePassOrganization?.business_name || null
   const supportedCampaignName = activePassPurchase?.campaigns?.name || null
 
-  const { data: offers } = await supabase
+  const offersQuery = supabase
     .from('offers')
     .select('*')
     .eq('is_active', true)
@@ -136,18 +142,24 @@ export default async function CustomerDashboard({
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
 
-  const { data: profiles } = await supabase
+  const { data: offers } = await applyEnvironmentScope(offersQuery, environment)
+
+  const profilesQuery = supabase
     .from('profiles')
-    .select('id, business_name, phone, address, google_maps_url')
+    .select('id, business_name, display_name, phone, address, google_maps_url, is_demo, demo_group')
+
+  const { data: profiles } = await applyEnvironmentScope(profilesQuery, environment)
 
   const profileById = new Map<string, LegacyBusinessProfile>(
     (profiles ?? []).map((profile) => [
       profile.id,
       {
-        name: profile.business_name || 'Local Business',
+        name: profile.display_name || profile.business_name || 'Local Business',
         phone: profile.phone || '',
         address: profile.address || '',
         map: profile.google_maps_url || '',
+        is_demo: profile.is_demo,
+        demo_group: profile.demo_group,
       },
     ])
   )
@@ -185,23 +197,30 @@ export default async function CustomerDashboard({
     }
   }
 
-  const { data: savedOffers } = await supabase
+  const savedOffersQuery = supabase
     .from('saved_offers')
-    .select('id, offer_id')
+    .select('id, offer_id, is_demo, demo_group')
     .eq('user_id', resolvedCustomerProfileId)
+
+  const { data: savedOffers } = await applyEnvironmentScope(savedOffersQuery, environment)
 
   const savedOfferIds = new Set(
     (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
   )
 
-  const { data: redemptionData } = await (supabase as any)
+  const redemptionQuery = (supabase as any)
     .from('redemptions')
     .select(
-      'id, offer_id, created_at, status, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method'
+      'id, offer_id, created_at, status, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, is_demo, demo_group'
     )
     .eq('user_id', resolvedCustomerProfileId)
     .in('status', ['pending', 'confirmed', 'rejected'])
     .order('created_at', { ascending: true })
+
+  const { data: redemptionData } = await applyEnvironmentScope(
+    redemptionQuery,
+    environment
+  )
 
   const redemptionEvents = (redemptionData ?? []) as CustomerRedemptionEvent[]
   const activeRedemptions = redemptionEvents.filter(
@@ -235,9 +254,9 @@ export default async function CustomerDashboard({
     return {
       ...offer,
       business_name:
+        legacyBusiness?.name ||
         canonicalBusiness?.name ||
         canonicalBusiness?.google_business_name ||
-        legacyBusiness?.name ||
         'Local Business',
       phone:
         canonicalBusiness?.phone ||
@@ -264,8 +283,11 @@ export default async function CustomerDashboard({
   }
 
   const customerVisibleOfferRows = (offers ?? []).filter((offer) => {
+    const legacyBusiness = profileById.get(offer.business_id)
     const canonicalBusiness = canonicalBusinessByLegacyProfileId.get(offer.business_id)
-    return !canonicalBusiness || canonicalBusiness.status === 'active'
+
+    return Boolean(legacyBusiness) &&
+      (!canonicalBusiness || canonicalBusiness.status === 'active')
   })
   const activeOfferIds = new Set(customerVisibleOfferRows.map((offer) => offer.id))
   const enrichedOffers = customerVisibleOfferRows.map(enrichOffer)
@@ -286,12 +308,16 @@ export default async function CustomerDashboard({
     ...new Set(redemptionEvents.map((redemption) => redemption.offer_id)),
   ].filter((offerId) => !activeOfferIds.has(offerId))
 
-  const { data: historicalOffersData } = historicalOfferIds.length > 0
-    ? await supabase
+  const historicalOffersQuery = historicalOfferIds.length > 0
+    ? supabase
         .from('offers')
         .select('*')
         .in('id', historicalOfferIds)
         .order('created_at', { ascending: false })
+    : null
+
+  const { data: historicalOffersData } = historicalOffersQuery
+    ? await applyEnvironmentScope(historicalOffersQuery, environment)
     : { data: [] }
 
   const historicalOffers = (historicalOffersData ?? []).map(enrichOffer)
