@@ -9,10 +9,6 @@ import type {
   RedemptionMethodOption,
 } from './redemption-method'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type BusinessRedemptionSettingOption =
   RedemptionMethodOption & {
     isSelected: boolean
@@ -22,120 +18,78 @@ export type BusinessRedemptionSettingOption =
       | 'Coming Later'
   }
 
-export type BusinessRedemptionSettings =
-  {
-    selectedMethod:
-      RedemptionMethod
-    heading: string
-    description: string
-    helperText: string
-    options:
-      BusinessRedemptionSettingOption[]
-  }
-
-// =============================================================================
-// Settings guidance
-// =============================================================================
+export type BusinessRedemptionSettings = {
+  selectedMethod: RedemptionMethod
+  heading: string
+  description: string
+  helperText: string
+  options: BusinessRedemptionSettingOption[]
+}
 
 const BUSINESS_REDEMPTION_HEADING =
-  'Redemption Method'
+  'Redemption Workflow'
 
 const BUSINESS_REDEMPTION_DESCRIPTION =
-  'Choose how customers confirm an offer at your business.'
+  'RaiseHub records customer redemptions immediately and gives your business a 24-hour review window for exceptions.'
 
 const BUSINESS_REDEMPTION_HELPER_TEXT =
-  'Staff Confirmation is available now. Additional redemption methods will become selectable as they are released.'
-
-// =============================================================================
-// Option presentation
-// =============================================================================
+  '24-Hour Auto Validation is the default. Instant staff code confirmation is optional; QR, discount-code, and POS integrations will use the same redemption record as they are released.'
 
 function getBusinessRedemptionSettingOption({
   option,
   selectedMethod,
 }: {
-  option:
-    RedemptionMethodOption
-  selectedMethod:
-    RedemptionMethod
+  option: RedemptionMethodOption
+  selectedMethod: RedemptionMethod
 }): BusinessRedemptionSettingOption {
-  const isSelectable =
-    option.availability ===
-    'available'
+  const isSelectable = option.availability === 'available'
 
   return {
     ...option,
-    isSelected:
-      option.value ===
-      selectedMethod,
+    isSelected: option.value === selectedMethod,
     isSelectable,
-    statusLabel:
-      isSelectable
-        ? 'Available'
-        : 'Coming Later',
+    statusLabel: isSelectable ? 'Available' : 'Coming Later',
   }
 }
-
-// =============================================================================
-// Settings resolution
-// =============================================================================
 
 export function getBusinessRedemptionSettings(
   value: unknown
 ): BusinessRedemptionSettings {
-  const requestedMethod =
-    getRedemptionMethod(value)
+  const requestedMethod = getRedemptionMethod(value)
 
-  const selectedMethod =
-    getRedemptionMethodOptions()
-      .some(
-        (option) =>
-          option.value ===
-            requestedMethod &&
-          option.availability ===
-            'available'
-      )
-      ? requestedMethod
-      : DEFAULT_REDEMPTION_METHOD
+  const selectedMethod = getRedemptionMethodOptions().some(
+    (option) =>
+      option.value === requestedMethod &&
+      option.availability === 'available'
+  )
+    ? requestedMethod
+    : DEFAULT_REDEMPTION_METHOD
 
   return {
     selectedMethod,
-    heading:
-      BUSINESS_REDEMPTION_HEADING,
-    description:
-      BUSINESS_REDEMPTION_DESCRIPTION,
-    helperText:
-      BUSINESS_REDEMPTION_HELPER_TEXT,
-    options:
-      getRedemptionMethodOptions()
-        .map((option) =>
-          getBusinessRedemptionSettingOption({
-            option,
-            selectedMethod,
-          })
-        ),
+    heading: BUSINESS_REDEMPTION_HEADING,
+    description: BUSINESS_REDEMPTION_DESCRIPTION,
+    helperText: BUSINESS_REDEMPTION_HELPER_TEXT,
+    options: getRedemptionMethodOptions().map((option) =>
+      getBusinessRedemptionSettingOption({
+        option,
+        selectedMethod,
+      })
+    ),
   }
 }
-
-// =============================================================================
-// Save validation
-// =============================================================================
 
 export function canBusinessSelectRedemptionMethod(
   value: unknown
 ): value is RedemptionMethod {
-  const method =
-    getRedemptionMethod(value)
+  const method = getRedemptionMethod(value)
 
   return (
     method === value &&
-    getRedemptionMethodOptions()
-      .some(
-        (option) =>
-          option.value ===
-            method &&
-          option.availability ===
-            'available'
-      )
+    getRedemptionMethodOptions().some(
+      (option) =>
+        option.value === method &&
+        option.availability === 'available'
+    )
   )
 }
