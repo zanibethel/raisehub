@@ -55,6 +55,22 @@ export default function BusinessCommandCenter(props: Props) {
 
   return (
     <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+      <Link
+        href="/dashboard/redeem"
+        className="flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-green-300 bg-green-700 px-5 py-4 text-white shadow-lg transition hover:bg-green-800"
+      >
+        <span className="min-w-0">
+          <span className="block text-xs font-black uppercase tracking-[0.16em] text-green-100">
+            Customer at checkout
+          </span>
+          <span className="mt-1 block text-lg font-black">Confirm a Redemption</span>
+          <span className="mt-1 hidden text-sm text-green-50 sm:block">
+            Enter the supporter’s 6-character RaiseHub confirmation code.
+          </span>
+        </span>
+        <span className="shrink-0 text-3xl" aria-hidden="true">→</span>
+      </Link>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
         <WorkspaceModule
           title="Customer activity"
