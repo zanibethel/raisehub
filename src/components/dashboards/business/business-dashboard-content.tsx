@@ -13,6 +13,7 @@ import BusinessDashboardQuickActions from './business-dashboard-quick-actions'
 import BusinessDashboardSnapshot from './business-dashboard-snapshot'
 import BusinessExportTools, { type BusinessExportRow } from './business-export-tools'
 import BusinessLifecycleBanner from './business-lifecycle-banner'
+import BusinessRedemptionRejectButton from './business-redemption-reject-button'
 import BusinessDashboardOffersSection from './offers/offers-section'
 import BusinessRedemptionSettingsSection from './sections/business-redemption-settings-section'
 
@@ -20,7 +21,7 @@ import type {
   BusinessOffer,
   OfferRedemption,
 } from '@/app/components/business-offer-card'
-import type { BusinessWorkspaceView } from './business-dashboard'
+import type { BusinessWorkspaceView, RedemptionRow } from './business-dashboard'
 
 type BusinessProfile = {
   business_name: string | null
@@ -48,7 +49,10 @@ export type BusinessDashboardContentProps = {
   offers: BusinessOffer[]
   totalRedemptions: number
   uniqueSupporters: number
+  pendingRedemptionCount: number
+  rejectedRedemptionCount: number
   totalCustomerValueDelivered: number
+  redemptionActivity: RedemptionRow[]
   activeOffersCount: number
   activeOfferLimit: number
   hasReachedLimit: boolean
@@ -90,12 +94,14 @@ function formatCustomerValue(value: number | string | null | undefined): string 
 
 function formatVerificationMethod(value: string | null | undefined): string {
   switch (value) {
+    case 'auto_validation':
+      return '24-hour auto validation'
     case 'staff_confirmation':
-      return 'Staff confirmation'
+      return 'Instant staff verification'
     case 'qr_code':
       return 'QR code'
     case 'staff_code':
-      return 'Staff code'
+      return 'POS discount code'
     case 'square':
       return 'Square'
     case 'legacy_self':
@@ -105,52 +111,85 @@ function formatVerificationMethod(value: string | null | undefined): string {
   }
 }
 
+function formatRedemptionStatus(value: string | null | undefined): string {
+  switch (value) {
+    case 'pending':
+      return 'Pending review'
+    case 'confirmed':
+      return 'Confirmed'
+    case 'rejected':
+      return 'Rejected'
+    case 'voided':
+      return 'Voided'
+    default:
+      return value?.trim() || 'Unknown'
+  }
+}
+
+function getStatusClasses(value: string | null | undefined): string {
+  switch (value) {
+    case 'pending':
+      return 'bg-amber-50 text-amber-800'
+    case 'confirmed':
+      return 'bg-green-50 text-green-700'
+    case 'rejected':
+      return 'bg-red-50 text-red-700'
+    case 'voided':
+      return 'bg-slate-100 text-slate-600'
+    default:
+      return 'bg-slate-100 text-slate-600'
+  }
+}
+
+function formatAutoConfirm(value: string | null): string {
+  if (!value) return 'Auto-confirm time unavailable'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Auto-confirm time unavailable'
+
+  return `Auto-confirms ${date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`
+}
+
 function buildBusinessExportRows({
   offers,
-  redemptionsByOfferId,
+  redemptionActivity,
   profileEmailById,
 }: {
   offers: BusinessOffer[]
-  redemptionsByOfferId: Record<string, BusinessReportRedemption[]>
+  redemptionActivity: RedemptionRow[]
   profileEmailById: Record<string, string>
 }): BusinessExportRow[] {
   const offerById = new Map(offers.map((offer) => [offer.id, offer]))
 
-  return Object.entries(redemptionsByOfferId)
-    .flatMap(([offerId, redemptions]) => {
-      const offer = offerById.get(offerId)
-      const offerStatus = offer
-        ? getOfferStatus({
-            startsAt: offer.starts_at,
-            endsAt: offer.ends_at,
-            isActive: offer.is_active,
-          })
-        : null
+  return redemptionActivity.map((redemption) => {
+    const offer = offerById.get(redemption.offer_id)
+    const offerStatus = offer
+      ? getOfferStatus({
+          startsAt: offer.starts_at,
+          endsAt: offer.ends_at,
+          isActive: offer.is_active,
+        })
+      : null
 
-      return redemptions.map((redemption) => ({
-        row: {
-          offerTitle:
-            redemption.offer_title_snapshot?.trim() ||
-            offer?.title?.trim() ||
-            'Untitled offer',
-          offerStatus: offerStatus?.label || 'Historical',
-          customerEmail:
-            profileEmailById[redemption.user_id] || 'Email unavailable',
-          redeemedAt: formatExportDate(redemption.created_at),
-          customerValue: formatCustomerValue(redemption.customer_value_snapshot),
-          verificationMethod: formatVerificationMethod(redemption.confirmation_method),
-          redemptionStatus:
-            redemption.status === 'voided' ? 'Voided' : 'Confirmed',
-        } satisfies BusinessExportRow,
-        createdAt: redemption.created_at,
-      }))
-    })
-    .sort((a, b) => {
-      const bTime = new Date(b.createdAt).getTime()
-      const aTime = new Date(a.createdAt).getTime()
-      return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0)
-    })
-    .map(({ row }) => row)
+    return {
+      offerTitle:
+        redemption.offer_title_snapshot?.trim() ||
+        offer?.title?.trim() ||
+        'Untitled offer',
+      offerStatus: offerStatus?.label || 'Historical',
+      customerEmail:
+        profileEmailById[redemption.user_id] || 'Email unavailable',
+      redeemedAt: formatExportDate(redemption.created_at),
+      customerValue: formatCustomerValue(redemption.customer_value_snapshot),
+      verificationMethod: formatVerificationMethod(redemption.confirmation_method),
+      redemptionStatus: formatRedemptionStatus(redemption.status),
+    }
+  })
 }
 
 function ReportsIcon() {
@@ -170,7 +209,10 @@ export default function BusinessDashboardContent({
   offers,
   totalRedemptions,
   uniqueSupporters,
+  pendingRedemptionCount,
+  rejectedRedemptionCount,
   totalCustomerValueDelivered,
+  redemptionActivity,
   activeOffersCount,
   activeOfferLimit,
   hasReachedLimit,
@@ -204,9 +246,10 @@ export default function BusinessDashboardContent({
       return status === 'active' || status === 'expiring-soon'
     })?.id ?? null
 
+  const offerById = new Map(offers.map((offer) => [offer.id, offer]))
   const businessExportRows = buildBusinessExportRows({
     offers,
-    redemptionsByOfferId,
+    redemptionActivity,
     profileEmailById,
   })
 
@@ -214,29 +257,47 @@ export default function BusinessDashboardContent({
     return (
       <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
         <WorkspaceMetricStrip
-          title="Confirmed redemptions"
+          title="Redemption activity"
           rangeLabel="all offers"
           metrics={[
             {
-              label: 'Redemptions',
+              label: 'Confirmed',
               value: totalRedemptions,
-              description: 'Business-confirmed offer uses',
+              description: 'Finalized offer uses',
               tone: 'blue',
+            },
+            {
+              label: 'Pending review',
+              value: pendingRedemptionCount,
+              description: 'Auto-confirms after 24 hours',
+              tone: 'amber',
             },
             {
               label: 'Unique supporters',
               value: uniqueSupporters,
-              description: 'Distinct customers who redeemed',
+              description: 'Distinct confirmed customers',
               tone: 'green',
             },
             {
               label: 'Customer value',
               value: `$${totalCustomerValueDelivered.toFixed(2)}`,
-              description: 'Business-set value delivered',
+              description: 'Confirmed business-set value',
               tone: 'amber',
             },
           ]}
         />
+
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+            Exception-based review
+          </p>
+          <p className="mt-1 text-sm font-bold text-green-950">
+            No action is needed for normal redemptions.
+          </p>
+          <p className="mt-1 text-sm leading-6 text-green-900">
+            Pending redemptions confirm automatically after 24 hours. Use “Report unauthorized” only when a redemption did not legitimately occur at your business. {rejectedRedemptionCount} rejected record{rejectedRedemptionCount === 1 ? '' : 's'} remain in the audit trail.
+          </p>
+        </div>
 
         <WorkspaceMetricStrip
           title="Customer activity"
@@ -265,8 +326,8 @@ export default function BusinessDashboardContent({
 
         <WorkspaceModule
           title="Redemption records"
-          eyebrow="Verified customer visits"
-          description="Each row is a confirmed redemption. Offer value and verification details are preserved even if the offer changes later."
+          eyebrow="Customer visits and review status"
+          description="Pending, confirmed, and rejected activity stays in one audit trail. Confirmed performance metrics count confirmed records only."
           icon={<ReportsIcon />}
           tone="blue"
           action={
@@ -276,44 +337,75 @@ export default function BusinessDashboardContent({
             />
           }
         >
-          {businessExportRows.length > 0 ? (
+          {redemptionActivity.length > 0 ? (
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
-              {businessExportRows.slice(0, 8).map((row, index) => (
-                <div
-                  key={`${row.offerTitle}-${row.redeemedAt}-${index}`}
-                  className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto] sm:items-center sm:gap-4"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-bold text-slate-950">{row.offerTitle}</p>
-                    <p className="mt-1 text-xs font-semibold text-blue-700">
-                      {row.offerStatus} · {row.verificationMethod}
-                    </p>
+              {redemptionActivity.slice(0, 12).map((redemption) => {
+                const offer = offerById.get(redemption.offer_id)
+                const offerTitle =
+                  redemption.offer_title_snapshot?.trim() ||
+                  offer?.title?.trim() ||
+                  'Untitled offer'
+
+                return (
+                  <div
+                    key={redemption.id}
+                    className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_auto] lg:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-slate-950">{offerTitle}</p>
+                      <p className="mt-1 text-xs font-semibold text-blue-700">
+                        {formatVerificationMethod(redemption.confirmation_method)}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-slate-600">
+                        {profileEmailById[redemption.user_id] || 'Email unavailable'}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-green-700">
+                        {formatCustomerValue(redemption.customer_value_snapshot)} customer value
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${getStatusClasses(redemption.status)}`}>
+                        {formatRedemptionStatus(redemption.status)}
+                      </span>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatExportDate(redemption.created_at)}
+                      </p>
+                      {redemption.status === 'pending' ? (
+                        <p className="mt-1 text-xs font-semibold text-amber-700">
+                          {formatAutoConfirm(redemption.auto_confirm_at)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {redemption.status === 'pending' ? (
+                      <BusinessRedemptionRejectButton redemptionId={redemption.id} />
+                    ) : (
+                      <div className="text-xs text-slate-400">
+                        {redemption.status === 'rejected'
+                          ? 'Kept for audit history'
+                          : 'No action needed'}
+                      </div>
+                    )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-slate-600">{row.customerEmail}</p>
-                    <p className="mt-1 text-xs font-bold text-green-700">
-                      {row.customerValue} customer value
-                    </p>
-                  </div>
-                  <div className="sm:text-right">
-                    <p className="text-sm text-slate-500">{row.redeemedAt}</p>
-                    <p className="mt-1 text-xs font-bold text-green-700">{row.redemptionStatus}</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
-              <p className="font-bold text-slate-900">No confirmed redemptions yet</p>
+              <p className="font-bold text-slate-900">No redemptions recorded yet</p>
               <p className="mt-1 text-sm text-slate-500">
-                Confirmed customer activity will appear here after staff approves a supporter’s redemption code.
+                Customer redemptions will appear here immediately. Normal activity requires no staff approval.
               </p>
             </div>
           )}
 
-          {businessExportRows.length > 8 ? (
+          {redemptionActivity.length > 12 ? (
             <p className="mt-3 text-sm text-slate-500">
-              Showing the 8 most recent records. Export CSV for the complete report.
+              Showing the 12 most recent records. Export CSV for the complete report.
             </p>
           ) : null}
         </WorkspaceModule>
