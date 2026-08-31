@@ -11,7 +11,7 @@ test('provides business-facing exception-review guidance', () => {
 
   assert.equal(settings.heading, 'Redemption Workflow')
   assert.match(settings.description, /24-hour review window/i)
-  assert.match(settings.helperText, /auto validation is the default/i)
+  assert.match(settings.helperText, /core workflow/i)
   assert.match(settings.helperText, /pos integrations/i)
 })
 
@@ -24,19 +24,8 @@ test('selects auto validation by default', () => {
   assert.equal(selectedOptions[0].value, 'auto_validation')
 })
 
-test('preserves available selected methods', () => {
-  assert.equal(
-    getBusinessRedemptionSettings('auto_validation').selectedMethod,
-    'auto_validation'
-  )
-  assert.equal(
-    getBusinessRedemptionSettings('staff_confirmation').selectedMethod,
-    'staff_confirmation'
-  )
-})
-
-test('falls back when a planned method is requested', () => {
-  for (const method of ['qr_code', 'staff_code', 'square']) {
+test('keeps supplemental and planned methods from replacing auto validation', () => {
+  for (const method of ['staff_confirmation', 'qr_code', 'staff_code', 'square']) {
     assert.equal(
       getBusinessRedemptionSettings(method).selectedMethod,
       'auto_validation'
@@ -60,22 +49,26 @@ test('returns every business redemption option', () => {
   )
 })
 
-test('marks auto validation and staff confirmation as selectable', () => {
+test('marks only auto validation as selectable', () => {
   const settings = getBusinessRedemptionSettings(undefined)
   const selectableOptions = settings.options
     .filter(({ isSelectable }) => isSelectable)
     .map(({ value }) => value)
 
-  assert.deepEqual(selectableOptions, ['auto_validation', 'staff_confirmation'])
+  assert.deepEqual(selectableOptions, ['auto_validation'])
 })
 
-test('uses the correct availability labels', () => {
+test('uses workflow, optional-tool, and future labels correctly', () => {
   const settings = getBusinessRedemptionSettings(undefined)
 
-  for (const method of ['auto_validation', 'staff_confirmation']) {
-    const option = settings.options.find(({ value }) => value === method)
-    assert.equal(option?.statusLabel, 'Available')
-  }
+  assert.equal(
+    settings.options.find(({ value }) => value === 'auto_validation')?.statusLabel,
+    'Current Workflow'
+  )
+  assert.equal(
+    settings.options.find(({ value }) => value === 'staff_confirmation')?.statusLabel,
+    'Optional Tool'
+  )
 
   for (const method of ['qr_code', 'staff_code', 'square']) {
     const option = settings.options.find(({ value }) => value === method)
@@ -83,12 +76,9 @@ test('uses the correct availability labels', () => {
   }
 })
 
-test('allows the business to select available methods', () => {
+test('only allows the business to persist the core workflow', () => {
   assert.equal(canBusinessSelectRedemptionMethod('auto_validation'), true)
-  assert.equal(canBusinessSelectRedemptionMethod('staff_confirmation'), true)
-})
-
-test('prevents the business from selecting planned methods', () => {
+  assert.equal(canBusinessSelectRedemptionMethod('staff_confirmation'), false)
   assert.equal(canBusinessSelectRedemptionMethod('qr_code'), false)
   assert.equal(canBusinessSelectRedemptionMethod('staff_code'), false)
   assert.equal(canBusinessSelectRedemptionMethod('square'), false)
