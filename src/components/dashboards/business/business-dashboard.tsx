@@ -34,6 +34,18 @@ type ProfileQueryError = {
   message?: string | null
 }
 
+type RedemptionRow = {
+  offer_id: string
+  user_id: string
+  created_at: string
+  offer_title_snapshot: string | null
+  benefit_snapshot: string | null
+  customer_value_snapshot: number | string | null
+  usage_rule_snapshot: string | null
+  confirmation_method: string | null
+  status: string | null
+}
+
 const BUSINESS_PROFILE_FIELDS =
   'business_name, phone, address, google_maps_url, logo_url, website_url, display_name'
 const BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION =
@@ -47,6 +59,15 @@ function isMissingRedemptionMethodError(error: ProfileQueryError | null): boolea
     error.code === 'PGRST204' ||
     error.message?.toLowerCase().includes('redemption_method') === true
   )
+}
+
+function toCustomerValue(value: number | string | null): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
 }
 
 export default async function BusinessDashboard({
@@ -126,17 +147,20 @@ export default async function BusinessDashboard({
   const conversionRate =
     viewCount > 0 ? ((clickCount / viewCount) * 100).toFixed(1) : '0'
 
-  const { data: redemptions } =
+  const { data: redemptionData } =
     offerIds.length > 0
       ? await supabase
           .from('redemptions')
-          .select('offer_id, user_id, created_at')
+          .select(
+            'offer_id, user_id, created_at, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, status'
+          )
           .in('offer_id', offerIds)
+          .eq('status', 'confirmed')
+          .order('created_at', { ascending: false })
       : { data: [] }
 
-  const redeemedUserIds = [
-    ...new Set((redemptions ?? []).map((redemption) => redemption.user_id)),
-  ]
+  const redemptions = (redemptionData ?? []) as RedemptionRow[]
+  const redeemedUserIds = [...new Set(redemptions.map((redemption) => redemption.user_id))]
 
   const { data: redeemedProfiles } =
     redeemedUserIds.length > 0
@@ -148,14 +172,19 @@ export default async function BusinessDashboard({
 
   const redemptionCountByOfferId = new Map<string, number>()
 
-  for (const redemption of redemptions ?? []) {
+  for (const redemption of redemptions) {
     redemptionCountByOfferId.set(
       redemption.offer_id,
       (redemptionCountByOfferId.get(redemption.offer_id) ?? 0) + 1
     )
   }
 
-  const totalRedemptions = (redemptions ?? []).length
+  const totalRedemptions = redemptions.length
+  const uniqueSupporters = redeemedUserIds.length
+  const totalCustomerValueDelivered = redemptions.reduce(
+    (total, redemption) => total + toCustomerValue(redemption.customer_value_snapshot),
+    0
+  )
 
   const activeOffers = (offers ?? []).filter(
     (offer) =>
@@ -186,19 +215,11 @@ export default async function BusinessDashboard({
     ])
   )
 
-  const redemptionsByOfferId = new Map<
-    string,
-    { user_id: string; created_at: string }[]
-  >()
+  const redemptionsByOfferId = new Map<string, RedemptionRow[]>()
 
-  for (const redemption of redemptions ?? []) {
+  for (const redemption of redemptions) {
     const existing = redemptionsByOfferId.get(redemption.offer_id) ?? []
-
-    existing.push({
-      user_id: redemption.user_id,
-      created_at: redemption.created_at,
-    })
-
+    existing.push(redemption)
     redemptionsByOfferId.set(redemption.offer_id, existing)
   }
 
@@ -208,6 +229,8 @@ export default async function BusinessDashboard({
       profile={profile}
       offers={offers ?? []}
       totalRedemptions={totalRedemptions}
+      uniqueSupporters={uniqueSupporters}
+      totalCustomerValueDelivered={totalCustomerValueDelivered}
       activeOffersCount={activeOffers.length}
       activeOfferLimit={FREE_ACTIVE_OFFER_LIMIT}
       hasReachedLimit={hasReachedLimit}
