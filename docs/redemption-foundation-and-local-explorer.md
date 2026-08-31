@@ -203,22 +203,22 @@ Reports should expose only the supporter information the business genuinely need
 
 # Supporter Redemption History & Savings
 
-My Pass / customer dashboard should show redemption history including:
+My Pass / customer dashboard now operates on individual **redemption events**, not only unique offer IDs. This preserves every daily, weekly, and unlimited use separately.
 
-- business
-- offer
-- date redeemed
-- redemption state where useful
-- customer value
-- current availability when reusable
+The implemented history/savings foundation includes:
 
-A pending redemption should immediately affect offer availability, but only confirmed redemptions should count toward verified savings and rewards.
+- one history entry per redemption event
+- business and offer context
+- redemption date/time
+- pending, confirmed, and rejected state presentation
+- historical title/benefit snapshots where available
+- reusable-offer repeat uses preserved independently
+- pending redemptions immediately affecting reuse eligibility
+- rejected redemptions no longer blocking eligibility
+- confirmed-only verified savings totals
+- each confirmed reusable use contributing its own fixed-dollar savings event
 
-### Known hardening item
-
-Reusable offers can create multiple redemption events. Customer history and savings must ultimately operate on **redemption events**, not only unique offer IDs, so daily/weekly/unlimited uses are represented and totaled correctly.
-
-This event-level history upgrade should be completed before Local Explorer uses redemption history for milestone calculations.
+This event-level history is the correct foundation for future Local Explorer milestone calculations.
 
 ---
 
@@ -275,15 +275,15 @@ Examples:
 
 ## Before / At Launch
 
-1. Finish supporter redemption UX.
-2. Finish 24-hour business exception-review workflow.
-3. Keep redemption creation authoritative and server validated.
-4. Enforce one-time/daily/weekly/unlimited rules server-side.
-5. Keep confirmed analytics separate from pending/rejected activity.
-6. Complete business redemption reporting and export QA.
-7. Verify redemption and reporting end-to-end on mobile and desktop.
-8. Verify demo/production isolation.
-9. Harden event-level supporter history for reusable offers.
+1. Finish supporter redemption UX. — **Implemented; end-to-end QA remains.**
+2. Finish 24-hour business exception-review workflow. — **Implemented; end-to-end QA remains.**
+3. Keep redemption creation authoritative and server validated. — **Implemented.**
+4. Enforce one-time/daily/weekly/unlimited rules server-side. — **Implemented.**
+5. Keep confirmed analytics separate from pending/rejected activity. — **Implemented.**
+6. Preserve event-level supporter history and savings for reusable offers. — **Implemented.**
+7. Complete business redemption reporting and export QA.
+8. Verify redemption and reporting end-to-end on mobile and desktop.
+9. Verify demo/production isolation.
 
 ## After Launch
 
