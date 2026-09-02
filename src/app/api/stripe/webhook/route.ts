@@ -220,6 +220,7 @@ async function synchronizeConnectedAccount(
   const { error: updateError } = await admin
     .from('organization_stripe_accounts')
     .update({
+      livemode: event.livemode,
       onboarding_status: connectOnboardingStatus(account),
       details_submitted: Boolean(account.details_submitted),
       charges_enabled: Boolean(account.charges_enabled),
