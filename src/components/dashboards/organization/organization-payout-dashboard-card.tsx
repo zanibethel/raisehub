@@ -65,7 +65,7 @@ function getStatusCopy(status: StripeStatus | null, checking: boolean) {
     badgeClassName: 'bg-amber-50 text-amber-700',
     title: 'Set up secure campaign payouts',
     body: status?.blockers[0] ?? 'Connect and verify your organization with Stripe before campaign proceeds can be transferred.',
-    button: 'Set up payouts with Stripe',
+    button: 'Set up Stripe payouts',
   }
 }
 
@@ -134,31 +134,33 @@ export default function OrganizationPayoutDashboardCard() {
     setLoading(false)
   }
 
-  const modeLabel = stripeStatus?.mode === 'live' ? 'Live mode' : 'Test mode'
+  const environmentLabel = stripeStatus?.mode === 'live' ? 'Live payouts' : 'Test payouts'
 
   return (
     <details id="organization-payouts" className={isReady ? 'group py-3' : 'group my-3 scroll-mt-6 rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm'}>
-      <summary className={isReady ? 'flex cursor-pointer list-none items-center justify-between gap-4' : 'flex cursor-pointer list-none items-center justify-between gap-4 p-5 sm:p-6'}>
+      <summary className={isReady ? 'flex cursor-pointer list-none items-center justify-between gap-3' : 'flex cursor-pointer list-none items-start justify-between gap-3 p-4 sm:p-5'}>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-gray-900">Payouts & Stripe</p>
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${copy.badgeClassName}`}>{copy.badge}</span>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{modeLabel}</span>
+            {stripeStatus ? (
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{environmentLabel}</span>
+            ) : null}
           </div>
           {!isReady ? (
             <>
-              <h2 className="mt-2 text-xl font-bold text-gray-900">{copy.title}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">{copy.body}</p>
+              <h2 className="mt-2 text-lg font-bold leading-6 text-gray-900 sm:text-xl">{copy.title}</h2>
+              <p className="mt-1.5 max-w-2xl text-sm leading-5 text-gray-600 sm:leading-6">{copy.body}</p>
             </>
           ) : null}
         </div>
 
-        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">{isReady ? 'View' : 'Fix'}</span>
+        <span className="shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:hidden">{isReady ? 'View' : 'Open'}</span>
         <span className="hidden shrink-0 rounded-full bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 group-open:inline">Hide</span>
       </summary>
 
-      <div className={isReady ? 'mt-3 border-t border-blue-100 pt-4' : 'border-t border-amber-200 p-5 sm:p-6'}>
-        <p className="text-sm leading-6 text-gray-600">{copy.body}</p>
+      <div className={isReady ? 'mt-3 border-t border-blue-100 pt-4' : 'border-t border-amber-200 p-4 sm:p-5'}>
+        <p className="text-sm leading-5 text-gray-600 sm:leading-6">{copy.body}</p>
         {!isReady && stripeStatus?.blockers.length ? (
           <ul className="mt-3 space-y-2 text-sm text-amber-900">
             {stripeStatus.blockers.map((blocker) => (
@@ -168,8 +170,8 @@ export default function OrganizationPayoutDashboardCard() {
         ) : null}
         <p className="mt-2 text-xs font-medium text-blue-700">
           {stripeStatus?.mode === 'live'
-            ? 'This environment expects a live Stripe connected account.'
-            : 'This environment uses Stripe test mode. No real funds or live connected accounts will be created.'}
+            ? 'Live campaign proceeds will remain held until Stripe payout setup is complete.'
+            : 'This environment uses Stripe test payouts. No real funds or live connected accounts will be created.'}
         </p>
         <button type="button" onClick={handleOnboarding} disabled={loading || checking || !organizationId} className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
           {loading ? 'Opening secure Stripe setup…' : copy.button}
