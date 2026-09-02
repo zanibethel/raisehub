@@ -24,6 +24,16 @@ type CampaignPurchase = {
   refunded_organization_amount_cents: number | null
   seller_name: string | null
   payment_status: string
+  stripe_checkout_session_id: string | null
+}
+
+type CampaignSeller = {
+  id: string
+  campaign_id: string
+  display_name: string | null
+  status: string
+  removed_at: string | null
+  disabled_at: string | null
 }
 
 type CampaignMetrics = {
@@ -75,6 +85,16 @@ function isProgressPurchase(purchase: CampaignPurchase) {
     isCampaignPurchaseProgressEligible(purchase.payment_status) ||
     purchase.payment_status?.trim().toLowerCase() === 'partially_refunded'
   )
+}
+
+function purchaseMatchesStripeMode(
+  purchase: CampaignPurchase,
+  expectedLivemode: boolean
+) {
+  const sessionId = purchase.stripe_checkout_session_id?.trim() ?? ''
+  return expectedLivemode
+    ? sessionId.startsWith('cs_live_')
+    : sessionId.startsWith('cs_test_')
 }
 
 function netPurchaseAmounts(purchase: CampaignPurchase) {
@@ -216,16 +236,31 @@ export default async function OrganizationDashboard({
   const campaignIds = organizationCampaigns.map((campaign) => campaign.id)
 
   let purchases: CampaignPurchase[] = []
+  let rosteredSellers: CampaignSeller[] = []
   if (campaignIds.length > 0) {
-    const { data } = await (supabase.from('campaign_purchases') as any)
-      .select(
-        'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status'
-      )
-      .in('campaign_id', campaignIds)
+    const [purchaseResult, sellerResult] = await Promise.all([
+      (supabase.from('campaign_purchases') as any)
+        .select(
+          'id, campaign_id, user_id, buyer_email, amount_paid, platform_fee, organization_earnings, refunded_amount_cents, refunded_organization_amount_cents, seller_name, payment_status, stripe_checkout_session_id'
+        )
+        .in('campaign_id', campaignIds),
+      canonicalOrganizationId
+        ? (supabase.from('campaign_sellers') as any)
+            .select('id, campaign_id, display_name, status, removed_at, disabled_at')
+            .eq('organization_id', canonicalOrganizationId)
+            .in('campaign_id', campaignIds)
+            .eq('status', 'active')
+            .is('removed_at', null)
+            .is('disabled_at', null)
+        : Promise.resolve({ data: [] }),
+    ])
 
-    purchases = ((data ?? []) as CampaignPurchase[]).filter(
-      isProgressPurchase
+    purchases = ((purchaseResult.data ?? []) as CampaignPurchase[]).filter(
+      (purchase) =>
+        isProgressPurchase(purchase) &&
+        purchaseMatchesStripeMode(purchase, expectedLivemode)
     )
+    rosteredSellers = (sellerResult.data ?? []) as CampaignSeller[]
   }
 
   const totalPassesSold = purchases.length
@@ -245,8 +280,19 @@ export default async function OrganizationDashboard({
 
   const metricsByCampaign = new Map<string, CampaignMetrics>()
   const supportersByCampaign = new Map<string, Set<string>>()
-  const sellersByCampaign = new Map<string, Set<string>>()
   const supporterKeys = new Set<string>()
+
+  for (const seller of rosteredSellers) {
+    const existing = metricsByCampaign.get(seller.campaign_id) ?? {
+      supporterCount: 0,
+      sellerCount: 0,
+      gross: 0,
+      fees: 0,
+      amountRaised: 0,
+    }
+    existing.sellerCount += 1
+    metricsByCampaign.set(seller.campaign_id, existing)
+  }
 
   for (const purchase of purchases) {
     const existing = metricsByCampaign.get(purchase.campaign_id) ?? {
@@ -269,15 +315,6 @@ export default async function OrganizationDashboard({
     campaignSupporters.add(supporterKey)
     existing.supporterCount = campaignSupporters.size
     supportersByCampaign.set(purchase.campaign_id, campaignSupporters)
-
-    const seller = purchase.seller_name?.trim()
-    if (seller) {
-      const campaignSellers =
-        sellersByCampaign.get(purchase.campaign_id) ?? new Set<string>()
-      campaignSellers.add(seller)
-      existing.sellerCount = campaignSellers.size
-      sellersByCampaign.set(purchase.campaign_id, campaignSellers)
-    }
 
     metricsByCampaign.set(purchase.campaign_id, existing)
   }
@@ -329,7 +366,7 @@ export default async function OrganizationDashboard({
       totalEarnings={totalEarnings}
       activeCampaigns={activeCampaigns}
       totalFundsRaised={totalEarnings}
-      totalSellers={sellerStats.size}
+      totalSellers={rosteredSellers.length}
       totalSupporters={supporterKeys.size}
       grossRevenue={grossRevenue}
       totalFees={totalFees}
@@ -338,7 +375,7 @@ export default async function OrganizationDashboard({
       sellerCampaigns={sellableCampaigns}
       metricsByCampaign={Object.fromEntries(metricsByCampaign)}
       totalCampaigns={organizationCampaigns.length}
-      activeSellerCount={sellerStats.size}
+      activeSellerCount={rosteredSellers.length}
       campaignCreationPricing={{
         passPrice: campaignCreationPricing.passPrice,
         platformFeePercent:
