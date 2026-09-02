@@ -24,14 +24,22 @@ type OrganizationMembershipRow = {
   organization_id: string
 }
 
+function isLiveStripeEnvironment() {
+  return process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
+}
+
 async function resolveOrigin() {
+  if (isLiveStripeEnvironment()) {
+    return 'https://www.raisehub.app'
+  }
+
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (configured) return configured.replace(/\/$/, '')
+
   const requestHeaders = await headers()
   const origin = requestHeaders.get('origin')?.trim()
 
   if (origin) return origin.replace(/\/$/, '')
-
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (configured) return configured.replace(/\/$/, '')
 
   const vercelUrl = process.env.VERCEL_URL?.trim()
   if (vercelUrl) return `https://${vercelUrl.replace(/\/$/, '')}`
@@ -55,18 +63,18 @@ function connectErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ''
 
   if (message.includes("only create new accounts if you've signed up for Connect")) {
-    return 'Stripe Connect has not finished activating API-created test accounts for RaiseHub yet. Complete or confirm the platform review in Stripe, then try again.'
+    return 'Stripe Connect is not fully enabled for this RaiseHub account yet. Complete or confirm the Connect platform setup in Stripe, then try again.'
   }
 
   if (message.includes('STRIPE_SECRET_KEY is not configured')) {
-    return 'Stripe test-mode credentials are not configured for this deployment.'
+    return 'Stripe credentials are not configured for this deployment.'
   }
 
   if (
     message.includes('Stripe live mode is disabled') ||
     message.includes('not a test-mode key')
   ) {
-    return 'RaiseHub blocked this request because the configured Stripe key is not a test-mode key.'
+    return 'RaiseHub blocked this request because the configured Stripe environment does not match this workspace.'
   }
 
   if (message.toLowerCase().includes('account link')) {
@@ -163,6 +171,7 @@ export async function startOrganizationStripeOnboardingAction(
 
   try {
     const stripe = getStripeClient()
+    const liveMode = isLiveStripeEnvironment()
     let accountId = existingAccount?.stripe_account_id ?? null
 
     if (!accountId) {
@@ -194,7 +203,7 @@ export async function startOrganizationStripeOnboardingAction(
         .insert({
           organization_id: organization.id,
           stripe_account_id: account.id,
-          livemode: false,
+          livemode: liveMode,
           onboarding_status: onboardingStatus(account),
           details_submitted: account.details_submitted,
           charges_enabled: account.charges_enabled,
@@ -224,6 +233,7 @@ export async function startOrganizationStripeOnboardingAction(
       .from('organization_stripe_accounts')
       .update({
         onboarding_status: 'in_progress',
+        livemode: liveMode,
         updated_at: new Date().toISOString(),
       })
       .eq('organization_id', organization.id)
