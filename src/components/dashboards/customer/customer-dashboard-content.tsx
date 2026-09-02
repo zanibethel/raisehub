@@ -3,312 +3,194 @@
 import { useState } from 'react'
 
 import {
-  getCustomerDealFilterMatchLabel,
-  getCustomerDealShortcutAriaLabel,
-  getCustomerDealShortcutCardClasses,
-  getCustomerDealShortcutCountClasses,
-  getCustomerDealShortcutHeadingClasses,
-  getCustomerDealShortcutStatus,
-  getCustomerDealShortcutStatusClasses,
-} from './customer-deal-shortcuts'
-import {
   CUSTOMER_DEAL_FILTER_OPTIONS,
   DEFAULT_CUSTOMER_DEAL_FILTER,
   filterCustomerDeals,
-  getCustomerDealEmptyMessage,
   getCustomerDealFilterCounts,
-  getCustomerDealFilterLabel,
   type CustomerDealFilter,
 } from './customer-deal-filters'
 import CustomerAvailableDealsSection from './sections/customer-available-deals-section'
-import CustomerNearbyBusinessesSection from './sections/customer-nearby-businesses-section'
-import CustomerNextStepSection from './sections/customer-next-step-section'
-import CustomerNotificationCenter from './sections/customer-notification-center'
-import CustomerPassesSection from './sections/customer-passes-section'
-import CustomerRecommendationsSection from './sections/customer-recommendations-section'
-import CustomerRedemptionHistorySection from './sections/customer-redemption-history-section'
-import CustomerSavedDealsSection from './sections/customer-saved-deals-section'
-import CustomerSavingsSection from './sections/customer-savings-section'
 
 import type { CustomerRedemptionEvent } from './customer-redemption-history'
-
-type PassesProps = React.ComponentProps<typeof CustomerPassesSection>
-type SavedDealsProps = React.ComponentProps<typeof CustomerSavedDealsSection>
-type AvailableDealsProps = React.ComponentProps<typeof CustomerAvailableDealsSection>
+import type {
+  CustomerDashboardOffer,
+  OrganizationLookup,
+  PurchasedPass,
+} from '@/types/customer-dashboard'
 
 type Props = {
-  purchasedPasses: PassesProps['purchasedPasses']
-  organizationById: PassesProps['organizationById']
-  enrichedOffers: AvailableDealsProps['enrichedOffers']
-  historicalOffers?: AvailableDealsProps['enrichedOffers']
-  savedOfferIds: SavedDealsProps['savedOfferIds']
-  redeemedOfferIds: SavedDealsProps['redeemedOfferIds']
+  purchasedPasses: PurchasedPass[]
+  organizationById: Map<string, OrganizationLookup>
+  enrichedOffers: CustomerDashboardOffer[]
+  historicalOffers?: CustomerDashboardOffer[]
+  savedOfferIds: Set<string>
+  redeemedOfferIds: Set<string>
   redemptionEvents: CustomerRedemptionEvent[]
   confirmedRedemptionEvents: CustomerRedemptionEvent[]
   redeemableOfferIds: Set<string>
-  redemptionDateByOfferId: SavedDealsProps['redemptionDateByOfferId']
-  hasPurchasedPass: AvailableDealsProps['hasPurchasedPass']
+  redemptionDateByOfferId: Map<string, string>
+  hasPurchasedPass: boolean
 }
 
-export default function CustomerDashboardContent({
-  purchasedPasses,
-  organizationById,
-  enrichedOffers,
-  historicalOffers = [],
-  savedOfferIds,
-  redeemedOfferIds,
-  redemptionEvents,
-  confirmedRedemptionEvents,
-  redeemableOfferIds,
-  redemptionDateByOfferId,
-  hasPurchasedPass,
-}: Props) {
+function matchesDealSearch(
+  offer: CustomerDashboardOffer,
+  query: string,
+  hasPurchasedPass: boolean
+) {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  const publicFields = [
+    offer.business_name,
+    offer.address,
+    offer.google_primary_category,
+    offer.google_business_name,
+    typeof offer.customer_value === 'number' ? String(offer.customer_value) : '',
+  ]
+
+  const memberFields = hasPurchasedPass
+    ? [offer.title, offer.discount, offer.description, offer.usage_rule]
+    : []
+
+  return [...publicFields, ...memberFields].some((value) =>
+    String(value ?? '').toLowerCase().includes(normalizedQuery)
+  )
+}
+
+export default function CustomerDashboardContent(props: Props) {
   const [activeDealFilter, setActiveDealFilter] = useState<CustomerDealFilter>(
     DEFAULT_CUSTOMER_DEAL_FILTER
   )
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const currentlyAvailableOffers = enrichedOffers.filter((offer) =>
-    redeemableOfferIds.has(offer.id)
+  const currentlyAvailableOffers = props.enrichedOffers.filter((offer) =>
+    props.redeemableOfferIds.has(offer.id)
   )
-
-  const customerHistoryOffers = [
-    ...new Map(
-      [...enrichedOffers, ...historicalOffers].map((offer) => [offer.id, offer])
-    ).values(),
-  ]
 
   const filterCounts = getCustomerDealFilterCounts({
     offers: currentlyAvailableOffers,
-    savedOfferIds,
+    savedOfferIds: props.savedOfferIds,
   })
 
-  const filteredOffers = filterCustomerDeals({
+  const filteredByCategory = filterCustomerDeals({
     offers: currentlyAvailableOffers,
     filter: activeDealFilter,
-    savedOfferIds,
+    savedOfferIds: props.savedOfferIds,
   })
 
-  const activeFilterLabel = getCustomerDealFilterLabel(activeDealFilter)
-  const filteredOfferMatchLabel = getCustomerDealFilterMatchLabel(
-    filteredOffers.length
+  const filteredOffers = filteredByCategory.filter((offer) =>
+    matchesDealSearch(offer, searchQuery, props.hasPurchasedPass)
   )
-  const emptyFilterMessage = getCustomerDealEmptyMessage(activeDealFilter)
 
-  const readyToUseDealCount = [...savedOfferIds].filter((offerId) =>
-    redeemableOfferIds.has(offerId)
-  ).length
+  const hasActiveSearch = searchQuery.trim().length > 0
+  const hasActiveFilter = activeDealFilter !== 'all'
 
-  function selectDealFilter(filter: CustomerDealFilter) {
-    if (filterCounts[filter] === 0) return
-
-    setActiveDealFilter(filter)
-
-    window.requestAnimationFrame(() => {
-      document.getElementById('available-offers')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    })
+  function clearSearchAndFilters() {
+    setSearchQuery('')
+    setActiveDealFilter('all')
   }
 
   return (
-    <div className="mt-8 space-y-8">
-      <div id="customer-updates" className="scroll-mt-6">
-        <CustomerNotificationCenter
-          hasActivePass={hasPurchasedPass}
-          enrichedOffers={currentlyAvailableOffers}
-          savedOfferIds={savedOfferIds}
-          redeemedOfferIds={redeemedOfferIds}
-        />
-      </div>
-
-      <CustomerNextStepSection
-        hasActivePass={hasPurchasedPass}
-        availableOfferCount={currentlyAvailableOffers.length}
-        savedDealCount={savedOfferIds.size}
-        readyToUseDealCount={readyToUseDealCount}
-        purchaseCount={purchasedPasses.length}
-      />
-
+    <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
       <section
-        aria-labelledby="customer-deal-shortcuts-heading"
-        className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-4 shadow-xl backdrop-blur sm:p-6"
+        id="available-offers"
+        aria-labelledby="explore-offers-heading"
+        className="scroll-mt-24"
       >
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Quick Access
-          </p>
-          <h2
-            id="customer-deal-shortcuts-heading"
-            className="mt-2 break-words text-2xl font-bold leading-tight text-gray-900"
-          >
-            Find the deals you need
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-gray-600">
-            Choose an available filter to update the deal list below.
-          </p>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {CUSTOMER_DEAL_FILTER_OPTIONS.map((option) => {
-            const count = filterCounts[option.id]
-            const isActive = activeDealFilter === option.id
-            const isDisabled = count === 0
-            const shortcutStatus = getCustomerDealShortcutStatus({
-              isActive,
-              isDisabled,
-            })
-
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={isActive}
-                aria-label={getCustomerDealShortcutAriaLabel({
-                  label: option.label,
-                  count,
-                })}
-                disabled={isDisabled}
-                onClick={() => selectDealFilter(option.id)}
-                className={`group min-h-32 min-w-0 rounded-2xl border p-4 text-left transition sm:min-h-36 sm:p-5 ${getCustomerDealShortcutCardClasses({
-                  filter: option.id,
-                  isActive,
-                  isDisabled,
-                })}`}
+        <div className="rounded-3xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex min-w-0 items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                Explore offers
+              </p>
+              <h1
+                id="explore-offers-heading"
+                className="mt-1 text-xl font-black leading-tight text-slate-950 sm:text-2xl"
               >
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <span aria-hidden="true" className="shrink-0 text-xl sm:text-2xl">
-                    {option.icon}
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold ${getCustomerDealShortcutCountClasses(
-                      option.id
-                    )}`}
-                  >
-                    {count}
-                  </span>
-                </div>
+                Find a local deal
+              </h1>
+            </div>
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+              {filteredOffers.length} {filteredOffers.length === 1 ? 'deal' : 'deals'}
+            </span>
+          </div>
 
-                <h3
-                  className={`mt-3 break-words text-sm font-semibold leading-snug text-gray-900 sm:mt-4 sm:text-base ${getCustomerDealShortcutHeadingClasses({
-                    filter: option.id,
-                    isDisabled,
-                  })}`}
+          <label htmlFor="deal-search" className="sr-only">
+            Search local offers
+          </label>
+          <div className="relative mt-4">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400"
+            >
+              ⌕
+            </span>
+            <input
+              id="deal-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search business, deal, category, or location"
+              autoComplete="off"
+              className="min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-base text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
+            />
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Deal filters">
+            {CUSTOMER_DEAL_FILTER_OPTIONS.map((option) => {
+              const count = filterCounts[option.id]
+              const isActive = option.id === activeDealFilter
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setActiveDealFilter(option.id)}
+                  className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+                    isActive
+                      ? 'border-blue-700 bg-blue-700 text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-200 hover:bg-blue-50'
+                  }`}
                 >
-                  {option.label}
-                </h3>
-                <p className="mt-1 hidden break-words text-sm leading-6 text-gray-600 sm:block">
-                  {option.description}
-                </p>
-                <p
-                  className={`mt-3 text-xs font-semibold ${getCustomerDealShortcutStatusClasses({
-                    isActive,
-                    isDisabled,
-                  })}`}
-                >
-                  {shortcutStatus}
-                </p>
-              </button>
-            )
-          })}
+                  <span aria-hidden="true">{option.icon}</span>
+                  <span>{option.label}</span>
+                  <span className={isActive ? 'text-blue-100' : 'text-slate-400'}>{count}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      <div id="nearby-businesses" className="scroll-mt-6">
-        <CustomerNearbyBusinessesSection
-          enrichedOffers={currentlyAvailableOffers}
-          hasActivePass={hasPurchasedPass}
+      {filteredOffers.length > 0 ? (
+        <CustomerAvailableDealsSection
+          hasPurchasedPass={props.hasPurchasedPass}
+          enrichedOffers={filteredOffers}
+          savedOfferIds={props.savedOfferIds}
         />
-      </div>
-
-      <div id="recommended-deals" className="scroll-mt-6">
-        <CustomerRecommendationsSection
-          enrichedOffers={currentlyAvailableOffers}
-          savedOfferIds={savedOfferIds}
-          redeemedOfferIds={redeemedOfferIds}
-          hasActivePass={hasPurchasedPass}
-        />
-      </div>
-
-      <div id="my-pass" className="scroll-mt-6">
-        <CustomerSavedDealsSection
-          enrichedOffers={customerHistoryOffers}
-          savedOfferIds={savedOfferIds}
-          redeemedOfferIds={redeemedOfferIds}
-          redeemableOfferIds={redeemableOfferIds}
-          redemptionDateByOfferId={redemptionDateByOfferId}
-        />
-      </div>
-
-      <div id="customer-savings" className="scroll-mt-6">
-        <CustomerSavingsSection
-          enrichedOffers={customerHistoryOffers}
-          redemptions={confirmedRedemptionEvents}
-        />
-      </div>
-
-      <div id="available-offers" className="scroll-mt-6">
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-4 flex min-w-0 flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Current Filter
-            </p>
-            <p className="mt-1 break-words font-semibold text-gray-900">
-              {activeFilterLabel}
-            </p>
-          </div>
-          <p className="shrink-0 text-sm text-gray-600">
-            {filteredOfferMatchLabel}
+      ) : (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            No matching deals
           </p>
-        </div>
-
-        {filteredOffers.length > 0 ? (
-          <CustomerAvailableDealsSection
-            hasPurchasedPass={hasPurchasedPass}
-            enrichedOffers={filteredOffers}
-            savedOfferIds={savedOfferIds}
-          />
-        ) : (
-          <section className="overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-5 shadow-lg sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              No Matching Deals
-            </p>
-            <h2 className="mt-2 break-words text-xl font-bold leading-snug text-gray-900">
-              {emptyFilterMessage.title}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              {emptyFilterMessage.description}
-            </p>
-            {activeDealFilter !== 'all' ? (
-              <button
-                type="button"
-                onClick={() => selectDealFilter('all')}
-                className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800 sm:w-auto"
-              >
-                Show All Available Offers
-              </button>
-            ) : null}
-          </section>
-        )}
-      </div>
-
-      <div id="redemption-history" className="scroll-mt-6">
-        <CustomerRedemptionHistorySection
-          enrichedOffers={customerHistoryOffers}
-          redemptions={redemptionEvents}
-        />
-      </div>
-
-      <div id="support-history" className="scroll-mt-6">
-        <CustomerPassesSection
-          purchasedPasses={purchasedPasses}
-          organizationById={organizationById}
-        />
-      </div>
+          <h2 className="mt-2 text-xl font-black text-slate-950">
+            Try a broader search
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
+            Change your search words or filters to see more participating local offers.
+          </p>
+          {hasActiveSearch || hasActiveFilter ? (
+            <button
+              type="button"
+              onClick={clearSearchAndFilters}
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-bold text-white"
+            >
+              Show all available offers
+            </button>
+          ) : null}
+        </section>
+      )}
     </div>
   )
 }
