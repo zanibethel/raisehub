@@ -1,9 +1,11 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import type Stripe from 'stripe'
 
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { evaluateOrganizationPayoutReadiness } from '@/lib/stripe/organization-payout-readiness'
+import { getStripeClient } from '@/lib/stripe/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -25,6 +27,7 @@ type StripeStatusResult =
   | { status: 'error'; message: string }
 
 type StripeAccountRow = {
+  stripe_account_id: string
   onboarding_status: string
   payouts_enabled: boolean
   details_submitted: boolean
@@ -36,6 +39,74 @@ type StripeAccountRow = {
 
 type OrganizationMembershipRow = {
   organization_id: string
+}
+
+function connectOnboardingStatus(account: Stripe.Account) {
+  if (account.charges_enabled && account.payouts_enabled) return 'enabled'
+  if (account.requirements?.disabled_reason) return 'restricted'
+  if (account.details_submitted) return 'in_progress'
+  return 'not_started'
+}
+
+async function refreshConnectedAccount(
+  admin: any,
+  row: StripeAccountRow
+): Promise<StripeAccountRow> {
+  if (!row.stripe_account_id?.startsWith('acct_')) return row
+
+  try {
+    const stripe = getStripeClient()
+    const account = await stripe.accounts.retrieve(row.stripe_account_id)
+
+    if ('deleted' in account && account.deleted) return row
+
+    const refreshed: StripeAccountRow = {
+      stripe_account_id: account.id,
+      onboarding_status: connectOnboardingStatus(account),
+      payouts_enabled: Boolean(account.payouts_enabled),
+      details_submitted: Boolean(account.details_submitted),
+      charges_enabled: Boolean(account.charges_enabled),
+      livemode: Boolean(account.livemode),
+      disabled_reason: account.requirements?.disabled_reason ?? null,
+      requirements_currently_due: account.requirements?.currently_due ?? [],
+    }
+
+    const timestamp = new Date().toISOString()
+    const { error } = await admin
+      .from('organization_stripe_accounts')
+      .update({
+        livemode: refreshed.livemode,
+        onboarding_status: refreshed.onboarding_status,
+        details_submitted: refreshed.details_submitted,
+        charges_enabled: refreshed.charges_enabled,
+        payouts_enabled: refreshed.payouts_enabled,
+        requirements_currently_due: refreshed.requirements_currently_due,
+        requirements_eventually_due: account.requirements?.eventually_due ?? [],
+        requirements_past_due: account.requirements?.past_due ?? [],
+        disabled_reason: refreshed.disabled_reason,
+        country: account.country ?? null,
+        default_currency: account.default_currency ?? null,
+        last_synced_at: timestamp,
+        updated_at: timestamp,
+      })
+      .eq('stripe_account_id', row.stripe_account_id)
+
+    if (error) {
+      console.error('Organization Stripe direct refresh persistence failed', {
+        stripeAccountId: row.stripe_account_id,
+        error,
+      })
+      return refreshed
+    }
+
+    return refreshed
+  } catch (error) {
+    console.error('Organization Stripe direct refresh failed', {
+      stripeAccountId: row.stripe_account_id,
+      error,
+    })
+    return row
+  }
 }
 
 export async function getOrganizationStripeStatusAction(): Promise<StripeStatusResult> {
@@ -104,7 +175,7 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
   const { data, error } = (await admin
     .from('organization_stripe_accounts')
     .select(
-      'onboarding_status, payouts_enabled, details_submitted, charges_enabled, livemode, disabled_reason, requirements_currently_due'
+      'stripe_account_id, onboarding_status, payouts_enabled, details_submitted, charges_enabled, livemode, disabled_reason, requirements_currently_due'
     )
     .eq('organization_id', organizationId)
     .maybeSingle()) as {
@@ -124,26 +195,28 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
     }
   }
 
-  const expectedLivemode = process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
+  const currentData = data ? await refreshConnectedAccount(admin, data) : null
+  const expectedLivemode =
+    process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
   const readiness = evaluateOrganizationPayoutReadiness({
-    accountExists: Boolean(data),
+    accountExists: Boolean(currentData),
     expectedLivemode,
-    livemode: data?.livemode ?? null,
-    onboardingStatus: data?.onboarding_status ?? 'not_started',
-    detailsSubmitted: data?.details_submitted ?? false,
-    payoutsEnabled: data?.payouts_enabled ?? false,
-    disabledReason: data?.disabled_reason ?? null,
-    requirementsCurrentlyDue: data?.requirements_currently_due ?? null,
+    livemode: currentData?.livemode ?? null,
+    onboardingStatus: currentData?.onboarding_status ?? 'not_started',
+    detailsSubmitted: currentData?.details_submitted ?? false,
+    payoutsEnabled: currentData?.payouts_enabled ?? false,
+    disabledReason: currentData?.disabled_reason ?? null,
+    requirementsCurrentlyDue: currentData?.requirements_currently_due ?? null,
   })
 
   return {
     status: 'ok',
     organizationId,
-    onboardingStatus: data?.onboarding_status ?? 'not_started',
-    payoutsEnabled: data?.payouts_enabled ?? false,
-    detailsSubmitted: data?.details_submitted ?? false,
-    chargesEnabled: data?.charges_enabled ?? false,
-    livemode: data?.livemode ?? null,
+    onboardingStatus: currentData?.onboarding_status ?? 'not_started',
+    payoutsEnabled: currentData?.payouts_enabled ?? false,
+    detailsSubmitted: currentData?.details_submitted ?? false,
+    chargesEnabled: currentData?.charges_enabled ?? false,
+    livemode: currentData?.livemode ?? null,
     payoutReady: readiness.ready,
     mode: readiness.mode,
     blockers: readiness.blockers.map((blocker) => blocker.message),
