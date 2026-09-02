@@ -34,6 +34,10 @@ type StripeAccountRow = {
   requirements_currently_due: unknown
 }
 
+type OrganizationMembershipRow = {
+  organization_id: string
+}
+
 export async function getOrganizationStripeStatusAction(): Promise<StripeStatusResult> {
   const supabase = await createClient()
   const {
@@ -54,7 +58,24 @@ export async function getOrganizationStripeStatusAction(): Promise<StripeStatusR
           (workspace.kind === 'organization' || workspace.kind === 'fundraising')
       )
     : null
-  const organizationId = selectedWorkspace?.workspaceId?.trim() || ''
+
+  let organizationId = selectedWorkspace?.workspaceId?.trim() || ''
+
+  if (!organizationId) {
+    const { data: memberships } = await supabase
+      .from('organization_memberships')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .in('membership_role', ['admin', 'manager'])
+      .limit(2)
+
+    const eligibleMemberships = (memberships ?? []) as OrganizationMembershipRow[]
+
+    if (eligibleMemberships.length === 1) {
+      organizationId = eligibleMemberships[0].organization_id
+    }
+  }
 
   if (!organizationId) {
     return {
