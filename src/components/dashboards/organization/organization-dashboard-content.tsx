@@ -40,6 +40,10 @@ function campaignStatusLabel(status?: string | null) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
+function metricValue(value: number) {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
 export default function OrganizationDashboardContent({
   view = 'dashboard',
   ...props
@@ -98,16 +102,16 @@ export default function OrganizationDashboardContent({
           description="Across all campaigns"
           tone="green"
         >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
             {[
-              ['Raised', `$${props.totalFundsRaised.toLocaleString()}`],
+              ['Raised', `$${metricValue(props.totalFundsRaised)}`],
               ['Passes', props.totalPassesSold.toLocaleString()],
               ['Supporters', props.totalSupporters.toLocaleString()],
               ['Campaigns', props.totalCampaigns.toLocaleString()],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl bg-slate-50 p-3 text-center">
-                <p className="text-xs font-bold text-slate-500">{label}</p>
-                <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
+              <div key={label} className="rounded-2xl bg-slate-50 px-3 py-2.5 text-center sm:p-3">
+                <p className="text-[11px] font-bold text-slate-500 sm:text-xs">{label}</p>
+                <p className="mt-0.5 text-lg font-black text-slate-950 sm:mt-1 sm:text-xl">{value}</p>
               </div>
             ))}
           </div>
@@ -170,21 +174,21 @@ export default function OrganizationDashboardContent({
         description="Across all campaigns"
         tone="green"
         action={
-          <Link href="/dashboard/reports" className="text-sm font-bold text-blue-700">
+          <Link href="/dashboard/reports" className="text-xs font-bold text-blue-700 sm:text-sm">
             View details
           </Link>
         }
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           {[
-            ['Raised', `$${props.totalFundsRaised.toLocaleString()}`],
+            ['Raised', `$${metricValue(props.totalFundsRaised)}`],
             ['Passes', props.totalPassesSold.toLocaleString()],
             ['Supporters', props.totalSupporters.toLocaleString()],
             ['Campaigns', props.totalCampaigns.toLocaleString()],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl bg-slate-50 p-3 text-center">
-              <p className="text-xs font-bold text-slate-500">{label}</p>
-              <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
+            <div key={label} className="rounded-2xl bg-slate-50 px-3 py-2.5 text-center sm:p-3">
+              <p className="text-[11px] font-bold text-slate-500 sm:text-xs">{label}</p>
+              <p className="mt-0.5 text-lg font-black text-slate-950 sm:mt-1 sm:text-xl">{value}</p>
             </div>
           ))}
         </div>
@@ -196,7 +200,7 @@ export default function OrganizationDashboardContent({
             title="Recommended actions"
             eyebrow="Needs your attention"
             badge={
-              <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-700">
+              <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-black text-rose-700 sm:px-3 sm:py-1 sm:text-xs">
                 {recommendedActions.length} {recommendedActions.length === 1 ? 'item' : 'items'}
               </span>
             }
@@ -204,13 +208,13 @@ export default function OrganizationDashboardContent({
           >
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {recommendedActions.map((action) => (
-                <Link key={action.title} href={action.href} className="flex items-center gap-3 p-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 font-black text-white">→</span>
+                <Link key={action.title} href={action.href} className="flex items-center gap-2.5 p-3 sm:gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white sm:h-10 sm:w-10 sm:text-base">→</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-bold text-slate-950">{action.title}</span>
-                    <span className="mt-0.5 block text-sm leading-5 text-slate-500">{action.description}</span>
+                    <span className="block text-sm font-bold leading-5 text-slate-950 sm:text-base">{action.title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-slate-500 sm:text-sm">{action.description}</span>
                   </span>
-                  <span className="text-xl text-slate-400">›</span>
+                  <span className="text-lg text-slate-400 sm:text-xl">›</span>
                 </Link>
               ))}
             </div>
@@ -219,10 +223,9 @@ export default function OrganizationDashboardContent({
 
         <WorkspaceModule
           title="Campaigns"
-          description={`${props.activeCampaigns} active · ${props.totalCampaigns} total`}
           tone="blue"
           action={
-            <Link href="/dashboard/campaigns" className="text-sm font-bold text-blue-700">
+            <Link href="/dashboard/campaigns" className="text-xs font-bold text-blue-700 sm:text-sm">
               Manage
             </Link>
           }
@@ -234,20 +237,24 @@ export default function OrganizationDashboardContent({
           }
         >
           {campaignPreview.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               {campaignPreview.map((campaign) => {
                 const metrics = props.metricsByCampaign[campaign.id]
                 return (
-                  <div key={campaign.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-black text-slate-950">{campaign.name || 'Untitled campaign'}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {metrics?.supporterCount ?? 0} supporters · ${metrics?.amountRaised?.toLocaleString() ?? '0'} raised
-                      </p>
+                  <div key={campaign.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 sm:p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-black leading-5 text-slate-950 sm:text-base sm:leading-6">
+                          {campaign.name || 'Untitled campaign'}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
+                          {metrics?.supporterCount ?? 0} supporters · ${metricValue(metrics?.amountRaised ?? 0)} raised
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 sm:px-3 sm:text-xs">
+                        {campaignStatusLabel(campaign.status)}
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                      {campaignStatusLabel(campaign.status)}
-                    </span>
                   </div>
                 )
               })}
