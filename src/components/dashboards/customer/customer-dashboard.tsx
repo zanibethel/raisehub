@@ -8,6 +8,7 @@ import {
 } from '@/lib/data-environment'
 import { getRedemptionAvailability } from '@/lib/redemption-rules'
 import { getCustomerPassAccess } from '@/lib/services/customer-pass-access-service'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 import CustomerActivityContent from './customer-activity-content'
@@ -71,6 +72,8 @@ export default async function CustomerDashboard({
 
   if (!user) return null
 
+  const admin = createAdminClient()
+
   await (supabase as any).rpc('finalize_due_redemptions')
 
   const resolvedCustomerProfileId = customerProfileId?.trim() || user.id
@@ -106,7 +109,7 @@ export default async function CustomerDashboard({
   ]
 
   const { data: organizationProfiles } = organizationIds.length > 0
-    ? await supabase
+    ? await admin
         .from('profiles')
         .select('id, business_name, display_name')
         .in('id', organizationIds)
@@ -144,7 +147,7 @@ export default async function CustomerDashboard({
 
   const { data: offers } = await applyEnvironmentScope(offersQuery, environment)
 
-  const profilesQuery = supabase
+  const profilesQuery = admin
     .from('profiles')
     .select('id, business_name, display_name, phone, address, google_maps_url, is_demo, demo_group')
 
@@ -164,7 +167,7 @@ export default async function CustomerDashboard({
     ])
   )
 
-  const { data: canonicalBusinessesData } = await supabase
+  const canonicalBusinessesQuery = admin
     .from('businesses')
     .select(`
       legacy_profile_id,
@@ -183,8 +186,15 @@ export default async function CustomerDashboard({
       google_maps_url,
       google_primary_category,
       google_rating,
-      google_review_count
+      google_review_count,
+      is_demo,
+      demo_group
     `)
+
+  const { data: canonicalBusinessesData } = await applyEnvironmentScope(
+    canonicalBusinessesQuery,
+    environment
+  )
 
   const canonicalBusinesses =
     (canonicalBusinessesData ?? []) as unknown as CanonicalBusinessLocation[]
@@ -286,7 +296,7 @@ export default async function CustomerDashboard({
     const legacyBusiness = profileById.get(offer.business_id)
     const canonicalBusiness = canonicalBusinessByLegacyProfileId.get(offer.business_id)
 
-    return Boolean(legacyBusiness) &&
+    return Boolean(legacyBusiness || canonicalBusiness) &&
       (!canonicalBusiness || canonicalBusiness.status === 'active')
   })
   const activeOfferIds = new Set(customerVisibleOfferRows.map((offer) => offer.id))
@@ -353,22 +363,19 @@ export default async function CustomerDashboard({
           confirmedRedemptionEvents={confirmedRedemptionEvents}
         />
       ) : view === 'deals' ? (
-        <>
-          <div className="mt-5 sm:mt-6">{digitalPass}</div>
-          <CustomerDashboardContent
-            purchasedPasses={purchasedPasses}
-            organizationById={organizationById}
-            enrichedOffers={enrichedOffers}
-            historicalOffers={historicalOffers}
-            savedOfferIds={savedOfferIds}
-            redeemedOfferIds={redeemedOfferIds}
-            redemptionEvents={redemptionEvents}
-            confirmedRedemptionEvents={confirmedRedemptionEvents}
-            redeemableOfferIds={redeemableOfferIds}
-            redemptionDateByOfferId={redemptionDateByOfferId}
-            hasPurchasedPass={hasPurchasedPass}
-          />
-        </>
+        <CustomerDashboardContent
+          purchasedPasses={purchasedPasses}
+          organizationById={organizationById}
+          enrichedOffers={enrichedOffers}
+          historicalOffers={historicalOffers}
+          savedOfferIds={savedOfferIds}
+          redeemedOfferIds={redeemedOfferIds}
+          redemptionEvents={redemptionEvents}
+          confirmedRedemptionEvents={confirmedRedemptionEvents}
+          redeemableOfferIds={redeemableOfferIds}
+          redemptionDateByOfferId={redemptionDateByOfferId}
+          hasPurchasedPass={hasPurchasedPass}
+        />
       ) : (
         <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
           {digitalPass}
@@ -395,10 +402,10 @@ export default async function CustomerDashboard({
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <Link
-                href="/dashboard/deals"
+                href="/dashboard/deals#available-offers"
                 className="rounded-2xl border border-blue-200 bg-blue-50 p-4 font-bold text-blue-800"
               >
-                Browse and manage deals →
+                Explore offers →
               </Link>
               <Link
                 href="/dashboard/activity"
