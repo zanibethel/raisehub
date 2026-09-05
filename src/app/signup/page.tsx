@@ -17,6 +17,7 @@ type SignupPageProps = {
     donation?: string
     organization?: string
     live?: string
+    role?: string
   }>
 }
 
@@ -66,6 +67,10 @@ export default async function SignupPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  if (requestedParams.role?.trim().toLowerCase() === 'business') {
+    redirect(user ? '/workspace/new/business' : '/signup/business')
+  }
 
   if (user) {
     redirect(
