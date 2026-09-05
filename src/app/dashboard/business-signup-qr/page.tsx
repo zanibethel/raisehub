@@ -4,16 +4,14 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 
+const PUBLIC_BUSINESS_SIGNUP_URL = 'https://www.raisehub.app/signup/business'
+
 export default function BusinessSignupQrPage() {
-  const [signupUrl, setSignupUrl] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    const url = `${window.location.origin}/workspace/new/business`
-    setSignupUrl(url)
-
-    QRCode.toDataURL(url, {
+    QRCode.toDataURL(PUBLIC_BUSINESS_SIGNUP_URL, {
       errorCorrectionLevel: 'M',
       margin: 2,
       width: 720,
@@ -23,8 +21,7 @@ export default function BusinessSignupQrPage() {
   }, [])
 
   async function copyLink() {
-    if (!signupUrl) return
-    await navigator.clipboard.writeText(signupUrl)
+    await navigator.clipboard.writeText(PUBLIC_BUSINESS_SIGNUP_URL)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1800)
   }
@@ -43,37 +40,36 @@ export default function BusinessSignupQrPage() {
         </div>
 
         <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-slate-600">
-          Ask the business owner to scan this code to create a RaiseHub account and add their business workspace.
+          Ask the business owner to scan this code to learn how RaiseHub Partners works, then create or connect their account.
         </p>
 
         <div className="mx-auto mt-6 flex aspect-square w-full max-w-[22rem] items-center justify-center rounded-3xl border border-slate-200 bg-white p-4 shadow-inner">
           {qrDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={qrDataUrl} alt={`QR code for ${signupUrl}`} className="h-full w-full object-contain" />
+            <img src={qrDataUrl} alt={`QR code for ${PUBLIC_BUSINESS_SIGNUP_URL}`} className="h-full w-full object-contain" />
           ) : (
             <p className="text-sm font-semibold text-slate-500">Preparing signup code…</p>
           )}
         </div>
 
         <p className="mt-5 break-all rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-          {signupUrl || 'Loading signup link…'}
+          {PUBLIC_BUSINESS_SIGNUP_URL}
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={copyLink}
-            disabled={!signupUrl}
-            className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:opacity-60"
+            className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700"
           >
             {copied ? 'Link copied' : 'Copy signup link'}
           </button>
-          <Link
-            href="/workspace/new/business"
+          <a
+            href={PUBLIC_BUSINESS_SIGNUP_URL}
             className="rounded-xl border border-green-300 bg-green-50 px-5 py-3 font-bold text-green-800 transition hover:bg-green-100"
           >
             Open signup
-          </Link>
+          </a>
         </div>
       </section>
     </main>
