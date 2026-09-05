@@ -60,13 +60,15 @@ async function refreshConnectedAccount(
 
     if ('deleted' in account && account.deleted) return row
 
+    const expectedLivemode =
+      process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_live_') ?? false
     const refreshed: StripeAccountRow = {
       stripe_account_id: account.id,
       onboarding_status: connectOnboardingStatus(account),
       payouts_enabled: Boolean(account.payouts_enabled),
       details_submitted: Boolean(account.details_submitted),
       charges_enabled: Boolean(account.charges_enabled),
-      livemode: Boolean(account.livemode),
+      livemode: expectedLivemode,
       disabled_reason: account.requirements?.disabled_reason ?? null,
       requirements_currently_due: account.requirements?.currently_due ?? [],
     }
