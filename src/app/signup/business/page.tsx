@@ -1,16 +1,38 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function BusinessSignupPage() {
+  const router = useRouter()
   const supabase = createClient()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function routeExistingAccount() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!cancelled && user) {
+        router.replace('/workspace/new/business')
+      }
+    }
+
+    void routeExistingAccount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router, supabase])
 
   async function handleSignup(
     event: React.FormEvent<HTMLFormElement>
@@ -260,7 +282,7 @@ export default function BusinessSignupPage() {
               <p>
                 Already have an account?{' '}
                 <Link
-                  href="/login?next=/onboarding/business"
+                  href="/login?next=/workspace/new/business"
                   className="font-semibold text-blue-700 hover:underline"
                 >
                   Log in here
