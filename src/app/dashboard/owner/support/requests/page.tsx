@@ -59,6 +59,29 @@ function formatDate(value: string) {
       })
 }
 
+function formatInboxDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const now = new Date()
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+
+  if (sameDay) {
+    return date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function statusLabel(status: SupportRequest['status']) {
   return status
     .split('_')
@@ -77,6 +100,12 @@ function messageLabel(message: SupportMessage) {
   return message.created_by ? 'Owner reply · RaiseHub' : 'Support team reply · Email'
 }
 
+function latestPreview(request: SupportRequest, messages: SupportMessage[]) {
+  const latest = messages.at(-1)
+  const content = latest?.body_text || request.message || ''
+  return content.replace(/\s+/g, ' ').trim().slice(0, 150)
+}
+
 function SupportRequestForm({
   request,
   routes,
@@ -89,7 +118,7 @@ function SupportRequestForm({
       <input type="hidden" name="id" value={request.id} />
 
       <label className="block">
-        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Bucket</span>
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Reply from</span>
         <select
           name="bucket"
           defaultValue={request.bucket}
@@ -101,6 +130,7 @@ function SupportRequestForm({
             </option>
           ))}
         </select>
+        <p className="mt-1 text-xs text-slate-500">Changing this also moves the thread into that inbox bucket.</p>
       </label>
 
       <label className="block">
@@ -154,11 +184,11 @@ function ConversationThread({
   const hasInboundMessage = messages.some((message) => message.direction === 'inbound')
 
   return (
-    <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+    <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Conversation</p>
-          <p className="mt-0.5 text-xs text-slate-500">Newest activity stays in this thread.</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Email thread</p>
+          <p className="mt-0.5 text-xs text-slate-500">Complete conversation history</p>
         </div>
         <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
           {messages.length + (hasInboundMessage ? 0 : 1)} {messages.length + (hasInboundMessage ? 0 : 1) === 1 ? 'message' : 'messages'}
@@ -167,13 +197,15 @@ function ConversationThread({
 
       <div className="space-y-3">
         {!hasInboundMessage ? (
-          <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-md border border-slate-200 bg-white p-4 shadow-sm sm:max-w-[78%]">
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-              <span>Customer · {channelLabel(request)}</span>
-              <span>•</span>
-              <span>{formatDate(request.created_at)}</span>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-black text-slate-900">{request.requester_name}</p>
+                <p className="text-[11px] text-slate-500">{request.requester_email}</p>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">{formatDate(request.created_at)}</span>
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
           </div>
         ) : null}
 
@@ -184,23 +216,30 @@ function ConversationThread({
           return (
             <div
               key={message.id}
-              className={`max-w-[92%] rounded-2xl p-4 shadow-sm sm:max-w-[78%] ${
+              className={`rounded-2xl border p-4 shadow-sm ${
                 internal
-                  ? 'mx-auto border border-amber-200 bg-amber-50'
+                  ? 'border-amber-200 bg-amber-50'
                   : outbound
-                    ? 'ml-auto rounded-tr-md border border-blue-200 bg-blue-50'
-                    : 'mr-auto rounded-tl-md border border-slate-200 bg-white'
+                    ? 'border-blue-200 bg-blue-50'
+                    : 'border-slate-200 bg-white'
               }`}
             >
-              <div className={`flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide ${internal ? 'text-amber-700' : outbound ? 'text-blue-700' : 'text-slate-500'}`}>
-                <span>{messageLabel(message)}</span>
-                <span>•</span>
-                <span>{formatDate(message.created_at)}</span>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className={`text-xs font-black ${internal ? 'text-amber-800' : outbound ? 'text-blue-800' : 'text-slate-900'}`}>
+                    {messageLabel(message)}
+                  </p>
+                  {message.sender_email ? (
+                    <p className="mt-0.5 break-all text-[11px] text-slate-500">From: {message.sender_email}</p>
+                  ) : null}
+                  {message.recipient_emails?.length ? (
+                    <p className="mt-0.5 break-all text-[11px] text-slate-500">To: {message.recipient_emails.join(', ')}</p>
+                  ) : null}
+                </div>
+                <span className="text-[11px] font-semibold text-slate-500">{formatDate(message.created_at)}</span>
               </div>
-              {message.sender_email ? (
-                <p className="mt-1 break-all text-[11px] font-semibold text-slate-500">{message.sender_email}</p>
-              ) : null}
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+              {message.subject ? <p className="mt-2 text-xs font-bold text-slate-700">{message.subject}</p> : null}
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-800">
                 {message.body_text || 'Message body unavailable.'}
               </p>
             </div>
@@ -275,7 +314,7 @@ export default async function OwnerSupportRequestsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Owner Support Queue</p>
           <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">Support Inbox</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Review the complete conversation, keep private notes separate, move work between support buckets, and reply from the correct RaiseHub address.
+            Scan requests like an email inbox, open a thread when you need the full history, and reply from the correct RaiseHub address.
           </p>
         </header>
 
@@ -305,66 +344,84 @@ export default async function OwnerSupportRequestsPage() {
           </section>
         ) : null}
 
-        <section className="space-y-4">
-          {requests.map((request) => {
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          {requests.map((request, index) => {
             const completed = request.status === 'closed' && Boolean(request.customer_reply_sent_at)
             const messages = messagesByRequest.get(request.id) ?? []
             const route = routes.find((candidate) => candidate.bucket === request.bucket)
+            const preview = latestPreview(request, messages)
+            const latestMessage = messages.at(-1)
+            const latestFrom = latestMessage?.sender_email || request.requester_email
 
             return (
-              <article key={request.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <details
+                key={request.id}
+                className={`${index > 0 ? 'border-t border-slate-200' : ''} group`}
+              >
+                <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] gap-3 px-4 py-4 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_auto] sm:items-center sm:px-5">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{request.topic}</span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{request.environment === 'demo' ? 'Demo' : 'Live'}</span>
-                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{route?.label ?? request.bucket}</span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${request.status === 'open' ? 'bg-blue-500' : request.status === 'in_progress' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                      <p className="truncate text-sm font-black text-slate-950">{request.requester_name || latestFrom}</p>
+                    </div>
+                    <p className="mt-1 truncate pl-[18px] text-xs text-slate-500">{request.requester_email}</p>
+                  </div>
+
+                  <div className="col-span-2 min-w-0 sm:col-span-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-bold text-slate-900">{request.topic}</p>
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-black text-violet-700">{route?.label ?? request.bucket}</span>
                       {completed ? (
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Published</span>
-                      ) : (
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{statusLabel(request.status)}</span>
-                      )}
-                      {!completed && request.customer_reply ? (
-                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">Draft / prior reply</span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">Published</span>
                       ) : null}
                     </div>
-                    <h2 className="mt-3 text-xl font-black text-slate-950">{request.requester_name}</h2>
-                    <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">{request.requester_email}</a>
-                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>Opened {formatDate(request.created_at)}</span>
-                      <span>Updated {formatDate(request.updated_at)}</span>
-                      <span>Source: {channelLabel(request)}</span>
-                    </div>
-                    {request.inbound_to ? <p className="mt-1 text-xs text-slate-500">Received at {request.inbound_to}</p> : null}
+                    <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+                      <span className="font-semibold text-slate-600">{latestFrom}</span>
+                      {preview ? ` — ${preview}` : ''}
+                    </p>
                   </div>
-                </div>
 
-                <ConversationThread request={request} messages={messages} />
+                  <div className="row-start-1 flex items-center gap-2 text-right sm:row-auto">
+                    <span className="whitespace-nowrap text-xs font-bold text-slate-500">{formatInboxDate(request.updated_at)}</span>
+                    <span className="text-lg text-slate-400 transition group-open:rotate-90">›</span>
+                  </div>
+                </summary>
 
-                {request.internal_notes ? (
-                  <aside className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Private internal notes</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.internal_notes}</p>
-                  </aside>
-                ) : null}
-
-                {completed ? (
-                  <details className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50">
-                    <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-800">
-                      <span>✓ Reply published — request closed</span>
-                      <span className="text-xs font-bold text-emerald-700">Reopen or send follow-up</span>
-                    </summary>
-                    <div className="border-t border-emerald-100 bg-white p-4">
-                      <SupportRequestForm request={request} routes={routes} />
+                <div className="border-t border-slate-200 bg-slate-50/40 px-4 py-5 sm:px-5 sm:py-6">
+                  <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-black text-slate-950">{request.topic}</h2>
+                      <p className="mt-1 text-sm font-bold text-slate-800">From: {request.requester_name} &lt;{request.requester_email}&gt;</p>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                        <span>Opened {formatDate(request.created_at)}</span>
+                        <span>Updated {formatDate(request.updated_at)}</span>
+                        <span>{channelLabel(request)}</span>
+                        {request.inbound_to ? <span>To: {request.inbound_to}</span> : null}
+                      </div>
                     </div>
-                  </details>
-                ) : (
-                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/30 p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">{route?.label ?? request.bucket}</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${completed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        {completed ? 'Published' : statusLabel(request.status)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <ConversationThread request={request} messages={messages} />
+
+                  {request.internal_notes ? (
+                    <aside className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Private internal notes</p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.internal_notes}</p>
+                    </aside>
+                  ) : null}
+
+                  <div className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
                     <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-blue-700">Reply & workflow</p>
                     <SupportRequestForm request={request} routes={routes} />
                   </div>
-                )}
-              </article>
+                </div>
+              </details>
             )
           })}
         </section>
