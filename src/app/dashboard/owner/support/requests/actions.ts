@@ -107,10 +107,12 @@ export async function updateSupportRequest(formData: FormData) {
   }
 
   const now = new Date().toISOString()
+  const effectiveStatus = intent === 'publish_reply' ? 'closed' : status
+
   const { error } = await supabase
     .from('support_requests')
     .update({
-      status,
+      status: effectiveStatus,
       assigned_to: user.id,
       requester_user_id: linkedRequesterUserId,
       internal_notes: internalNotes || null,
