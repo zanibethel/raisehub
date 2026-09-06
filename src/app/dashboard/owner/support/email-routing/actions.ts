@@ -18,13 +18,14 @@ function parseRecipients(value: string) {
         .map((entry) => entry.trim().toLowerCase())
         .filter((entry) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entry))
     )
-  ).slice(0, 20)
+  ).slice(0, 50)
 }
 
 export async function updateSupportEmailRoute(formData: FormData) {
   const id = text(formData, 'id', 100)
-  const recipients = parseRecipients(text(formData, 'forward_to', 3000))
+  const recipients = parseRecipients(text(formData, 'forward_to', 8000))
   const isActive = formData.get('is_active') === 'on'
+  const forwardEnabled = formData.get('forward_enabled') === 'on'
 
   if (!id) return
 
@@ -48,6 +49,7 @@ export async function updateSupportEmailRoute(formData: FormData) {
     .update({
       forward_to: recipients,
       is_active: isActive,
+      forward_enabled: forwardEnabled && recipients.length > 0,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
