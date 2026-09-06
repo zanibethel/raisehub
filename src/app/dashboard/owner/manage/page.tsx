@@ -13,6 +13,7 @@ const groups = [
     title: 'Accounts and workspaces',
     description: 'Find and manage the people and teams using RaiseHub.',
     items: [
+      { label: 'Recent signups', href: '/dashboard/owner/manage/recent-signups', detail: 'Review new accounts, onboarding progress, demo status, and profiles needing attention.' },
       { label: 'Businesses', href: '/dashboard/owner/businesses', detail: 'Profiles, offers, visibility, redemptions, and assistance.' },
       { label: 'Organizations', href: '/dashboard/owner/organizations', detail: 'Campaigns, sellers, supporters, fundraising, and earnings.' },
       { label: 'Customers', href: '/dashboard/owner/customers', detail: 'Passes, purchases, savings, and redemption activity.' },
