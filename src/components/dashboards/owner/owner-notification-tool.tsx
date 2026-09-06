@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from 'react'
 
+type AccessTag = 'supporter' | 'business' | 'organization' | 'owner'
+
 type Recipient = {
   id: string
   name: string
   email: string | null
-  role: 'business' | 'organization' | 'customer'
+  accessTags: AccessTag[]
   isDemo: boolean
 }
 
@@ -54,16 +56,17 @@ const templates: Record<TemplateKey, { title: string; message: string; actionUrl
   },
 }
 
-const roleLabels = {
-  business: 'Businesses',
-  organization: 'Organizations',
-  customer: 'Customers',
+const accessTagLabels: Record<AccessTag, string> = {
+  supporter: 'Supporter',
+  business: 'Business',
+  organization: 'Organization',
+  owner: 'Owner',
 }
 
 export default function OwnerNotificationTool({ recipients }: Props) {
   const [search, setSearch] = useState('')
-  const [role, setRole] = useState<'all' | Recipient['role']>('all')
-  const [includeDemo, setIncludeDemo] = useState(false)
+  const [accessFilter, setAccessFilter] = useState<'all' | AccessTag>('all')
+  const [allowDemo, setAllowDemo] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [template, setTemplate] = useState<TemplateKey>('custom')
   const [title, setTitle] = useState('')
@@ -78,12 +81,15 @@ export default function OwnerNotificationTool({ recipients }: Props) {
   const filteredRecipients = useMemo(() => {
     const query = search.trim().toLowerCase()
     return recipients.filter((recipient) => {
-      if (role !== 'all' && recipient.role !== role) return false
-      if (!includeDemo && recipient.isDemo) return false
+      if (accessFilter !== 'all' && !recipient.accessTags.includes(accessFilter)) {
+        return false
+      }
       if (!query) return true
-      return `${recipient.name} ${recipient.email ?? ''}`.toLowerCase().includes(query)
+      return `${recipient.name} ${recipient.email ?? ''} ${recipient.accessTags.join(' ')}`
+        .toLowerCase()
+        .includes(query)
     })
-  }, [includeDemo, recipients, role, search])
+  }, [accessFilter, recipients, search])
 
   function applyTemplate(nextTemplate: TemplateKey) {
     setTemplate(nextTemplate)
@@ -94,14 +100,23 @@ export default function OwnerNotificationTool({ recipients }: Props) {
     setActionLabel(next.actionLabel)
   }
 
-  function toggleRecipient(id: string) {
+  function canSelectRecipient(recipient: Recipient) {
+    return !recipient.isDemo || allowDemo
+  }
+
+  function toggleRecipient(recipient: Recipient) {
+    if (!canSelectRecipient(recipient)) return
     setSelectedIds((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
+      current.includes(recipient.id)
+        ? current.filter((value) => value !== recipient.id)
+        : [...current, recipient.id]
     )
   }
 
   function selectVisible() {
-    const visibleIds = filteredRecipients.map((recipient) => recipient.id)
+    const visibleIds = filteredRecipients
+      .filter(canSelectRecipient)
+      .map((recipient) => recipient.id)
     setSelectedIds((current) => [...new Set([...current, ...visibleIds])])
   }
 
@@ -159,7 +174,7 @@ export default function OwnerNotificationTool({ recipients }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Recipients</p>
-            <h2 className="mt-1 text-xl font-black text-slate-950">Choose profiles</h2>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Choose accounts</h2>
           </div>
           <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800">
             {selectedIds.length} selected
@@ -170,18 +185,19 @@ export default function OwnerNotificationTool({ recipients }: Props) {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name or email"
+            placeholder="Search name, email, or access"
             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none ring-blue-200 placeholder:text-slate-400 focus:ring-4"
           />
           <select
-            value={role}
-            onChange={(event) => setRole(event.target.value as typeof role)}
+            value={accessFilter}
+            onChange={(event) => setAccessFilter(event.target.value as typeof accessFilter)}
             className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800"
           >
-            <option value="all">All roles</option>
+            <option value="all">All access</option>
+            <option value="supporter">Supporters</option>
             <option value="business">Businesses</option>
             <option value="organization">Organizations</option>
-            <option value="customer">Customers</option>
+            <option value="owner">Owners</option>
           </select>
         </div>
 
@@ -189,10 +205,19 @@ export default function OwnerNotificationTool({ recipients }: Props) {
           <label className="inline-flex items-center gap-2 font-semibold text-slate-600">
             <input
               type="checkbox"
-              checked={includeDemo}
-              onChange={(event) => setIncludeDemo(event.target.checked)}
+              checked={allowDemo}
+              onChange={(event) => {
+                const nextValue = event.target.checked
+                setAllowDemo(nextValue)
+                if (!nextValue) {
+                  const demoIds = new Set(
+                    recipients.filter((recipient) => recipient.isDemo).map((recipient) => recipient.id)
+                  )
+                  setSelectedIds((current) => current.filter((id) => !demoIds.has(id)))
+                }
+              }}
             />
-            Include demo profiles
+            Allow demo recipients
           </label>
           <div className="flex gap-2">
             <button type="button" onClick={selectVisible} className="font-bold text-blue-700 hover:text-blue-900">
@@ -205,33 +230,53 @@ export default function OwnerNotificationTool({ recipients }: Props) {
         </div>
 
         <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
-          {filteredRecipients.map((recipient) => (
-            <label
-              key={recipient.id}
-              className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-blue-300 hover:bg-blue-50"
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(recipient.id)}
-                onChange={() => toggleRecipient(recipient.id)}
-                className="mt-1"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
+          {filteredRecipients.map((recipient) => {
+            const selectable = canSelectRecipient(recipient)
+            return (
+              <label
+                key={recipient.id}
+                className={`flex items-start gap-3 rounded-2xl border p-4 ${
+                  selectable
+                    ? 'cursor-pointer border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50'
+                    : 'cursor-not-allowed border-amber-200 bg-amber-50/60'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(recipient.id)}
+                  disabled={!selectable}
+                  onChange={() => toggleRecipient(recipient)}
+                  className="mt-1"
+                />
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-black text-slate-950">{recipient.name}</p>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">
-                    {roleLabels[recipient.role]}
-                  </span>
-                  {recipient.isDemo ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">Demo</span>
+                  <p className="mt-1 truncate text-sm text-slate-600">{recipient.email || 'No email on file'}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recipient.accessTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200"
+                      >
+                        {accessTagLabels[tag]}
+                      </span>
+                    ))}
+                    {recipient.isDemo ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                        Demo
+                      </span>
+                    ) : null}
+                  </div>
+                  {recipient.isDemo && !allowDemo ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-800">
+                      Turn on “Allow demo recipients” to select this account.
+                    </p>
                   ) : null}
                 </div>
-                <p className="mt-1 truncate text-sm text-slate-600">{recipient.email || 'No email on file'}</p>
-              </div>
-            </label>
-          ))}
+              </label>
+            )
+          })}
           {filteredRecipients.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">No matching profiles.</p>
+            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">No matching accounts.</p>
           ) : null}
         </div>
       </section>
@@ -331,11 +376,11 @@ export default function OwnerNotificationTool({ recipients }: Props) {
           disabled={sending || selectedIds.length === 0 || !title.trim() || !message.trim()}
           className="mt-5 w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {sending ? 'Sending…' : `Send to ${selectedIds.length || 0} selected profile${selectedIds.length === 1 ? '' : 's'}`}
+          {sending ? 'Sending…' : `Send to ${selectedIds.length || 0} selected account${selectedIds.length === 1 ? '' : 's'}`}
         </button>
 
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          Owner sends are deliberate manual communications. Demo profiles are excluded unless you explicitly include them.
+          Every authenticated RaiseHub account has Supporter access. Business, Organization, and Owner tags are added when that same email has those capabilities. Demo accounts stay visible but cannot be selected until you explicitly allow them.
         </p>
       </section>
     </div>
