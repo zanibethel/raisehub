@@ -29,16 +29,18 @@ const ALLOWED_SEVERITIES = new Set(['info', 'success', 'warning', 'error'])
 
 function recipientName(recipient: Recipient) {
   return (
-    recipient.business_name?.trim() ||
     recipient.display_name?.trim() ||
     recipient.full_name?.trim() ||
+    recipient.business_name?.trim() ||
     null
   )
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
   }
 
   if (recipientIds.length > 100) {
-    return NextResponse.json({ error: 'Send to no more than 100 profiles at a time.' }, { status: 400 })
+    return NextResponse.json({ error: 'Send to no more than 100 accounts at a time.' }, { status: 400 })
   }
 
   if (!title || title.length > 140 || !message || message.length > 1500) {
@@ -81,7 +83,6 @@ export async function POST(request: Request) {
     .from('profiles')
     .select('id, email, full_name, display_name, business_name, role, is_demo')
     .in('id', recipientIds)
-    .in('role', ['business', 'organization', 'customer'])
 
   if (recipientError) {
     return NextResponse.json({ error: recipientError.message }, { status: 500 })
