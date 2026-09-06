@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 import { createClient } from '@/lib/supabase/server'
+import { deliverCustomerSupportReply } from '@/lib/support/customer-reply'
 
 const VALID_STATUSES = new Set(['open', 'in_progress', 'resolved', 'closed'])
 
@@ -44,10 +46,11 @@ export async function updateSupportRequest(formData: FormData) {
 
   const { data: requestRow } = await supabase
     .from('support_requests')
-    .select('requester_email, topic, reply_from_email, provider_message_id')
+    .select('requester_email, requester_user_id, topic, reply_from_email, provider_message_id')
     .eq('id', id)
     .maybeSingle<{
       requester_email: string
+      requester_user_id: string | null
       topic: string
       reply_from_email: string | null
       provider_message_id: string | null
@@ -56,6 +59,7 @@ export async function updateSupportRequest(formData: FormData) {
   if (!requestRow) return
 
   let sentProviderMessageId: string | null = null
+  let linkedRequesterUserId = requestRow.requester_user_id
   let replyFromEmail = requestRow.reply_from_email || 'support@raisehub.app'
   let replyDisplayName = 'RaiseHub Support'
 
@@ -72,53 +76,34 @@ export async function updateSupportRequest(formData: FormData) {
   }
 
   if (intent === 'publish_reply') {
-    const apiKey = process.env.RESEND_API_KEY?.trim()
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!apiKey) {
-      console.error('Unable to publish support reply: RESEND_API_KEY is missing.')
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Unable to publish support reply: Supabase service role is missing.')
       return
     }
 
-    const headers: Record<string, string> = {}
-    if (requestRow.provider_message_id) {
-      headers['In-Reply-To'] = requestRow.provider_message_id
-      headers.References = requestRow.provider_message_id
-    }
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: `${replyDisplayName} <${replyFromEmail}>`,
-        to: [requestRow.requester_email],
-        subject: replySubject(requestRow.topic),
-        text: customerReply,
-        reply_to: replyFromEmail,
-        headers,
-        tags: [
-          { name: 'product', value: 'raisehub' },
-          { name: 'category', value: 'support-reply' },
-        ],
-      }),
-      cache: 'no-store',
+    const admin = createAdminClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    const payload = (await response.json().catch(() => null)) as
-      | { id?: string; message?: string; error?: { message?: string } }
-      | null
+    const delivery = await deliverCustomerSupportReply({
+      admin,
+      supportRequestId: id,
+      requesterEmail: requestRow.requester_email,
+      requesterUserId: requestRow.requester_user_id,
+      topic: requestRow.topic,
+      replyFromEmail,
+      replyDisplayName,
+      body: customerReply,
+      providerInReplyTo: requestRow.provider_message_id,
+    })
 
-    if (!response.ok) {
-      console.error(
-        'Unable to publish support reply:',
-        payload?.error?.message || payload?.message || response.status
-      )
-      return
-    }
+    if (!delivery.ok) return
 
-    sentProviderMessageId = payload?.id ?? null
+    sentProviderMessageId = delivery.providerMessageId
+    linkedRequesterUserId = delivery.requesterUserId
   }
 
   const now = new Date().toISOString()
@@ -127,6 +112,7 @@ export async function updateSupportRequest(formData: FormData) {
     .update({
       status,
       assigned_to: user.id,
+      requester_user_id: linkedRequesterUserId,
       internal_notes: internalNotes || null,
       customer_reply: customerReply || null,
       customer_reply_sent_at:
@@ -167,4 +153,5 @@ export async function updateSupportRequest(formData: FormData) {
 
   revalidatePath('/dashboard/owner/support/requests')
   revalidatePath('/support')
+  revalidatePath('/dashboard/notifications')
 }
