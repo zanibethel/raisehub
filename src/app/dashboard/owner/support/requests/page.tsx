@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
 import { updateSupportRequest } from './actions'
+import SupportRequestSubmitButtons from './support-request-submit-buttons'
 
 export const metadata = {
   title: 'Support Requests | RaiseHub Owner Console',
@@ -41,6 +42,52 @@ function statusLabel(status: SupportRequest['status']) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function SupportRequestForm({ request }: { request: SupportRequest }) {
+  return (
+    <form action={updateSupportRequest} className="grid gap-4 lg:grid-cols-2">
+      <input type="hidden" name="id" value={request.id} />
+
+      <label className="block lg:col-span-2">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Status</span>
+        <select
+          name="status"
+          defaultValue={request.status}
+          className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+        >
+          <option value="open">Open</option>
+          <option value="in_progress">In progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Internal notes</span>
+        <textarea
+          name="internal_notes"
+          defaultValue={request.internal_notes ?? ''}
+          rows={6}
+          placeholder="Private investigation details, account context, or next steps."
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Customer reply</span>
+        <textarea
+          name="customer_reply"
+          defaultValue={request.customer_reply ?? ''}
+          rows={6}
+          placeholder="Write the customer-facing response here. Save it as a draft or publish it when complete."
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+        />
+      </label>
+
+      <SupportRequestSubmitButtons />
+    </form>
+  )
 }
 
 export default async function OwnerSupportRequestsPage() {
@@ -114,110 +161,73 @@ export default async function OwnerSupportRequestsPage() {
         ) : null}
 
         <section className="space-y-4">
-          {requests.map((request) => (
-            <article key={request.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                      {request.topic}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                      {request.environment === 'demo' ? 'Demo' : 'Live'}
-                    </span>
-                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
-                      {statusLabel(request.status)}
-                    </span>
+          {requests.map((request) => {
+            const published = Boolean(request.customer_reply_sent_at)
+
+            return (
+              <article key={request.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                        {request.topic}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                        {request.environment === 'demo' ? 'Demo' : 'Live'}
+                      </span>
+                      {published ? (
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                          Published
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                          {statusLabel(request.status)}
+                        </span>
+                      )}
+                      {!published && request.customer_reply ? (
+                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                          Draft saved
+                        </span>
+                      ) : null}
+                    </div>
+                    <h2 className="mt-3 text-xl font-black text-slate-950">{request.requester_name}</h2>
+                    <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">
+                      {request.requester_email}
+                    </a>
+                    <p className="mt-1 text-xs text-slate-500">Received {formatDate(request.created_at)}</p>
                     {request.customer_reply_sent_at ? (
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                        Reply published
-                      </span>
-                    ) : request.customer_reply ? (
-                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
-                        Draft saved
-                      </span>
+                      <p className="mt-1 text-xs font-bold text-emerald-700">
+                        Published {formatDate(request.customer_reply_sent_at)}
+                      </p>
                     ) : null}
                   </div>
-                  <h2 className="mt-3 text-xl font-black text-slate-950">{request.requester_name}</h2>
-                  <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">
-                    {request.requester_email}
-                  </a>
-                  <p className="mt-1 text-xs text-slate-500">Received {formatDate(request.created_at)}</p>
-                  {request.customer_reply_sent_at ? (
-                    <p className="mt-1 text-xs font-bold text-emerald-700">
-                      Published {formatDate(request.customer_reply_sent_at)}
-                    </p>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
+                  {request.source_page ? (
+                    <p className="mt-3 break-all text-xs text-slate-500">Source: {request.source_page}</p>
                   ) : null}
                 </div>
-              </div>
 
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
-                {request.source_page ? (
-                  <p className="mt-3 break-all text-xs text-slate-500">Source: {request.source_page}</p>
-                ) : null}
-              </div>
-
-              <form action={updateSupportRequest} className="mt-5 grid gap-4 lg:grid-cols-2">
-                <input type="hidden" name="id" value={request.id} />
-
-                <label className="block lg:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">Status</span>
-                  <select
-                    name="status"
-                    defaultValue={request.status}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
-                  >
-                    <option value="open">Open</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">Internal notes</span>
-                  <textarea
-                    name="internal_notes"
-                    defaultValue={request.internal_notes ?? ''}
-                    rows={6}
-                    placeholder="Private investigation details, account context, or next steps."
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-600">Customer reply</span>
-                  <textarea
-                    name="customer_reply"
-                    defaultValue={request.customer_reply ?? ''}
-                    rows={6}
-                    placeholder="Write the customer-facing response here. Save it as a draft or publish it when complete."
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
-                  />
-                </label>
-
-                <div className="flex flex-col gap-3 lg:col-span-2 sm:flex-row">
-                  <button
-                    type="submit"
-                    name="intent"
-                    value="save_draft"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-5 text-sm font-black text-blue-700 hover:bg-blue-100 sm:w-auto"
-                  >
-                    Save draft
-                  </button>
-                  <button
-                    type="submit"
-                    name="intent"
-                    value="publish_reply"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-700 px-5 text-sm font-black text-white hover:bg-blue-800 sm:w-auto"
-                  >
-                    Publish reply to customer
-                  </button>
-                </div>
-              </form>
-            </article>
-          ))}
+                {published ? (
+                  <details className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50">
+                    <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-800">
+                      <span>✓ Reply published — request closed</span>
+                      <span className="text-xs font-bold text-emerald-700">Edit or send follow-up</span>
+                    </summary>
+                    <div className="border-t border-emerald-100 bg-white p-4">
+                      <SupportRequestForm request={request} />
+                    </div>
+                  </details>
+                ) : (
+                  <div className="mt-5">
+                    <SupportRequestForm request={request} />
+                  </div>
+                )}
+              </article>
+            )
+          })}
         </section>
       </div>
     </main>
