@@ -160,7 +160,7 @@ async function notifyOwners({
   supportRequestId,
   providerMessageId,
 }: {
-  admin: ReturnType<typeof createClient>
+  admin: any
   route: EmailRoute
   senderEmail: string
   subject: string
@@ -177,7 +177,8 @@ async function notifyOwners({
     return
   }
 
-  const ownerIds = (owners ?? [])
+  const ownerRows = (owners ?? []) as Array<{ id?: string | null }>
+  const ownerIds = ownerRows
     .map((owner) => owner.id)
     .filter((id): id is string => typeof id === 'string' && id.length > 0)
 
@@ -393,6 +394,10 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', supportRequestId)
+  }
+
+  if (!supportRequestId) {
+    return NextResponse.json({ error: 'Unable to resolve support request.' }, { status: 500 })
   }
 
   const { error: messageError } = await admin
