@@ -11,6 +11,10 @@ export const metadata = {
 const faqGroups = [
   {
     title: 'Accounts and access',
+    contact: {
+      label: 'Account and platform support',
+      email: 'support@raisehub.app',
+    },
     items: [
       {
         question: 'How do I get back to my workspace?',
@@ -24,6 +28,10 @@ const faqGroups = [
   },
   {
     title: 'Businesses and offers',
+    contact: {
+      label: 'Business and partnership help',
+      email: 'partners@raisehub.app',
+    },
     items: [
       {
         question: 'How many active offers can a business publish?',
@@ -41,6 +49,10 @@ const faqGroups = [
   },
   {
     title: 'Organizations and campaigns',
+    contact: {
+      label: 'Organization and partnership help',
+      email: 'partners@raisehub.app',
+    },
     items: [
       {
         question: 'Where do I manage a campaign?',
@@ -54,6 +66,10 @@ const faqGroups = [
   },
   {
     title: 'Purchases and redemptions',
+    contact: {
+      label: 'Billing and payment help',
+      email: 'billing@raisehub.app',
+    },
     items: [
       {
         question: 'Where are my purchased offers saved?',
@@ -71,6 +87,34 @@ const faqGroups = [
   },
 ]
 
+const supportRoutes = [
+  {
+    label: 'Account & platform support',
+    email: 'support@raisehub.app',
+    description: 'Sign-in, workspace access, technical issues, offers, redemptions, and general platform help.',
+  },
+  {
+    label: 'Billing & payments',
+    email: 'billing@raisehub.app',
+    description: 'Charges, payments, payouts, invoices, purchase issues, and other billing questions.',
+  },
+  {
+    label: 'Businesses & organizations',
+    email: 'partners@raisehub.app',
+    description: 'Business, organization, fundraising, partnership, and platform participation questions.',
+  },
+  {
+    label: 'General contact',
+    email: 'contact@raisehub.app',
+    description: 'General questions that do not clearly fit another support route.',
+  },
+  {
+    label: 'Legal & privacy',
+    email: 'legal@raisehub.app',
+    description: 'Terms, privacy, legal notices, compliance, and formal legal correspondence.',
+  },
+]
+
 export default function SupportPage() {
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 pb-28 sm:px-8 sm:py-10">
@@ -79,7 +123,7 @@ export default function SupportPage() {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">RaiseHub Help</p>
           <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">How can we help?</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-            Find a quick answer below. When the FAQ does not solve it, send the details directly to RaiseHub Support.
+            Find a quick answer below. When the FAQ does not solve it, send the details directly to the RaiseHub team that can help fastest.
           </p>
           <Link href="/dashboard" className="mt-5 inline-flex text-sm font-bold text-blue-700 hover:text-blue-900">
             ← Return to dashboard
@@ -96,9 +140,9 @@ export default function SupportPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             {faqGroups.map((group) => (
-              <section key={group.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <section key={group.title} className="flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <h3 className="text-lg font-black text-slate-950">{group.title}</h3>
-                <div className="mt-4 divide-y divide-slate-100">
+                <div className="mt-4 flex-1 divide-y divide-slate-100">
                   {group.items.map((item) => (
                     <details key={item.question} className="group py-3 first:pt-0 last:pb-0">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900">
@@ -109,7 +153,40 @@ export default function SupportPage() {
                     </details>
                   ))}
                 </div>
+
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">Need more help?</p>
+                  <a
+                    href={`mailto:${group.contact.email}`}
+                    className="mt-2 inline-flex max-w-full break-all text-sm font-black text-blue-700 hover:text-blue-900"
+                  >
+                    {group.contact.email}
+                  </a>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{group.contact.label}</p>
+                </div>
               </section>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">Direct email help</p>
+          <h2 className="mt-2 text-2xl font-black text-slate-950">Choose the right RaiseHub inbox</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Emailing the closest match routes your message into the correct RaiseHub support bucket and helps it reach the right team faster.
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {supportRoutes.map((route) => (
+              <a
+                key={route.email}
+                href={`mailto:${route.email}`}
+                className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-blue-50/50"
+              >
+                <p className="text-sm font-black text-slate-950">{route.label}</p>
+                <p className="mt-1 break-all text-sm font-black text-blue-700">{route.email}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{route.description}</p>
+              </a>
             ))}
           </div>
         </section>
@@ -118,7 +195,7 @@ export default function SupportPage() {
           <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">Contact us</p>
           <h2 className="mt-2 text-2xl font-black text-slate-950">Still need help?</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Give us enough detail to understand the problem without asking you to repeat everything later.
+            Give us enough detail to understand the problem without asking you to repeat everything later. You can also email <a href="mailto:contact@raisehub.app" className="font-bold text-blue-700 hover:text-blue-900">contact@raisehub.app</a> for general questions.
           </p>
           <div className="mt-5">
             <SupportContactForm />
