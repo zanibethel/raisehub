@@ -3,6 +3,11 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+import {
+  deliverCustomerSupportReply,
+  threadedReplyAddress,
+} from '@/lib/support/customer-reply'
+
 type ResendReceivedEvent = {
   type: string
   created_at?: string
@@ -42,6 +47,14 @@ type EmailRoute = {
   is_active: boolean
   accepts_inbound: boolean
 }
+
+type ThreadedRecipient = {
+  original: string
+  routeAddress: string
+  supportRequestId: string | null
+}
+
+const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function verifyWebhook(payload: string, headers: Headers) {
   const secret = process.env.RESEND_WEBHOOK_SECRET?.trim()
@@ -109,6 +122,31 @@ function parseMailbox(value?: string | null) {
   }
 }
 
+function parseThreadedRecipient(value: string): ThreadedRecipient {
+  const email = parseMailbox(value).email
+  const [localPart, domain] = email.split('@')
+
+  if (!localPart || !domain) {
+    return { original: email, routeAddress: email, supportRequestId: null }
+  }
+
+  const plusIndex = localPart.lastIndexOf('+')
+  if (plusIndex < 1) {
+    return { original: email, routeAddress: email, supportRequestId: null }
+  }
+
+  const possibleId = localPart.slice(plusIndex + 1)
+  if (!REQUEST_ID_PATTERN.test(possibleId)) {
+    return { original: email, routeAddress: email, supportRequestId: null }
+  }
+
+  return {
+    original: email,
+    routeAddress: `${localPart.slice(0, plusIndex)}@${domain}`,
+    supportRequestId: possibleId,
+  }
+}
+
 function normalizeHeader(headers: Record<string, string> | null | undefined, name: string) {
   if (!headers) return null
   const match = Object.entries(headers).find(
@@ -130,6 +168,11 @@ function ownerNotificationCopy(bucket: string) {
     default:
       return { title: 'New support email', severity: 'info' }
   }
+}
+
+function replySubject(topic: string) {
+  const trimmed = topic.trim() || 'RaiseHub support'
+  return /^re:/i.test(trimmed) ? trimmed : `Re: ${trimmed}`
 }
 
 async function getReceivedEmail(emailId: string): Promise<ReceivedEmail | null> {
@@ -203,9 +246,7 @@ async function notifyOwners({
     },
   }))
 
-  const { error } = await admin
-    .from('notifications')
-    .insert(rows)
+  const { error } = await admin.from('notifications').insert(rows)
 
   if (error && error.code !== '23505') {
     console.error('Unable to create Owner inbound-email notifications:', error)
@@ -214,11 +255,13 @@ async function notifyOwners({
 
 async function forwardCopy({
   route,
+  supportRequestId,
   sender,
   subject,
   body,
 }: {
   route: EmailRoute
+  supportRequestId: string
   sender: string
   subject: string
   body: string
@@ -250,7 +293,7 @@ async function forwardCopy({
       to: recipients,
       subject: `[RaiseHub ${route.label}] ${subject}`,
       text: `From: ${sender}\nTo: ${route.address}\n\n${body}`,
-      reply_to: route.address,
+      reply_to: threadedReplyAddress(route.address, supportRequestId),
       tags: [
         { name: 'product', value: 'raisehub' },
         { name: 'category', value: 'inbound-forward' },
@@ -308,12 +351,13 @@ export async function POST(request: Request) {
   }
 
   const eventRecipients = received.to ?? event.data?.to ?? []
-  const normalizedRecipients = eventRecipients.map((entry) => parseMailbox(entry).email)
+  const recipientDetails = eventRecipients.map(parseThreadedRecipient)
+  const routeAddresses = Array.from(new Set(recipientDetails.map((entry) => entry.routeAddress)))
 
   const { data: routeRows, error: routeError } = await admin
     .from('support_email_routes')
     .select('id, address, label, bucket, display_name, forward_to, forward_enabled, is_active, accepts_inbound')
-    .in('address', normalizedRecipients)
+    .in('address', routeAddresses)
     .eq('is_active', true)
     .eq('accepts_inbound', true)
     .limit(1)
@@ -327,6 +371,10 @@ export async function POST(request: Request) {
   if (!route) {
     return NextResponse.json({ ok: true, ignored: true, reason: 'No active inbound route.' })
   }
+
+  const threadedRequestId = recipientDetails.find(
+    (entry) => entry.routeAddress === route.address && entry.supportRequestId
+  )?.supportRequestId ?? null
 
   const providerMessageId = received.message_id ?? event.data?.message_id ?? emailId
   const { data: existingMessage } = await admin
@@ -346,9 +394,100 @@ export async function POST(request: Request) {
   const message = bodyText || 'This email contains HTML content. Open the message thread to review it.'
   const inReplyTo = normalizeHeader(received.headers, 'in-reply-to')
 
+  const teamEmails = new Set(
+    (route.forward_to ?? []).map((email) => email.trim().toLowerCase()).filter(Boolean)
+  )
+
+  if (threadedRequestId && teamEmails.has(sender.email)) {
+    const { data: supportRequest } = await admin
+      .from('support_requests')
+      .select('id, requester_email, requester_user_id, topic, provider_message_id, bucket')
+      .eq('id', threadedRequestId)
+      .eq('bucket', route.bucket)
+      .maybeSingle<{
+        id: string
+        requester_email: string
+        requester_user_id: string | null
+        topic: string
+        provider_message_id: string | null
+        bucket: string
+      }>()
+
+    if (!supportRequest) {
+      return NextResponse.json({ ok: true, ignored: true, reason: 'Unknown support thread.' })
+    }
+
+    const delivery = await deliverCustomerSupportReply({
+      admin,
+      supportRequestId: supportRequest.id,
+      requesterEmail: supportRequest.requester_email,
+      requesterUserId: supportRequest.requester_user_id,
+      topic: supportRequest.topic,
+      replyFromEmail: route.address,
+      replyDisplayName: route.display_name,
+      body: message,
+      providerInReplyTo: supportRequest.provider_message_id,
+    })
+
+    if (!delivery.ok) {
+      return NextResponse.json({ error: 'Unable to deliver team reply.' }, { status: 502 })
+    }
+
+    const now = new Date().toISOString()
+    await admin
+      .from('support_requests')
+      .update({
+        requester_user_id: delivery.requesterUserId,
+        status: 'in_progress',
+        customer_reply: message.slice(0, 5000),
+        customer_reply_sent_at: now,
+        reply_from_email: route.address,
+        updated_at: now,
+      })
+      .eq('id', supportRequest.id)
+
+    const { error: staffMessageError } = await admin
+      .from('support_request_messages')
+      .insert({
+        support_request_id: supportRequest.id,
+        direction: 'outbound',
+        sender_email: route.address,
+        recipient_emails: [supportRequest.requester_email],
+        subject: replySubject(supportRequest.topic),
+        body_text: message,
+        body_html: bodyHtml,
+        provider_message_id: delivery.providerMessageId,
+        provider_in_reply_to: inReplyTo,
+      })
+
+    if (staffMessageError) {
+      console.error('Unable to store external support team reply:', staffMessageError)
+    }
+
+    return NextResponse.json({
+      ok: true,
+      supportRequestId: supportRequest.id,
+      bucket: route.bucket,
+      routedAs: 'external_support_reply',
+    })
+  }
+
   let supportRequestId: string | null = null
 
-  if (inReplyTo) {
+  if (threadedRequestId) {
+    const { data: threadedRequest } = await admin
+      .from('support_requests')
+      .select('id, requester_email')
+      .eq('id', threadedRequestId)
+      .eq('bucket', route.bucket)
+      .maybeSingle<{ id: string; requester_email: string }>()
+
+    if (threadedRequest?.requester_email?.toLowerCase() === sender.email) {
+      supportRequestId = threadedRequest.id
+    }
+  }
+
+  if (!supportRequestId && inReplyTo) {
     const { data: matchedMessage } = await admin
       .from('support_request_messages')
       .select('support_request_id')
@@ -358,11 +497,21 @@ export async function POST(request: Request) {
     supportRequestId = matchedMessage?.support_request_id ?? null
   }
 
+  let requesterUserId: string | null = null
+  const { data: senderProfile } = await admin
+    .from('profiles')
+    .select('id')
+    .ilike('email', sender.email)
+    .limit(1)
+    .maybeSingle<{ id: string }>()
+
+  requesterUserId = senderProfile?.id ?? null
+
   if (!supportRequestId) {
     const { data: requestRow, error: requestError } = await admin
       .from('support_requests')
       .insert({
-        requester_user_id: null,
+        requester_user_id: requesterUserId,
         requester_name: sender.name,
         requester_email: sender.email,
         topic: subject.slice(0, 200),
@@ -390,6 +539,7 @@ export async function POST(request: Request) {
     await admin
       .from('support_requests')
       .update({
+        requester_user_id: requesterUserId || undefined,
         status: 'open',
         updated_at: new Date().toISOString(),
       })
@@ -400,6 +550,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unable to resolve support request.' }, { status: 500 })
   }
 
+  const normalizedRecipients = recipientDetails.map((entry) => entry.original)
   const { error: messageError } = await admin
     .from('support_request_messages')
     .insert({
@@ -430,6 +581,7 @@ export async function POST(request: Request) {
 
   await forwardCopy({
     route,
+    supportRequestId,
     sender: received.from ?? sender.email,
     subject,
     body: message,
