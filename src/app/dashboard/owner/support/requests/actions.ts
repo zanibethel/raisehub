@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { deliverCustomerSupportReply } from '@/lib/support/customer-reply'
 
 const VALID_STATUSES = new Set(['open', 'in_progress', 'resolved', 'closed'])
+const VALID_BUCKETS = new Set(['support', 'general', 'billing', 'partnerships', 'legal'])
 
 function value(formData: FormData, key: string, maxLength: number) {
   const entry = formData.get(key)
@@ -22,11 +23,13 @@ function replySubject(topic: string) {
 export async function updateSupportRequest(formData: FormData) {
   const id = value(formData, 'id', 100)
   const status = value(formData, 'status', 40)
+  const requestedBucket = value(formData, 'bucket', 40)
   const internalNotes = value(formData, 'internal_notes', 5000)
   const customerReply = value(formData, 'customer_reply', 5000)
   const intent = value(formData, 'intent', 40)
 
   if (!id || !VALID_STATUSES.has(status)) return
+  if (requestedBucket && !VALID_BUCKETS.has(requestedBucket)) return
   if (intent === 'publish_reply' && !customerReply) return
 
   const supabase = await createClient()
@@ -46,33 +49,50 @@ export async function updateSupportRequest(formData: FormData) {
 
   const { data: requestRow } = await supabase
     .from('support_requests')
-    .select('requester_email, requester_user_id, topic, reply_from_email, provider_message_id')
+    .select('requester_email, requester_user_id, topic, bucket, reply_from_email, provider_message_id')
     .eq('id', id)
     .maybeSingle<{
       requester_email: string
       requester_user_id: string | null
       topic: string
+      bucket: string
       reply_from_email: string | null
       provider_message_id: string | null
     }>()
 
   if (!requestRow) return
 
+  const effectiveBucket = requestedBucket || requestRow.bucket || 'support'
   let sentProviderMessageId: string | null = null
   let linkedRequesterUserId = requestRow.requester_user_id
   let replyFromEmail = requestRow.reply_from_email || 'support@raisehub.app'
   let replyDisplayName = 'RaiseHub Support'
 
-  const { data: route } = await supabase
+  const { data: bucketRoute } = await supabase
     .from('support_email_routes')
     .select('address, display_name')
-    .eq('address', replyFromEmail)
+    .eq('bucket', effectiveBucket)
     .eq('is_active', true)
+    .eq('accepts_inbound', true)
+    .limit(1)
     .maybeSingle<{ address: string; display_name: string }>()
 
-  if (route) {
-    replyFromEmail = route.address
-    replyDisplayName = route.display_name
+  if (bucketRoute) {
+    replyFromEmail = bucketRoute.address
+    replyDisplayName = bucketRoute.display_name
+  } else {
+    const { data: addressRoute } = await supabase
+      .from('support_email_routes')
+      .select('address, display_name')
+      .eq('address', replyFromEmail)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle<{ address: string; display_name: string }>()
+
+    if (addressRoute) {
+      replyFromEmail = addressRoute.address
+      replyDisplayName = addressRoute.display_name
+    }
   }
 
   if (intent === 'publish_reply') {
@@ -113,6 +133,7 @@ export async function updateSupportRequest(formData: FormData) {
     .from('support_requests')
     .update({
       status: effectiveStatus,
+      bucket: effectiveBucket,
       assigned_to: user.id,
       requester_user_id: linkedRequesterUserId,
       internal_notes: internalNotes || null,
