@@ -50,7 +50,7 @@ function renderEmail(input: SendNotificationEmailInput) {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;">
             <tr>
               <td style="padding:22px 26px;background:#0f766e;color:#ffffff;">
-                <div style="font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.88;">RaiseHub Business Partner</div>
+                <div style="font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.88;">RaiseHub</div>
                 <div style="margin-top:7px;font-size:24px;font-weight:800;line-height:1.2;">${safeTitle}</div>
               </td>
             </tr>
@@ -63,7 +63,7 @@ function renderEmail(input: SendNotificationEmailInput) {
                     ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:12px 18px;border-radius:10px;">${escapeHtml(actionLabel)}</a></p>`
                     : ''
                 }
-                <p style="margin:28px 0 0;font-size:13px;line-height:1.55;color:#64748b;">RaiseHub helps local businesses stay ready for supporters. Important account and offer updates will also remain available in your RaiseHub notification center.</p>
+                <p style="margin:28px 0 0;font-size:13px;line-height:1.55;color:#64748b;">Important RaiseHub updates also remain available in your notification center when an in-app notice is included.</p>
               </td>
             </tr>
           </table>
@@ -102,7 +102,7 @@ export async function sendNotificationEmail(
         html: renderEmail(input),
         tags: [
           { name: 'product', value: 'raisehub' },
-          { name: 'category', value: 'business_notification' },
+          { name: 'category', value: 'notification' },
         ],
       }),
       cache: 'no-store',
