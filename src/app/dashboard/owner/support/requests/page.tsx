@@ -17,11 +17,33 @@ type SupportRequest = {
   source_page: string | null
   environment: 'production' | 'demo'
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  channel: string
+  bucket: string
+  inbound_to: string | null
+  reply_from_email: string | null
   internal_notes: string | null
   customer_reply: string | null
   customer_reply_sent_at: string | null
   created_at: string
   updated_at: string
+}
+
+type SupportMessage = {
+  id: string
+  support_request_id: string
+  direction: 'inbound' | 'outbound' | 'internal'
+  sender_email: string | null
+  recipient_emails: string[] | null
+  subject: string | null
+  body_text: string | null
+  created_by: string | null
+  created_at: string
+}
+
+type SupportRoute = {
+  address: string
+  label: string
+  bucket: string
 }
 
 function formatDate(value: string) {
@@ -44,12 +66,44 @@ function statusLabel(status: SupportRequest['status']) {
     .join(' ')
 }
 
-function SupportRequestForm({ request }: { request: SupportRequest }) {
+function channelLabel(request: SupportRequest) {
+  if (request.channel === 'email' || request.source_page === 'email') return 'Email'
+  return 'RaiseHub app'
+}
+
+function messageLabel(message: SupportMessage) {
+  if (message.direction === 'inbound') return 'Customer · Email'
+  if (message.direction === 'internal') return 'Internal note'
+  return message.created_by ? 'Owner reply · RaiseHub' : 'Support team reply · Email'
+}
+
+function SupportRequestForm({
+  request,
+  routes,
+}: {
+  request: SupportRequest
+  routes: SupportRoute[]
+}) {
   return (
     <form action={updateSupportRequest} className="grid gap-4 lg:grid-cols-2">
       <input type="hidden" name="id" value={request.id} />
 
-      <label className="block lg:col-span-2">
+      <label className="block">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Bucket</span>
+        <select
+          name="bucket"
+          defaultValue={request.bucket}
+          className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+        >
+          {routes.map((route) => (
+            <option key={route.address} value={route.bucket}>
+              {route.label} · {route.address}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block">
         <span className="text-xs font-black uppercase tracking-wide text-slate-600">Status</span>
         <select
           name="status"
@@ -68,25 +122,92 @@ function SupportRequestForm({ request }: { request: SupportRequest }) {
         <textarea
           name="internal_notes"
           defaultValue={request.internal_notes ?? ''}
-          rows={6}
+          rows={4}
           placeholder="Private investigation details, account context, or next steps."
-          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+          className="mt-2 w-full rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm leading-6 text-slate-900"
         />
       </label>
 
       <label className="block">
-        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Customer reply</span>
+        <span className="text-xs font-black uppercase tracking-wide text-slate-600">Reply to customer</span>
         <textarea
           name="customer_reply"
-          defaultValue={request.customer_reply ?? ''}
-          rows={6}
-          placeholder="Write the customer-facing response here. Save it as a draft or publish it when complete."
-          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+          defaultValue={request.status === 'closed' ? '' : request.customer_reply ?? ''}
+          rows={4}
+          placeholder="Write the customer-facing response here."
+          className="mt-2 w-full rounded-xl border border-blue-200 bg-white p-3 text-sm leading-6 text-slate-900"
         />
       </label>
 
       <SupportRequestSubmitButtons />
     </form>
+  )
+}
+
+function ConversationThread({
+  request,
+  messages,
+}: {
+  request: SupportRequest
+  messages: SupportMessage[]
+}) {
+  const hasInboundMessage = messages.some((message) => message.direction === 'inbound')
+
+  return (
+    <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Conversation</p>
+          <p className="mt-0.5 text-xs text-slate-500">Newest activity stays in this thread.</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm">
+          {messages.length + (hasInboundMessage ? 0 : 1)} {messages.length + (hasInboundMessage ? 0 : 1) === 1 ? 'message' : 'messages'}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {!hasInboundMessage ? (
+          <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-md border border-slate-200 bg-white p-4 shadow-sm sm:max-w-[78%]">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+              <span>Customer · {channelLabel(request)}</span>
+              <span>•</span>
+              <span>{formatDate(request.created_at)}</span>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
+          </div>
+        ) : null}
+
+        {messages.map((message) => {
+          const outbound = message.direction === 'outbound'
+          const internal = message.direction === 'internal'
+
+          return (
+            <div
+              key={message.id}
+              className={`max-w-[92%] rounded-2xl p-4 shadow-sm sm:max-w-[78%] ${
+                internal
+                  ? 'mx-auto border border-amber-200 bg-amber-50'
+                  : outbound
+                    ? 'ml-auto rounded-tr-md border border-blue-200 bg-blue-50'
+                    : 'mr-auto rounded-tl-md border border-slate-200 bg-white'
+              }`}
+            >
+              <div className={`flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wide ${internal ? 'text-amber-700' : outbound ? 'text-blue-700' : 'text-slate-500'}`}>
+                <span>{messageLabel(message)}</span>
+                <span>•</span>
+                <span>{formatDate(message.created_at)}</span>
+              </div>
+              {message.sender_email ? (
+                <p className="mt-1 break-all text-[11px] font-semibold text-slate-500">{message.sender_email}</p>
+              ) : null}
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                {message.body_text || 'Message body unavailable.'}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -106,13 +227,43 @@ export default async function OwnerSupportRequestsPage() {
 
   if (profile?.role !== 'owner') redirect('/dashboard')
 
-  const { data, error } = await supabase
-    .from('support_requests')
-    .select('id, requester_name, requester_email, topic, message, source_page, environment, status, internal_notes, customer_reply, customer_reply_sent_at, created_at, updated_at')
-    .order('created_at', { ascending: false })
-    .limit(100)
+  const [{ data, error }, { data: routeData }] = await Promise.all([
+    supabase
+      .from('support_requests')
+      .select('id, requester_name, requester_email, topic, message, source_page, environment, status, channel, bucket, inbound_to, reply_from_email, internal_notes, customer_reply, customer_reply_sent_at, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(100),
+    supabase
+      .from('support_email_routes')
+      .select('address, label, bucket')
+      .eq('is_active', true)
+      .eq('accepts_inbound', true)
+      .neq('bucket', 'notifications')
+      .order('label'),
+  ])
 
   const requests = (data ?? []) as SupportRequest[]
+  const routes = (routeData ?? []) as SupportRoute[]
+  const requestIds = requests.map((request) => request.id)
+
+  let messageRows: SupportMessage[] = []
+  if (requestIds.length > 0) {
+    const { data: messages } = await supabase
+      .from('support_request_messages')
+      .select('id, support_request_id, direction, sender_email, recipient_emails, subject, body_text, created_by, created_at')
+      .in('support_request_id', requestIds)
+      .order('created_at', { ascending: true })
+
+    messageRows = (messages ?? []) as SupportMessage[]
+  }
+
+  const messagesByRequest = new Map<string, SupportMessage[]>()
+  for (const message of messageRows) {
+    const current = messagesByRequest.get(message.support_request_id) ?? []
+    current.push(message)
+    messagesByRequest.set(message.support_request_id, current)
+  }
+
   const openCount = requests.filter((request) => request.status === 'open').length
   const activeCount = requests.filter((request) => request.status === 'in_progress').length
   const resolvedCount = requests.filter((request) => request.status === 'resolved').length
@@ -121,14 +272,10 @@ export default async function OwnerSupportRequestsPage() {
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-            Owner Support Queue
-          </p>
-          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
-            Support Requests
-          </h1>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Owner Support Queue</p>
+          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">Support Inbox</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Review customer messages, record private investigation notes, save reply drafts, and publish completed responses to the customer Help page.
+            Review the complete conversation, keep private notes separate, move work between support buckets, and reply from the correct RaiseHub address.
           </p>
         </header>
 
@@ -154,75 +301,67 @@ export default async function OwnerSupportRequestsPage() {
         {!error && requests.length === 0 ? (
           <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <h2 className="text-xl font-black text-slate-950">No support requests yet</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              New Contact Us submissions will appear here automatically.
-            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">New customer messages will appear here automatically.</p>
           </section>
         ) : null}
 
         <section className="space-y-4">
           {requests.map((request) => {
-            const published = Boolean(request.customer_reply_sent_at)
+            const completed = request.status === 'closed' && Boolean(request.customer_reply_sent_at)
+            const messages = messagesByRequest.get(request.id) ?? []
+            const route = routes.find((candidate) => candidate.bucket === request.bucket)
 
             return (
               <article key={request.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                        {request.topic}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                        {request.environment === 'demo' ? 'Demo' : 'Live'}
-                      </span>
-                      {published ? (
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                          Published
-                        </span>
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{request.topic}</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{request.environment === 'demo' ? 'Demo' : 'Live'}</span>
+                      <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{route?.label ?? request.bucket}</span>
+                      {completed ? (
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Published</span>
                       ) : (
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
-                          {statusLabel(request.status)}
-                        </span>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{statusLabel(request.status)}</span>
                       )}
-                      {!published && request.customer_reply ? (
-                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
-                          Draft saved
-                        </span>
+                      {!completed && request.customer_reply ? (
+                        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">Draft / prior reply</span>
                       ) : null}
                     </div>
                     <h2 className="mt-3 text-xl font-black text-slate-950">{request.requester_name}</h2>
-                    <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">
-                      {request.requester_email}
-                    </a>
-                    <p className="mt-1 text-xs text-slate-500">Received {formatDate(request.created_at)}</p>
-                    {request.customer_reply_sent_at ? (
-                      <p className="mt-1 text-xs font-bold text-emerald-700">
-                        Published {formatDate(request.customer_reply_sent_at)}
-                      </p>
-                    ) : null}
+                    <a href={`mailto:${request.requester_email}`} className="mt-1 block break-all text-sm font-bold text-blue-700">{request.requester_email}</a>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                      <span>Opened {formatDate(request.created_at)}</span>
+                      <span>Updated {formatDate(request.updated_at)}</span>
+                      <span>Source: {channelLabel(request)}</span>
+                    </div>
+                    {request.inbound_to ? <p className="mt-1 text-xs text-slate-500">Received at {request.inbound_to}</p> : null}
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.message}</p>
-                  {request.source_page ? (
-                    <p className="mt-3 break-all text-xs text-slate-500">Source: {request.source_page}</p>
-                  ) : null}
-                </div>
+                <ConversationThread request={request} messages={messages} />
 
-                {published ? (
+                {request.internal_notes ? (
+                  <aside className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Private internal notes</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">{request.internal_notes}</p>
+                  </aside>
+                ) : null}
+
+                {completed ? (
                   <details className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/50">
                     <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-800">
                       <span>✓ Reply published — request closed</span>
-                      <span className="text-xs font-bold text-emerald-700">Edit or send follow-up</span>
+                      <span className="text-xs font-bold text-emerald-700">Reopen or send follow-up</span>
                     </summary>
                     <div className="border-t border-emerald-100 bg-white p-4">
-                      <SupportRequestForm request={request} />
+                      <SupportRequestForm request={request} routes={routes} />
                     </div>
                   </details>
                 ) : (
-                  <div className="mt-5">
-                    <SupportRequestForm request={request} />
+                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/30 p-4">
+                    <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-blue-700">Reply & workflow</p>
+                    <SupportRequestForm request={request} routes={routes} />
                   </div>
                 )}
               </article>
