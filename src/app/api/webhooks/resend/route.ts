@@ -38,6 +38,7 @@ type EmailRoute = {
   bucket: string
   display_name: string
   forward_to: string[] | null
+  forward_enabled: boolean
   is_active: boolean
   accepts_inbound: boolean
 }
@@ -116,6 +117,21 @@ function normalizeHeader(headers: Record<string, string> | null | undefined, nam
   return match?.[1]?.trim() || null
 }
 
+function ownerNotificationCopy(bucket: string) {
+  switch (bucket) {
+    case 'billing':
+      return { title: 'New billing email', severity: 'warning' }
+    case 'partnerships':
+      return { title: 'New partnership inquiry', severity: 'info' }
+    case 'legal':
+      return { title: 'New legal email', severity: 'warning' }
+    case 'general':
+      return { title: 'New contact email', severity: 'info' }
+    default:
+      return { title: 'New support email', severity: 'info' }
+  }
+}
+
 async function getReceivedEmail(emailId: string): Promise<ReceivedEmail | null> {
   const apiKey = process.env.RESEND_API_KEY?.trim()
   if (!apiKey) return null
@@ -136,6 +152,65 @@ async function getReceivedEmail(emailId: string): Promise<ReceivedEmail | null> 
   return (await response.json()) as ReceivedEmail
 }
 
+async function notifyOwners({
+  admin,
+  route,
+  senderEmail,
+  subject,
+  supportRequestId,
+  providerMessageId,
+}: {
+  admin: ReturnType<typeof createClient>
+  route: EmailRoute
+  senderEmail: string
+  subject: string
+  supportRequestId: string
+  providerMessageId: string
+}) {
+  const { data: owners, error: ownerError } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('role', 'owner')
+
+  if (ownerError) {
+    console.error('Unable to load Owner notification recipients:', ownerError)
+    return
+  }
+
+  const ownerIds = (owners ?? [])
+    .map((owner) => owner.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+
+  if (ownerIds.length === 0) return
+
+  const copy = ownerNotificationCopy(route.bucket)
+  const safeSubject = subject.slice(0, 160)
+  const rows = ownerIds.map((ownerId) => ({
+    user_id: ownerId,
+    type: 'owner_support_email',
+    severity: copy.severity,
+    title: copy.title,
+    message: `${senderEmail} — ${safeSubject}`.slice(0, 500),
+    action_url: '/dashboard/owner/support/requests',
+    action_label: 'Open support inbox',
+    source_key: `inbound_email:${providerMessageId}`,
+    metadata: {
+      support_request_id: supportRequestId,
+      bucket: route.bucket,
+      inbound_to: route.address,
+      sender_email: senderEmail,
+    },
+  }))
+
+  const { error } = await admin
+    .from('notifications')
+    .upsert(rows, { onConflict: 'user_id,source_key', ignoreDuplicates: true })
+
+  if (error) {
+    console.error('Unable to create Owner inbound-email notifications:', error)
+  }
+}
+
 async function forwardCopy({
   route,
   sender,
@@ -147,12 +222,19 @@ async function forwardCopy({
   subject: string
   body: string
 }) {
+  if (!route.forward_enabled) return
+
   const apiKey = process.env.RESEND_API_KEY?.trim()
   if (!apiKey) return
 
-  const recipients = (route.forward_to ?? []).filter(
-    (email) => !email.toLowerCase().endsWith('@raisehub.app')
-  )
+  const recipients = Array.from(
+    new Set(
+      (route.forward_to ?? [])
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean)
+        .filter((email) => !email.endsWith('@raisehub.app'))
+    )
+  ).slice(0, 50)
 
   if (recipients.length === 0) return
 
@@ -229,7 +311,7 @@ export async function POST(request: Request) {
 
   const { data: routeRows, error: routeError } = await admin
     .from('support_email_routes')
-    .select('id, address, label, bucket, display_name, forward_to, is_active, accepts_inbound')
+    .select('id, address, label, bucket, display_name, forward_to, forward_enabled, is_active, accepts_inbound')
     .in('address', normalizedRecipients)
     .eq('is_active', true)
     .eq('accepts_inbound', true)
@@ -332,6 +414,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unable to store inbound message.' }, { status: 500 })
   }
 
+  await notifyOwners({
+    admin,
+    route,
+    senderEmail: sender.email,
+    subject,
+    supportRequestId,
+    providerMessageId,
+  })
+
   await forwardCopy({
     route,
     sender: received.from ?? sender.email,
@@ -343,5 +434,6 @@ export async function POST(request: Request) {
     ok: true,
     supportRequestId,
     bucket: route.bucket,
+    forwarded: route.forward_enabled,
   })
 }
