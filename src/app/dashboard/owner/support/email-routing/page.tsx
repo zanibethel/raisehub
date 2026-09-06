@@ -71,9 +71,9 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
   const routeError = errorMessage(params.error)
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+    <main className="min-h-screen overflow-x-hidden bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
+      <div className="mx-auto min-w-0 max-w-5xl space-y-6">
+        <header className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
           <Link
             href="/dashboard/owner/support"
             className="text-sm font-bold text-blue-700 hover:text-blue-900"
@@ -92,30 +92,30 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
         </header>
 
         {params.created ? (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+          <section className="min-w-0 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
             ✓ {params.created} is active in RaiseHub routing. You can use it now for inbound mail and test forwarding below.
           </section>
         ) : null}
 
         {routeError ? (
-          <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800">
+          <section className="min-w-0 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800">
             {routeError}
           </section>
         ) : null}
 
-        <details className="rounded-3xl border border-blue-200 bg-white shadow-sm" open>
-          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 sm:px-6">
-            <div>
+        <details className="min-w-0 overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-sm" open>
+          <summary className="flex min-h-16 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 sm:px-6">
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">New mailbox</p>
               <h2 className="mt-1 text-xl font-black text-slate-950">Add new email route</h2>
             </div>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">@raisehub.app</span>
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">@raisehub.app</span>
           </summary>
 
-          <form action={createSupportEmailRoute} className="grid gap-4 border-t border-blue-100 p-5 sm:grid-cols-2 sm:p-6">
-            <label className="block sm:col-span-2">
+          <form action={createSupportEmailRoute} className="grid min-w-0 gap-4 border-t border-blue-100 p-5 sm:grid-cols-2 sm:p-6">
+            <label className="block min-w-0 sm:col-span-2">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">Email address</span>
-              <div className="mt-2 flex min-h-12 overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-blue-500">
+              <div className="mt-2 flex min-h-12 min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-blue-500">
                 <input
                   name="local_part"
                   required
@@ -125,81 +125,83 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
                   placeholder="social"
                   className="min-w-0 flex-1 px-3 text-sm font-bold text-slate-900 outline-none"
                 />
-                <span className="flex items-center border-l border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500">
+                <span className="flex shrink-0 items-center border-l border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-500 sm:px-3 sm:text-sm">
                   @raisehub.app
                 </span>
               </div>
-              <span className="mt-2 block text-xs leading-5 text-slate-500">
+              <span className="mt-2 block break-words text-xs leading-5 text-slate-500">
                 The mailbox name also creates its routing bucket automatically. For example, social@raisehub.app becomes the Social inbox route.
               </span>
             </label>
 
-            <label className="block">
+            <label className="block min-w-0">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">Route label</span>
               <input
                 name="label"
                 required
                 maxLength={80}
                 placeholder="Social"
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+                className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
               />
             </label>
 
-            <label className="block">
+            <label className="block min-w-0">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">Sender display name</span>
               <input
                 name="display_name"
                 required
                 maxLength={120}
                 placeholder="RaiseHub Social"
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+                className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
               />
             </label>
 
-            <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
-              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                <input type="checkbox" name="is_active" defaultChecked className="h-5 w-5" />
+            <div className="grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2 sm:grid-cols-3">
+              <label className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="is_active" defaultChecked className="h-5 w-5 shrink-0" />
                 Address active
               </label>
-              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                <input type="checkbox" name="accepts_inbound" defaultChecked className="h-5 w-5" />
+              <label className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="accepts_inbound" defaultChecked className="h-5 w-5 shrink-0" />
                 Accept inbound email
               </label>
-              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                <input type="checkbox" name="forward_enabled" className="h-5 w-5" />
+              <label className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="forward_enabled" className="h-5 w-5 shrink-0" />
                 Forward externally
               </label>
             </div>
 
-            <label className="block sm:col-span-2">
+            <label className="block min-w-0 sm:col-span-2">
               <span className="text-xs font-black uppercase tracking-wide text-slate-600">External forwarding recipients</span>
               <textarea
                 name="forward_to"
                 rows={3}
                 placeholder="zanibethel@gmail.com"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+                className="mt-2 w-full min-w-0 max-w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
               />
-              <span className="mt-2 block text-xs leading-5 text-slate-500">
+              <span className="mt-2 block break-words text-xs leading-5 text-slate-500">
                 Optional. Add up to 50 addresses using one per line, commas, or semicolons. If forwarding is enabled, replies from these saved addresses are recognized as authorized team replies and are sent back to the original customer from this RaiseHub mailbox.
               </span>
             </label>
 
-            <div className="sm:col-span-2 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-emerald-900">
+            <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="min-w-0 break-words text-xs leading-5 text-emerald-900">
                 No separate mailbox provider setup is required for each new address. RaiseHub domain receiving is already connected; saving this route authorizes the existing inbound webhook and forwarding system to recognize it.
               </p>
-              <CreateRouteSubmitButton />
+              <div className="shrink-0">
+                <CreateRouteSubmitButton />
+              </div>
             </div>
           </form>
         </details>
 
         {error ? (
-          <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
+          <section className="min-w-0 rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
             Email routes could not be loaded.
           </section>
         ) : null}
 
-        <section className="space-y-4">
+        <section className="min-w-0 space-y-4">
           {routes.map((route) => {
             const recipients = route.forward_to ?? []
 
@@ -207,13 +209,13 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
               <form
                 key={route.id}
                 action={updateSupportEmailRoute}
-                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
               >
                 <input type="hidden" name="id" value={route.id} />
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                         {route.label}
                       </span>
@@ -232,30 +234,30 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
                     <h2 className="mt-3 break-all text-xl font-black text-slate-950">
                       {route.address}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 break-words text-sm text-slate-500">
                       Sender name: {route.display_name}
                     </p>
                   </div>
 
-                  <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                  <label className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-slate-700">
                     <input
                       type="checkbox"
                       name="is_active"
                       defaultChecked={route.is_active}
-                      className="h-5 w-5"
+                      className="h-5 w-5 shrink-0"
                     />
                     Address active
                   </label>
                 </div>
 
                 {route.accepts_inbound ? (
-                  <details className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+                  <details className="mt-5 min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <summary className="flex min-h-16 min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-sm font-black text-slate-900">
                           Team recipients ({recipients.length})
                         </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                        <p className="mt-1 truncate text-xs leading-5 text-slate-500">
                           {route.forward_enabled
                             ? `Forwarding on${recipients.length > 0 ? ` · ${recipients[0]}${recipients.length > 1 ? ` +${recipients.length - 1}` : ''}` : ''}`
                             : 'External forwarding is off'}
@@ -266,26 +268,26 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
                       </span>
                     </summary>
 
-                    <div className="border-t border-slate-200 p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
+                    <div className="min-w-0 border-t border-slate-200 p-4">
+                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
                           <p className="text-sm font-black text-slate-900">External forwarding</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
                             RaiseHub remains the source of truth even when outside copies are enabled.
                           </p>
                         </div>
-                        <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <label className="inline-flex min-w-0 items-center gap-2 text-sm font-bold text-slate-700">
                           <input
                             type="checkbox"
                             name="forward_enabled"
                             defaultChecked={route.forward_enabled}
-                            className="h-5 w-5"
+                            className="h-5 w-5 shrink-0"
                           />
                           Forward this bucket
                         </label>
                       </div>
 
-                      <label className="mt-4 block">
+                      <label className="mt-4 block min-w-0">
                         <span className="text-xs font-black uppercase tracking-wide text-slate-600">
                           Team recipients ({recipients.length})
                         </span>
@@ -294,15 +296,15 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
                           rows={Math.max(3, Math.min(8, recipients.length + 1))}
                           defaultValue={recipients.join('\n')}
                           placeholder="owner@example.com\nsupport-one@example.com\nsupport-two@example.com"
-                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+                          className="mt-2 w-full min-w-0 max-w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
                         />
-                        <span className="mt-2 block text-xs leading-5 text-slate-500">
+                        <span className="mt-2 block break-words text-xs leading-5 text-slate-500">
                           Add up to 50 addresses. Use one per line, commas, or semicolons. Duplicate addresses are removed automatically. Turning forwarding off keeps the list saved without sending outside copies.
                         </span>
                       </label>
 
                       {recipients.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-3 flex min-w-0 flex-wrap gap-2">
                           {recipients.map((recipient) => (
                             <span
                               key={recipient}
@@ -321,7 +323,7 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
 
                 <button
                   type="submit"
-                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-black text-white hover:bg-slate-800"
+                  className="mt-4 inline-flex min-h-11 max-w-full items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-black text-white hover:bg-slate-800"
                 >
                   Save routing
                 </button>
