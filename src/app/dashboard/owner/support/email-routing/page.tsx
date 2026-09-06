@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { updateSupportEmailRoute } from './actions'
+import { createSupportEmailRoute, updateSupportEmailRoute } from './actions'
+import CreateRouteSubmitButton from './create-route-submit-button'
 
 export const metadata = {
   title: 'Email Routing | RaiseHub Owner Console',
@@ -20,7 +21,29 @@ type SupportEmailRoute = {
   accepts_inbound: boolean
 }
 
-export default async function OwnerEmailRoutingPage() {
+type PageProps = {
+  searchParams: Promise<{
+    created?: string
+    error?: string
+  }>
+}
+
+function errorMessage(code?: string) {
+  switch (code) {
+    case 'invalid-address':
+      return 'Use a valid RaiseHub mailbox name such as social, media, or careers.'
+    case 'invalid-bucket':
+      return 'That mailbox name cannot be converted into a routing bucket. Try a simple name such as social.'
+    case 'missing-details':
+      return 'Add both a route label and sender display name.'
+    case 'route-exists':
+      return 'That email route or routing bucket already exists.'
+    default:
+      return null
+  }
+}
+
+export default async function OwnerEmailRoutingPage({ searchParams }: PageProps) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -36,12 +59,16 @@ export default async function OwnerEmailRoutingPage() {
 
   if (profile?.role !== 'owner') redirect('/dashboard')
 
-  const { data, error } = await supabase
-    .from('support_email_routes')
-    .select('id, address, label, bucket, display_name, forward_to, forward_enabled, is_active, accepts_inbound')
-    .order('address')
+  const [{ data, error }, params] = await Promise.all([
+    supabase
+      .from('support_email_routes')
+      .select('id, address, label, bucket, display_name, forward_to, forward_enabled, is_active, accepts_inbound')
+      .order('address'),
+    searchParams,
+  ])
 
   const routes = (data ?? []) as SupportEmailRoute[]
+  const routeError = errorMessage(params.error)
 
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
@@ -57,12 +84,114 @@ export default async function OwnerEmailRoutingPage() {
             Owner Mail Routing
           </p>
           <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
-            RaiseHub email buckets
+            RaiseHub email routes
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-            Every inbound message stays in RaiseHub. You decide bucket by bucket whether copies should also be forwarded to outside team members, and each bucket can hold multiple recipient addresses as your support team grows.
+            Every inbound message stays in RaiseHub. Create new @raisehub.app mailboxes as needed, route them into their own inbox bucket, and optionally forward copies to outside team members.
           </p>
         </header>
+
+        {params.created ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+            ✓ {params.created} is active in RaiseHub routing. You can use it now for inbound mail and test forwarding below.
+          </section>
+        ) : null}
+
+        {routeError ? (
+          <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800">
+            {routeError}
+          </section>
+        ) : null}
+
+        <details className="rounded-3xl border border-blue-200 bg-white shadow-sm" open>
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">New mailbox</p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">Add new email route</h2>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">@raisehub.app</span>
+          </summary>
+
+          <form action={createSupportEmailRoute} className="grid gap-4 border-t border-blue-100 p-5 sm:grid-cols-2 sm:p-6">
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">Email address</span>
+              <div className="mt-2 flex min-h-12 overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-blue-500">
+                <input
+                  name="local_part"
+                  required
+                  maxLength={63}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  placeholder="social"
+                  className="min-w-0 flex-1 px-3 text-sm font-bold text-slate-900 outline-none"
+                />
+                <span className="flex items-center border-l border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-500">
+                  @raisehub.app
+                </span>
+              </div>
+              <span className="mt-2 block text-xs leading-5 text-slate-500">
+                The mailbox name also creates its routing bucket automatically. For example, social@raisehub.app becomes the Social inbox route.
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">Route label</span>
+              <input
+                name="label"
+                required
+                maxLength={80}
+                placeholder="Social"
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">Sender display name</span>
+              <input
+                name="display_name"
+                required
+                maxLength={120}
+                placeholder="RaiseHub Social"
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"
+              />
+            </label>
+
+            <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="is_active" defaultChecked className="h-5 w-5" />
+                Address active
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="accepts_inbound" defaultChecked className="h-5 w-5" />
+                Accept inbound email
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                <input type="checkbox" name="forward_enabled" className="h-5 w-5" />
+                Forward externally
+              </label>
+            </div>
+
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-600">External forwarding recipients</span>
+              <textarea
+                name="forward_to"
+                rows={3}
+                placeholder="zanibethel@gmail.com"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+              />
+              <span className="mt-2 block text-xs leading-5 text-slate-500">
+                Optional. Add up to 50 addresses using one per line, commas, or semicolons. If forwarding is enabled, replies from these saved addresses are recognized as authorized team replies and are sent back to the original customer from this RaiseHub mailbox.
+              </span>
+            </label>
+
+            <div className="sm:col-span-2 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-emerald-900">
+                No separate mailbox provider setup is required for each new address. RaiseHub domain receiving is already connected; saving this route authorizes the existing inbound webhook and forwarding system to recognize it.
+              </p>
+              <CreateRouteSubmitButton />
+            </div>
+          </form>
+        </details>
 
         {error ? (
           <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
