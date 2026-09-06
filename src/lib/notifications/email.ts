@@ -32,6 +32,11 @@ function buildActionUrl(actionUrl?: string | null) {
   return buildProductionUrl(actionUrl)
 }
 
+function buildFromAddress(from: string) {
+  if (from.includes('<') && from.includes('>')) return from
+  return `RaiseHub Notifications <${from}>`
+}
+
 function renderEmail(input: SendNotificationEmailInput) {
   const safeTitle = escapeHtml(input.title)
   const safeMessage = escapeHtml(input.message).replaceAll('\n', '<br />')
@@ -96,7 +101,7 @@ export async function sendNotificationEmail(
         'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
-        from,
+        from: buildFromAddress(from),
         to: [input.to],
         subject: input.title,
         html: renderEmail(input),
