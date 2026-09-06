@@ -34,7 +34,7 @@ export default function OrganizationSelector({
   }
 
   return (
-    <section>
+    <section className="min-w-0">
       <div className="text-center">
         <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-700">
           Every purchase has a purpose
@@ -49,7 +49,7 @@ export default function OrganizationSelector({
         </p>
       </div>
 
-      <div className="mt-9 flex snap-x gap-5 overflow-x-auto pb-5">
+      <div className="mt-9 flex min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-5 sm:gap-5">
         {organizations.map((organization) => {
           const progress =
             organization.goal > 0
@@ -65,40 +65,40 @@ export default function OrganizationSelector({
           return (
             <article
               key={organization.id}
-              className={`min-w-[82%] snap-center rounded-3xl border bg-white p-6 shadow-lg transition sm:min-w-[360px] ${
+              className={`w-[88%] shrink-0 basis-[88%] snap-center rounded-3xl border bg-white p-5 shadow-lg transition sm:w-[360px] sm:basis-[360px] sm:p-6 ${
                 isSelected
                   ? 'border-green-500 ring-2 ring-green-200'
                   : 'border-blue-100'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
                     {organization.category}
                   </p>
 
-                  <h3 className="mt-2 text-xl font-bold text-gray-900">
+                  <h3 className="mt-2 break-words text-xl font-bold text-gray-900">
                     {organization.name}
                   </h3>
                 </div>
 
                 {organization.badge ? (
-                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
+                  <span className="shrink-0 rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">
                     {organization.badge}
                   </span>
                 ) : null}
               </div>
 
-              <p className="mt-4 min-h-16 text-sm leading-6 text-gray-600">
+              <p className="mt-4 min-h-16 break-words text-sm leading-6 text-gray-600">
                 {organization.story}
               </p>
 
               <div className="mt-5">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between gap-3 text-sm">
                   <span className="font-semibold text-green-700">
                     {Math.round(progress)}% funded
                   </span>
-                  <span className="text-gray-500">
+                  <span className="shrink-0 text-gray-500">
                     {organization.daysRemaining} days left
                   </span>
                 </div>
@@ -112,16 +112,16 @@ export default function OrganizationSelector({
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-blue-50 p-3">
+                <div className="min-w-0 rounded-xl bg-blue-50 p-3">
                   <p className="font-bold text-blue-700">
                     {formatCurrency(organization.raised)}
                   </p>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="mt-1 break-words text-xs text-gray-600">
                     raised of {formatCurrency(organization.goal)}
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-green-50 p-3">
+                <div className="min-w-0 rounded-xl bg-green-50 p-3">
                   <p className="font-bold text-green-700">
                     {organization.supporters}
                   </p>
