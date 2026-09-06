@@ -249,54 +249,72 @@ export default async function OwnerEmailRoutingPage({ searchParams }: PageProps)
                 </div>
 
                 {route.accepts_inbound ? (
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-black text-slate-900">External forwarding</p>
+                  <details className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-900">
+                          Team recipients ({recipients.length})
+                        </p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                          RaiseHub remains the source of truth even when outside copies are enabled.
+                          {route.forward_enabled
+                            ? `Forwarding on${recipients.length > 0 ? ` · ${recipients[0]}${recipients.length > 1 ? ` +${recipients.length - 1}` : ''}` : ''}`
+                            : 'External forwarding is off'}
                         </p>
                       </div>
-                      <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <input
-                          type="checkbox"
-                          name="forward_enabled"
-                          defaultChecked={route.forward_enabled}
-                          className="h-5 w-5"
-                        />
-                        Forward this bucket
-                      </label>
-                    </div>
-
-                    <label className="mt-4 block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                        Team recipients ({recipients.length})
+                      <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-blue-700 ring-1 ring-slate-200">
+                        Manage
                       </span>
-                      <textarea
-                        name="forward_to"
-                        rows={Math.max(3, Math.min(8, recipients.length + 1))}
-                        defaultValue={recipients.join('\n')}
-                        placeholder="owner@example.com\nsupport-one@example.com\nsupport-two@example.com"
-                        className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
-                      />
-                      <span className="mt-2 block text-xs leading-5 text-slate-500">
-                        Add up to 50 addresses. Use one per line, commas, or semicolons. Duplicate addresses are removed automatically. Turning forwarding off keeps the list saved without sending outside copies.
-                      </span>
-                    </label>
+                    </summary>
 
-                    {recipients.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {recipients.map((recipient) => (
-                          <span
-                            key={recipient}
-                            className="max-w-full break-all rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
-                          >
-                            {recipient}
-                          </span>
-                        ))}
+                    <div className="border-t border-slate-200 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">External forwarding</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            RaiseHub remains the source of truth even when outside copies are enabled.
+                          </p>
+                        </div>
+                        <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <input
+                            type="checkbox"
+                            name="forward_enabled"
+                            defaultChecked={route.forward_enabled}
+                            className="h-5 w-5"
+                          />
+                          Forward this bucket
+                        </label>
                       </div>
-                    ) : null}
-                  </div>
+
+                      <label className="mt-4 block">
+                        <span className="text-xs font-black uppercase tracking-wide text-slate-600">
+                          Team recipients ({recipients.length})
+                        </span>
+                        <textarea
+                          name="forward_to"
+                          rows={Math.max(3, Math.min(8, recipients.length + 1))}
+                          defaultValue={recipients.join('\n')}
+                          placeholder="owner@example.com\nsupport-one@example.com\nsupport-two@example.com"
+                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-900"
+                        />
+                        <span className="mt-2 block text-xs leading-5 text-slate-500">
+                          Add up to 50 addresses. Use one per line, commas, or semicolons. Duplicate addresses are removed automatically. Turning forwarding off keeps the list saved without sending outside copies.
+                        </span>
+                      </label>
+
+                      {recipients.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {recipients.map((recipient) => (
+                            <span
+                              key={recipient}
+                              className="max-w-full break-all rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200"
+                            >
+                              {recipient}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
                 ) : (
                   <input type="hidden" name="forward_to" value="" />
                 )}
