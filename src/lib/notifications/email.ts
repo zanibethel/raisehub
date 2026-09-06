@@ -105,6 +105,7 @@ export async function sendNotificationEmail(
         to: [input.to],
         subject: input.title,
         html: renderEmail(input),
+        reply_to: 'support@raisehub.app',
         tags: [
           { name: 'product', value: 'raisehub' },
           { name: 'category', value: 'notification' },
