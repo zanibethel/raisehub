@@ -15,14 +15,6 @@ function GoogleIcon() {
   )
 }
 
-function AppleIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-current">
-      <path d="M16.7 12.8c0-2.32 1.9-3.43 1.99-3.48a4.27 4.27 0 0 0-3.36-1.82c-1.43-.15-2.8.84-3.52.84-.73 0-1.84-.82-3.03-.8a4.47 4.47 0 0 0-3.77 2.3c-1.61 2.79-.41 6.9 1.15 9.15.77 1.1 1.67 2.32 2.86 2.27 1.15-.05 1.58-.73 2.97-.73 1.38 0 1.78.73 2.99.7 1.24-.02 2.02-1.1 2.75-2.21a10 10 0 0 0 1.24-2.54 4.06 4.06 0 0 1-2.27-3.68ZM14.39 5.98A4.06 4.06 0 0 0 15.34 3a4.13 4.13 0 0 0-2.7 1.4 3.86 3.86 0 0 0-.98 2.89 3.42 3.42 0 0 0 2.73-1.31Z" />
-    </svg>
-  )
-}
-
 export default function LoginPage() {
   const supabase = createClient()
 
@@ -59,7 +51,7 @@ export default function LoginPage() {
     window.location.href = getNextPath()
   }
 
-  async function handleOAuth(provider: 'google' | 'apple') {
+  async function handleOAuth(provider: 'google') {
     setOauthProvider(provider)
     setMessage('')
 
@@ -158,27 +150,15 @@ export default function LoginPage() {
           <div className="h-px flex-1 bg-gray-200" />
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => handleOAuth('google')}
-            disabled={Boolean(oauthProvider)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
-          >
-            <GoogleIcon />
-            {oauthProvider === 'google' ? 'Connecting...' : 'Google sign-in'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleOAuth('apple')}
-            disabled={Boolean(oauthProvider)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
-          >
-            <AppleIcon />
-            {oauthProvider === 'apple' ? 'Connecting...' : 'Apple sign-in'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => handleOAuth('google')}
+          disabled={Boolean(oauthProvider)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
+        >
+          <GoogleIcon />
+          {oauthProvider === 'google' ? 'Connecting...' : 'Google sign-in'}
+        </button>
 
         <p className="mt-7 text-center text-sm text-gray-600">
           Need an account?{' '}
