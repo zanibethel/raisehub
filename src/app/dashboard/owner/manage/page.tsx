@@ -23,6 +23,7 @@ const groups = [
     title: 'Trust and operations',
     description: 'Review activity that affects platform trust, revenue, or readiness.',
     items: [
+      { label: 'Notifications', href: '/dashboard/owner/notifications', detail: 'Send targeted reminders, in-app notices, and email messages to selected profiles.' },
       { label: 'Campaign reviews', href: '/dashboard/owner/campaign-reviews', detail: 'Review pending campaigns, payout readiness, and risk context.' },
       { label: 'Platform health', href: '/dashboard/owner/health', detail: 'Review warnings, operational health, and platform controls.' },
       { label: 'Analytics', href: '/dashboard/owner/analytics', detail: 'Open live platform totals and performance reporting.' },
