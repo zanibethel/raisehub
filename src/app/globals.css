@@ -61,6 +61,56 @@ canvas {
 }
 
 /* =============================================================================
+   Interaction feedback
+
+   Every tappable control should visibly acknowledge the first tap. Internal
+   page navigation is additionally covered by the route-loading overlay, which
+   blocks repeat taps until the next route is ready.
+   ============================================================================= */
+
+button:not(:disabled),
+a[href] {
+  -webkit-tap-highlight-color: rgba(37, 99, 235, 0.14);
+  touch-action: manipulation;
+}
+
+button:not(:disabled):active,
+a[href]:active {
+  opacity: 0.78;
+}
+
+button[aria-expanded="true"] {
+  border-color: rgb(147 197 253);
+  background-color: rgb(239 246 255);
+  color: rgb(37 99 235);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+@keyframes raisehub-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes raisehub-navigation-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+.raisehub-spinner {
+  animation: raisehub-spinner 0.7s linear infinite;
+}
+
+.raisehub-navigation-progress {
+  animation: raisehub-navigation-progress 1s ease-in-out infinite;
+}
+
+/* =============================================================================
    Existing scrolling animation
    ============================================================================= */
 
