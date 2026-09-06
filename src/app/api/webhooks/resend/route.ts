@@ -205,9 +205,9 @@ async function notifyOwners({
 
   const { error } = await admin
     .from('notifications')
-    .upsert(rows, { onConflict: 'user_id,source_key', ignoreDuplicates: true })
+    .insert(rows)
 
-  if (error) {
+  if (error && error.code !== '23505') {
     console.error('Unable to create Owner inbound-email notifications:', error)
   }
 }
