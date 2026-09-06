@@ -136,17 +136,22 @@ export default function SelectableCampaignCarousel({
 
       <div
         ref={scrollRef}
-        className="mt-8 flex snap-x gap-5 overflow-x-auto pb-5"
+        className="mt-8 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-5 [-webkit-overflow-scrolling:touch]"
         role="list"
         aria-label="Available active campaigns"
       >
         {orderedCampaigns.map((campaign) => (
-          <div key={campaign.id} role="listitem">
+          <div
+            key={campaign.id}
+            role="listitem"
+            className="w-[min(360px,calc(100vw-5.5rem))] shrink-0 snap-start sm:w-[360px]"
+          >
             <CampaignCard
               campaign={campaign}
               actionLabel={actionLabel}
               selected={selectedCampaignId === campaign.id}
               onClick={() => handleSelectCampaign(campaign.id)}
+              className="w-full min-w-full sm:w-full sm:min-w-full"
             />
           </div>
         ))}
