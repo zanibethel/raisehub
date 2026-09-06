@@ -1,13 +1,30 @@
 'use client'
 
 import Link from 'next/link'
-import type { ComponentProps } from 'react'
+import { useEffect, useState, type ComponentProps } from 'react'
 
-import BusinessDashboardContent from './business-dashboard-content'
-import BusinessOffersSummary from './business-offers-summary'
+import { createClient } from '@/lib/supabase/client'
 import { WorkspaceModule } from '@/components/workspace/workspace-module'
+import BusinessDashboardContent from './business-dashboard-content'
+import BusinessNotificationCenter, {
+  type BusinessNotification,
+  type BusinessNotificationTone,
+} from './business-notification-center'
+import BusinessOffersSummary from './business-offers-summary'
 
 type Props = ComponentProps<typeof BusinessDashboardContent>
+
+type NotificationRow = {
+  id: string
+  severity: string
+  title: string
+  message: string
+  action_url: string | null
+  action_label: string | null
+  created_at: string | null
+  dismissed_at?: string | null
+  expires_at?: string | null
+}
 
 function ActivityIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M22 20H2" /></svg>
@@ -17,7 +34,91 @@ function AttentionIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M12 3 2.8 19h18.4L12 3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
 }
 
+function toBusinessNotificationTone(severity: string): BusinessNotificationTone {
+  if (severity === 'success') return 'success'
+  if (severity === 'warning') return 'warning'
+  if (severity === 'error') return 'danger'
+  return 'info'
+}
+
+function toBusinessNotification(row: NotificationRow): BusinessNotification {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.message,
+    tone: toBusinessNotificationTone(row.severity),
+    href: row.action_url ?? undefined,
+    actionLabel: row.action_label ?? undefined,
+    createdAt: row.created_at,
+  }
+}
+
+function isActiveNotification(row: NotificationRow) {
+  if (row.dismissed_at) return false
+  if (!row.expires_at) return true
+  return new Date(row.expires_at).getTime() > Date.now()
+}
+
 export default function BusinessCommandCenter(props: Props) {
+  const [notifications, setNotifications] = useState<BusinessNotification[]>([])
+
+  useEffect(() => {
+    const supabase = createClient()
+    let active = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function loadNotifications() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user || !active) return
+
+      const { data } = await supabase
+        .from('notifications')
+        .select(
+          'id, severity, title, message, action_url, action_label, created_at, dismissed_at, expires_at'
+        )
+        .eq('user_id', user.id)
+        .is('dismissed_at', null)
+        .order('created_at', { ascending: false })
+        .limit(8)
+
+      if (!active) return
+
+      const rows = ((data ?? []) as NotificationRow[]).filter(isActiveNotification)
+      setNotifications(rows.map(toBusinessNotification))
+
+      channel = supabase
+        .channel(`business-command-notifications:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const row = payload.new as NotificationRow
+            if (!isActiveNotification(row)) return
+            setNotifications((current) => [
+              toBusinessNotification(row),
+              ...current.filter((item) => item.id !== row.id),
+            ].slice(0, 8))
+          }
+        )
+        .subscribe()
+    }
+
+    void loadNotifications()
+
+    return () => {
+      active = false
+      if (channel) void supabase.removeChannel(channel)
+    }
+  }, [])
+
   const profileComplete = Boolean(
     props.profile?.business_name &&
       props.profile?.phone &&
@@ -55,6 +156,8 @@ export default function BusinessCommandCenter(props: Props) {
 
   return (
     <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+      <BusinessNotificationCenter notifications={notifications} />
+
       <Link
         href="/dashboard/redeem"
         className="flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-green-300 bg-green-700 px-5 py-4 text-white shadow-lg transition hover:bg-green-800"
