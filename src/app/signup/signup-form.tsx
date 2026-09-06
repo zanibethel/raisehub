@@ -91,7 +91,7 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
     setMessage('')
 
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         data: {
@@ -176,11 +176,11 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
         <form onSubmit={handleSignup} className="mt-8 space-y-4">
           <div>
             <label htmlFor="signup-email" className="mb-2 block text-sm font-medium text-gray-700">Email</label>
-            <input id="signup-email" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <input id="signup-email" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
           </div>
           <div>
             <label htmlFor="signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
-            <input id="signup-password" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
+            <input id="signup-password" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
           </div>
           <button disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? 'Creating account...' : selectedCampaign ? 'Create Account and Continue' : 'Create Customer Account'}
@@ -190,7 +190,13 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
         {message ? <p className={`mt-4 text-sm ${message.startsWith('Account created') ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
 
         <div className="mt-8 border-t border-gray-200 pt-6 text-sm text-gray-600">
-          <p>Own a local business? <Link href="/signup/business" className="font-semibold text-green-700 hover:underline">Become a RaiseHub Partner →</Link></p>
+          <p>
+            Already have an account?{' '}
+            <Link href={`/login?next=${encodeURIComponent(destination)}`} className="font-semibold text-blue-700 hover:underline">
+              Log in here
+            </Link>
+          </p>
+          <p className="mt-3">Own a local business? <Link href="/signup/business" className="font-semibold text-green-700 hover:underline">Become a RaiseHub Partner →</Link></p>
           <p className="mt-3">Need to raise funds? <Link href="/signup/organization" className="font-semibold text-blue-700 hover:underline">Create an Organization →</Link></p>
         </div>
       </div>
