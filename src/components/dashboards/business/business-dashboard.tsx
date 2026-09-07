@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 import BusinessWorkspaceFrame from './business-workspace-frame'
@@ -87,7 +88,8 @@ export default async function BusinessDashboard({
 
   if (!user) return null
 
-  await (supabase as any).rpc('finalize_due_redemptions')
+  const admin = createAdminClient()
+  await (admin as any).rpc('finalize_due_redemptions')
 
   const businessProfileId = businessLegacyProfileId?.trim() || user.id
 
