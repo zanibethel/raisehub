@@ -74,7 +74,7 @@ export default async function CustomerDashboard({
 
   const admin = createAdminClient()
 
-  await (supabase as any).rpc('finalize_due_redemptions')
+  await (admin as any).rpc('finalize_due_redemptions')
 
   const resolvedCustomerProfileId = customerProfileId?.trim() || user.id
   const passAccess = await getCustomerPassAccess(resolvedCustomerProfileId, nowDate)
