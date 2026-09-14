@@ -20,6 +20,30 @@ export type PartnerPointEvent = {
   created_at: string
 }
 
+export type PartnerRewardMarketplaceItem = {
+  id: string
+  code: string
+  name: string
+  description: string
+  category: 'offer_capacity' | 'promotion' | 'premium_feature'
+  point_cost: number
+  duration_days: number | null
+  benefit_config: Record<string, unknown>
+  is_active: boolean
+  sort_order: number
+}
+
+export type PartnerRewardRedemption = {
+  id: string
+  marketplace_item_id: string
+  points_spent: number
+  status: 'active' | 'expired' | 'reversed'
+  starts_at: string
+  ends_at: string | null
+  benefit_snapshot: Record<string, unknown>
+  created_at: string
+}
+
 export type PartnerRewardsSummary = {
   period: PartnerRewardPeriod | null
   eligiblePoints: number
@@ -28,6 +52,9 @@ export type PartnerRewardsSummary = {
   networkEligiblePoints: number | null
   currentShare: number | null
   recentEvents: PartnerPointEvent[]
+  marketplaceItems: PartnerRewardMarketplaceItem[]
+  activeRedemptions: PartnerRewardRedemption[]
+  activeExtraOfferSlots: number
 }
 
 const EMPTY_SUMMARY: PartnerRewardsSummary = {
@@ -38,11 +65,32 @@ const EMPTY_SUMMARY: PartnerRewardsSummary = {
   networkEligiblePoints: null,
   currentShare: null,
   recentEvents: [],
+  marketplaceItems: [],
+  activeRedemptions: [],
+  activeExtraOfferSlots: 0,
 }
 
 function toNumber(value: unknown) {
   const parsed = typeof value === 'number' ? value : Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function toBenefitConfig(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+function redemptionIsActive(redemption: PartnerRewardRedemption, now = Date.now()) {
+  if (redemption.status !== 'active') return false
+  if (!redemption.ends_at) return true
+  const end = new Date(redemption.ends_at).getTime()
+  return Number.isFinite(end) && end > now
+}
+
+function extraOfferSlotsFromRedemption(redemption: PartnerRewardRedemption) {
+  const snapshot = toBenefitConfig(redemption.benefit_snapshot)
+  const benefitConfig = toBenefitConfig(snapshot.benefit_config)
+  return Math.max(0, Math.floor(toNumber(benefitConfig.extra_offer_slots)))
 }
 
 export async function getPartnerRewardsSummary(
@@ -52,13 +100,53 @@ export async function getPartnerRewardsSummary(
 
   const supabase = await createClient()
 
+  const [{ data: marketplaceData }, { data: redemptionData }] = await Promise.all([
+    (supabase as any)
+      .from('partner_reward_marketplace_items')
+      .select('id, code, name, description, category, point_cost, duration_days, benefit_config, is_active, sort_order')
+      .order('sort_order', { ascending: true }),
+    (supabase as any)
+      .from('partner_reward_redemptions')
+      .select('id, marketplace_item_id, points_spent, status, starts_at, ends_at, benefit_snapshot, created_at')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false }),
+  ])
+
+  const marketplaceItems = ((marketplaceData ?? []) as PartnerRewardMarketplaceItem[]).map(
+    (item) => ({
+      ...item,
+      point_cost: toNumber(item.point_cost),
+      benefit_config: toBenefitConfig(item.benefit_config),
+    })
+  )
+
+  const redemptions = ((redemptionData ?? []) as PartnerRewardRedemption[]).map(
+    (redemption) => ({
+      ...redemption,
+      points_spent: toNumber(redemption.points_spent),
+      benefit_snapshot: toBenefitConfig(redemption.benefit_snapshot),
+    })
+  )
+  const activeRedemptions = redemptions.filter((redemption) => redemptionIsActive(redemption))
+  const activeExtraOfferSlots = activeRedemptions.reduce(
+    (sum, redemption) => sum + extraOfferSlotsFromRedemption(redemption),
+    0
+  )
+
   const { data: periodData, error: periodError } = await (supabase as any)
     .from('partner_reward_periods')
     .select('id, label, starts_at, ends_at, status, rule_version, total_eligible_points')
     .eq('status', 'open')
     .maybeSingle()
 
-  if (periodError || !periodData) return EMPTY_SUMMARY
+  if (periodError || !periodData) {
+    return {
+      ...EMPTY_SUMMARY,
+      marketplaceItems,
+      activeRedemptions,
+      activeExtraOfferSlots,
+    }
+  }
 
   const period = periodData as PartnerRewardPeriod
 
@@ -74,6 +162,9 @@ export async function getPartnerRewardsSummary(
       ...EMPTY_SUMMARY,
       period,
       networkEligiblePoints: period.total_eligible_points,
+      marketplaceItems,
+      activeRedemptions,
+      activeExtraOfferSlots,
     }
   }
 
@@ -99,5 +190,8 @@ export async function getPartnerRewardsSummary(
     networkEligiblePoints,
     currentShare,
     recentEvents: events.slice(0, 8),
+    marketplaceItems,
+    activeRedemptions,
+    activeExtraOfferSlots,
   }
 }
