@@ -118,6 +118,7 @@ export default function BusinessWorkspaceFrame({
           summary={rewardsSummary}
           profile={props.profile}
           activeOffersCount={props.activeOffersCount}
+          businessId={props.businessId}
         />
       ) : (
         <BusinessDashboardContent {...props} view={view} />
