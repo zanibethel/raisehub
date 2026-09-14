@@ -21,6 +21,13 @@ type ReconcileResult = {
   uniqueSupporterEvents: number
 }
 
+export type DemoRewardsNetworkReconcileResult = {
+  skipped: boolean
+  demoGroup: string | null
+  businessesChecked: number
+  reconciledAt: string | null
+}
+
 type DemoBusiness = {
   id: string
   legacy_profile_id: string | null
@@ -60,10 +67,20 @@ function isoDay(value: Date) {
   return value.toISOString().slice(0, 10)
 }
 
-function clampDate(value: Date, minimum: Date, maximum: Date) {
-  if (value < minimum) return minimum
-  if (value > maximum) return maximum
-  return value
+async function getOpenRewardPeriod(admin: any): Promise<RewardPeriod | null> {
+  const now = new Date().toISOString()
+  const { data, error } = await admin
+    .from('partner_reward_periods')
+    .select('id, starts_at, ends_at')
+    .eq('status', 'open')
+    .lte('starts_at', now)
+    .gt('ends_at', now)
+    .order('starts_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as RewardPeriod | null) ?? null
 }
 
 async function insertPointEvent(admin: any, values: Record<string, unknown>) {
@@ -100,18 +117,7 @@ export async function reconcileDemoPartnerRewards(
     return result
   }
 
-  const { data: periodData, error: periodError } = await admin
-    .from('partner_reward_periods')
-    .select('id, starts_at, ends_at')
-    .eq('status', 'open')
-    .lte('starts_at', new Date().toISOString())
-    .gt('ends_at', new Date().toISOString())
-    .order('starts_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (periodError) throw periodError
-  const period = periodData as RewardPeriod | null
+  const period = await getOpenRewardPeriod(admin)
   if (!period) return result
 
   result.skipped = false
@@ -253,63 +259,148 @@ export async function reconcileDemoPartnerRewards(
   }
 
   const offerIds = offers.map((offer) => offer.id)
-  if (offerIds.length === 0) return result
+  if (offerIds.length > 0) {
+    const { data: redemptionData, error: redemptionError } = await admin
+      .from('redemptions')
+      .select('id, offer_id, user_id, created_at, confirmed_at')
+      .in('offer_id', offerIds)
+      .eq('status', 'confirmed')
+      .eq('is_demo', true)
+      .eq('demo_group', demoBusiness.demo_group)
+      .gte('created_at', period.starts_at)
+      .lt('created_at', period.ends_at)
+      .order('created_at', { ascending: true })
 
-  const { data: redemptionData, error: redemptionError } = await admin
-    .from('redemptions')
-    .select('id, offer_id, user_id, created_at, confirmed_at')
-    .in('offer_id', offerIds)
-    .eq('status', 'confirmed')
-    .eq('is_demo', true)
-    .eq('demo_group', demoBusiness.demo_group)
-    .gte('created_at', period.starts_at)
-    .lt('created_at', period.ends_at)
-    .order('created_at', { ascending: true })
+    if (redemptionError) throw redemptionError
+    const redemptions = (redemptionData ?? []) as RedemptionRow[]
+    const seenSupporters = new Set<string>()
 
-  if (redemptionError) throw redemptionError
-  const redemptions = (redemptionData ?? []) as RedemptionRow[]
-  const seenSupporters = new Set<string>()
-
-  for (const redemption of redemptions) {
-    await insertPointEvent(admin, {
-      business_id: businessId,
-      reward_period_id: period.id,
-      offer_id: redemption.offer_id,
-      event_type: 'confirmed_redemption',
-      points: REDEMPTION_POINTS,
-      eligibility_status: eligibilityStatus,
-      source_type: 'redemption',
-      source_id: redemption.id,
-      idempotency_key: `partner:${period.id}:redemption:${redemption.id}`,
-      rule_version: PARTNER_REWARDS_RULE_VERSION,
-      metadata: {
-        confirmed_at: redemption.confirmed_at,
-        demo_reconciliation: true,
-      },
-    })
-    result.redemptionEvents += 1
-
-    if (!seenSupporters.has(redemption.user_id)) {
-      seenSupporters.add(redemption.user_id)
+    for (const redemption of redemptions) {
       await insertPointEvent(admin, {
         business_id: businessId,
         reward_period_id: period.id,
         offer_id: redemption.offer_id,
-        event_type: 'unique_supporter_redemption',
-        points: UNIQUE_SUPPORTER_BONUS_POINTS,
+        event_type: 'confirmed_redemption',
+        points: REDEMPTION_POINTS,
         eligibility_status: eligibilityStatus,
         source_type: 'redemption',
         source_id: redemption.id,
-        idempotency_key: `partner:${period.id}:unique_supporter:${businessId}:${redemption.user_id}`,
+        idempotency_key: `partner:${period.id}:redemption:${redemption.id}`,
         rule_version: PARTNER_REWARDS_RULE_VERSION,
         metadata: {
-          supporter_id: redemption.user_id,
+          confirmed_at: redemption.confirmed_at,
           demo_reconciliation: true,
         },
       })
-      result.uniqueSupporterEvents += 1
+      result.redemptionEvents += 1
+
+      if (!seenSupporters.has(redemption.user_id)) {
+        seenSupporters.add(redemption.user_id)
+        await insertPointEvent(admin, {
+          business_id: businessId,
+          reward_period_id: period.id,
+          offer_id: redemption.offer_id,
+          event_type: 'unique_supporter_redemption',
+          points: UNIQUE_SUPPORTER_BONUS_POINTS,
+          eligibility_status: eligibilityStatus,
+          source_type: 'redemption',
+          source_id: redemption.id,
+          idempotency_key: `partner:${period.id}:unique_supporter:${businessId}:${redemption.user_id}`,
+          rule_version: PARTNER_REWARDS_RULE_VERSION,
+          metadata: {
+            supporter_id: redemption.user_id,
+            demo_reconciliation: true,
+          },
+        })
+        result.uniqueSupporterEvents += 1
+      }
     }
   }
 
+  const reconciledAt = new Date().toISOString()
+  const { error: checkpointError } = await admin
+    .from('partner_reward_checkpoints')
+    .upsert(
+      {
+        business_id: businessId,
+        reward_period_id: period.id,
+        last_reconciled_at: reconciledAt,
+      },
+      { onConflict: 'business_id,reward_period_id' }
+    )
+
+  if (checkpointError) throw checkpointError
+
   return result
+}
+
+export async function reconcileDemoPartnerRewardsGroup(
+  demoGroup: string | null
+): Promise<DemoRewardsNetworkReconcileResult> {
+  const emptyResult: DemoRewardsNetworkReconcileResult = {
+    skipped: true,
+    demoGroup,
+    businessesChecked: 0,
+    reconciledAt: null,
+  }
+
+  const normalizedGroup = demoGroup?.trim()
+  if (!normalizedGroup) return emptyResult
+
+  const admin = createAdminClient() as any
+  const { data: businesses, error } = await admin
+    .from('businesses')
+    .select('id')
+    .eq('is_demo', true)
+    .eq('demo_group', normalizedGroup)
+    .eq('status', 'active')
+
+  if (error) throw error
+
+  const businessIds = (businesses ?? [])
+    .map((business: { id: string | null }) => business.id)
+    .filter((id: string | null): id is string => Boolean(id))
+
+  for (const businessId of businessIds) {
+    await reconcileDemoPartnerRewards(businessId)
+  }
+
+  return {
+    skipped: false,
+    demoGroup: normalizedGroup,
+    businessesChecked: businessIds.length,
+    reconciledAt: new Date().toISOString(),
+  }
+}
+
+export async function reconcileDemoPartnerRewardsNetwork(
+  businessId: string | null
+): Promise<DemoRewardsNetworkReconcileResult> {
+  if (!businessId) {
+    return {
+      skipped: true,
+      demoGroup: null,
+      businessesChecked: 0,
+      reconciledAt: null,
+    }
+  }
+
+  const admin = createAdminClient() as any
+  const { data: business, error } = await admin
+    .from('businesses')
+    .select('is_demo, demo_group')
+    .eq('id', businessId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!business?.is_demo || !business.demo_group) {
+    return {
+      skipped: true,
+      demoGroup: null,
+      businessesChecked: 0,
+      reconciledAt: null,
+    }
+  }
+
+  return reconcileDemoPartnerRewardsGroup(business.demo_group)
 }
