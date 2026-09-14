@@ -7,6 +7,7 @@ import CustomerDashboard from '@/components/dashboards/customer/customer-dashboa
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
 import { getAppMode } from '@/lib/app-mode'
+import { reconcileDemoPartnerRewardsGroup } from '@/lib/rewards/demo-partner-rewards-reconciliation'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
@@ -19,7 +20,14 @@ import type {
   SelectableWorkspace,
 } from '@/lib/types/identity-access'
 
-type Profile = { id: string; email: string | null; role: LegacyProfileRole }
+type Profile = {
+  id: string
+  email: string | null
+  role: LegacyProfileRole
+  is_demo: boolean | null
+  demo_group: string | null
+}
+
 type DashboardPageProps = {
   searchParams?: Promise<{ workspace?: string | string[] }>
 }
@@ -112,11 +120,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const [{ data: profile }, authenticatedWorkspacesResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, email, role')
+      .select('id, email, role, is_demo, demo_group')
       .eq('id', user.id)
       .single<Profile>(),
     getAuthenticatedWorkspaces(),
   ])
+
+  if (profile?.is_demo && profile.demo_group) {
+    await reconcileDemoPartnerRewardsGroup(profile.demo_group)
+  }
 
   if (!authenticatedWorkspacesResult.success) {
     console.error(
