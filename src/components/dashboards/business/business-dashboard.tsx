@@ -221,8 +221,9 @@ export default async function BusinessDashboard({
   )
 
   const FREE_ACTIVE_OFFER_LIMIT = 3
+  const activeOfferLimit = FREE_ACTIVE_OFFER_LIMIT + rewardsSummary.activeExtraOfferSlots
   const hasReachedLimit =
-    !isGrowthPlan && activeOffers.length >= FREE_ACTIVE_OFFER_LIMIT
+    !isGrowthPlan && activeOffers.length >= activeOfferLimit
 
   let topOfferId: string | null = null
   let topOfferCount = 0
@@ -263,7 +264,7 @@ export default async function BusinessDashboard({
       totalCustomerValueDelivered={totalCustomerValueDelivered}
       redemptionActivity={redemptionActivity}
       activeOffersCount={activeOffers.length}
-      activeOfferLimit={FREE_ACTIVE_OFFER_LIMIT}
+      activeOfferLimit={activeOfferLimit}
       hasReachedLimit={hasReachedLimit}
       isGrowthPlan={isGrowthPlan}
       topOfferTitle={topOffer?.title || ''}
