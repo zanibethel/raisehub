@@ -18,6 +18,54 @@ type ActorProfile = {
   role: string
 }
 
+type RewardDemoCardDefinition = {
+  email: string
+  eyebrow: string
+  title: string
+  description: string
+  action: string
+  tone: 'emerald' | 'blue' | 'amber' | 'violet'
+}
+
+const LAKEVIEW_REWARD_DEMO_CARDS: RewardDemoCardDefinition[] = [
+  {
+    email: 'business.demo@raisehub.app',
+    eyebrow: 'Partner Rewards · Profile completion',
+    title: 'Maple Street Coffee Co.',
+    description:
+      'Open the business workspace, review the Rewards Center, then complete the intentionally unfinished profile requirement and confirm the +100 profile-completion reward is reconciled once.',
+    action: 'Test profile rewards',
+    tone: 'emerald',
+  },
+  {
+    email: 'homeservice.demo@raisehub.app',
+    eyebrow: 'Partner Rewards · Marketplace',
+    title: 'BrightSide Home Services',
+    description:
+      'Review points derived from real demo offer history, then test spending 250 eligible Partner Points on the 30-day Extra Offer Slot benefit.',
+    action: 'Test rewards marketplace',
+    tone: 'blue',
+  },
+  {
+    email: 'organization.demo@raisehub.app',
+    eyebrow: 'Fundraiser experience',
+    title: 'Lakeview Elementary PTA',
+    description:
+      'Preview the connected organization experience and verify the demo campaign side of the Lakeview ecosystem.',
+    action: 'Open organization demo',
+    tone: 'violet',
+  },
+  {
+    email: 'supporter.demo@raisehub.app',
+    eyebrow: 'Supporter experience',
+    title: 'Maya Thompson',
+    description:
+      'Preview the supporter journey with a purchased pass, saved offers, and connected Lakeview activity.',
+    action: 'Open supporter demo',
+    tone: 'amber',
+  },
+]
+
 function getRoleTone(role: string) {
   switch (role) {
     case 'business':
@@ -47,6 +95,70 @@ function getPreviewRole(role: string) {
   }
 }
 
+function buildPreviewHref(profile: DemoProfileSummary, groupKey: string) {
+  if (!profile.profileId) return null
+
+  const params = new URLSearchParams({
+    previewRole: getPreviewRole(profile.role),
+    subject: profile.profileId,
+    group: groupKey,
+  })
+
+  return `/dashboard/owner/preview?${params.toString()}`
+}
+
+function rewardCardClasses(tone: RewardDemoCardDefinition['tone']) {
+  switch (tone) {
+    case 'emerald':
+      return 'border-emerald-200 bg-emerald-50/70 text-emerald-950'
+    case 'blue':
+      return 'border-blue-200 bg-blue-50/70 text-blue-950'
+    case 'violet':
+      return 'border-violet-200 bg-violet-50/70 text-violet-950'
+    case 'amber':
+    default:
+      return 'border-amber-200 bg-amber-50/70 text-amber-950'
+  }
+}
+
+function RewardDemoCard({
+  definition,
+  profile,
+  groupKey,
+}: {
+  definition: RewardDemoCardDefinition
+  profile: DemoProfileSummary | null
+  groupKey: string
+}) {
+  const href = profile ? buildPreviewHref(profile, groupKey) : null
+  const isReady = Boolean(href) && profile?.status === 'active'
+
+  return (
+    <article
+      className={`rounded-2xl border p-5 shadow-sm ${rewardCardClasses(definition.tone)}`}
+    >
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] opacity-70">
+        {definition.eyebrow}
+      </p>
+      <h3 className="mt-2 text-xl font-black">{definition.title}</h3>
+      <p className="mt-2 text-sm leading-6 opacity-80">{definition.description}</p>
+
+      {isReady && href ? (
+        <Link
+          href={href}
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+        >
+          {definition.action} →
+        </Link>
+      ) : (
+        <p className="mt-5 text-sm font-bold opacity-70">
+          Demo identity needs setup before this experience can open.
+        </p>
+      )}
+    </article>
+  )
+}
+
 function DemoProfileRow({
   profile,
   groupKey,
@@ -57,6 +169,7 @@ function DemoProfileRow({
   const isLinked = Boolean(profile.profileId)
   const isActive = profile.status === 'active'
   const isReady = isLinked && isActive
+  const previewHref = buildPreviewHref(profile, groupKey)
 
   return (
     <article className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5">
@@ -109,13 +222,9 @@ function DemoProfileRow({
           </div>
         </div>
 
-        {profile.profileId && isActive ? (
+        {previewHref && isActive ? (
           <Link
-            href={`/dashboard/owner/preview?previewRole=${encodeURIComponent(
-              getPreviewRole(profile.role)
-            )}&subject=${encodeURIComponent(
-              profile.profileId
-            )}&group=${encodeURIComponent(groupKey)}`}
+            href={previewHref}
             className="inline-flex w-fit shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
           >
             Open viewer →
@@ -167,9 +276,14 @@ export default async function DemoGroupPage({
   const { group, profiles } = result.details
   const readyProfiles = profiles.filter(
     (demoProfile) =>
-      Boolean(demoProfile.profileId) &&
-      demoProfile.status === 'active'
+      Boolean(demoProfile.profileId) && demoProfile.status === 'active'
   ).length
+  const isLakeview = group.groupKey === 'lakeview_launch_2026'
+  const profilesByEmail = new Map(
+    profiles
+      .filter((demoProfile) => Boolean(demoProfile.email))
+      .map((demoProfile) => [demoProfile.email?.toLowerCase(), demoProfile])
+  )
 
   return (
     <div className="w-full overflow-x-clip">
@@ -228,6 +342,33 @@ export default async function DemoGroupPage({
             <p className="mt-1 break-words text-sm text-rose-700">
               {result.error}
             </p>
+          </section>
+        ) : null}
+
+        {isLakeview ? (
+          <section className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm sm:p-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                Guided Demo Access
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950">
+                Choose a Lakeview experience
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                These shortcuts open the exact prepared demo identity in the existing Owner Experience Viewer. Your Owner authorization stays unchanged while the workspace renders that demo user&apos;s data.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {LAKEVIEW_REWARD_DEMO_CARDS.map((definition) => (
+                <RewardDemoCard
+                  key={definition.email}
+                  definition={definition}
+                  profile={profilesByEmail.get(definition.email) ?? null}
+                  groupKey={group.groupKey}
+                />
+              ))}
+            </div>
           </section>
         ) : null}
 
