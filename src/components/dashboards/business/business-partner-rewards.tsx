@@ -1,9 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
 
-import type { PartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
+import type {
+  PartnerRewardMarketplaceItem,
+  PartnerRewardsSummary,
+} from '@/lib/repositories/partner-rewards-repository'
 import { PARTNER_POINTS_DISCLOSURE } from '@/lib/rewards/partner-rewards'
+import { redeemPartnerRewardAction } from './business-partner-rewards-actions'
 
 type ProfileState = {
   business_name?: string | null
@@ -16,6 +22,7 @@ type RewardsProps = {
   summary: PartnerRewardsSummary
   profile: ProfileState | null
   activeOffersCount: number
+  businessId: string | null
 }
 
 function formatPoints(value: number) {
@@ -25,6 +32,15 @@ function formatPoints(value: number) {
 function formatPercent(value: number | null) {
   if (value === null) return 'Calculating as the network grows'
   return `${(value * 100).toFixed(2)}%`
+}
+
+function formatDate(value: string | null) {
+  if (!value) return 'No expiration'
+  return new Date(value).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function profileIsComplete(profile: ProfileState | null) {
@@ -60,12 +76,93 @@ export function PartnerRewardsDashboardCard({ summary }: { summary: PartnerRewar
   )
 }
 
+function MarketplaceItemCard({
+  item,
+  eligiblePoints,
+  pending,
+  onRedeem,
+}: {
+  item: PartnerRewardMarketplaceItem
+  eligiblePoints: number
+  pending: boolean
+  onRedeem: (item: PartnerRewardMarketplaceItem) => void
+}) {
+  const canAfford = eligiblePoints >= item.point_cost
+  const pointsNeeded = Math.max(0, item.point_cost - eligiblePoints)
+
+  return (
+    <div className={`rounded-2xl border p-4 ${item.is_active ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-slate-50'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-black text-slate-950">{item.name}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-600">{item.description}</p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${item.is_active ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+          {item.is_active ? `${formatPoints(item.point_cost)} pts` : 'Coming soon'}
+        </span>
+      </div>
+
+      {item.duration_days ? (
+        <p className="mt-2 text-xs font-bold text-slate-500">Benefit lasts {item.duration_days} days.</p>
+      ) : null}
+
+      {item.is_active ? (
+        <button
+          type="button"
+          disabled={!canAfford || pending}
+          onClick={() => onRedeem(item)}
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          {pending
+            ? 'Applying reward…'
+            : canAfford
+              ? `Use ${formatPoints(item.point_cost)} points`
+              : `Earn ${formatPoints(pointsNeeded)} more points`}
+        </button>
+      ) : (
+        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-2 text-center text-xs font-bold text-slate-500">
+          We’ll enable this when the related promotion experience is live.
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function BusinessPartnerRewardsCenter({
   summary,
   profile,
   activeOffersCount,
+  businessId,
 }: RewardsProps) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const completeProfile = profileIsComplete(profile)
+
+  function redeem(item: PartnerRewardMarketplaceItem) {
+    if (!businessId || isPending || !item.is_active) return
+
+    const confirmed = window.confirm(
+      `Use ${formatPoints(item.point_cost)} Partner Points for ${item.name}?\n\nSpent points will no longer count toward your share of this quarter’s Partner Rewards Pool.`
+    )
+    if (!confirmed) return
+
+    setMessage(null)
+    startTransition(async () => {
+      const result = await redeemPartnerRewardAction(businessId, item.code)
+      if (!result.success) {
+        setMessage({ tone: 'error', text: result.error })
+        return
+      }
+
+      setMessage({
+        tone: 'success',
+        text: `${item.name} activated. You have ${formatPoints(result.remainingEligiblePoints)} eligible points remaining.`,
+      })
+      router.refresh()
+    })
+  }
+
   const earningSteps = [
     {
       title: 'Complete your business profile',
@@ -98,6 +195,11 @@ export default function BusinessPartnerRewardsCenter({
       href: '#referrals-coming-soon',
     },
   ]
+
+  const marketplaceItems = summary.marketplaceItems
+  const marketplaceNameById = Object.fromEntries(
+    marketplaceItems.map((item) => [item.id, item.name])
+  )
 
   return (
     <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
@@ -145,11 +247,63 @@ export default function BusinessPartnerRewardsCenter({
               <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 text-sm leading-6 text-slate-700">
                 <p><strong>Your eligible points ÷ all eligible Partner Points = your percentage of that quarter’s rewards pool.</strong></p>
                 <p className="mt-2">The pool changes with qualifying RaiseHub platform performance, so a Partner Point never has a guaranteed fixed cash value.</p>
+                <p className="mt-2"><strong>Using points now is a tradeoff:</strong> points redeemed for RaiseHub benefits are removed from your eligible quarter total and no longer increase your quarter-end pool share.</p>
               </div>
             </details>
           </div>
         </div>
       </section>
+
+      {message ? (
+        <div className={`rounded-2xl border p-4 text-sm font-bold ${message.tone === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>
+          {message.text}
+        </div>
+      ) : null}
+
+      <section className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Grow now</p>
+            <h3 className="mt-1 text-xl font-black text-slate-950">Use your Partner Points</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+              Exchange eligible points for temporary RaiseHub benefits instead of keeping every point for the quarter-end reward pool.
+            </p>
+          </div>
+          <span className="rounded-full bg-green-50 px-3 py-1 text-sm font-black text-green-700">
+            {formatPoints(summary.eligiblePoints)} available
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {marketplaceItems.map((item) => (
+            <MarketplaceItemCard
+              key={item.id}
+              item={item}
+              eligiblePoints={summary.eligiblePoints}
+              pending={isPending}
+              onRedeem={redeem}
+            />
+          ))}
+        </div>
+      </section>
+
+      {summary.activeRedemptions.length > 0 ? (
+        <section className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm sm:p-5">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-green-700">Active benefits</p>
+          <h3 className="mt-1 text-xl font-black text-slate-950">Rewards currently working for you</h3>
+          <div className="mt-3 divide-y divide-green-100 rounded-2xl border border-green-200 bg-white">
+            {summary.activeRedemptions.map((redemption) => (
+              <div key={redemption.id} className="flex items-center justify-between gap-4 p-4">
+                <div>
+                  <p className="font-black text-slate-950">{marketplaceNameById[redemption.marketplace_item_id] ?? 'Partner Reward'}</p>
+                  <p className="mt-1 text-xs text-slate-500">Activated {formatDate(redemption.starts_at)} · Ends {formatDate(redemption.ends_at)}</p>
+                </div>
+                <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-black text-green-800">Active</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-end justify-between gap-4">
@@ -189,7 +343,7 @@ export default function BusinessPartnerRewardsCenter({
                   <p className="font-bold text-slate-900">{event.event_type.replaceAll('_', ' ')}</p>
                   <p className="text-xs text-slate-500">{new Date(event.created_at).toLocaleString()} · {event.eligibility_status}</p>
                 </div>
-                <span className="font-black text-green-700">{event.points > 0 ? '+' : ''}{formatPoints(event.points)}</span>
+                <span className={`font-black ${event.points >= 0 ? 'text-green-700' : 'text-amber-700'}`}>{event.points > 0 ? '+' : ''}{formatPoints(event.points)}</span>
               </div>
             ))}
           </div>
