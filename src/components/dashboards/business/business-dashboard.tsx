@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
-import { reconcileDemoPartnerRewards } from '@/lib/rewards/demo-partner-rewards-reconciliation'
+import { reconcileDemoPartnerRewardsNetwork } from '@/lib/rewards/demo-partner-rewards-reconciliation'
 
 import BusinessWorkspaceFrame from './business-workspace-frame'
 
@@ -129,7 +129,7 @@ export default async function BusinessDashboard({
   const lifecycle = businessWorkspace as BusinessWorkspaceLifecycle | null
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
-  await reconcileDemoPartnerRewards(lifecycle?.id ?? null)
+  await reconcileDemoPartnerRewardsNetwork(lifecycle?.id ?? null)
   const rewardsSummary = await getPartnerRewardsSummary(lifecycle?.id ?? null)
 
   const { data: offers } = await supabase
