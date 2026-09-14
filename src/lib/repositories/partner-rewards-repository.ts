@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export type PartnerRewardPeriod = {
@@ -93,6 +94,42 @@ function extraOfferSlotsFromRedemption(redemption: PartnerRewardRedemption) {
   return Math.max(0, Math.floor(toNumber(benefitConfig.extra_offer_slots)))
 }
 
+async function getEnvironmentNetworkEligiblePoints(
+  businessId: string,
+  rewardPeriodId: string
+): Promise<number | null> {
+  const admin = createAdminClient() as any
+  const { data: business, error: businessError } = await admin
+    .from('businesses')
+    .select('is_demo, demo_group')
+    .eq('id', businessId)
+    .maybeSingle()
+
+  if (businessError || !business) return null
+
+  let query = admin
+    .from('partner_point_events')
+    .select('points')
+    .eq('reward_period_id', rewardPeriodId)
+    .eq('eligibility_status', 'eligible')
+    .eq('is_demo', business.is_demo === true)
+
+  if (business.is_demo === true) {
+    if (!business.demo_group) return null
+    query = query.eq('demo_group', business.demo_group)
+  } else {
+    query = query.is('demo_group', null)
+  }
+
+  const { data, error } = await query
+  if (error) return null
+
+  return (data ?? []).reduce(
+    (sum: number, row: { points: number | string | null }) => sum + toNumber(row.points),
+    0
+  )
+}
+
 export async function getPartnerRewardsSummary(
   businessId: string | null
 ): Promise<PartnerRewardsSummary> {
@@ -161,7 +198,7 @@ export async function getPartnerRewardsSummary(
     return {
       ...EMPTY_SUMMARY,
       period,
-      networkEligiblePoints: period.total_eligible_points,
+      networkEligiblePoints: null,
       marketplaceItems,
       activeRedemptions,
       activeExtraOfferSlots,
@@ -176,7 +213,10 @@ export async function getPartnerRewardsSummary(
     .filter((event) => event.eligibility_status === 'pending')
     .reduce((sum, event) => sum + toNumber(event.points), 0)
   const totalPoints = eligiblePoints + pendingPoints
-  const networkEligiblePoints = period.total_eligible_points
+  const networkEligiblePoints = await getEnvironmentNetworkEligiblePoints(
+    businessId,
+    period.id
+  )
   const currentShare =
     networkEligiblePoints && networkEligiblePoints > 0
       ? eligiblePoints / networkEligiblePoints
