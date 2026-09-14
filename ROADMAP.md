@@ -255,3 +255,30 @@ Primary objectives include:
 - Backward-compatible migration away from legacy profile roles
 
 This initiative forms the architectural bridge between the current dashboard-based platform and the long-term RaiseHub vision.
+
+---
+
+# Future Upgrade — Partner Rewards Engine
+
+Status: **Planned concept / not a launch blocker**
+
+RaiseHub should preserve a future Partner Rewards system for verified participating businesses. The working economic model allocates the platform's 20% share of qualifying sales as:
+
+- **15%** retained as RaiseHub platform revenue for overhead, operations, growth, reserves, and eventual profit.
+- **5%** contributed to a quarterly **Partner Rewards Pool**.
+
+Verified businesses earn Partner Points for qualifying actions that create real ecosystem value. At quarter close, each eligible business receives the same proportion of the final rewards pool as its proportion of all eligible quarterly points.
+
+```text
+Business Reward =
+(Business Eligible Points / Total Eligible Partner Points)
+× Final Quarterly Partner Rewards Pool
+```
+
+The implementation should be automated, ledger-based, rule-versioned, refund/chargeback-aware, auditable, and transparent. Businesses should receive live estimated rewards during the quarter and permanent quarterly statements after close. The Owner Console should provide full pool and points auditability, with an Owner approval checkpoint before real-money payout batches are released during the initial implementation period.
+
+Detailed product, reporting, automation, fraud-control, and implementation requirements are documented in:
+
+- `docs/PARTNER_REWARDS_MODEL.md`
+
+Before production payouts are enabled, legal and accounting review should confirm program terms, tax reporting requirements, payout controls, and that the program does not unintentionally create equity, partnership, or securities treatment.
