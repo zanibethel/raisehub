@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
 import { reconcileDemoPartnerRewardsNetwork } from '@/lib/rewards/demo-partner-rewards-reconciliation'
+import { getBusinessPayoutStatus } from '@/lib/stripe/business-connect'
 
 import BusinessWorkspaceFrame from './business-workspace-frame'
 
@@ -130,7 +131,10 @@ export default async function BusinessDashboard({
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
   await reconcileDemoPartnerRewardsNetwork(lifecycle?.id ?? null)
-  const rewardsSummary = await getPartnerRewardsSummary(lifecycle?.id ?? null)
+  const [rewardsSummary, payoutStatus] = await Promise.all([
+    getPartnerRewardsSummary(lifecycle?.id ?? null),
+    getBusinessPayoutStatus(lifecycle?.id ?? null, { refreshStripe: view === 'rewards' }),
+  ])
 
   const { data: verification } = lifecycle?.id
     ? await (supabase as any)
@@ -293,6 +297,7 @@ export default async function BusinessDashboard({
       restoreRequestedAt={lifecycle?.restore_requested_at ?? null}
       rewardsSummary={rewardsSummary}
       verificationStatus={verification?.status ?? 'not_applied'}
+      payoutStatus={payoutStatus}
     />
   )
 }
