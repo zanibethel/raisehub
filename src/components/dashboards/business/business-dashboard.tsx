@@ -132,6 +132,14 @@ export default async function BusinessDashboard({
   await reconcileDemoPartnerRewardsNetwork(lifecycle?.id ?? null)
   const rewardsSummary = await getPartnerRewardsSummary(lifecycle?.id ?? null)
 
+  const { data: verification } = lifecycle?.id
+    ? await (supabase as any)
+        .from('business_verifications')
+        .select('status')
+        .eq('business_id', lifecycle.id)
+        .maybeSingle()
+    : { data: null }
+
   const { data: offers } = await supabase
     .from('offers')
     .select('*')
@@ -284,6 +292,7 @@ export default async function BusinessDashboard({
       archiveReason={lifecycle?.archive_reason ?? null}
       restoreRequestedAt={lifecycle?.restore_requested_at ?? null}
       rewardsSummary={rewardsSummary}
+      verificationStatus={verification?.status ?? 'not_applied'}
     />
   )
 }
