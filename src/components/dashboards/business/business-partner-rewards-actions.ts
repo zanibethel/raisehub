@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { startBusinessStripeOnboarding } from '@/lib/stripe/business-connect'
 import { createClient } from '@/lib/supabase/server'
 
 export type RedeemPartnerRewardResult =
@@ -15,9 +16,21 @@ export type RedeemPartnerRewardResult =
       error: string
     }
 
+export type StartBusinessPayoutSetupResult =
+  | { success: true; url: string }
+  | { success: false; error: string }
+
 function toNumber(value: unknown) {
   const parsed = typeof value === 'number' ? value : Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+export async function startBusinessPayoutSetupAction(
+  businessId: string
+): Promise<StartBusinessPayoutSetupResult> {
+  const result = await startBusinessStripeOnboarding(businessId)
+  if (!result.ok) return { success: false, error: result.error }
+  return { success: true, url: result.url }
 }
 
 export async function redeemPartnerRewardAction(
