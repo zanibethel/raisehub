@@ -6,9 +6,11 @@ import { redirect } from 'next/navigation'
 import { executePartnerRewardPayout } from '@/lib/services/partner-rewards-payout-service'
 import { createClient } from '@/lib/supabase/server'
 
+const PAYOUTS_PATH = '/dashboard/owner/partner-rewards/payouts'
+
 export async function payPartnerRewardAwardAction(formData: FormData) {
   const awardId = String(formData.get('awardId') ?? '').trim()
-  if (!awardId) redirect('/dashboard/owner/partner-rewards?error=invalid_award')
+  if (!awardId) redirect(`${PAYOUTS_PATH}?error=invalid_award`)
 
   const supabase = await createClient()
   const {
@@ -28,11 +30,12 @@ export async function payPartnerRewardAwardAction(formData: FormData) {
   const result = await executePartnerRewardPayout(awardId, user.id)
 
   revalidatePath('/dashboard/owner/partner-rewards')
+  revalidatePath(PAYOUTS_PATH)
   revalidatePath('/dashboard')
 
   if (!result.ok) {
-    redirect(`/dashboard/owner/partner-rewards?error=${encodeURIComponent(result.error)}`)
+    redirect(`${PAYOUTS_PATH}?error=${encodeURIComponent(result.error)}`)
   }
 
-  redirect(`/dashboard/owner/partner-rewards?paid=${encodeURIComponent(result.stripeTransferId)}`)
+  redirect(`${PAYOUTS_PATH}?paid=${encodeURIComponent(result.stripeTransferId)}`)
 }
