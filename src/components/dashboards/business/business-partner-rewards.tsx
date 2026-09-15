@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 
 import type {
   PartnerRewardMarketplaceItem,
+  PartnerRewardQuarterHistoryItem,
   PartnerRewardsSummary,
 } from '@/lib/repositories/partner-rewards-repository'
 import { PARTNER_POINTS_DISCLOSURE } from '@/lib/rewards/partner-rewards'
@@ -34,6 +35,13 @@ function formatPercent(value: number | null) {
   return `${(value * 100).toFixed(2)}%`
 }
 
+function formatMoney(cents: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100)
+}
+
 function formatDate(value: string | null) {
   if (!value) return 'No expiration'
   return new Date(value).toLocaleDateString(undefined, {
@@ -41,6 +49,22 @@ function formatDate(value: string | null) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function payoutStatusLabel(status: PartnerRewardQuarterHistoryItem['payoutStatus']) {
+  if (status === 'pending') return 'Processing'
+  if (status === 'submitted') return 'Transferred to Stripe'
+  if (status === 'paid') return 'Paid'
+  if (status === 'failed') return 'Needs attention'
+  if (status === 'reversed') return 'Reversed'
+  return 'Awaiting payout'
+}
+
+function payoutStatusClass(status: PartnerRewardQuarterHistoryItem['payoutStatus']) {
+  if (status === 'submitted' || status === 'paid') return 'bg-green-100 text-green-800'
+  if (status === 'failed' || status === 'reversed') return 'bg-rose-100 text-rose-800'
+  if (status === 'pending') return 'bg-amber-100 text-amber-800'
+  return 'bg-slate-100 text-slate-700'
 }
 
 function profileIsComplete(profile: ProfileState | null) {
@@ -252,6 +276,51 @@ export default function BusinessPartnerRewardsCenter({
             </details>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-green-700">Cash rewards</p>
+            <h3 className="mt-1 text-xl font-black text-slate-950">Quarter history</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+              Final cash awards appear after a quarter closes. “Transferred to Stripe” means RaiseHub moved the award into your connected Stripe balance; it does not mean a bank deposit has already cleared.
+            </p>
+          </div>
+        </div>
+
+        {summary.quarterHistory.length > 0 ? (
+          <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
+            {summary.quarterHistory.map((item) => (
+              <div key={item.awardId} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-black text-slate-950">{item.periodLabel}</p>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-black ${payoutStatusClass(item.payoutStatus)}`}>
+                      {payoutStatusLabel(item.payoutStatus)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {formatPoints(item.eligiblePoints)} eligible points
+                    {item.finalShareFraction === null ? '' : ` · ${(item.finalShareFraction * 100).toFixed(2)}% final share`}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Finalized {formatDate(item.finalizedAt)}</p>
+                  {item.failureMessage && (item.payoutStatus === 'failed' || item.payoutStatus === 'reversed') ? (
+                    <p className="mt-2 text-xs font-bold text-rose-700">{item.failureMessage}</p>
+                  ) : null}
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Final award</p>
+                  <p className="mt-1 text-2xl font-black text-slate-950">{formatMoney(item.awardCents)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+            Your finalized quarter awards and payout status will appear here after a Partner Rewards quarter closes.
+          </div>
+        )}
       </section>
 
       {message ? (
