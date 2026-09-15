@@ -35,6 +35,22 @@ export type PartnerRewardPayableAward = {
   payout: PartnerRewardPayoutRow | null
 }
 
+type RawPayoutRow = {
+  id: string
+  award_id: string
+  reward_period_id: string
+  business_id: string
+  amount_cents: number | string
+  currency: string
+  status: string
+  stripe_transfer_id: string | null
+  failure_message: string | null
+  submitted_at: string | null
+  paid_at: string | null
+  failed_at: string | null
+  created_at: string
+}
+
 function numberValue(value: unknown) {
   const parsed = typeof value === 'number' ? value : Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
@@ -42,7 +58,6 @@ function numberValue(value: unknown) {
 
 export async function listFinalizedPartnerRewardAwards(): Promise<PartnerRewardPayableAward[]> {
   const admin = createAdminClient() as any
-
   const { data: awards, error } = await admin
     .from('partner_reward_quarter_awards')
     .select('id, reward_period_id, business_id, eligible_points, final_share_fraction, award_cents, stripe_payout_ready_at_close, finalized_at')
@@ -65,12 +80,12 @@ export async function listFinalizedPartnerRewardAwards(): Promise<PartnerRewardP
       .in('award_id', awardIds),
   ])
 
-  const businessNameById = new Map((businesses ?? []).map((row: any) => [row.id, row.name]))
-  const periodLabelById = new Map((periods ?? []).map((row: any) => [row.id, row.label]))
-  const payoutByAwardId = new Map((payouts ?? []).map((row: any) => [row.award_id, row]))
+  const businessNameById = new Map<string, string>((businesses ?? []).map((row: any) => [String(row.id), String(row.name)]))
+  const periodLabelById = new Map<string, string>((periods ?? []).map((row: any) => [String(row.id), String(row.label)]))
+  const payoutByAwardId = new Map<string, RawPayoutRow>((payouts ?? []).map((row: any) => [String(row.award_id), row as RawPayoutRow]))
 
   return awards.map((award: any) => {
-    const payout = payoutByAwardId.get(award.id)
+    const payout = payoutByAwardId.get(String(award.id)) ?? null
     const normalizedPayout: PartnerRewardPayoutRow | null = payout
       ? {
           id: payout.id,
@@ -94,13 +109,12 @@ export async function listFinalizedPartnerRewardAwards(): Promise<PartnerRewardP
     return {
       awardId: award.id,
       businessId: award.business_id,
-      businessName: businessNameById.get(award.business_id) ?? 'Business',
+      businessName: businessNameById.get(String(award.business_id)) ?? 'Business',
       rewardPeriodId: award.reward_period_id,
-      periodLabel: periodLabelById.get(award.reward_period_id) ?? 'Quarter',
+      periodLabel: periodLabelById.get(String(award.reward_period_id)) ?? 'Quarter',
       awardCents: numberValue(award.award_cents),
       eligiblePoints: numberValue(award.eligible_points),
-      finalShareFraction:
-        award.final_share_fraction === null ? null : numberValue(award.final_share_fraction),
+      finalShareFraction: award.final_share_fraction === null ? null : numberValue(award.final_share_fraction),
       stripePayoutReadyAtClose: Boolean(award.stripe_payout_ready_at_close),
       payout: normalizedPayout,
     }
@@ -115,10 +129,9 @@ export async function executePartnerRewardPayout(
   if (!cleanAwardId) return { ok: false, error: 'Partner Reward award was not found.' }
 
   const admin = createAdminClient() as any
-
   const { data: award, error: awardError } = await admin
     .from('partner_reward_quarter_awards')
-    .select('id, report_id, reward_period_id, business_id, award_cents, finalized_at')
+    .select('id, reward_period_id, business_id, award_cents, finalized_at')
     .eq('id', cleanAwardId)
     .maybeSingle()
 
@@ -126,9 +139,7 @@ export async function executePartnerRewardPayout(
   if (!award.finalized_at) return { ok: false, error: 'Only finalized quarter awards can be paid.' }
 
   const amountCents = numberValue(award.award_cents)
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    return { ok: false, error: 'This award does not have a payable cash amount.' }
-  }
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return { ok: false, error: 'This award does not have a payable cash amount.' }
 
   const { data: period } = await admin
     .from('partner_reward_periods')
@@ -136,9 +147,7 @@ export async function executePartnerRewardPayout(
     .eq('id', award.reward_period_id)
     .maybeSingle()
 
-  if (period?.status !== 'finalized') {
-    return { ok: false, error: 'The reward quarter must be finalized before payout.' }
-  }
+  if (period?.status !== 'finalized') return { ok: false, error: 'The reward quarter must be finalized before payout.' }
 
   const { data: existingPayout, error: existingError } = await admin
     .from('partner_reward_payouts')
@@ -148,21 +157,11 @@ export async function executePartnerRewardPayout(
 
   if (existingError) return { ok: false, error: 'RaiseHub could not check payout history.' }
   if (existingPayout && existingPayout.status !== 'failed') {
-    return {
-      ok: false,
-      error: existingPayout.stripe_transfer_id
-        ? 'This award has already been transferred to Stripe.'
-        : 'A payout is already being processed for this award.',
-    }
+    return { ok: false, error: existingPayout.stripe_transfer_id ? 'This award has already been transferred to Stripe.' : 'A payout is already being processed for this award.' }
   }
 
-  const payoutStatus = await getBusinessPayoutStatus(award.business_id, { refreshStripe: true })
-  if (!payoutStatus?.payoutReady) {
-    return {
-      ok: false,
-      error: payoutStatus?.blockers?.[0] ?? 'The business is not ready to receive Stripe payouts.',
-    }
-  }
+  const readiness = await getBusinessPayoutStatus(award.business_id, { refreshStripe: true })
+  if (!readiness?.payoutReady) return { ok: false, error: readiness?.blockers?.[0] ?? 'The business is not ready to receive Stripe payouts.' }
 
   const { data: stripeAccount, error: stripeAccountError } = await admin
     .from('business_stripe_accounts')
@@ -170,30 +169,18 @@ export async function executePartnerRewardPayout(
     .eq('business_id', award.business_id)
     .maybeSingle()
 
-  if (stripeAccountError || !stripeAccount?.stripe_account_id) {
-    return { ok: false, error: 'The business Stripe payout account was not found.' }
-  }
+  if (stripeAccountError || !stripeAccount?.stripe_account_id) return { ok: false, error: 'The business Stripe payout account was not found.' }
 
   const currency = String(stripeAccount.default_currency ?? 'usd').toLowerCase()
   const idempotencyKey = `raisehub-partner-reward-${award.id}`
   const now = new Date().toISOString()
-
   let payoutId: string
 
   if (existingPayout?.status === 'failed') {
     const { error: resetError } = await admin
       .from('partner_reward_payouts')
-      .update({
-        status: 'pending',
-        failure_code: null,
-        failure_message: null,
-        failed_at: null,
-        updated_at: now,
-        requested_by: requestedBy,
-        stripe_account_id: stripeAccount.stripe_account_id,
-      })
+      .update({ status: 'pending', failure_code: null, failure_message: null, failed_at: null, updated_at: now, requested_by: requestedBy, stripe_account_id: stripeAccount.stripe_account_id })
       .eq('id', existingPayout.id)
-
     if (resetError) return { ok: false, error: 'RaiseHub could not retry this payout.' }
     payoutId = existingPayout.id
   } else {
@@ -214,9 +201,7 @@ export async function executePartnerRewardPayout(
       .single()
 
     if (insertError || !inserted?.id) {
-      if (String(insertError?.code) === '23505') {
-        return { ok: false, error: 'A payout already exists for this finalized award.' }
-      }
+      if (String(insertError?.code) === '23505') return { ok: false, error: 'A payout already exists for this finalized award.' }
       return { ok: false, error: 'RaiseHub could not create the payout record.' }
     }
     payoutId = inserted.id
@@ -242,23 +227,10 @@ export async function executePartnerRewardPayout(
     )
 
     const submittedAt = new Date().toISOString()
-    const { error: updateError } = await admin
+    await admin
       .from('partner_reward_payouts')
-      .update({
-        status: 'submitted',
-        stripe_transfer_id: transfer.id,
-        submitted_at: submittedAt,
-        updated_at: submittedAt,
-      })
+      .update({ status: 'submitted', stripe_transfer_id: transfer.id, submitted_at: submittedAt, updated_at: submittedAt })
       .eq('id', payoutId)
-
-    if (updateError) {
-      console.error('Partner Reward transfer created but payout ledger update failed', {
-        payoutId,
-        stripeTransferId: transfer.id,
-        updateError,
-      })
-    }
 
     return { ok: true, payoutId, stripeTransferId: transfer.id }
   } catch (error) {
@@ -268,22 +240,10 @@ export async function executePartnerRewardPayout(
 
     await admin
       .from('partner_reward_payouts')
-      .update({
-        status: 'failed',
-        failure_code: code || null,
-        failure_message: message.slice(0, 1000),
-        failed_at: failedAt,
-        updated_at: failedAt,
-      })
+      .update({ status: 'failed', failure_code: code || null, failure_message: message.slice(0, 1000), failed_at: failedAt, updated_at: failedAt })
       .eq('id', payoutId)
 
-    console.error('Partner Reward Stripe transfer failed', {
-      awardId: award.id,
-      payoutId,
-      businessId: award.business_id,
-      error,
-    })
-
+    console.error('Partner Reward Stripe transfer failed', { awardId: award.id, payoutId, businessId: award.business_id, error })
     return { ok: false, error: message }
   }
 }
