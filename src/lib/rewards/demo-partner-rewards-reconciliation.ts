@@ -5,15 +5,30 @@ import {
   reconcilePartnerRewardsBusiness,
   reconcilePartnerRewardsNetwork,
   type PartnerRewardsNetworkReconcileResult,
-  type PartnerRewardsReconcileResult,
 } from '@/lib/rewards/partner-rewards-reconciliation'
+
+type DemoBusinessReconcileResult = {
+  skipped: boolean
+  profileEvents: number
+  offerDayEvents: number
+  redemptionEvents: number
+  uniqueSupporterEvents: number
+}
 
 export type DemoRewardsNetworkReconcileResult = PartnerRewardsNetworkReconcileResult
 
 export async function reconcileDemoPartnerRewards(
   businessId: string | null
-): Promise<PartnerRewardsReconcileResult> {
-  return reconcilePartnerRewardsBusiness(businessId)
+): Promise<DemoBusinessReconcileResult> {
+  const result = await reconcilePartnerRewardsBusiness(businessId)
+
+  return {
+    skipped: result.skipped,
+    profileEvents: result.profileEvents,
+    offerDayEvents: result.offerDayEvents,
+    redemptionEvents: result.redemptionEvents,
+    uniqueSupporterEvents: result.uniqueSupporterEvents,
+  }
 }
 
 export async function reconcileDemoPartnerRewardsNetwork(
