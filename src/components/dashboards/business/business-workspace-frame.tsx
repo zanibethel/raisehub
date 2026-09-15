@@ -6,6 +6,7 @@ import type { ComponentProps } from 'react'
 import BusinessCommandCenter from './business-command-center'
 import BusinessDashboardContent from './business-dashboard-content'
 import BusinessPartnerRewardsCenter from './business-partner-rewards'
+import BusinessVerificationCard from './business-verification-card'
 import type { BusinessWorkspaceView } from './business-dashboard'
 import type { PartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
 import {
@@ -17,6 +18,7 @@ import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navig
 type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardContent> & {
   view?: BusinessWorkspaceView
   rewardsSummary: PartnerRewardsSummary
+  verificationStatus: string
 }
 
 function DashboardIcon() {
@@ -42,6 +44,7 @@ function MoreIcon() {
 export default function BusinessWorkspaceFrame({
   view = 'dashboard',
   rewardsSummary,
+  verificationStatus,
   ...props
 }: BusinessWorkspaceFrameProps) {
   const bottomNavigation = buildWorkspaceNavigation({
@@ -60,6 +63,9 @@ export default function BusinessWorkspaceFrame({
 
   const businessName =
     props.profile?.business_name || props.profile?.display_name || 'Business workspace'
+  const profileComplete = Boolean(
+    props.profile?.business_name && props.profile?.phone && props.profile?.address && props.profile?.logo_url
+  )
 
   const identity: WorkspaceIdentity = {
     eyebrow:
@@ -114,12 +120,19 @@ export default function BusinessWorkspaceFrame({
       {view === 'dashboard' ? (
         <BusinessCommandCenter {...props} rewardsSummary={rewardsSummary} />
       ) : view === 'rewards' ? (
-        <BusinessPartnerRewardsCenter
-          summary={rewardsSummary}
-          profile={props.profile}
-          activeOffersCount={props.activeOffersCount}
-          businessId={props.businessId}
-        />
+        <div className="space-y-4 sm:space-y-5">
+          <BusinessVerificationCard
+            businessId={props.businessId}
+            status={verificationStatus}
+            profileComplete={profileComplete}
+          />
+          <BusinessPartnerRewardsCenter
+            summary={rewardsSummary}
+            profile={props.profile}
+            activeOffersCount={props.activeOffersCount}
+            businessId={props.businessId}
+          />
+        </div>
       ) : (
         <BusinessDashboardContent {...props} view={view} />
       )}
