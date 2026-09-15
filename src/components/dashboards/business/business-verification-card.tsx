@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
@@ -66,9 +65,9 @@ export default function BusinessVerificationCard({ businessId, status, profileCo
       ) : needsProfile ? (
         <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-bold text-amber-900">Complete your business name, phone, address, and logo before applying.</p>
-          <Link href="/dashboard/offers#business-profile" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-black text-white">
+          <a href="/dashboard/offers#business-profile" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-black text-white">
             Complete profile
-          </Link>
+          </a>
         </div>
       ) : (
         <button
