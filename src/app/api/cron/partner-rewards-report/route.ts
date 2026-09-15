@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { finalizeEndedPartnerRewardsQuarterReports } from '@/lib/services/partner-rewards-quarter-finalization-service'
 import { getOwnerPartnerRewardsQuarterReport } from '@/lib/services/partner-rewards-quarter-report-service'
 
 export const dynamic = 'force-dynamic'
@@ -21,8 +22,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    const finalization = await finalizeEndedPartnerRewardsQuarterReports()
     const result = await getOwnerPartnerRewardsQuarterReport()
-    return NextResponse.json({ ok: result.status === 'success', result })
+
+    return NextResponse.json({
+      ok: result.status === 'success',
+      finalization,
+      result,
+    })
   } catch (error) {
     console.error('Partner Rewards report cron failed', error)
     return NextResponse.json(
