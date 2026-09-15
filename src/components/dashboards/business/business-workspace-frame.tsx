@@ -6,9 +6,11 @@ import type { ComponentProps } from 'react'
 import BusinessCommandCenter from './business-command-center'
 import BusinessDashboardContent from './business-dashboard-content'
 import BusinessPartnerRewardsCenter from './business-partner-rewards'
+import BusinessPayoutCard from './business-payout-card'
 import BusinessVerificationCard from './business-verification-card'
 import type { BusinessWorkspaceView } from './business-dashboard'
 import type { PartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
+import type { BusinessPayoutStatus } from '@/lib/stripe/business-connect'
 import {
   WorkspaceShell,
   type WorkspaceIdentity,
@@ -19,6 +21,7 @@ type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardConten
   view?: BusinessWorkspaceView
   rewardsSummary: PartnerRewardsSummary
   verificationStatus: string
+  payoutStatus: BusinessPayoutStatus | null
 }
 
 function DashboardIcon() {
@@ -45,6 +48,7 @@ export default function BusinessWorkspaceFrame({
   view = 'dashboard',
   rewardsSummary,
   verificationStatus,
+  payoutStatus,
   ...props
 }: BusinessWorkspaceFrameProps) {
   const bottomNavigation = buildWorkspaceNavigation({
@@ -126,6 +130,7 @@ export default function BusinessWorkspaceFrame({
             status={verificationStatus}
             profileComplete={profileComplete}
           />
+          <BusinessPayoutCard businessId={props.businessId} status={payoutStatus} />
           <BusinessPartnerRewardsCenter
             summary={rewardsSummary}
             profile={props.profile}
