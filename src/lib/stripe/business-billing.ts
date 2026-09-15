@@ -2,6 +2,7 @@ import 'server-only'
 
 import type Stripe from 'stripe'
 
+import { handlePartnerRewardsStripeEvent } from '@/lib/stripe/partner-rewards-webhook'
 import { getStripeClient } from '@/lib/stripe/server'
 
 export const BUSINESS_BILLING_FLOW = 'business_subscription'
@@ -320,6 +321,8 @@ export async function handleBusinessBillingEvent(
   admin: any,
   event: Stripe.Event
 ): Promise<boolean> {
+  if (await handlePartnerRewardsStripeEvent(admin, event)) return true
+
   if (
     (event.type === 'checkout.session.completed' ||
       event.type === 'checkout.session.async_payment_succeeded') &&
