@@ -39,11 +39,7 @@ export type PartnerRewardsQuarterBusinessRow = {
 }
 
 export type OwnerPartnerRewardsQuarterReportResult =
-  | {
-      status: 'success'
-      report: PartnerRewardsQuarterReport
-      businesses: PartnerRewardsQuarterBusinessRow[]
-    }
+  | { status: 'success'; report: PartnerRewardsQuarterReport; businesses: PartnerRewardsQuarterBusinessRow[] }
   | { status: 'empty'; message: string }
   | { status: 'error'; message: string }
 
@@ -54,23 +50,20 @@ function toNumber(value: unknown) {
 
 export async function getOwnerPartnerRewardsQuarterReport(): Promise<OwnerPartnerRewardsQuarterReportResult> {
   const admin = createAdminClient() as any
-  const now = new Date().toISOString()
+
+  const { data: periodId, error: ensureError } = await admin.rpc('ensure_current_partner_reward_period')
+  if (ensureError || !periodId) {
+    console.error('Could not ensure current Partner Rewards period', ensureError)
+    return { status: 'error', message: 'Could not load the current Partner Rewards quarter.' }
+  }
 
   const { data: period, error: periodError } = await admin
     .from('partner_reward_periods')
     .select('id, label, starts_at, ends_at, status')
-    .lte('starts_at', now)
-    .gt('ends_at', now)
-    .order('starts_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .eq('id', periodId)
+    .single()
 
-  if (periodError) {
-    console.error('Could not resolve current Partner Rewards period', periodError)
-    return { status: 'error', message: 'Could not load the current Partner Rewards quarter.' }
-  }
-
-  if (!period) {
+  if (periodError || !period) {
     return { status: 'empty', message: 'No active Partner Rewards quarter is configured.' }
   }
 
@@ -91,39 +84,28 @@ export async function getOwnerPartnerRewardsQuarterReport(): Promise<OwnerPartne
     }
   }
 
-  const { data: reportId, error: refreshError } = await admin.rpc(
-    'refresh_partner_reward_quarter_report',
-    {
-      p_reward_period_id: period.id,
-      p_is_demo: false,
-      p_demo_group: null,
-    }
-  )
+  const { data: reportId, error: refreshError } = await admin.rpc('refresh_partner_reward_quarter_report', {
+    p_reward_period_id: period.id,
+    p_is_demo: false,
+    p_demo_group: null,
+  })
 
   if (refreshError || !reportId) {
     console.error('Could not refresh Partner Rewards quarter report', refreshError)
     return { status: 'error', message: 'Could not refresh the Partner Rewards quarter report.' }
   }
 
-  const [{ data: reportData, error: reportError }, { data: rowData, error: rowError }] =
-    await Promise.all([
-      admin
-        .from('partner_reward_quarter_reports')
-        .select('*')
-        .eq('id', reportId)
-        .single(),
-      admin
-        .from('partner_reward_quarter_business_rows')
-        .select('business_id, eligible_points, pending_points, share_fraction, expected_reward_cents, verification_status, stripe_payout_ready, payout_status')
-        .eq('report_id', reportId)
-        .order('expected_reward_cents', { ascending: false }),
-    ])
+  const [{ data: reportData, error: reportError }, { data: rowData, error: rowError }] = await Promise.all([
+    admin.from('partner_reward_quarter_reports').select('*').eq('id', reportId).single(),
+    admin
+      .from('partner_reward_quarter_business_rows')
+      .select('business_id, eligible_points, pending_points, share_fraction, expected_reward_cents, verification_status, stripe_payout_ready, payout_status')
+      .eq('report_id', reportId)
+      .order('expected_reward_cents', { ascending: false }),
+  ])
 
   if (reportError || rowError || !reportData) {
-    console.error('Could not read refreshed Partner Rewards quarter report', {
-      reportError,
-      rowError,
-    })
+    console.error('Could not read refreshed Partner Rewards quarter report', { reportError, rowError })
     return { status: 'error', message: 'Could not load the refreshed Partner Rewards report.' }
   }
 
@@ -131,9 +113,7 @@ export async function getOwnerPartnerRewardsQuarterReport(): Promise<OwnerPartne
   const { data: businesses } = businessIds.length
     ? await admin.from('businesses').select('id, name').in('id', businessIds)
     : { data: [] }
-  const businessNameById = new Map(
-    (businesses ?? []).map((business: { id: string; name: string }) => [business.id, business.name])
-  )
+  const businessNameById = new Map((businesses ?? []).map((business: { id: string; name: string }) => [business.id, business.name]))
 
   const report: PartnerRewardsQuarterReport = {
     id: reportData.id,
