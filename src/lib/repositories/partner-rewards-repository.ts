@@ -45,6 +45,21 @@ export type PartnerRewardRedemption = {
   created_at: string
 }
 
+export type PartnerRewardQuarterHistoryItem = {
+  awardId: string
+  rewardPeriodId: string
+  periodLabel: string
+  eligiblePoints: number
+  finalShareFraction: number | null
+  awardCents: number
+  finalizedAt: string
+  payoutStatus: 'pending' | 'submitted' | 'paid' | 'failed' | 'reversed' | null
+  stripeTransferId: string | null
+  submittedAt: string | null
+  reversedAt: string | null
+  failureMessage: string | null
+}
+
 export type PartnerRewardsSummary = {
   period: PartnerRewardPeriod | null
   eligiblePoints: number
@@ -56,6 +71,7 @@ export type PartnerRewardsSummary = {
   marketplaceItems: PartnerRewardMarketplaceItem[]
   activeRedemptions: PartnerRewardRedemption[]
   activeExtraOfferSlots: number
+  quarterHistory: PartnerRewardQuarterHistoryItem[]
 }
 
 const EMPTY_SUMMARY: PartnerRewardsSummary = {
@@ -69,6 +85,7 @@ const EMPTY_SUMMARY: PartnerRewardsSummary = {
   marketplaceItems: [],
   activeRedemptions: [],
   activeExtraOfferSlots: 0,
+  quarterHistory: [],
 }
 
 function toNumber(value: unknown) {
@@ -130,6 +147,87 @@ async function getEnvironmentNetworkEligiblePoints(
   )
 }
 
+async function canReadBusinessRewardHistory(supabase: any, businessId: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role === 'owner') return true
+
+  const { data: membership } = await supabase
+    .from('business_memberships')
+    .select('id')
+    .eq('business_id', businessId)
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  return Boolean(membership)
+}
+
+async function getBusinessQuarterHistory(
+  supabase: any,
+  businessId: string
+): Promise<PartnerRewardQuarterHistoryItem[]> {
+  if (!(await canReadBusinessRewardHistory(supabase, businessId))) return []
+
+  const admin = createAdminClient() as any
+  const { data: awards, error: awardsError } = await admin
+    .from('partner_reward_quarter_awards')
+    .select('id, reward_period_id, eligible_points, final_share_fraction, award_cents, finalized_at')
+    .eq('business_id', businessId)
+    .not('finalized_at', 'is', null)
+    .order('finalized_at', { ascending: false })
+
+  if (awardsError || !awards?.length) return []
+
+  const awardIds = awards.map((award: any) => String(award.id))
+  const periodIds = [...new Set(awards.map((award: any) => String(award.reward_period_id)))]
+
+  const [{ data: periods }, { data: payouts }] = await Promise.all([
+    admin.from('partner_reward_periods').select('id, label').in('id', periodIds),
+    admin
+      .from('partner_reward_payouts')
+      .select('award_id, status, stripe_transfer_id, submitted_at, reversed_at, failure_message')
+      .in('award_id', awardIds),
+  ])
+
+  const labelByPeriod = new Map<string, string>(
+    (periods ?? []).map((row: any) => [String(row.id), String(row.label)])
+  )
+  const payoutByAward = new Map<string, any>(
+    (payouts ?? []).map((row: any) => [String(row.award_id), row])
+  )
+
+  return awards.map((award: any) => {
+    const payout = payoutByAward.get(String(award.id)) ?? null
+    return {
+      awardId: String(award.id),
+      rewardPeriodId: String(award.reward_period_id),
+      periodLabel: labelByPeriod.get(String(award.reward_period_id)) ?? 'Quarter',
+      eligiblePoints: toNumber(award.eligible_points),
+      finalShareFraction:
+        award.final_share_fraction === null
+          ? null
+          : toNumber(award.final_share_fraction),
+      awardCents: toNumber(award.award_cents),
+      finalizedAt: String(award.finalized_at),
+      payoutStatus: payout?.status ?? null,
+      stripeTransferId: payout?.stripe_transfer_id ?? null,
+      submittedAt: payout?.submitted_at ?? null,
+      reversedAt: payout?.reversed_at ?? null,
+      failureMessage: payout?.failure_message ?? null,
+    }
+  })
+}
+
 export async function getPartnerRewardsSummary(
   businessId: string | null
 ): Promise<PartnerRewardsSummary> {
@@ -137,7 +235,7 @@ export async function getPartnerRewardsSummary(
 
   const supabase = await createClient()
 
-  const [{ data: marketplaceData }, { data: redemptionData }] = await Promise.all([
+  const [{ data: marketplaceData }, { data: redemptionData }, quarterHistory] = await Promise.all([
     (supabase as any)
       .from('partner_reward_marketplace_items')
       .select('id, code, name, description, category, point_cost, duration_days, benefit_config, is_active, sort_order')
@@ -147,6 +245,7 @@ export async function getPartnerRewardsSummary(
       .select('id, marketplace_item_id, points_spent, status, starts_at, ends_at, benefit_snapshot, created_at')
       .eq('business_id', businessId)
       .order('created_at', { ascending: false }),
+    getBusinessQuarterHistory(supabase as any, businessId),
   ])
 
   const marketplaceItems = ((marketplaceData ?? []) as PartnerRewardMarketplaceItem[]).map(
@@ -182,6 +281,7 @@ export async function getPartnerRewardsSummary(
       marketplaceItems,
       activeRedemptions,
       activeExtraOfferSlots,
+      quarterHistory,
     }
   }
 
@@ -202,6 +302,7 @@ export async function getPartnerRewardsSummary(
       marketplaceItems,
       activeRedemptions,
       activeExtraOfferSlots,
+      quarterHistory,
     }
   }
 
@@ -233,5 +334,6 @@ export async function getPartnerRewardsSummary(
     marketplaceItems,
     activeRedemptions,
     activeExtraOfferSlots,
+    quarterHistory,
   }
 }
