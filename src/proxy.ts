@@ -8,6 +8,7 @@ const RESERVED_RAISEHUB_SUBDOMAINS = new Set([
   'organization',
   'supporter',
   'owner',
+  'demo',
 ])
 
 function getBusinessSiteSlug(hostname: string) {
