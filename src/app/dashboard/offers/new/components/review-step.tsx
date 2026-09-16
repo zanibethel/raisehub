@@ -36,15 +36,15 @@ export default function ReviewStep({
   return (
     <div>
       <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
-        Review and publish
+        Review and submit
       </p>
 
       <h1 className="mt-3 text-3xl font-bold text-blue-700 sm:text-4xl">
-        Your exclusive offer is ready
+        Your exclusive offer is ready for review
       </h1>
 
       <p className="mt-4 max-w-2xl leading-7 text-gray-600">
-        Review exactly what members will see before publishing.
+        Review exactly what members will see. Your offer will stay offline until your business is verified and RaiseHub approves the offer.
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -143,13 +143,17 @@ export default function ReviewStep({
             </p>
           </section>
 
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            <strong>What happens next:</strong> RaiseHub reviews the offer. Approval can only publish it after the business is verified.
+          </section>
+
           <button
             type="button"
             onClick={onPublish}
             disabled={publishing}
             className="w-full rounded-xl bg-green-600 px-6 py-4 font-bold text-white shadow-md hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {publishing ? 'Publishing Offer...' : 'Publish Exclusive Offer'}
+            {publishing ? 'Submitting Offer...' : 'Submit Offer for Review'}
           </button>
         </aside>
       </div>
