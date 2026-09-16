@@ -24,8 +24,7 @@ const groups = [
     title: 'Trust and operations',
     description: 'Review activity that affects platform trust, revenue, or readiness.',
     items: [
-      { label: 'Business verification', href: '/dashboard/owner/business-verifications', detail: 'Approve legitimate businesses before their Partner Points and offers become eligible.' },
-      { label: 'Offer reviews', href: '/dashboard/owner/offer-reviews', detail: 'Approve offers from verified businesses before they can be published publicly.' },
+      { label: 'Business verification', href: '/dashboard/owner/business-verifications', detail: 'Approve legitimate businesses once before their offers can be published and Partner Points become eligible.' },
       { label: 'Spotlights', href: '/dashboard/owner/spotlights', detail: 'Create targeted login carousel cards for announcements, upgrades, featured businesses, and fundraisers.' },
       { label: 'Notifications', href: '/dashboard/owner/notifications', detail: 'Send targeted reminders, in-app notices, and email messages to selected profiles.' },
       { label: 'Campaign reviews', href: '/dashboard/owner/campaign-reviews', detail: 'Review pending campaigns, payout readiness, and risk context.' },
