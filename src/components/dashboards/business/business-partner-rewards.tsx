@@ -7,6 +7,7 @@ import { useState, useTransition } from 'react'
 import type {
   PartnerRewardMarketplaceItem,
   PartnerRewardQuarterHistoryItem,
+  PartnerRewardRedemption,
   PartnerRewardsSummary,
 } from '@/lib/repositories/partner-rewards-repository'
 import { PARTNER_POINTS_DISCLOSURE } from '@/lib/rewards/partner-rewards'
@@ -104,25 +105,28 @@ function MarketplaceItemCard({
   item,
   eligiblePoints,
   pending,
+  activeRedemption,
   onRedeem,
 }: {
   item: PartnerRewardMarketplaceItem
   eligiblePoints: number
   pending: boolean
+  activeRedemption: PartnerRewardRedemption | null
   onRedeem: (item: PartnerRewardMarketplaceItem) => void
 }) {
   const canAfford = eligiblePoints >= item.point_cost
   const pointsNeeded = Math.max(0, item.point_cost - eligiblePoints)
+  const isActive = Boolean(activeRedemption)
 
   return (
-    <div className={`rounded-2xl border p-4 ${item.is_active ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-slate-50'}`}>
+    <div className={`rounded-2xl border p-4 ${isActive ? 'border-green-200 bg-green-50/60' : item.is_active ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-slate-50'}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-black text-slate-950">{item.name}</p>
           <p className="mt-1 text-sm leading-5 text-slate-600">{item.description}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${item.is_active ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
-          {item.is_active ? `${formatPoints(item.point_cost)} pts` : 'Coming soon'}
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${isActive ? 'bg-green-100 text-green-800' : item.is_active ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+          {isActive ? 'Active' : item.is_active ? `${formatPoints(item.point_cost)} pts` : 'Coming soon'}
         </span>
       </div>
 
@@ -130,7 +134,11 @@ function MarketplaceItemCard({
         <p className="mt-2 text-xs font-bold text-slate-500">Benefit lasts {item.duration_days} days.</p>
       ) : null}
 
-      {item.is_active ? (
+      {isActive ? (
+        <div className="mt-4 rounded-xl border border-green-200 bg-white px-3 py-2 text-center text-xs font-black text-green-800">
+          Active until {formatDate(activeRedemption?.ends_at ?? null)}
+        </div>
+      ) : item.is_active ? (
         <button
           type="button"
           disabled={!canAfford || pending}
@@ -223,6 +231,9 @@ export default function BusinessPartnerRewardsCenter({
   const marketplaceItems = summary.marketplaceItems
   const marketplaceNameById = Object.fromEntries(
     marketplaceItems.map((item) => [item.id, item.name])
+  )
+  const activeRedemptionByItemId = new Map(
+    summary.activeRedemptions.map((redemption) => [redemption.marketplace_item_id, redemption])
   )
 
   return (
@@ -350,6 +361,7 @@ export default function BusinessPartnerRewardsCenter({
               item={item}
               eligiblePoints={summary.eligiblePoints}
               pending={isPending}
+              activeRedemption={activeRedemptionByItemId.get(item.id) ?? null}
               onRedeem={redeem}
             />
           ))}
