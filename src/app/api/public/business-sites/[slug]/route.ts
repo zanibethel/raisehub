@@ -9,6 +9,14 @@ type RouteContext = {
   params: Promise<{ slug: string }>
 }
 
+function benefitHidesRaiseHubBranding(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const snapshot = value as Record<string, unknown>
+  const config = snapshot.benefit_config
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return false
+  return (config as Record<string, unknown>).hide_raisehub_branding === true
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   const { slug } = await context.params
   const normalizedSlug = slug.trim().toLowerCase()
@@ -60,11 +68,11 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Business site not published.' }, { status: 404 })
   }
 
+  const now = new Date().toISOString()
   let offers: Array<{ id: string; title: string; description: string | null; benefit: string | null }> = []
 
   if (site.show_offers) {
     const offerBusinessId = business.legacy_profile_id ?? business.id
-    const now = new Date().toISOString()
 
     let offerQuery = admin
       .from('offers')
@@ -97,5 +105,30 @@ export async function GET(_request: Request, context: RouteContext) {
     offers = offerRows ?? []
   }
 
-  return NextResponse.json({ site, offers })
+  const { data: activeWebsiteRedemptions, error: redemptionError } = await admin
+    .from('partner_reward_redemptions')
+    .select('benefit_snapshot,ends_at')
+    .eq('business_id', business.id)
+    .eq('status', 'active')
+    .or(`ends_at.is.null,ends_at.gt.${now}`)
+
+  if (redemptionError) {
+    console.error('Public business site reward lookup failed', {
+      slug: normalizedSlug,
+      businessId: business.id,
+      message: redemptionError.message,
+    })
+  }
+
+  const hideRaiseHubBranding = (activeWebsiteRedemptions ?? []).some((redemption: any) =>
+    benefitHidesRaiseHubBranding(redemption.benefit_snapshot)
+  )
+
+  return NextResponse.json({
+    site,
+    offers,
+    websiteBenefits: {
+      hideRaiseHubBranding,
+    },
+  })
 }
