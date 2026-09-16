@@ -26,6 +26,7 @@ const groups = [
     items: [
       { label: 'Business verification', href: '/dashboard/owner/business-verifications', detail: 'Approve legitimate businesses once before their offers can be published and Partner Points become eligible.' },
       { label: 'Business referrals', href: '/dashboard/owner/referrals', detail: 'Audit referral attribution, signup progress, verification conversion, and Partner Points awarded.' },
+      { label: 'Growth rewards', href: '/dashboard/owner/growth-rewards', detail: 'Manage Founder status, renewable-activity multipliers, and early-business growth incentives.' },
       { label: 'Spotlights', href: '/dashboard/owner/spotlights', detail: 'Create targeted login carousel cards for announcements, upgrades, featured businesses, and fundraisers.' },
       { label: 'Notifications', href: '/dashboard/owner/notifications', detail: 'Send targeted reminders, in-app notices, and email messages to selected profiles.' },
       { label: 'Campaign reviews', href: '/dashboard/owner/campaign-reviews', detail: 'Review pending campaigns, payout readiness, and risk context.' },
