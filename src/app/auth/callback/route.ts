@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getSafeInternalPath } from '@/lib/navigation/safe-internal-path'
 import { createClient } from '@/lib/supabase/server'
 
 function restoreCampaignSignupContext(
@@ -30,7 +31,7 @@ function restoreCampaignSignupContext(
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  let next = requestUrl.searchParams.get('next') ?? '/dashboard'
+  let next = getSafeInternalPath(requestUrl.searchParams.get('next'))
 
   if (code) {
     const supabase = await createClient()
