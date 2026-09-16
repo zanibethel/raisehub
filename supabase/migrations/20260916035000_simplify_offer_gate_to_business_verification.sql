@@ -5,10 +5,15 @@
 alter table public.offers
   add column if not exists publication_intent boolean not null default true;
 
+-- Temporarily remove the previous per-offer approval trigger while normalizing
+-- existing rows. It is recreated below with verification-only behavior.
+drop trigger if exists offers_publish_approval_guard on public.offers;
+
 -- Preserve what each business was trying to publish before applying the trust gate.
 update public.offers
 set publication_intent = is_active,
     approval_status = 'approved',
+    approval_submitted_at = null,
     approval_reviewed_at = coalesce(approval_reviewed_at, now()),
     approval_reviewed_by = null,
     approval_review_note = null;
@@ -66,6 +71,10 @@ begin
   return new;
 end;
 $$;
+
+create trigger offers_publish_approval_guard
+before insert or update on public.offers
+for each row execute function public.enforce_offer_publish_approval();
 
 -- Per-offer review is no longer part of the product flow.
 revoke execute on function public.review_business_offer(uuid,text,text) from authenticated;
