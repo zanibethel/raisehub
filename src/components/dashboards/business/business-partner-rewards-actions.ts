@@ -75,6 +75,17 @@ export async function redeemPartnerRewardAction(
       return { success: false, error: 'Only a business owner or manager can redeem Partner Points.' }
     }
 
+    if (message.includes('already active')) {
+      return { success: false, error: 'This Partner Reward is already active for your business.' }
+    }
+
+    if (message.includes('publish your raisehub website')) {
+      return {
+        success: false,
+        error: 'Publish your RaiseHub website first, then return here to activate this reward.',
+      }
+    }
+
     return { success: false, error: 'Could not redeem this reward. Please try again.' }
   }
 
