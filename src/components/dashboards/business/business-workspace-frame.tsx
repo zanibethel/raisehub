@@ -5,7 +5,12 @@ import type { ComponentProps } from 'react'
 
 import BusinessCommandCenter from './business-command-center'
 import BusinessDashboardContent from './business-dashboard-content'
+import BusinessPartnerRewardsCenter from './business-partner-rewards'
+import BusinessPayoutCard from './business-payout-card'
+import BusinessVerificationCard from './business-verification-card'
 import type { BusinessWorkspaceView } from './business-dashboard'
+import type { PartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
+import type { BusinessPayoutStatus } from '@/lib/stripe/business-connect'
 import {
   WorkspaceShell,
   type WorkspaceIdentity,
@@ -14,6 +19,9 @@ import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navig
 
 type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardContent> & {
   view?: BusinessWorkspaceView
+  rewardsSummary: PartnerRewardsSummary
+  verificationStatus: string
+  payoutStatus: BusinessPayoutStatus | null
 }
 
 function DashboardIcon() {
@@ -38,6 +46,9 @@ function MoreIcon() {
 
 export default function BusinessWorkspaceFrame({
   view = 'dashboard',
+  rewardsSummary,
+  verificationStatus,
+  payoutStatus,
   ...props
 }: BusinessWorkspaceFrameProps) {
   const bottomNavigation = buildWorkspaceNavigation({
@@ -56,16 +67,28 @@ export default function BusinessWorkspaceFrame({
 
   const businessName =
     props.profile?.business_name || props.profile?.display_name || 'Business workspace'
+  const profileComplete = Boolean(
+    props.profile?.business_name && props.profile?.phone && props.profile?.address && props.profile?.logo_url
+  )
 
   const identity: WorkspaceIdentity = {
-    eyebrow: view === 'dashboard' ? 'Business details' : view === 'offers' ? 'Offer management' : 'Business reporting',
+    eyebrow:
+      view === 'dashboard'
+        ? 'Business details'
+        : view === 'offers'
+          ? 'Offer management'
+          : view === 'rewards'
+            ? 'Partner Rewards'
+            : 'Business reporting',
     title: businessName,
     subtitle:
       view === 'dashboard'
         ? props.profile?.phone || 'RaiseHub business partner'
         : view === 'offers'
           ? 'Create, edit, pause, and review your customer offers.'
-          : 'Review customer activity, redemptions, and offer performance.',
+          : view === 'rewards'
+            ? `${rewardsSummary.period?.label ?? 'Current quarter'} · ${rewardsSummary.totalPoints.toLocaleString()} Partner Points`
+            : 'Review customer activity, redemptions, and offer performance.',
     detail:
       view === 'dashboard'
         ? props.profile?.address || 'Add your address so customers know where to visit.'
@@ -73,7 +96,9 @@ export default function BusinessWorkspaceFrame({
           ? props.isGrowthPlan
             ? `${props.activeOffersCount} active offers · Growth plan`
             : `${props.activeOffersCount} of ${props.activeOfferLimit} active offer slots are currently in use.`
-          : `${props.totalRedemptions} total redemptions recorded.`,
+          : view === 'rewards'
+            ? 'Points determine your proportional share of the quarterly rewards pool and do not have a fixed cash value.'
+            : `${props.totalRedemptions} total redemptions recorded.`,
     tone: 'green',
     image: props.profile?.logo_url ? (
       // eslint-disable-next-line @next/next/no-img-element
@@ -97,7 +122,22 @@ export default function BusinessWorkspaceFrame({
   return (
     <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
       {view === 'dashboard' ? (
-        <BusinessCommandCenter {...props} />
+        <BusinessCommandCenter {...props} rewardsSummary={rewardsSummary} />
+      ) : view === 'rewards' ? (
+        <div className="space-y-4 sm:space-y-5">
+          <BusinessVerificationCard
+            businessId={props.businessId}
+            status={verificationStatus}
+            profileComplete={profileComplete}
+          />
+          <BusinessPayoutCard businessId={props.businessId} status={payoutStatus} />
+          <BusinessPartnerRewardsCenter
+            summary={rewardsSummary}
+            profile={props.profile}
+            activeOffersCount={props.activeOffersCount}
+            businessId={props.businessId}
+          />
+        </div>
       ) : (
         <BusinessDashboardContent {...props} view={view} />
       )}

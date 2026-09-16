@@ -35,10 +35,24 @@ export default function SeedCuratedDemoButton() {
         )
       }
 
-      const groupKey = payload.groupKey ?? 'lakeview_launch_2026'
+      setMessage('Lakeview created. Preparing realistic Partner Rewards activity...')
+
+      const rewardsResponse = await fetch('/api/owner/demo/seed-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const rewardsPayload = (await rewardsResponse.json().catch(() => ({}))) as SeedResponse
+
+      if (!rewardsResponse.ok) {
+        throw new Error(
+          rewardsPayload.error ?? 'Lakeview was created, but its Partner Rewards scenarios could not be prepared.'
+        )
+      }
+
+      const groupKey = rewardsPayload.groupKey ?? payload.groupKey ?? 'lakeview_launch_2026'
 
       setStatus('success')
-      setMessage('Lakeview demo created. Opening the completed scenario...')
+      setMessage('Lakeview demo and Partner Rewards scenarios are ready. Opening the completed scenario...')
       router.push(`/dashboard/owner/demo-groups/${encodeURIComponent(groupKey)}`)
       router.refresh()
     } catch (error) {

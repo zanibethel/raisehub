@@ -1,0 +1,345 @@
+-- =============================================================================
+-- Finalize Partner Rewards quarter reports without freezing source sales data.
+-- Closed-quarter economics are snapshotted into immutable report/award records.
+-- =============================================================================
+
+create table if not exists public.partner_reward_quarter_awards (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid not null references public.partner_reward_quarter_reports(id) on delete restrict,
+  reward_period_id uuid not null references public.partner_reward_periods(id) on delete restrict,
+  business_id uuid not null references public.businesses(id) on delete restrict,
+  eligible_points numeric not null default 0,
+  final_share_fraction numeric,
+  award_cents bigint not null default 0,
+  verification_status_at_close text not null,
+  stripe_payout_ready_at_close boolean not null default false,
+  payout_status text not null default 'payout_setup_required',
+  finalized_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint partner_reward_quarter_awards_points_nonnegative check (eligible_points >= 0),
+  constraint partner_reward_quarter_awards_share_valid check (
+    final_share_fraction is null or (final_share_fraction >= 0 and final_share_fraction <= 1)
+  ),
+  constraint partner_reward_quarter_awards_amount_nonnegative check (award_cents >= 0),
+  constraint partner_reward_quarter_awards_payout_status_valid check (
+    payout_status in ('ready', 'payout_setup_required', 'submitted', 'paid', 'failed', 'reversed')
+  )
+);
+
+create unique index if not exists partner_reward_quarter_awards_report_business_unique_idx
+  on public.partner_reward_quarter_awards (report_id, business_id);
+
+create index if not exists partner_reward_quarter_awards_period_idx
+  on public.partner_reward_quarter_awards (reward_period_id, payout_status);
+
+create index if not exists partner_reward_quarter_awards_business_idx
+  on public.partner_reward_quarter_awards (business_id, finalized_at desc);
+
+alter table public.partner_reward_quarter_awards enable row level security;
+revoke all on table public.partner_reward_quarter_awards from public, anon, authenticated;
+grant select, insert, update on table public.partner_reward_quarter_awards to service_role;
+
+comment on table public.partner_reward_quarter_awards is
+  'Final quarter-end Partner Rewards awards. Economic fields are snapshots as of the quarter cutoff; payout_status may advance independently.';
+
+-- Protect finalized report economics from later running-report refreshes.
+create or replace function public.refresh_partner_reward_quarter_report(
+  p_reward_period_id uuid,
+  p_is_demo boolean default false,
+  p_demo_group text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_period public.partner_reward_periods%rowtype;
+  v_report_id uuid;
+  v_existing_status text;
+  v_gross_paid_cents bigint := 0;
+  v_refunds_cents bigint := 0;
+  v_qualifying_sales_cents bigint := 0;
+  v_eligible_points numeric := 0;
+  v_pending_points numeric := 0;
+  v_pool_cents bigint := 0;
+begin
+  if p_is_demo = false and p_demo_group is not null then
+    raise exception 'Production reports cannot have a demo group';
+  end if;
+  if p_is_demo = true and coalesce(trim(p_demo_group), '') = '' then
+    raise exception 'Demo reports require a demo group';
+  end if;
+
+  select * into v_period
+  from public.partner_reward_periods
+  where id = p_reward_period_id;
+  if not found then raise exception 'Reward period not found'; end if;
+
+  select id, report_status into v_report_id, v_existing_status
+  from public.partner_reward_quarter_reports
+  where reward_period_id = p_reward_period_id
+    and is_demo = p_is_demo
+    and coalesce(demo_group, '') = coalesce(p_demo_group, '')
+  limit 1;
+
+  if v_report_id is not null and v_existing_status = 'finalized' then
+    return v_report_id;
+  end if;
+
+  select
+    coalesce(sum(round(amount_paid * 100)), 0)::bigint,
+    coalesce(sum(coalesce(refunded_amount_cents, 0)), 0)::bigint,
+    coalesce(sum(greatest(
+      round(coalesce(pass_price_charged, amount_paid - coalesce(donation_amount, 0)) * 100)::bigint
+      - least(
+          coalesce(refunded_amount_cents, 0)::bigint,
+          round(coalesce(pass_price_charged, amount_paid - coalesce(donation_amount, 0)) * 100)::bigint
+        ),
+      0
+    )), 0)::bigint
+  into v_gross_paid_cents, v_refunds_cents, v_qualifying_sales_cents
+  from public.campaign_purchases
+  where payment_status = case when p_is_demo then 'test_paid' else 'paid' end
+    and created_at >= v_period.starts_at
+    and created_at < v_period.ends_at
+    and is_demo = p_is_demo
+    and (
+      (p_is_demo = false and demo_group is null)
+      or (p_is_demo = true and demo_group = p_demo_group)
+    );
+
+  select
+    coalesce(sum(points) filter (where eligibility_status = 'eligible'), 0),
+    coalesce(sum(points) filter (where eligibility_status = 'pending'), 0)
+  into v_eligible_points, v_pending_points
+  from public.partner_point_events
+  where reward_period_id = v_period.id
+    and is_demo = p_is_demo
+    and (
+      (p_is_demo = false and demo_group is null)
+      or (p_is_demo = true and demo_group = p_demo_group)
+    );
+
+  v_pool_cents := round(v_qualifying_sales_cents * 0.05)::bigint;
+
+  insert into public.partner_reward_quarter_reports (
+    reward_period_id, is_demo, demo_group, report_status, timezone, starts_at, ends_at,
+    qualifying_sales_cents, gross_paid_cents, refunds_cents, platform_allocation_cents,
+    platform_retained_cents, partner_rewards_pool_cents, eligible_points, pending_points,
+    last_refreshed_at, updated_at
+  ) values (
+    v_period.id, p_is_demo, p_demo_group, 'running', 'America/Chicago', v_period.starts_at, v_period.ends_at,
+    v_qualifying_sales_cents, v_gross_paid_cents, v_refunds_cents,
+    round(v_qualifying_sales_cents * 0.20)::bigint,
+    round(v_qualifying_sales_cents * 0.15)::bigint,
+    v_pool_cents, v_eligible_points, v_pending_points, now(), now()
+  )
+  on conflict (reward_period_id, is_demo, (coalesce(demo_group, '')))
+  do update set
+    starts_at = excluded.starts_at,
+    ends_at = excluded.ends_at,
+    qualifying_sales_cents = excluded.qualifying_sales_cents,
+    gross_paid_cents = excluded.gross_paid_cents,
+    refunds_cents = excluded.refunds_cents,
+    platform_allocation_cents = excluded.platform_allocation_cents,
+    platform_retained_cents = excluded.platform_retained_cents,
+    partner_rewards_pool_cents = excluded.partner_rewards_pool_cents,
+    eligible_points = excluded.eligible_points,
+    pending_points = excluded.pending_points,
+    last_refreshed_at = now(),
+    updated_at = now()
+  returning id into v_report_id;
+
+  delete from public.partner_reward_quarter_business_rows
+  where report_id = v_report_id;
+
+  insert into public.partner_reward_quarter_business_rows (
+    report_id, business_id, eligible_points, pending_points, share_fraction,
+    expected_reward_cents, verification_status, stripe_payout_ready, payout_status
+  )
+  select
+    v_report_id,
+    b.id,
+    coalesce(sum(e.points) filter (where e.eligibility_status = 'eligible'), 0),
+    coalesce(sum(e.points) filter (where e.eligibility_status = 'pending'), 0),
+    case
+      when v_eligible_points > 0
+        then coalesce(sum(e.points) filter (where e.eligibility_status = 'eligible'), 0) / v_eligible_points
+      else null
+    end,
+    case
+      when v_eligible_points > 0
+        then round(v_pool_cents * (
+          coalesce(sum(e.points) filter (where e.eligibility_status = 'eligible'), 0) / v_eligible_points
+        ))::bigint
+      else 0
+    end,
+    coalesce(v.status, 'not_applied'),
+    coalesce(
+      s.onboarding_status = 'enabled'
+      and s.details_submitted
+      and s.payouts_enabled
+      and s.disabled_reason is null
+      and jsonb_array_length(coalesce(s.requirements_currently_due, '[]'::jsonb)) = 0,
+      false
+    ),
+    case
+      when coalesce(
+        s.onboarding_status = 'enabled'
+        and s.details_submitted
+        and s.payouts_enabled
+        and s.disabled_reason is null
+        and jsonb_array_length(coalesce(s.requirements_currently_due, '[]'::jsonb)) = 0,
+        false
+      ) then 'ready'
+      else 'not_ready'
+    end
+  from public.businesses b
+  left join public.partner_point_events e
+    on e.business_id = b.id
+    and e.reward_period_id = v_period.id
+    and e.is_demo = p_is_demo
+    and (
+      (p_is_demo = false and e.demo_group is null)
+      or (p_is_demo = true and e.demo_group = p_demo_group)
+    )
+  left join public.business_verifications v on v.business_id = b.id
+  left join public.business_stripe_accounts s on s.business_id = b.id
+  where b.status = 'active'
+    and b.is_demo = p_is_demo
+    and (
+      (p_is_demo = false and b.demo_group is null)
+      or (p_is_demo = true and b.demo_group = p_demo_group)
+    )
+  group by
+    b.id, v.status, s.onboarding_status, s.details_submitted,
+    s.payouts_enabled, s.disabled_reason, s.requirements_currently_due;
+
+  update public.partner_reward_quarter_reports r
+  set
+    businesses_with_eligible_points = (
+      select count(*)::integer
+      from public.partner_reward_quarter_business_rows br
+      where br.report_id = v_report_id and br.eligible_points > 0
+    ),
+    expected_disbursement_cents = (
+      select coalesce(sum(br.expected_reward_cents), 0)::bigint
+      from public.partner_reward_quarter_business_rows br
+      where br.report_id = v_report_id
+    ),
+    payout_ready_cents = (
+      select coalesce(sum(br.expected_reward_cents), 0)::bigint
+      from public.partner_reward_quarter_business_rows br
+      where br.report_id = v_report_id and br.payout_status = 'ready'
+    ),
+    payout_blocked_cents = (
+      select coalesce(sum(br.expected_reward_cents), 0)::bigint
+      from public.partner_reward_quarter_business_rows br
+      where br.report_id = v_report_id and br.payout_status <> 'ready'
+    ),
+    updated_at = now()
+  where r.id = v_report_id;
+
+  return v_report_id;
+end;
+$$;
+
+create or replace function public.finalize_partner_reward_quarter_report(
+  p_reward_period_id uuid,
+  p_is_demo boolean default false,
+  p_demo_group text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_period public.partner_reward_periods%rowtype;
+  v_report_id uuid;
+  v_finalized_at timestamptz := now();
+  v_report_status text;
+begin
+  select * into v_period
+  from public.partner_reward_periods
+  where id = p_reward_period_id
+  for update;
+
+  if not found then raise exception 'Reward period not found'; end if;
+  if now() < v_period.ends_at then raise exception 'Reward period has not ended'; end if;
+
+  select id, report_status into v_report_id, v_report_status
+  from public.partner_reward_quarter_reports
+  where reward_period_id = p_reward_period_id
+    and is_demo = p_is_demo
+    and coalesce(demo_group, '') = coalesce(p_demo_group, '')
+  limit 1;
+
+  if v_report_id is not null and v_report_status = 'finalized' then
+    return v_report_id;
+  end if;
+
+  v_report_id := public.refresh_partner_reward_quarter_report(
+    p_reward_period_id,
+    p_is_demo,
+    p_demo_group
+  );
+
+  update public.partner_reward_quarter_reports
+  set
+    report_status = 'finalized',
+    finalized_at = v_finalized_at,
+    last_refreshed_at = v_finalized_at,
+    updated_at = v_finalized_at
+  where id = v_report_id;
+
+  insert into public.partner_reward_quarter_awards (
+    report_id,
+    reward_period_id,
+    business_id,
+    eligible_points,
+    final_share_fraction,
+    award_cents,
+    verification_status_at_close,
+    stripe_payout_ready_at_close,
+    payout_status,
+    finalized_at
+  )
+  select
+    v_report_id,
+    p_reward_period_id,
+    br.business_id,
+    br.eligible_points,
+    br.share_fraction,
+    br.expected_reward_cents,
+    br.verification_status,
+    br.stripe_payout_ready,
+    case when br.stripe_payout_ready then 'ready' else 'payout_setup_required' end,
+    v_finalized_at
+  from public.partner_reward_quarter_business_rows br
+  where br.report_id = v_report_id
+    and br.expected_reward_cents > 0
+  on conflict (report_id, business_id) do nothing;
+
+  update public.partner_reward_periods
+  set
+    status = 'finalized',
+    total_eligible_points = (
+      select eligible_points
+      from public.partner_reward_quarter_reports
+      where id = v_report_id
+    ),
+    updated_at = v_finalized_at
+  where id = p_reward_period_id;
+
+  return v_report_id;
+end;
+$$;
+
+revoke all on function public.finalize_partner_reward_quarter_report(uuid, boolean, text) from public, anon, authenticated;
+grant execute on function public.finalize_partner_reward_quarter_report(uuid, boolean, text) to service_role;
+
+comment on function public.finalize_partner_reward_quarter_report(uuid, boolean, text) is
+  'Creates the immutable quarter-end Partner Rewards report and award snapshots as of the configured cutoff. Does not lock or modify source sales records.';

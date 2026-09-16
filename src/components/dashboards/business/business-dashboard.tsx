@@ -1,9 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
+import { reconcileDemoPartnerRewardsNetwork } from '@/lib/rewards/demo-partner-rewards-reconciliation'
+import { getBusinessPayoutStatus } from '@/lib/stripe/business-connect'
 
 import BusinessWorkspaceFrame from './business-workspace-frame'
 
-export type BusinessWorkspaceView = 'dashboard' | 'offers' | 'reports'
+export type BusinessWorkspaceView = 'dashboard' | 'offers' | 'reports' | 'rewards'
 
 type BusinessDashboardProps = {
   businessLegacyProfileId?: string | null
@@ -127,6 +130,20 @@ export default async function BusinessDashboard({
   const lifecycle = businessWorkspace as BusinessWorkspaceLifecycle | null
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
+  await reconcileDemoPartnerRewardsNetwork(lifecycle?.id ?? null)
+  const [rewardsSummary, payoutStatus] = await Promise.all([
+    getPartnerRewardsSummary(lifecycle?.id ?? null),
+    getBusinessPayoutStatus(lifecycle?.id ?? null, { refreshStripe: view === 'rewards' }),
+  ])
+
+  const { data: verification } = lifecycle?.id
+    ? await (supabase as any)
+        .from('business_verifications')
+        .select('status')
+        .eq('business_id', lifecycle.id)
+        .maybeSingle()
+    : { data: null }
+
   const { data: offers } = await supabase
     .from('offers')
     .select('*')
@@ -219,8 +236,9 @@ export default async function BusinessDashboard({
   )
 
   const FREE_ACTIVE_OFFER_LIMIT = 3
+  const activeOfferLimit = FREE_ACTIVE_OFFER_LIMIT + rewardsSummary.activeExtraOfferSlots
   const hasReachedLimit =
-    !isGrowthPlan && activeOffers.length >= FREE_ACTIVE_OFFER_LIMIT
+    !isGrowthPlan && activeOffers.length >= activeOfferLimit
 
   let topOfferId: string | null = null
   let topOfferCount = 0
@@ -261,7 +279,7 @@ export default async function BusinessDashboard({
       totalCustomerValueDelivered={totalCustomerValueDelivered}
       redemptionActivity={redemptionActivity}
       activeOffersCount={activeOffers.length}
-      activeOfferLimit={FREE_ACTIVE_OFFER_LIMIT}
+      activeOfferLimit={activeOfferLimit}
       hasReachedLimit={hasReachedLimit}
       isGrowthPlan={isGrowthPlan}
       topOfferTitle={topOffer?.title || ''}
@@ -277,6 +295,9 @@ export default async function BusinessDashboard({
       archivedAt={lifecycle?.archived_at ?? null}
       archiveReason={lifecycle?.archive_reason ?? null}
       restoreRequestedAt={lifecycle?.restore_requested_at ?? null}
+      rewardsSummary={rewardsSummary}
+      verificationStatus={verification?.status ?? 'not_applied'}
+      payoutStatus={payoutStatus}
     />
   )
 }

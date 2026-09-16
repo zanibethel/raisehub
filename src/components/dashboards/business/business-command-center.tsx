@@ -5,14 +5,18 @@ import { useEffect, useState, type ComponentProps } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 import { WorkspaceModule } from '@/components/workspace/workspace-module'
+import type { PartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
 import BusinessDashboardContent from './business-dashboard-content'
+import { PartnerRewardsDashboardCard } from './business-partner-rewards'
 import BusinessNotificationCenter, {
   type BusinessNotification,
   type BusinessNotificationTone,
 } from './business-notification-center'
 import BusinessOffersSummary from './business-offers-summary'
 
-type Props = ComponentProps<typeof BusinessDashboardContent>
+type Props = ComponentProps<typeof BusinessDashboardContent> & {
+  rewardsSummary: PartnerRewardsSummary
+}
 
 type NotificationRow = {
   id: string
@@ -59,7 +63,7 @@ function isActiveNotification(row: NotificationRow) {
   return new Date(row.expires_at).getTime() > Date.now()
 }
 
-export default function BusinessCommandCenter(props: Props) {
+export default function BusinessCommandCenter({ rewardsSummary, ...props }: Props) {
   const [notifications, setNotifications] = useState<BusinessNotification[]>([])
 
   useEffect(() => {
@@ -173,6 +177,8 @@ export default function BusinessCommandCenter(props: Props) {
         </span>
         <span className="shrink-0 text-3xl" aria-hidden="true">→</span>
       </Link>
+
+      <PartnerRewardsDashboardCard summary={rewardsSummary} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
         <WorkspaceModule
