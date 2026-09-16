@@ -65,11 +65,14 @@ export default function BusinessWorkspaceFrame({
     },
   })
 
-  const businessName =
-    props.profile?.business_name || props.profile?.display_name || 'Business workspace'
-  const profileComplete = Boolean(
-    props.profile?.business_name && props.profile?.phone && props.profile?.address && props.profile?.logo_url
-  )
+  const businessName = props.profile?.business_name || props.profile?.display_name || 'Business workspace'
+  const missingFields = [
+    !props.profile?.business_name ? 'business name' : null,
+    !props.profile?.phone ? 'phone number' : null,
+    !props.profile?.address ? 'business address or service area' : null,
+    !props.profile?.logo_url ? 'business logo' : null,
+  ].filter(Boolean) as string[]
+  const profileComplete = missingFields.length === 0
 
   const identity: WorkspaceIdentity = {
     eyebrow:
@@ -129,6 +132,7 @@ export default function BusinessWorkspaceFrame({
             businessId={props.businessId}
             status={verificationStatus}
             profileComplete={profileComplete}
+            missingFields={missingFields}
           />
           <BusinessPayoutCard businessId={props.businessId} status={payoutStatus} />
           <BusinessPartnerRewardsCenter

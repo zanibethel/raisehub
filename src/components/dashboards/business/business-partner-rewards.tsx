@@ -204,11 +204,11 @@ export default function BusinessPartnerRewardsCenter({
       href: '/dashboard/offers#business-profile',
     },
     {
-      title: 'Apply for business verification',
-      description: 'Verification will unlock quarterly Partner Rewards eligibility when that workflow is activated.',
+      title: 'Get your business verified',
+      description: 'Complete the required profile details and RaiseHub automatically sends your business to Owner review. Verification unlocks public offer publishing and eligible Partner Rewards.',
       complete: false,
       points: 200,
-      href: '#verification-coming-soon',
+      href: '/dashboard/rewards',
     },
     {
       title: 'Keep quality offers active',
@@ -221,10 +221,10 @@ export default function BusinessPartnerRewardsCenter({
     },
     {
       title: 'Refer another local business',
-      description: 'Qualified referrals will earn milestone points as the referred business completes onboarding and verification.',
+      description: 'Earn +50 when they sign up, +150 when they complete their profile, and +300 when they become verified.',
       complete: false,
       points: 500,
-      href: '#referrals-coming-soon',
+      href: '/dashboard/rewards/referrals',
     },
   ]
 
