@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
 
 type BusinessSite = {
   business_id: string
@@ -36,6 +35,11 @@ type Offer = {
   title: string
   description: string | null
   benefit: string | null
+}
+
+type PublicBusinessSitePayload = {
+  site: BusinessSite
+  offers: Offer[]
 }
 
 const defaultOrder = ['hero', 'about', 'hours', 'offers', 'contact']
@@ -96,7 +100,6 @@ function readableText(background: string) {
 export default function PublicBusinessMiniSitePage() {
   const params = useParams<{ slug: string }>()
   const slug = params?.slug
-  const supabase = useMemo(() => createClient(), [])
   const [site, setSite] = useState<BusinessSite | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,38 +107,27 @@ export default function PublicBusinessMiniSitePage() {
   useEffect(() => {
     async function load() {
       if (!slug) return
-      const { data } = await supabase
-        .from('business_sites')
-        .select('business_id,slug,site_title,hero_heading,hero_copy,about_heading,about_copy,phone,address,contact_email,accent_color,secondary_color,background_color,text_color,show_offers,is_published,section_order,logo_url,hero_image_url,hours_copy,facebook_url,instagram_url,tiktok_url')
-        .eq('slug', slug)
-        .eq('is_published', true)
-        .maybeSingle()
 
-      if (!data) {
+      try {
+        const response = await fetch(`/api/public/business-sites/${encodeURIComponent(slug)}`, {
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          setLoading(false)
+          return
+        }
+
+        const payload = (await response.json()) as PublicBusinessSitePayload
+        setSite({ ...payload.site, section_order: normalizeOrder(payload.site.section_order) })
+        setOffers(payload.offers ?? [])
+      } finally {
         setLoading(false)
-        return
       }
-
-      const loadedSite = { ...(data as BusinessSite), section_order: normalizeOrder(data.section_order) }
-      setSite(loadedSite)
-
-      if (loadedSite.show_offers) {
-        const now = new Date().toISOString()
-        const { data: offerRows } = await supabase
-          .from('offers')
-          .select('id,title,description,benefit')
-          .eq('business_id', loadedSite.business_id)
-          .eq('is_active', true)
-          .or(`starts_at.is.null,starts_at.lte.${now}`)
-          .or(`ends_at.is.null,ends_at.gte.${now}`)
-          .limit(6)
-        if (offerRows) setOffers(offerRows as Offer[])
-      }
-      setLoading(false)
     }
 
     load()
-  }, [slug, supabase])
+  }, [slug])
 
   if (loading) return <main className="min-h-screen bg-slate-50 p-8 text-slate-700">Loading…</main>
 
