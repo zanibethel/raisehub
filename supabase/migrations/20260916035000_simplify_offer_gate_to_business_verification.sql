@@ -5,8 +5,7 @@
 alter table public.offers
   add column if not exists publication_intent boolean not null default true;
 
--- Preserve the current desired state of pre-existing offers. The short-lived
--- per-offer review feature never became the long-term source of truth.
+-- Preserve what each business was trying to publish before applying the trust gate.
 update public.offers
 set publication_intent = is_active,
     approval_status = 'approved',
@@ -16,6 +15,13 @@ set publication_intent = is_active,
 
 alter table public.offers
   alter column approval_status set default 'approved';
+
+-- Immediately hide any currently-active offer whose business has not been verified.
+-- publication_intent remains true so verification can release it later.
+update public.offers o
+set is_active = false
+where o.is_active = true
+  and not public.offer_business_is_verified(o.business_id);
 
 create or replace function public.enforce_offer_publish_approval()
 returns trigger
@@ -84,6 +90,7 @@ declare
   v_verification public.business_verifications%rowtype;
   v_period_id uuid;
   v_legacy_profile_id uuid;
+  v_subscription_tier text := 'free';
 begin
   if v_user_id is null or not exists (
     select 1 from public.profiles p where p.id = v_user_id and p.role = 'owner'
@@ -124,18 +131,27 @@ begin
   where business_id = p_business_id
   returning * into v_verification;
 
-  select legacy_profile_id into v_legacy_profile_id
-  from public.businesses
-  where id = p_business_id;
+  select b.legacy_profile_id, coalesce(p.subscription_tier, 'free')
+    into v_legacy_profile_id, v_subscription_tier
+  from public.businesses b
+  left join public.profiles p on p.id = b.legacy_profile_id
+  where b.id = p_business_id;
 
   if p_decision = 'approved' then
-    -- Release offers the business meant to publish. Existing free-tier limit
-    -- enforcement still applies to later manual reactivation/creation paths.
-    update public.offers
+    -- Release offers the business intended to publish. Free businesses receive
+    -- at most three active offers; additional offers remain saved and inactive.
+    with candidates as (
+      select o.id
+      from public.offers o
+      where o.publication_intent = true
+        and (o.business_id = p_business_id or o.business_id = v_legacy_profile_id)
+        and (o.ends_at is null or o.ends_at >= now())
+      order by o.created_at asc
+      limit case when v_subscription_tier = 'free' then 3 else 2147483647 end
+    )
+    update public.offers o
     set is_active = true
-    where publication_intent = true
-      and (business_id = p_business_id or business_id = v_legacy_profile_id)
-      and (ends_at is null or ends_at >= now());
+    where o.id in (select id from candidates);
 
     select id into v_period_id
     from public.partner_reward_periods
