@@ -6,6 +6,7 @@ import BusinessDashboard from '@/components/dashboards/business/business-dashboa
 import CustomerDashboard from '@/components/dashboards/customer/customer-dashboard'
 import OrganizationDashboard from '@/components/dashboards/organization/organization-dashboard'
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
+import SpotlightCarousel from '@/components/spotlights/spotlight-carousel'
 import { getAppMode } from '@/lib/app-mode'
 import { reconcileDemoPartnerRewardsGroup } from '@/lib/rewards/demo-partner-rewards-reconciliation'
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/lib/rules/workspace-selection-rules'
 import { resolveWorkspaceEnvironment } from '@/lib/rules/workspace-environment-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
+import { getEligibleSpotlights } from '@/lib/spotlights/spotlight-service'
 import { createClient } from '@/lib/supabase/server'
 import type {
   LegacyProfileRole,
@@ -147,6 +149,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   })
   const selectedWorkspace = workspaceSelection.selectedWorkspace
   const experienceRole = workspaceSelection.experienceRole
+  const spotlightWorkspaceKey = selectedWorkspace?.key ?? `${experienceRole}:default`
+  const spotlights = await getEligibleSpotlights({
+    userId: user.id,
+    experienceRole,
+    selectedWorkspace,
+    isDemo: profile?.is_demo === true,
+  })
 
   return (
     <main
@@ -158,6 +167,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       data-available-workspace-count={availableWorkspaces.length}
       data-selected-workspace-key={selectedWorkspace?.key ?? ''}
     >
+      <SpotlightCarousel campaigns={spotlights} workspaceKey={spotlightWorkspaceKey} />
       <div
         className={`mx-auto p-4 sm:p-8 ${
           experienceRole === 'owner' ? 'max-w-7xl' : 'max-w-5xl'
