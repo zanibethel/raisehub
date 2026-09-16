@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import BusinessDashboard from '@/components/dashboards/business/business-dashboard'
 import { resolveWorkspaceSelection } from '@/lib/rules/workspace-selection-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { LegacyProfileRole } from '@/lib/types/identity-access'
 
@@ -43,6 +44,13 @@ export default async function BusinessRewardsPage() {
 
   if (selection.experienceRole !== 'business') {
     redirect('/dashboard')
+  }
+
+  if (workspace?.kind === 'business' && workspace.workspaceId) {
+    const admin = createAdminClient() as any
+    await admin.rpc('sync_business_growth_rewards', {
+      p_business_id: workspace.workspaceId,
+    })
   }
 
   return (
