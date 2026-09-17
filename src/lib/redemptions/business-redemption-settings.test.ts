@@ -12,7 +12,8 @@ test('provides business-facing exception-review guidance', () => {
   assert.equal(settings.heading, 'Redemption Workflow')
   assert.match(settings.description, /24-hour review window/i)
   assert.match(settings.helperText, /core workflow/i)
-  assert.match(settings.helperText, /pos integrations/i)
+  assert.match(settings.helperText, /qr instant verification/i)
+  assert.match(settings.helperText, /square integrations remain planned/i)
 })
 
 test('selects auto validation by default', () => {
@@ -49,7 +50,7 @@ test('returns every business redemption option', () => {
   )
 })
 
-test('marks only auto validation as selectable', () => {
+test('marks only auto validation as selectable as the persisted core workflow', () => {
   const settings = getBusinessRedemptionSettings(undefined)
   const selectableOptions = settings.options
     .filter(({ isSelectable }) => isSelectable)
@@ -65,12 +66,13 @@ test('uses workflow, optional-tool, and future labels correctly', () => {
     settings.options.find(({ value }) => value === 'auto_validation')?.statusLabel,
     'Current Workflow'
   )
-  assert.equal(
-    settings.options.find(({ value }) => value === 'staff_confirmation')?.statusLabel,
-    'Optional Tool'
-  )
 
-  for (const method of ['qr_code', 'staff_code', 'square']) {
+  for (const method of ['staff_confirmation', 'qr_code']) {
+    const option = settings.options.find(({ value }) => value === method)
+    assert.equal(option?.statusLabel, 'Optional Tool')
+  }
+
+  for (const method of ['staff_code', 'square']) {
     const option = settings.options.find(({ value }) => value === method)
     assert.equal(option?.statusLabel, 'Coming Later')
   }
