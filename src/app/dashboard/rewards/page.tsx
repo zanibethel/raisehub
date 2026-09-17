@@ -58,6 +58,11 @@ export default async function BusinessRewardsPage() {
       <div className="mx-auto max-w-5xl p-4 sm:p-8">
         <BusinessDashboard
           view="rewards"
+          businessId={
+            workspace?.kind === 'business'
+              ? workspace.workspaceId
+              : null
+          }
           businessLegacyProfileId={
             workspace?.kind === 'business'
               ? workspace.legacyProfileId
