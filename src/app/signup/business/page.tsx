@@ -30,7 +30,7 @@ const partnershipFlow = [
     number: '04',
     title: 'Supporters discover and visit your business',
     description:
-      'Pass holders can find your offer, visit your business, and redeem it using the supported QR or manual redemption flow.',
+      'Pass holders can find your offer, visit your business, and redeem it through RaiseHub’s supported redemption and instant-verification tools.',
   },
   {
     number: '05',
