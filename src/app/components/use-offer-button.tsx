@@ -1,5 +1,6 @@
 'use client'
 
+import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
 
 import {
@@ -35,9 +36,32 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [claim, setClaim] = useState<ActiveClaim | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [secondsRemaining, setSecondsRemaining] = useState(0)
   const [redemptionStarted, setRedemptionStarted] = useState(false)
   const [redemptionStatus, setRedemptionStatus] = useState('pending')
+
+  useEffect(() => {
+    if (!claim || typeof window === 'undefined') {
+      setQrDataUrl(null)
+      return
+    }
+
+    let cancelled = false
+    const verificationUrl = `${window.location.origin}/dashboard/redeem?code=${encodeURIComponent(claim.code)}`
+
+    QRCode.toDataURL(verificationUrl, { width: 240, margin: 1 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url)
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [claim])
 
   useEffect(() => {
     if (!claim || !redemptionStarted) return
@@ -78,6 +102,7 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
     setLoading(true)
     setMessage('')
     setRedemptionStatus('pending')
+    setQrDataUrl(null)
 
     const result = await startRedemptionAction(offerId)
 
@@ -141,20 +166,31 @@ export default function UseOfferButton({ offerId }: UseOfferButtonProps) {
                   Optional instant verification
                 </p>
                 <p className="mt-2 text-sm leading-6 text-blue-950">
-                  Staff may enter this code in RaiseHub to confirm immediately. This is optional and is the same path future QR/POS verification can use.
+                  Staff can scan this QR with a phone camera to open RaiseHub Instant Verification with your code prefilled, or enter the fallback code manually.
                 </p>
+
+                {qrDataUrl ? (
+                  <div className="mx-auto mt-4 w-fit rounded-2xl border border-blue-200 bg-white p-3 shadow-sm">
+                    <img
+                      src={qrDataUrl}
+                      alt="RaiseHub redemption verification QR code"
+                      className="h-52 w-52"
+                    />
+                  </div>
+                ) : null}
+
                 <div className="mx-auto mt-3 max-w-xs rounded-2xl border-2 border-dashed border-blue-300 bg-white px-4 py-4">
                   <p className="select-all font-mono text-3xl font-black tracking-[0.18em] text-gray-950 sm:text-4xl">
                     {claim.code}
                   </p>
                 </div>
                 <p className="mt-2 text-xs font-bold text-blue-700">
-                  Verification code expires in {formatCountdown(secondsRemaining)}
+                  QR / verification code expires in {formatCountdown(secondsRemaining)}
                 </p>
               </div>
             ) : (
               <p className="mt-3 text-xs leading-5 text-slate-500">
-                The optional instant-verification code has expired. Your redemption remains recorded and the 24-hour review window is unchanged.
+                The optional instant-verification QR and code have expired. Your redemption remains recorded and the 24-hour review window is unchanged.
               </p>
             )}
           </>
