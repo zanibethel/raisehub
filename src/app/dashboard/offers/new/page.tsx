@@ -3,8 +3,13 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { createOfferAction } from '@/app/dashboard/actions'
+import {
+  deleteBusinessOfferDraftAction,
+  getBusinessOfferWizardContextAction,
+  saveBusinessOfferDraftAction,
+  updateBusinessOfferWizardCategoryAction,
+} from '@/app/dashboard/offer-wizard-actions'
 import { buildRecommendedOffers } from '@/lib/ai/recommendation-engine'
 import OfferWizardProgress from './components/progress'
 import GoalStep, { type OfferGoal } from './components/goal-step'
@@ -92,6 +97,14 @@ function isOfferDraft(value: unknown): value is OfferDraft {
   )
 }
 
+function isOfferLimitError(message: string) {
+  return (
+    message === OFFER_LIMIT_MESSAGE ||
+    /active offer slots/i.test(message) ||
+    /active offers/i.test(message) && /limit|using all/i.test(message)
+  )
+}
+
 export default function NewOfferPage() {
   const router = useRouter()
 
@@ -113,51 +126,44 @@ export default function NewOfferPage() {
   const [offerDraft, setOfferDraft] = useState<OfferDraft>(emptyDraft)
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadBusinessProfile() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const result = await getBusinessOfferWizardContextAction()
+      if (cancelled) return
 
-      if (!user) {
-        router.replace('/login?next=/dashboard/offers/new')
-        return
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('business_name, business_category, role')
-        .eq('id', user.id)
-        .single()
-
-      if (error) {
-        setMessage('We could not load your business profile.')
+      if (!result.success) {
+        if (/logged in/i.test(result.error)) {
+          router.replace('/login?next=/dashboard/offers/new')
+          return
+        }
+        setMessage(result.error)
         setCheckingProfile(false)
         return
       }
 
-      if (profile?.role !== 'business') {
-        router.replace('/dashboard')
-        return
-      }
-
-      const category = profile.business_category ?? ''
-      setBusinessName(profile.business_name ?? '')
+      const category = result.businessCategory ?? ''
+      setBusinessName(result.businessName ?? '')
       setBusinessCategory(category)
       setDraftCategory(category)
 
-      const { data: savedDraft } = await supabase
-        .from('business_offer_drafts')
-        .select('selected_goal, selected_suggestion_id, draft')
-        .eq('business_id', user.id)
-        .maybeSingle()
+      const savedDraft = result.savedDraft as
+        | {
+            selected_goal?: unknown
+            selected_suggestion_id?: unknown
+            draft?: unknown
+          }
+        | null
 
       if (savedDraft && isOfferDraft(savedDraft.draft)) {
-        const goal = savedDraft.selected_goal as OfferGoal | null
+        const goal =
+          typeof savedDraft.selected_goal === 'string'
+            ? (savedDraft.selected_goal as OfferGoal)
+            : null
         setOfferDraft(savedDraft.draft)
         setSelectedGoal(goal)
         setStep(4)
-        setMessage('Your saved offer draft has been restored.')
+        setMessage('Your saved offer draft has been restored for this business.')
 
         if (goal && category) {
           const suggestions = buildRecommendedOffers({
@@ -174,7 +180,10 @@ export default function NewOfferPage() {
       setCheckingProfile(false)
     }
 
-    loadBusinessProfile()
+    void loadBusinessProfile()
+    return () => {
+      cancelled = true
+    }
   }, [router])
 
   function handleGoalSelect(goal: OfferGoal) {
@@ -218,23 +227,9 @@ export default function NewOfferPage() {
     setSavingCategory(true)
     setMessage('')
 
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      router.replace('/login?next=/dashboard/offers/new')
-      return
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ business_category: draftCategory })
-      .eq('id', user.id)
-
-    if (error) {
-      setMessage(error.message)
+    const result = await updateBusinessOfferWizardCategoryAction(draftCategory)
+    if (!result.success) {
+      setMessage(result.error)
       setSavingCategory(false)
       return
     }
@@ -314,22 +309,13 @@ export default function NewOfferPage() {
   }
 
   async function saveDraft() {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) return { error: 'You must be logged in to save this draft.' }
-
-    const { error } = await supabase.from('business_offer_drafts').upsert({
-      business_id: user.id,
-      selected_goal: selectedGoal,
-      selected_suggestion_id: selectedSuggestion?.id ?? null,
-      draft: offerDraft,
-      updated_at: new Date().toISOString(),
+    const result = await saveBusinessOfferDraftAction({
+      selectedGoal,
+      selectedSuggestionId: selectedSuggestion?.id ?? null,
+      draft: { ...offerDraft },
     })
 
-    return { error: error?.message ?? null }
+    return { error: result.success ? null : result.error }
   }
 
   async function publishOffer() {
@@ -359,7 +345,7 @@ export default function NewOfferPage() {
       })
 
       if (result.error) {
-        if (result.error === OFFER_LIMIT_MESSAGE) {
+        if (isOfferLimitError(result.error)) {
           const saved = await saveDraft()
           if (saved.error) {
             setMessage(
@@ -367,7 +353,7 @@ export default function NewOfferPage() {
             )
           } else {
             setMessage(
-              'You have reached the free limit of 3 active offers. Your proposed offer was saved so you can upgrade or manage existing offers without losing it.'
+              `${result.error} Your proposed offer was saved to this business workspace so you can manage existing offers without losing it.`
             )
             setOfferLimitReached(true)
           }
@@ -378,10 +364,7 @@ export default function NewOfferPage() {
         return
       }
 
-      const supabase = createClient()
-      await supabase.from('business_offer_drafts').delete().eq('business_id', (
-        await supabase.auth.getUser()
-      ).data.user?.id ?? '')
+      await deleteBusinessOfferDraftAction()
       router.replace('/dashboard?offerCreated=true')
     } catch {
       setMessage('An unexpected error occurred. Please try again.')
