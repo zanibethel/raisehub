@@ -34,10 +34,18 @@ const partnershipFlow = [
   },
   {
     number: '05',
-    title: 'Track the results',
+    title: 'Track results & earn Partner Points',
     description:
-      'See offer activity, redemptions, and performance while helping make local fundraising more valuable to supporters.',
+      'See offer activity and redemptions while earning Partner Points for qualifying participation. Your Rewards Center shows what you have earned and what you can do next.',
   },
+]
+
+const rewardWays = [
+  'Complete your profile',
+  'Get verified',
+  'Keep quality offers active',
+  'Drive real redemptions',
+  'Refer local businesses',
 ]
 
 export default function BusinessSignupPage() {
@@ -150,6 +158,27 @@ export default function BusinessSignupPage() {
               </div>
             </div>
 
+            <div className="mt-8 rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-green-50 p-5 sm:p-7">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Partner Rewards</p>
+              <h2 className="mt-2 text-2xl font-bold text-gray-900">Earn rewards as you help RaiseHub grow</h2>
+              <p className="mt-3 text-sm leading-6 text-gray-600">
+                RaiseHub Partners can earn Partner Points for qualifying activity that strengthens the community: building a complete profile, becoming verified, maintaining valuable offers, generating real customer activity, and referring other local businesses.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {rewardWays.map((way) => (
+                  <span key={way} className="rounded-full border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
+                    {way}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-gray-700">
+                <strong className="text-gray-900">How Partner Points work:</strong>{' '}
+                use eligible points for available RaiseHub benefits, or keep them toward your share of the quarterly Partner Rewards Pool. Partner Points do not have a fixed cash value, and reward eligibility depends on the applicable program rules.
+              </div>
+            </div>
+
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-green-100 bg-green-50 p-4"><p className="text-2xl font-bold text-green-700">3 Offers</p><p className="mt-1 text-sm text-gray-600">Free active offer allowance</p></div>
               <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4"><p className="text-2xl font-bold text-blue-700">Local Reach</p><p className="mt-1 text-sm text-gray-600">Visibility with community supporters</p></div>
@@ -158,7 +187,7 @@ export default function BusinessSignupPage() {
 
             <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-600">
               <strong className="text-gray-900">You are not being asked to donate money.</strong>{' '}
-              Your contribution is the offer you choose to provide. RaiseHub handles the fundraising experience while your business gets visibility, customer traffic, and redemption tracking.
+              Your contribution is the offer you choose to provide. RaiseHub handles the fundraising experience while your business gets visibility, customer traffic, redemption tracking, and access to Partner Rewards opportunities.
             </div>
           </section>
 
