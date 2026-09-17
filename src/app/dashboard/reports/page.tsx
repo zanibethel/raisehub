@@ -48,6 +48,11 @@ export default async function WorkspaceReportsPage() {
     reports = (
       <BusinessDashboard
         view="reports"
+        businessId={
+          workspace?.kind === 'business'
+            ? workspace.workspaceId
+            : null
+        }
         businessLegacyProfileId={
           workspace?.kind === 'business'
             ? workspace.legacyProfileId
@@ -64,6 +69,7 @@ export default async function WorkspaceReportsPage() {
     reports = (
       <OrganizationDashboard
         view="reports"
+        organizationId={workspace.workspaceId}
         organizationLegacyProfileId={workspace.legacyProfileId}
       />
     )
