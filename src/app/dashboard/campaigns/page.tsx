@@ -55,6 +55,7 @@ export default async function OrganizationCampaignsPage() {
       <div className="mx-auto max-w-5xl p-4 sm:p-8">
         <OrganizationDashboard
           view="campaigns"
+          organizationId={workspace.workspaceId}
           organizationLegacyProfileId={workspace.legacyProfileId}
         />
       </div>
