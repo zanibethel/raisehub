@@ -16,6 +16,10 @@ import type { OwnerBusinessRedemptionsResult } from '@/lib/services/owner-busine
 import { getOwnerAuthorizedBusinessRedemptions } from '@/lib/services/owner-business-redemption-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
+import type { OwnerOrganizationSellersResult } from '@/lib/services/owner-organization-seller-service'
+import { getOwnerAuthorizedOrganizationSellers } from '@/lib/services/owner-organization-seller-service'
+import type { OwnerOrganizationFinancialsResult } from '@/lib/services/owner-organization-financial-service'
+import { getOwnerAuthorizedOrganizationFinancials } from '@/lib/services/owner-organization-financial-service'
 import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
 import { getOwnerAuthorizedCustomerActivity } from '@/lib/services/owner-customer-activity-service'
 import { getOwnerWorkspacesResult } from '@/lib/services/workspace-service'
@@ -46,28 +50,18 @@ const VALID_WORKSPACE_ROLES: WorkspaceRole[] = [
   'organization',
 ]
 
-function resolveWorkspaceRole(
-  workspaceRole?: string
-): WorkspaceRole | null {
-  return VALID_WORKSPACE_ROLES.includes(
-    workspaceRole as WorkspaceRole
-  )
+function resolveWorkspaceRole(workspaceRole?: string): WorkspaceRole | null {
+  return VALID_WORKSPACE_ROLES.includes(workspaceRole as WorkspaceRole)
     ? (workspaceRole as WorkspaceRole)
     : null
 }
 
-function resolveWorkspaceMode(
-  supportMode?: string
-): WorkspaceSupportMode {
-  return supportMode === 'read-only'
-    ? 'read-only'
-    : 'workspace'
+function resolveWorkspaceMode(supportMode?: string): WorkspaceSupportMode {
+  return supportMode === 'read-only' ? 'read-only' : 'workspace'
 }
 
 function resolveInitialRole(role?: string) {
-  return role === 'business' ||
-    role === 'organization' ||
-    role === 'customer'
+  return role === 'business' || role === 'organization' || role === 'customer'
     ? role
     : 'all'
 }
@@ -88,7 +82,6 @@ function resolveSelectedWorkspace({
   workspaceRole?: string
 }): WorkspaceCardData | null {
   if (!workspaceId) return null
-
   const validWorkspaceRole = resolveWorkspaceRole(workspaceRole)
   if (!validWorkspaceRole) return null
 
@@ -123,13 +116,11 @@ export default async function OwnerSupportPage({
   if (!profile || profile.role !== 'owner') redirect('/dashboard')
 
   const workspaceResult = await getOwnerWorkspacesResult()
-
   const selectedWorkspace = resolveSelectedWorkspace({
     workspaces: workspaceResult.workspaces,
     workspaceId: params.workspaceId,
     workspaceRole: params.workspaceRole,
   })
-
   const workspaceMode = selectedWorkspace
     ? resolveWorkspaceMode(params.supportMode)
     : 'workspace'
@@ -137,46 +128,36 @@ export default async function OwnerSupportPage({
   let businessOffersResult: OwnerBusinessOffersResult | null = null
   let businessRedemptionsResult: OwnerBusinessRedemptionsResult | null = null
 
-  if (
-    selectedWorkspace?.role === 'business' &&
-    workspaceMode === 'read-only'
-  ) {
+  if (selectedWorkspace?.role === 'business' && workspaceMode === 'read-only') {
     ;[businessOffersResult, businessRedemptionsResult] = await Promise.all([
-      getOwnerAuthorizedBusinessOffers(
-        selectedWorkspace.id,
-        selectedWorkspace.role
-      ),
-      getOwnerAuthorizedBusinessRedemptions(
-        selectedWorkspace.id,
-        selectedWorkspace.role
-      ),
+      getOwnerAuthorizedBusinessOffers(selectedWorkspace.id, selectedWorkspace.role),
+      getOwnerAuthorizedBusinessRedemptions(selectedWorkspace.id, selectedWorkspace.role),
     ])
   }
 
   let organizationCampaignsResult: OwnerOrganizationCampaignsResult | null = null
+  let organizationSellersResult: OwnerOrganizationSellersResult | null = null
+  let organizationFinancialsResult: OwnerOrganizationFinancialsResult | null = null
 
-  if (
-    selectedWorkspace?.role === 'organization' &&
-    workspaceMode === 'read-only'
-  ) {
-    organizationCampaignsResult =
-      await getOwnerAuthorizedOrganizationCampaigns(
-        selectedWorkspace.id,
-        selectedWorkspace.role
-      )
+  if (selectedWorkspace?.role === 'organization' && workspaceMode === 'read-only') {
+    ;[
+      organizationCampaignsResult,
+      organizationSellersResult,
+      organizationFinancialsResult,
+    ] = await Promise.all([
+      getOwnerAuthorizedOrganizationCampaigns(selectedWorkspace.id, selectedWorkspace.role),
+      getOwnerAuthorizedOrganizationSellers(selectedWorkspace.id, selectedWorkspace.role),
+      getOwnerAuthorizedOrganizationFinancials(selectedWorkspace.id, selectedWorkspace.role),
+    ])
   }
 
   let customerActivityResult: OwnerCustomerActivityResult | null = null
 
-  if (
-    selectedWorkspace?.role === 'customer' &&
-    workspaceMode === 'read-only'
-  ) {
-    customerActivityResult =
-      await getOwnerAuthorizedCustomerActivity(
-        selectedWorkspace.id,
-        selectedWorkspace.role
-      )
+  if (selectedWorkspace?.role === 'customer' && workspaceMode === 'read-only') {
+    customerActivityResult = await getOwnerAuthorizedCustomerActivity(
+      selectedWorkspace.id,
+      selectedWorkspace.role
+    )
   }
 
   const businessCount = workspaceResult.workspaces.filter(
@@ -207,20 +188,13 @@ export default async function OwnerSupportPage({
 
           <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-                Client Assistance
-              </p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">
-                Support Center
-              </h1>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Client Assistance</p>
+              <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">Support Center</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
                 Find any customer, business, or organization, review its setup context, and enter read-only Support Mode without changing your permanent Owner identity.
               </p>
             </div>
-
-            <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
-              Owner only
-            </span>
+            <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">Owner only</span>
           </div>
         </header>
 
@@ -231,16 +205,9 @@ export default async function OwnerSupportPage({
             ['Organizations', organizationCount, 'text-blue-700'],
             ['Customers', customerCount, 'text-amber-700'],
           ].map(([label, value, valueClass]) => (
-            <div
-              key={String(label)}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:rounded-3xl sm:p-5"
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">
-                {label}
-              </p>
-              <p className={`mt-1 text-2xl font-black sm:mt-2 sm:text-3xl ${valueClass}`}>
-                {value}
-              </p>
+            <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:rounded-3xl sm:p-5">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">{label}</p>
+              <p className={`mt-1 text-2xl font-black sm:mt-2 sm:text-3xl ${valueClass}`}>{value}</p>
             </div>
           ))}
         </section>
@@ -254,10 +221,7 @@ export default async function OwnerSupportPage({
 
         {selectedWorkspace ? (
           <section className="mt-6 space-y-5">
-            <SelectedWorkspacePanel
-              workspace={selectedWorkspace}
-              mode={workspaceMode}
-            />
+            <SelectedWorkspacePanel workspace={selectedWorkspace} mode={workspaceMode} />
 
             {workspaceMode === 'read-only' ? (
               <ReadOnlyWorkspaceView
@@ -265,6 +229,8 @@ export default async function OwnerSupportPage({
                 businessOffersResult={businessOffersResult}
                 businessRedemptionsResult={businessRedemptionsResult}
                 organizationCampaignsResult={organizationCampaignsResult}
+                organizationSellersResult={organizationSellersResult}
+                organizationFinancialsResult={organizationFinancialsResult}
                 customerActivityResult={customerActivityResult}
               />
             ) : (
@@ -288,12 +254,8 @@ export default async function OwnerSupportPage({
         </section>
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-            Support boundary
-          </p>
-          <h2 className="mt-2 text-xl font-bold text-slate-950">
-            Inspect first, act deliberately
-          </h2>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Support boundary</p>
+          <h2 className="mt-2 text-xl font-bold text-slate-950">Inspect first, act deliberately</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Read-only Support Mode is the default safe path for account investigation. Ticketing, internal notes, and customer-visible replies remain separate audited support actions rather than silent changes to client data.
           </p>
