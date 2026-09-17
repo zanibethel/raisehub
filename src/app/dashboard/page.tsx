@@ -40,24 +40,6 @@ function hasRequestedWorkspace(value?: string | string[]) {
   return Array.isArray(value) ? value.length > 0 : value !== undefined
 }
 
-function WorkspaceUnavailable({ workspace }: { workspace: SelectableWorkspace }) {
-  return (
-    <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6">
-      <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-        Workspace unavailable
-      </p>
-      <h2 className="mt-2 text-xl font-bold text-gray-900">
-        {workspace.name} is not connected yet
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-gray-600">
-        Your access is recognized, but this workspace does not yet have the legacy
-        account connection required by the current dashboard. No unrelated account
-        data was loaded.
-      </p>
-    </section>
-  )
-}
-
 function renderDashboard(
   role: DashboardExperienceRole,
   selectedWorkspace: SelectableWorkspace | null
@@ -65,14 +47,13 @@ function renderDashboard(
   if (role === 'owner') return <OwnerDashboard />
   if (role === 'admin') return <AdminDashboard />
   if (role === 'business') {
-    if (
-      selectedWorkspace?.kind === 'business' &&
-      !selectedWorkspace.legacyProfileId
-    ) {
-      return <WorkspaceUnavailable workspace={selectedWorkspace} />
-    }
     return (
       <BusinessDashboard
+        businessId={
+          selectedWorkspace?.kind === 'business'
+            ? selectedWorkspace.workspaceId
+            : null
+        }
         businessLegacyProfileId={
           selectedWorkspace?.kind === 'business'
             ? selectedWorkspace.legacyProfileId
@@ -82,16 +63,14 @@ function renderDashboard(
     )
   }
   if (role === 'organization') {
-    if (
-      selectedWorkspace &&
-      (selectedWorkspace.kind === 'organization' ||
-        selectedWorkspace.kind === 'fundraising') &&
-      !selectedWorkspace.legacyProfileId
-    ) {
-      return <WorkspaceUnavailable workspace={selectedWorkspace} />
-    }
     return (
       <OrganizationDashboard
+        organizationId={
+          selectedWorkspace?.kind === 'organization' ||
+          selectedWorkspace?.kind === 'fundraising'
+            ? selectedWorkspace.workspaceId
+            : null
+        }
         organizationLegacyProfileId={
           selectedWorkspace?.kind === 'organization' ||
           selectedWorkspace?.kind === 'fundraising'
