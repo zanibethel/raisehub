@@ -4,14 +4,28 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import RedemptionConfirmationForm from './redemption-confirmation-form'
 
-export default async function ConfirmRedemptionPage() {
+type Props = {
+  searchParams?: Promise<{ code?: string }>
+}
+
+function normalizeCode(value?: string) {
+  const normalized = value?.trim().toUpperCase() ?? ''
+  return /^[A-Z0-9]{6}$/.test(normalized) ? normalized : ''
+}
+
+export default async function ConfirmRedemptionPage({ searchParams }: Props) {
+  const params = searchParams ? await searchParams : {}
+  const initialCode = normalizeCode(params.code)
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login?next=/dashboard/redeem')
+    const next = initialCode
+      ? `/dashboard/redeem?code=${encodeURIComponent(initialCode)}`
+      : '/dashboard/redeem'
+    redirect(`/login?next=${encodeURIComponent(next)}`)
   }
 
   return (
@@ -32,7 +46,7 @@ export default async function ConfirmRedemptionPage() {
             Instant Verification
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Customers do not need staff approval for every redemption. Use this only when you want to verify a RaiseHub redemption immediately instead of letting the normal 24-hour review window auto-confirm it.
+            Customers do not need staff approval for every redemption. Scan their RaiseHub QR code or enter the short verification code when you want to confirm a redemption immediately instead of letting the normal 24-hour review window auto-confirm it.
           </p>
 
           <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
@@ -41,13 +55,13 @@ export default async function ConfirmRedemptionPage() {
             </p>
             <ol className="mt-2 space-y-2 text-sm leading-6 text-blue-950">
               <li><strong>1.</strong> The supporter taps Redeem Offer and the redemption is recorded immediately.</li>
-              <li><strong>2.</strong> Their screen may show a short-lived 6-character verification code.</li>
-              <li><strong>3.</strong> Entering the code here confirms the redemption immediately.</li>
+              <li><strong>2.</strong> Their screen shows a short-lived QR code and 6-character fallback code.</li>
+              <li><strong>3.</strong> Scan the QR with your phone camera or enter the code here, then tap Verify Now.</li>
               <li><strong>4.</strong> If you do nothing, the redemption auto-confirms after 24 hours unless your business reports a problem.</li>
             </ol>
           </div>
 
-          <RedemptionConfirmationForm />
+          <RedemptionConfirmationForm initialCode={initialCode} />
         </section>
       </div>
     </main>
