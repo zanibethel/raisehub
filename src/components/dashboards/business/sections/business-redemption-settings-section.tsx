@@ -154,7 +154,9 @@ export function BusinessRedemptionSettingsSection({
                     </button>
                   ) : isOptionalTool ? (
                     <p className="mt-3 text-xs leading-5 text-blue-800">
-                      Available from the Instant Verify business tool. It does not replace the 24-hour review workflow.
+                      {option.value === 'qr_code'
+                        ? 'Live now. After a supporter redeems, scan the QR shown on their screen with a phone camera. RaiseHub opens Instant Verification with their short code prefilled.'
+                        : 'Available from the Instant Verify business tool. It does not replace the 24-hour review workflow.'}
                     </p>
                   ) : (
                     <p className="mt-3 text-xs leading-5 text-gray-500">
