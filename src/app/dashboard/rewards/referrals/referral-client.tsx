@@ -10,7 +10,9 @@ type Referral = {
   status: string
   referral_token: string
   referral_points_awarded: number | string
-  created_at?: string | null
+  first_clicked_at?: string | null
+  last_clicked_at?: string | null
+  click_count?: number | null
 }
 
 export default function ReferralClient({ businessId, referrals }: { businessId: string; referrals: Referral[] }) {
@@ -38,7 +40,7 @@ export default function ReferralClient({ businessId, referrals }: { businessId: 
         setMessage(result.error || 'Could not create referral.')
         return
       }
-      const url = `${window.location.origin}/signup/business?ref=${encodeURIComponent(result.token)}`
+      const url = `${window.location.origin}/ref/business?ref=${encodeURIComponent(result.token)}`
       setLink(url)
       setEmail('')
       setMessage('Referral link created. Share it with the business you are inviting.')
@@ -66,7 +68,7 @@ export default function ReferralClient({ businessId, referrals }: { businessId: 
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-black text-slate-950">Create a referral link</h2>
-        <p className="mt-1 text-sm text-slate-600">Email is optional. Attribution is locked to the business that signs up through the unique link.</p>
+        <p className="mt-1 text-sm text-slate-600">The first valid referral is remembered while the business explores RaiseHub. Email is optional, but adding it gives RaiseHub a backup attribution path if browser tracking is unavailable at signup.</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Business email (optional)" className="min-h-11 flex-1 rounded-xl border border-slate-300 px-4" />
           <button type="button" onClick={createReferral} disabled={pending} className="min-h-11 rounded-xl bg-green-600 px-5 font-black text-white disabled:bg-slate-300">{pending ? 'Creating…' : 'Create referral link'}</button>
@@ -85,13 +87,15 @@ export default function ReferralClient({ businessId, referrals }: { businessId: 
         <p className="mt-1 text-sm text-slate-600">+50 signup · +150 completed profile · +300 verified = +500 maximum initial value.</p>
         <div className="mt-4 space-y-3">
           {referrals.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No business referrals yet.</p> : referrals.map((referral) => {
-            const referralLink = `/signup/business?ref=${referral.referral_token}`
+            const referralLink = `/ref/business?ref=${referral.referral_token}`
+            const opened = Number(referral.click_count ?? 0)
             return (
               <article key={referral.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-black text-slate-950">{referral.referred_business_name || referral.attributed_email || 'Invited business'}</p>
                     <p className="mt-1 text-sm text-slate-500">{referral.status.replaceAll('_', ' ')}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">Referral link opened {opened} {opened === 1 ? 'time' : 'times'}</p>
                   </div>
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">+{Number(referral.referral_points_awarded || 0)} pts</span>
                 </div>
