@@ -5,6 +5,44 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+type DemoLaunchResponse = {
+  error?: string
+  href?: string
+}
+
+const partnershipFlow = [
+  {
+    number: '01',
+    title: 'Join RaiseHub free',
+    description:
+      'Create your Community Partner profile and publish up to three active offers with no required subscription.',
+  },
+  {
+    number: '02',
+    title: 'Create an offer customers want',
+    description:
+      'Choose the discount, redemption rules, and how customers will redeem it at your business.',
+  },
+  {
+    number: '03',
+    title: 'Local organizations sell RaiseHub passes',
+    description:
+      'Schools, teams, nonprofits, and community groups fundraise by selling passes filled with valuable local offers like yours.',
+  },
+  {
+    number: '04',
+    title: 'Supporters discover and visit your business',
+    description:
+      'Pass holders can find your offer, visit your business, and redeem it using the supported QR or manual redemption flow.',
+  },
+  {
+    number: '05',
+    title: 'Track the results',
+    description:
+      'See offer activity, redemptions, and performance while helping make local fundraising more valuable to supporters.',
+  },
+]
+
 export default function BusinessSignupPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -15,6 +53,8 @@ export default function BusinessSignupPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoLaunching, setDemoLaunching] = useState(false)
+  const [demoError, setDemoError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +101,32 @@ export default function BusinessSignupPage() {
     setLoading(false)
   }
 
+  async function launchBusinessDemo() {
+    setDemoLaunching(true)
+    setDemoError(null)
+
+    try {
+      const response = await fetch('/api/demo/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ role: 'business' }),
+      })
+      const result = (await response.json()) as DemoLaunchResponse
+
+      if (!response.ok || result.error) {
+        setDemoError(result.error ?? 'The business demo could not be launched.')
+        setDemoLaunching(false)
+        return
+      }
+
+      window.location.assign(result.href?.trim() || '/dashboard')
+    } catch {
+      setDemoError('The business demo could not be reached. Please try again.')
+      setDemoLaunching(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-6xl">
@@ -70,7 +136,9 @@ export default function BusinessSignupPage() {
           <section className="rounded-3xl border border-green-100 bg-white/95 p-7 shadow-xl sm:p-10">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">RaiseHub Community Partner</p>
             <h1 className="mt-4 text-4xl font-bold leading-tight text-gray-900">Support your community while growing your business</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">Become an exclusive RaiseHub partner by offering valuable local deals that help schools, teams, nonprofits, and community groups sell more fundraising passes.</p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
+              Offer a valuable local deal, reach supporters who want to shop local, and help schools, teams, nonprofits, and community groups build a fundraiser people actually want to buy.
+            </p>
 
             {referralToken ? (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">
@@ -78,18 +146,44 @@ export default function BusinessSignupPage() {
               </div>
             ) : null}
 
-            <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-              <h2 className="text-lg font-bold text-blue-800">How your partnership works</h2>
-              <div className="mt-5 space-y-5">
-                {[
-                  { number: '1', title: 'Create your business account', description: 'Use one account to manage your business profile, offers, redemption settings, and performance.' },
-                  { number: '2', title: 'Complete your Community Partner profile', description: 'Add your business information, location, branding, social links, and preferred redemption process.' },
-                  { number: '3', title: 'Create exclusive local offers', description: 'Businesses can create up to three active offers on the free plan, with upgrade options available later.' },
-                  { number: '4', title: 'Reach customers who support local fundraisers', description: 'Eligible offers appear across RaiseHub deal and partner experiences, helping bring new customers through your door.' },
-                ].map((step) => (
-                  <div key={step.number} className="flex gap-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-600 font-bold text-white">{step.number}</div>
-                    <div><h3 className="font-bold text-gray-900">{step.title}</h3><p className="mt-1 text-sm leading-6 text-gray-600">{step.description}</p></div>
+            <div className="mt-8 rounded-3xl border border-blue-100 bg-blue-50/70 p-5 sm:p-7">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">How it works</p>
+                  <h2 className="mt-2 text-2xl font-bold text-blue-800">From local offer to new customer</h2>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600">
+                    Your offer helps make the fundraiser valuable. RaiseHub connects that value to local supporters and gives them a reason to walk through your door.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={launchBusinessDemo}
+                  disabled={demoLaunching}
+                  className="shrink-0 rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {demoLaunching ? 'Opening Business Demo…' : 'Explore Business Demo →'}
+                </button>
+              </div>
+
+              {demoError ? (
+                <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {demoError}
+                </p>
+              ) : null}
+
+              <div className="mt-7 space-y-0">
+                {partnershipFlow.map((step, index) => (
+                  <div key={step.number} className="relative flex gap-4 pb-6 last:pb-0">
+                    {index < partnershipFlow.length - 1 ? (
+                      <div className="absolute left-[19px] top-10 h-[calc(100%-2rem)] w-px bg-green-200" aria-hidden="true" />
+                    ) : null}
+                    <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-black text-white shadow-sm">
+                      {step.number}
+                    </div>
+                    <div className="min-w-0 pt-1">
+                      <h3 className="font-bold text-gray-900">{step.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-gray-600">{step.description}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -101,13 +195,18 @@ export default function BusinessSignupPage() {
               <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-4"><p className="text-2xl font-bold text-yellow-700">Shared Impact</p><p className="mt-1 text-sm text-gray-600">Better fundraising through better value</p></div>
             </div>
 
-            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-600"><strong className="text-gray-900">You are not being asked to donate money.</strong>{' '}Your business supports the community by providing offers that make RaiseHub passes valuable to local customers.</div>
+            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-600">
+              <strong className="text-gray-900">You are not being asked to donate money.</strong>{' '}
+              Your contribution is the offer you choose to provide. RaiseHub handles the fundraising experience while your business gets visibility, customer traffic, and redemption tracking.
+            </div>
           </section>
 
           <aside className="h-fit rounded-3xl border border-green-100 bg-white p-7 shadow-xl sm:p-8">
             <p className="text-sm font-semibold text-green-700">Start free. Stay free.</p>
             <h2 className="mt-2 text-2xl font-bold text-blue-700">Become a RaiseHub Partner</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-600">Create and manage up to 3 active offers with no required subscription. Upgrade only when you want additional offers or advanced features. After email confirmation, we will guide you through the complete business setup process.</p>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              Create and manage up to 3 active offers with no required subscription. Upgrade only when you want additional offers or advanced features. After email confirmation, we will guide you through the complete business setup process.
+            </p>
 
             <form onSubmit={handleSignup} className="mt-6 space-y-4">
               <div>
@@ -118,10 +217,25 @@ export default function BusinessSignupPage() {
                 <label htmlFor="business-signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
                 <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
               </div>
-              <button disabled={loading} className="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white shadow transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">{loading ? 'Creating account...' : 'Become a RaiseHub Partner'}</button>
+              <button disabled={loading} className="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white shadow transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {loading ? 'Creating account...' : 'Become a RaiseHub Partner'}
+              </button>
             </form>
 
             {message ? <p className={`mt-4 text-sm ${message.startsWith('Account created') ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
+
+            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-center">
+              <p className="text-sm font-bold text-gray-900">Want to look around first?</p>
+              <p className="mt-1 text-xs leading-5 text-gray-600">Open a sample business workspace with demo data. Nothing you do there affects live businesses.</p>
+              <button
+                type="button"
+                onClick={launchBusinessDemo}
+                disabled={demoLaunching}
+                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
+              >
+                {demoLaunching ? 'Opening Business Demo…' : 'Explore Business Demo'}
+              </button>
+            </div>
 
             <div className="mt-6 border-t border-gray-200 pt-5 text-sm text-gray-600">
               <p>Already have an account? <Link href="/login?next=/workspace/new/business" className="font-semibold text-blue-700 hover:underline">Log in here</Link></p>
