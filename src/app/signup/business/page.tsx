@@ -3,6 +3,12 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import {
+  clearBusinessReferralInBrowser,
+  normalizeBusinessReferralToken,
+  readBusinessReferralCookie,
+  rememberBusinessReferralInBrowser,
+} from '@/lib/referrals/business-referral'
 import { createClient } from '@/lib/supabase/client'
 
 const BUSINESS_DEMO_URL = 'https://raisehub-demo.vercel.app/demo?role=business'
@@ -52,12 +58,21 @@ export default function BusinessSignupPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
-  const referralToken = searchParams.get('ref')?.trim() ?? ''
+  const searchReferralToken = normalizeBusinessReferralToken(searchParams.get('ref')) ?? ''
 
+  const [referralToken, setReferralToken] = useState(searchReferralToken)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const rememberedToken = readBusinessReferralCookie(document.cookie)
+    const resolvedToken = searchReferralToken || rememberedToken || ''
+
+    if (searchReferralToken) rememberBusinessReferralInBrowser(searchReferralToken)
+    if (resolvedToken) setReferralToken(resolvedToken)
+  }, [searchReferralToken])
 
   useEffect(() => {
     let cancelled = false
@@ -71,19 +86,24 @@ export default function BusinessSignupPage() {
     return () => { cancelled = true }
   }, [router, supabase])
 
+  const businessDemoUrl = referralToken
+    ? `${BUSINESS_DEMO_URL}&ref=${encodeURIComponent(referralToken)}`
+    : BUSINESS_DEMO_URL
+
   async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
     setMessage('')
 
     const destination = '/onboarding/business'
+    const rememberedToken = referralToken || readBusinessReferralCookie(document.cookie) || ''
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           role: 'business',
-          ...(referralToken ? { business_referral: referralToken } : {}),
+          ...(rememberedToken ? { business_referral: rememberedToken } : {}),
         },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`,
       },
@@ -94,6 +114,11 @@ export default function BusinessSignupPage() {
       setLoading(false)
       return
     }
+
+    // The referral token is now durable in auth metadata and the database claim
+    // trigger. Clear the browser copy so it cannot accidentally follow a later
+    // unrelated business setup on this device.
+    if (rememberedToken) clearBusinessReferralInBrowser()
 
     if (data.session) {
       window.location.href = destination
@@ -119,7 +144,7 @@ export default function BusinessSignupPage() {
 
             {referralToken ? (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">
-                You were invited by a RaiseHub business partner. Your signup will be linked to their referral automatically.
+                You were invited by a RaiseHub business partner. We&apos;ll remember this referral while you explore RaiseHub or the Business Demo and link it automatically when your business account is created.
               </div>
             ) : null}
 
@@ -133,7 +158,7 @@ export default function BusinessSignupPage() {
                   </p>
                 </div>
                 <a
-                  href={BUSINESS_DEMO_URL}
+                  href={businessDemoUrl}
                   className="shrink-0 rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-center text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
                   Explore Business Demo →
@@ -216,9 +241,9 @@ export default function BusinessSignupPage() {
 
             <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-center">
               <p className="text-sm font-bold text-gray-900">Want to look around first?</p>
-              <p className="mt-1 text-xs leading-5 text-gray-600">Open a sample business workspace with demo data. Nothing you do there affects live businesses.</p>
+              <p className="mt-1 text-xs leading-5 text-gray-600">Open a sample business workspace with demo data. If you arrived through a business referral, RaiseHub keeps that attribution while you explore.</p>
               <a
-                href={BUSINESS_DEMO_URL}
+                href={businessDemoUrl}
                 className="mt-3 block w-full rounded-xl bg-blue-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               >
                 Explore Business Demo
