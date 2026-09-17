@@ -11,6 +11,7 @@ type Offer = {
   starts_at: string | null
   ends_at: string | null
   business_id: string
+  featured?: boolean
 }
 
 type Profile = {
@@ -290,6 +291,14 @@ export default function FeaturedDealsCarouselClient({
                 }
               >
                 <div>
+                  {offer.featured ? (
+                    <div className="mb-3">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-800">
+                        Featured Partner
+                      </span>
+                    </div>
+                  ) : null}
+
                   <div className="flex items-center gap-3">
                     <img
                       src={
