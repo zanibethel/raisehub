@@ -1,12 +1,15 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+
+import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
 import {
   inferOfferUsageRuleFromDescription,
   isOfferUsageRule,
   type OfferUsageRule,
 } from '@/lib/redemption-rules'
+import { resolveCurrentBusinessWorkspace } from '@/lib/services/current-business-workspace-service'
+import { createClient } from '@/lib/supabase/server'
 
 type CreateOfferInput = {
   title: string
@@ -24,19 +27,35 @@ function normalizeCustomerValue(value: number | null | undefined) {
   return Math.round(value * 100) / 100
 }
 
+async function getActiveOfferLimit({
+  canonicalBusinessId,
+  subscriptionTier,
+}: {
+  canonicalBusinessId: string | null
+  subscriptionTier: string
+}) {
+  if (subscriptionTier === 'growth') return Number.POSITIVE_INFINITY
+
+  const rewards = canonicalBusinessId
+    ? await getPartnerRewardsSummary(canonicalBusinessId)
+    : null
+
+  return 3 + (rewards?.activeExtraOfferSlots ?? 0)
+}
+
 export async function createOfferAction(input: CreateOfferInput) {
-  const supabase = await createClient()
+  const workspaceResult = await resolveCurrentBusinessWorkspace({
+    requireManage: true,
+  })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'You must be logged in.' }
+  if (!workspaceResult.success) {
+    return { error: workspaceResult.error }
   }
 
-  const usageRule = input.usage_rule
-    ?? inferOfferUsageRuleFromDescription(input.description)
+  const { workspace } = workspaceResult
+  const usageRule =
+    input.usage_rule ?? inferOfferUsageRuleFromDescription(input.description)
+
   if (!isOfferUsageRule(usageRule)) {
     return { error: 'Choose a valid redemption frequency.' }
   }
@@ -46,24 +65,17 @@ export async function createOfferAction(input: CreateOfferInput) {
     return { error: 'Customer value must be a valid dollar amount.' }
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('subscription_tier')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError) {
-    return { error: 'Could not read your business profile.' }
-  }
-
-  const tier = profile?.subscription_tier ?? 'free'
-  const ACTIVE_OFFER_LIMIT = 3
+  const supabase = await createClient()
   const now = new Date().toISOString()
+  const activeOfferLimit = await getActiveOfferLimit({
+    canonicalBusinessId: workspace.canonicalBusinessId,
+    subscriptionTier: workspace.subscriptionTier,
+  })
 
   const { data: activeOffers, error: activeOffersError } = await supabase
     .from('offers')
     .select('id')
-    .eq('business_id', user.id)
+    .in('business_id', workspace.offerBusinessIds)
     .eq('is_active', true)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
 
@@ -71,15 +83,17 @@ export async function createOfferAction(input: CreateOfferInput) {
     return { error: 'Could not check your active offers.' }
   }
 
-  if (tier === 'free' && (activeOffers?.length ?? 0) >= ACTIVE_OFFER_LIMIT) {
+  if ((activeOffers?.length ?? 0) >= activeOfferLimit) {
     return {
       error:
-        'You have reached the free limit of 3 active offers. Upgrade to add more.',
+        activeOfferLimit === 3
+          ? 'You have reached the free limit of 3 active offers. Upgrade to add more.'
+          : `You are using all ${activeOfferLimit} active offer slots. Pause another offer or earn another offer-slot reward before publishing more.`,
     }
   }
 
   const { error: insertError } = await supabase.from('offers').insert({
-    business_id: user.id,
+    business_id: workspace.primaryOfferBusinessId,
     title: input.title,
     discount: input.discount,
     description: input.description,
@@ -93,75 +107,55 @@ export async function createOfferAction(input: CreateOfferInput) {
     return { error: insertError.message }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/dashboard/offers')
-  revalidatePath('/offers')
+  revalidateOfferPaths()
 
   return { success: true }
 }
 
-// =========================================
-// 📴 DEACTIVATE OFFER
-// Hides an offer without deleting history.
-// =========================================
 export async function deactivateOfferAction(offerId: string) {
+  const workspaceResult = await resolveCurrentBusinessWorkspace({
+    requireManage: true,
+  })
+
+  if (!workspaceResult.success) {
+    return { error: workspaceResult.error }
+  }
+
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return { error: 'Not authenticated' }
-
   const { error } = await supabase
     .from('offers')
     .update({ is_active: false })
     .eq('id', offerId)
-    .eq('business_id', user.id)
+    .in('business_id', workspaceResult.workspace.offerBusinessIds)
 
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/')
-  revalidatePath('/offers')
+  revalidateOfferPaths(offerId)
 
   return { success: true }
 }
 
-// =========================================
-// ▶️ REACTIVATE OFFER
-// Restores a paused offer if the business has
-// an available active-offer slot.
-// =========================================
 export async function reactivateOfferAction(offerId: string) {
+  const workspaceResult = await resolveCurrentBusinessWorkspace({
+    requireManage: true,
+  })
+
+  if (!workspaceResult.success) {
+    return { error: workspaceResult.error }
+  }
+
+  const { workspace } = workspaceResult
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'Not authenticated' }
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('subscription_tier')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError) {
-    return { error: 'Could not read your business profile.' }
-  }
-
-  const tier = profile?.subscription_tier ?? 'free'
-  const activeOfferLimit = 3
+  const activeOfferLimit = await getActiveOfferLimit({
+    canonicalBusinessId: workspace.canonicalBusinessId,
+    subscriptionTier: workspace.subscriptionTier,
+  })
   const now = new Date().toISOString()
 
   const { data: activeOffers, error: activeOffersError } = await supabase
     .from('offers')
     .select('id')
-    .eq('business_id', user.id)
+    .in('business_id', workspace.offerBusinessIds)
     .eq('is_active', true)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
 
@@ -169,13 +163,12 @@ export async function reactivateOfferAction(offerId: string) {
     return { error: 'Could not check your active offers.' }
   }
 
-  if (
-    tier === 'free' &&
-    (activeOffers?.length ?? 0) >= activeOfferLimit
-  ) {
+  if ((activeOffers?.length ?? 0) >= activeOfferLimit) {
     return {
       error:
-        'You already have 3 active offers. Pause another offer before reactivating this one.',
+        activeOfferLimit === 3
+          ? 'You already have 3 active offers. Pause another offer before reactivating this one.'
+          : `You are using all ${activeOfferLimit} active offer slots. Pause another offer before reactivating this one.`,
     }
   }
 
@@ -183,17 +176,16 @@ export async function reactivateOfferAction(offerId: string) {
     .from('offers')
     .select('ends_at')
     .eq('id', offerId)
-    .eq('business_id', user.id)
-    .single()
+    .in('business_id', workspace.offerBusinessIds)
+    .maybeSingle()
 
   if (offerError || !offer) {
-    return { error: 'Offer not found.' }
+    return { error: 'Offer not found in the selected business workspace.' }
   }
 
   if (offer.ends_at && new Date(offer.ends_at) < new Date()) {
     return {
-      error:
-        'This offer has expired. Edit the end date before reactivating it.',
+      error: 'This offer has expired. Edit the end date before reactivating it.',
     }
   }
 
@@ -201,15 +193,13 @@ export async function reactivateOfferAction(offerId: string) {
     .from('offers')
     .update({ is_active: true })
     .eq('id', offerId)
-    .eq('business_id', user.id)
+    .in('business_id', workspace.offerBusinessIds)
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/')
-  revalidatePath('/offers')
+  revalidateOfferPaths(offerId)
 
   return { success: true }
 }
@@ -226,14 +216,12 @@ type UpdateOfferInput = {
 }
 
 export async function updateOfferAction(input: UpdateOfferInput) {
-  const supabase = await createClient()
+  const workspaceResult = await resolveCurrentBusinessWorkspace({
+    requireManage: true,
+  })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'You must be logged in.' }
+  if (!workspaceResult.success) {
+    return { error: workspaceResult.error }
   }
 
   if (
@@ -241,9 +229,7 @@ export async function updateOfferAction(input: UpdateOfferInput) {
     !input.discount.trim() ||
     !input.description.trim()
   ) {
-    return {
-      error: 'Add a title, member benefit, and description.',
-    }
+    return { error: 'Add a title, member benefit, and description.' }
   }
 
   if (!isOfferUsageRule(input.usage_rule)) {
@@ -255,14 +241,20 @@ export async function updateOfferAction(input: UpdateOfferInput) {
     return { error: 'Customer value must be a valid dollar amount.' }
   }
 
-  if (
-    input.starts_at &&
-    input.ends_at &&
-    input.ends_at < input.starts_at
-  ) {
-    return {
-      error: 'The end date must be after the start date.',
-    }
+  if (input.starts_at && input.ends_at && input.ends_at < input.starts_at) {
+    return { error: 'The end date must be after the start date.' }
+  }
+
+  const supabase = await createClient()
+  const { data: ownedOffer, error: ownershipError } = await supabase
+    .from('offers')
+    .select('id')
+    .eq('id', input.offerId)
+    .in('business_id', workspaceResult.workspace.offerBusinessIds)
+    .maybeSingle()
+
+  if (ownershipError || !ownedOffer) {
+    return { error: 'Offer not found in the selected business workspace.' }
   }
 
   const { error } = await supabase
@@ -277,16 +269,26 @@ export async function updateOfferAction(input: UpdateOfferInput) {
       customer_value: customerValue,
     })
     .eq('id', input.offerId)
-    .eq('business_id', user.id)
+    .in('business_id', workspaceResult.workspace.offerBusinessIds)
 
   if (error) {
     return { error: error.message }
   }
 
+  revalidateOfferPaths(input.offerId)
+
+  return { success: true }
+}
+
+function revalidateOfferPaths(offerId?: string) {
   revalidatePath('/dashboard')
-  revalidatePath(`/offers/${input.offerId}`)
+  revalidatePath('/dashboard/offers')
+  revalidatePath('/dashboard/reports')
   revalidatePath('/offers')
   revalidatePath('/')
 
-  return { success: true }
+  if (offerId) {
+    revalidatePath(`/offers/${offerId}`)
+    revalidatePath(`/dashboard/offers/${offerId}/edit`)
+  }
 }
