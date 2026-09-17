@@ -12,6 +12,8 @@ import type {
 } from '@/lib/types/identity-access'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
+import type { OwnerBusinessRedemptionsResult } from '@/lib/services/owner-business-redemption-service'
+import { getOwnerAuthorizedBusinessRedemptions } from '@/lib/services/owner-business-redemption-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
 import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
@@ -85,16 +87,10 @@ function resolveSelectedWorkspace({
   workspaceId?: string
   workspaceRole?: string
 }): WorkspaceCardData | null {
-  if (!workspaceId) {
-    return null
-  }
+  if (!workspaceId) return null
 
-  const validWorkspaceRole =
-    resolveWorkspaceRole(workspaceRole)
-
-  if (!validWorkspaceRole) {
-    return null
-  }
+  const validWorkspaceRole = resolveWorkspaceRole(workspaceRole)
+  if (!validWorkspaceRole) return null
 
   return (
     workspaces.find(
@@ -108,10 +104,7 @@ function resolveSelectedWorkspace({
 export default async function OwnerSupportPage({
   searchParams,
 }: SupportPageProps) {
-  const params = searchParams
-    ? await searchParams
-    : {}
-
+  const params = searchParams ? await searchParams : {}
   const supabase = await createClient()
 
   const {
@@ -119,9 +112,7 @@ export default async function OwnerSupportPage({
     error: authError,
   } = await supabase.auth.getUser()
 
-  if (authError || !user) {
-    redirect('/login')
-  }
+  if (authError || !user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -129,40 +120,40 @@ export default async function OwnerSupportPage({
     .eq('id', user.id)
     .single<ActorProfile>()
 
-  if (!profile || profile.role !== 'owner') {
-    redirect('/dashboard')
-  }
+  if (!profile || profile.role !== 'owner') redirect('/dashboard')
 
-  const workspaceResult =
-    await getOwnerWorkspacesResult()
+  const workspaceResult = await getOwnerWorkspacesResult()
 
-  const selectedWorkspace =
-    resolveSelectedWorkspace({
-      workspaces: workspaceResult.workspaces,
-      workspaceId: params.workspaceId,
-      workspaceRole: params.workspaceRole,
-    })
+  const selectedWorkspace = resolveSelectedWorkspace({
+    workspaces: workspaceResult.workspaces,
+    workspaceId: params.workspaceId,
+    workspaceRole: params.workspaceRole,
+  })
 
   const workspaceMode = selectedWorkspace
     ? resolveWorkspaceMode(params.supportMode)
     : 'workspace'
 
-  let businessOffersResult: OwnerBusinessOffersResult | null =
-    null
+  let businessOffersResult: OwnerBusinessOffersResult | null = null
+  let businessRedemptionsResult: OwnerBusinessRedemptionsResult | null = null
 
   if (
     selectedWorkspace?.role === 'business' &&
     workspaceMode === 'read-only'
   ) {
-    businessOffersResult =
-      await getOwnerAuthorizedBusinessOffers(
+    ;[businessOffersResult, businessRedemptionsResult] = await Promise.all([
+      getOwnerAuthorizedBusinessOffers(
         selectedWorkspace.id,
         selectedWorkspace.role
-      )
+      ),
+      getOwnerAuthorizedBusinessRedemptions(
+        selectedWorkspace.id,
+        selectedWorkspace.role
+      ),
+    ])
   }
 
-  let organizationCampaignsResult: OwnerOrganizationCampaignsResult | null =
-    null
+  let organizationCampaignsResult: OwnerOrganizationCampaignsResult | null = null
 
   if (
     selectedWorkspace?.role === 'organization' &&
@@ -175,8 +166,7 @@ export default async function OwnerSupportPage({
       )
   }
 
-  let customerActivityResult: OwnerCustomerActivityResult | null =
-    null
+  let customerActivityResult: OwnerCustomerActivityResult | null = null
 
   if (
     selectedWorkspace?.role === 'customer' &&
@@ -189,21 +179,15 @@ export default async function OwnerSupportPage({
       )
   }
 
-  const businessCount =
-    workspaceResult.workspaces.filter(
-      (workspace) => workspace.role === 'business'
-    ).length
-
-  const organizationCount =
-    workspaceResult.workspaces.filter(
-      (workspace) =>
-        workspace.role === 'organization'
-    ).length
-
-  const customerCount =
-    workspaceResult.workspaces.filter(
-      (workspace) => workspace.role === 'customer'
-    ).length
+  const businessCount = workspaceResult.workspaces.filter(
+    (workspace) => workspace.role === 'business'
+  ).length
+  const organizationCount = workspaceResult.workspaces.filter(
+    (workspace) => workspace.role === 'organization'
+  ).length
+  const customerCount = workspaceResult.workspaces.filter(
+    (workspace) => workspace.role === 'customer'
+  ).length
 
   const initialRole = resolveInitialRole(params.role)
   const initialEnvironment = resolveInitialEnvironment(params.environment)
@@ -226,11 +210,9 @@ export default async function OwnerSupportPage({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
                 Client Assistance
               </p>
-
               <h1 className="mt-2 text-3xl font-bold text-slate-950 sm:text-4xl">
                 Support Center
               </h1>
-
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
                 Find any customer, business, or organization, review its setup context, and enter read-only Support Mode without changing your permanent Owner identity.
               </p>
@@ -265,12 +247,8 @@ export default async function OwnerSupportPage({
 
         {workspaceResult.error ? (
           <section className="mt-6 rounded-3xl border border-rose-200 bg-rose-50 p-5">
-            <p className="font-bold text-rose-950">
-              Workspaces could not be loaded
-            </p>
-            <p className="mt-2 text-sm leading-6 text-rose-800">
-              {workspaceResult.error}
-            </p>
+            <p className="font-bold text-rose-950">Workspaces could not be loaded</p>
+            <p className="mt-2 text-sm leading-6 text-rose-800">{workspaceResult.error}</p>
           </section>
         ) : null}
 
@@ -285,16 +263,13 @@ export default async function OwnerSupportPage({
               <ReadOnlyWorkspaceView
                 workspace={selectedWorkspace}
                 businessOffersResult={businessOffersResult}
-                organizationCampaignsResult={
-                  organizationCampaignsResult
-                }
+                businessRedemptionsResult={businessRedemptionsResult}
+                organizationCampaignsResult={organizationCampaignsResult}
                 customerActivityResult={customerActivityResult}
               />
             ) : (
               <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
-                <p className="font-bold text-blue-950">
-                  Workspace selected
-                </p>
+                <p className="font-bold text-blue-950">Workspace selected</p>
                 <p className="mt-2 text-sm leading-6 text-blue-900">
                   Use Support Mode from the workspace card below to inspect account activity without entering the user experience.
                 </p>
@@ -316,13 +291,11 @@ export default async function OwnerSupportPage({
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
             Support boundary
           </p>
-
           <h2 className="mt-2 text-xl font-bold text-slate-950">
             Inspect first, act deliberately
           </h2>
-
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Read-only Support Mode is the default safe path for account investigation. Future ticketing, internal notes, customer-visible replies, and audited support actions will extend this workspace without returning those tools to the main Owner dashboard.
+            Read-only Support Mode is the default safe path for account investigation. Ticketing, internal notes, and customer-visible replies remain separate audited support actions rather than silent changes to client data.
           </p>
         </section>
       </div>
