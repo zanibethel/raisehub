@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 import { DEMO_ROLES, type DemoRole } from '@/app/components/demo-launcher-modal'
 
@@ -11,10 +12,12 @@ type DemoLaunchResponse = {
 }
 
 export default function InteractiveDemoPage() {
+  const searchParams = useSearchParams()
+  const autoLaunchAttempted = useRef(false)
   const [launching, setLaunching] = useState<DemoRole | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function launch(role: DemoRole) {
+  const launch = useCallback(async (role: DemoRole) => {
     setLaunching(role)
     setError(null)
 
@@ -38,7 +41,17 @@ export default function InteractiveDemoPage() {
       setError('The Interactive Demo could not be reached. Please try again.')
       setLaunching(null)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (autoLaunchAttempted.current) return
+
+    const requestedRole = searchParams.get('role')?.trim() as DemoRole | undefined
+    if (!requestedRole || !DEMO_ROLES.some(({ role }) => role === requestedRole)) return
+
+    autoLaunchAttempted.current = true
+    void launch(requestedRole)
+  }, [launch, searchParams])
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 px-4 py-10 text-gray-900 sm:px-8">
@@ -46,7 +59,9 @@ export default function InteractiveDemoPage() {
         <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-xl sm:p-10">
           <div className="text-center">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">RaiseHub · Interactive Demo</p>
-            <h1 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">Choose a role to explore</h1>
+            <h1 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
+              {launching ? `Opening the ${launching === 'customer' ? 'Supporter' : launching === 'business' ? 'Business' : 'Organization'} demo…` : 'Choose a role to explore'}
+            </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
               You&apos;re exploring RaiseHub using sample data. Nothing here affects live organizations, and no real payment will be initiated.
             </p>
