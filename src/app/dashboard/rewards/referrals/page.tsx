@@ -49,7 +49,7 @@ export default async function BusinessReferralPage() {
 
   const { data: reportData } = await admin
     .from('partner_referral_report')
-    .select('id,referred_business_name,attributed_email,status,referral_token,referral_points_awarded,attributed_at')
+    .select('id,referred_business_name,attributed_email,status,referral_token,referral_points_awarded,attributed_at,first_clicked_at,last_clicked_at,click_count')
     .eq('referring_business_id', businessId)
     .order('attributed_at', { ascending: false, nullsFirst: false })
 
