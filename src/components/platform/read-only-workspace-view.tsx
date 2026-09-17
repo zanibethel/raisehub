@@ -5,10 +5,14 @@ import type {
 import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
 import ReadOnlyBusinessRedemptionsSection from '@/components/platform/read-only-business-redemptions-section'
 import ReadOnlyOrganizationCampaignsSection from '@/components/platform/read-only-organization-campaigns-section'
+import ReadOnlyOrganizationSellersSection from '@/components/platform/read-only-organization-sellers-section'
+import ReadOnlyOrganizationFinancialsSection from '@/components/platform/read-only-organization-financials-section'
 import ReadOnlyCustomerActivitySection from '@/components/platform/read-only-customer-activity-section'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import type { OwnerBusinessRedemptionsResult } from '@/lib/services/owner-business-redemption-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
+import type { OwnerOrganizationSellersResult } from '@/lib/services/owner-organization-seller-service'
+import type { OwnerOrganizationFinancialsResult } from '@/lib/services/owner-organization-financial-service'
 import type { OwnerCustomerActivityResult } from '@/lib/services/owner-customer-activity-service'
 
 type ReadOnlyWorkspaceViewProps = {
@@ -16,6 +20,8 @@ type ReadOnlyWorkspaceViewProps = {
   businessOffersResult?: OwnerBusinessOffersResult | null
   businessRedemptionsResult?: OwnerBusinessRedemptionsResult | null
   organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
+  organizationSellersResult?: OwnerOrganizationSellersResult | null
+  organizationFinancialsResult?: OwnerOrganizationFinancialsResult | null
   customerActivityResult?: OwnerCustomerActivityResult | null
 }
 
@@ -83,14 +89,14 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
         {
           title: 'Sellers',
           description:
-            'Review seller activity and campaign performance.',
-          status: 'coming',
+            'Review seller roster linkage, paid sales, and campaign performance.',
+          status: 'available',
         },
         {
           title: 'Financials',
           description:
-            'Review passes sold, gross volume, fees, and organization earnings.',
-          status: 'coming',
+            'Review passes sold, gross volume, fees, organization earnings, and transfer activity.',
+          status: 'available',
         },
       ]
 
@@ -137,6 +143,8 @@ export default function ReadOnlyWorkspaceView({
   businessOffersResult = null,
   businessRedemptionsResult = null,
   organizationCampaignsResult = null,
+  organizationSellersResult = null,
+  organizationFinancialsResult = null,
   customerActivityResult = null,
 }: ReadOnlyWorkspaceViewProps) {
   const areas = getWorkspaceAreas(workspace.role)
@@ -148,7 +156,6 @@ export default function ReadOnlyWorkspaceView({
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-300">
           Read-only workspace
         </p>
-
         <div className="mt-2 flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="break-words text-xl font-bold">{workspace.name}</h2>
@@ -163,28 +170,21 @@ export default function ReadOnlyWorkspaceView({
       <div className="grid min-w-0 gap-4 border-b border-slate-200 p-4 sm:p-6 lg:grid-cols-3">
         <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Plan</p>
-          <p className="mt-2 break-words text-lg font-bold text-slate-950">
-            {workspace.planLabel ?? 'Standard account'}
-          </p>
+          <p className="mt-2 break-words text-lg font-bold text-slate-950">{workspace.planLabel ?? 'Standard account'}</p>
           <p className="mt-1 text-sm text-slate-600">Subscription and account access level</p>
         </article>
-
         <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Setup</p>
             <span className="text-sm font-bold text-slate-900">{workspace.setupPercentage ?? 0}%</span>
           </div>
           <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-blue-600"
-              style={{ width: getProgressWidth(workspace.setupPercentage) }}
-            />
+            <div className="h-full rounded-full bg-blue-600" style={{ width: getProgressWidth(workspace.setupPercentage) }} />
           </div>
           <p className="mt-2 text-sm text-slate-600">
             {workspace.completedSetupItems ?? 0} of {workspace.totalSetupItems ?? 0} items complete
           </p>
         </article>
-
         <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Contact</p>
           <div className="mt-2 space-y-1.5">
@@ -200,11 +200,8 @@ export default function ReadOnlyWorkspaceView({
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Setup review</p>
             <h3 className="mt-1 text-lg font-bold text-slate-950">Account readiness</h3>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-            {workspace.status ?? 'Status unavailable'}
-          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{workspace.status ?? 'Status unavailable'}</span>
         </div>
-
         {missingItems.length > 0 ? (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {missingItems.map((item) => (
@@ -224,19 +221,12 @@ export default function ReadOnlyWorkspaceView({
       <div className="p-4 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Workspace areas</p>
         <h3 className="mt-1 text-lg font-bold text-slate-950">{getRoleLabel(workspace.role)} dashboard</h3>
-
         <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
           {areas.map((area) => (
             <article key={area.title} className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <h4 className="min-w-0 break-words font-bold text-slate-900">{area.title}</h4>
-                <span
-                  className={
-                    area.status === 'available'
-                      ? 'shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700'
-                      : 'shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600'
-                  }
-                >
+                <span className={area.status === 'available' ? 'shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700' : 'shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600'}>
                   {area.status === 'available' ? 'Available' : 'Next phase'}
                 </span>
               </div>
@@ -244,7 +234,6 @@ export default function ReadOnlyWorkspaceView({
             </article>
           ))}
         </div>
-
         <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
           <p className="text-sm leading-6 text-blue-900">
             This view is intentionally read-only. Support data is loaded through owner-authorized repository and service queries without entering or mutating the client workspace.
@@ -260,7 +249,11 @@ export default function ReadOnlyWorkspaceView({
       ) : null}
 
       {workspace.role === 'organization' ? (
-        <ReadOnlyOrganizationCampaignsSection campaignsResult={organizationCampaignsResult} />
+        <>
+          <ReadOnlyOrganizationCampaignsSection campaignsResult={organizationCampaignsResult} />
+          <ReadOnlyOrganizationSellersSection sellersResult={organizationSellersResult} />
+          <ReadOnlyOrganizationFinancialsSection financialsResult={organizationFinancialsResult} />
+        </>
       ) : null}
 
       {workspace.role === 'customer' ? (
