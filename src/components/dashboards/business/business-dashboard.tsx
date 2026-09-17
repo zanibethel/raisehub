@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
 import { reconcileDemoPartnerRewardsNetwork } from '@/lib/rewards/demo-partner-rewards-reconciliation'
+import { canViewBusiness } from '@/lib/services/capability-resolution-service'
 import { getBusinessPayoutStatus } from '@/lib/stripe/business-connect'
 
 import BusinessWorkspaceFrame from './business-workspace-frame'
@@ -9,6 +10,7 @@ import BusinessWorkspaceFrame from './business-workspace-frame'
 export type BusinessWorkspaceView = 'dashboard' | 'offers' | 'reports' | 'rewards'
 
 type BusinessDashboardProps = {
+  businessId?: string | null
   businessLegacyProfileId?: string | null
   view?: BusinessWorkspaceView
 }
@@ -24,8 +26,18 @@ type BusinessProfile = {
   redemption_method: string | null
 }
 
-type BusinessWorkspaceLifecycle = {
+type CanonicalBusiness = {
   id: string
+  legacy_profile_id: string | null
+  name: string | null
+  description: string | null
+  category: string | null
+  logo_url: string | null
+  phone: string | null
+  email: string | null
+  website_url: string | null
+  address: string | null
+  google_maps_url: string | null
   status: string
   subscription_tier: string
   archived_at: string | null
@@ -59,6 +71,8 @@ const BUSINESS_PROFILE_FIELDS =
   'business_name, phone, address, google_maps_url, logo_url, website_url, display_name'
 const BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION =
   `${BUSINESS_PROFILE_FIELDS}, redemption_method`
+const CANONICAL_BUSINESS_FIELDS =
+  'id, legacy_profile_id, name, description, category, logo_url, phone, email, website_url, address, google_maps_url, status, subscription_tier, archived_at, archive_reason, restore_requested_at'
 
 function isMissingRedemptionMethodError(error: ProfileQueryError | null): boolean {
   if (!error) return false
@@ -79,7 +93,25 @@ function toCustomerValue(value: number | string | null): number {
   return 0
 }
 
+function profileFromCanonicalBusiness(
+  business: CanonicalBusiness | null
+): BusinessProfile | null {
+  if (!business) return null
+
+  return {
+    business_name: business.name,
+    phone: business.phone,
+    address: business.address,
+    google_maps_url: business.google_maps_url,
+    logo_url: business.logo_url,
+    website_url: business.website_url,
+    display_name: business.name,
+    redemption_method: null,
+  }
+}
+
 export default async function BusinessDashboard({
+  businessId,
   businessLegacyProfileId,
   view = 'dashboard',
 }: BusinessDashboardProps = {}) {
@@ -91,64 +123,97 @@ export default async function BusinessDashboard({
 
   if (!user) return null
 
+  const requestedBusinessId = businessId?.trim() || null
+  const requestedLegacyProfileId = businessLegacyProfileId?.trim() || null
+
+  if (requestedBusinessId) {
+    const access = await canViewBusiness(requestedBusinessId)
+    if (!access.allowed) return null
+  }
+
+  const canonicalQuery = supabase
+    .from('businesses')
+    .select(CANONICAL_BUSINESS_FIELDS)
+
+  const { data: canonicalBusinessData } = requestedBusinessId
+    ? await canonicalQuery.eq('id', requestedBusinessId).maybeSingle()
+    : await canonicalQuery
+        .eq('legacy_profile_id', requestedLegacyProfileId ?? user.id)
+        .maybeSingle()
+
+  const canonicalBusiness =
+    (canonicalBusinessData as CanonicalBusiness | null) ?? null
+  const legacyProfileId =
+    canonicalBusiness?.legacy_profile_id ?? requestedLegacyProfileId
+  const businessProfileId = legacyProfileId ?? user.id
+
+  let profile: BusinessProfile | null = null
+
+  if (legacyProfileId || !canonicalBusiness) {
+    const profileWithRedemptionMethod = await supabase
+      .from('profiles')
+      .select(BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION)
+      .eq('id', businessProfileId)
+      .maybeSingle()
+
+    profile = profileWithRedemptionMethod.data as BusinessProfile | null
+
+    if (isMissingRedemptionMethodError(profileWithRedemptionMethod.error)) {
+      const { data: legacyProfile } = await supabase
+        .from('profiles')
+        .select(BUSINESS_PROFILE_FIELDS)
+        .eq('id', businessProfileId)
+        .maybeSingle()
+
+      profile = legacyProfile
+        ? {
+            ...legacyProfile,
+            redemption_method: null,
+          }
+        : null
+    }
+  }
+
+  if (!profile) {
+    profile = profileFromCanonicalBusiness(canonicalBusiness)
+  }
+
   const admin = createAdminClient()
   await (admin as any).rpc('finalize_due_redemptions')
 
-  const businessProfileId = businessLegacyProfileId?.trim() || user.id
-
-  const profileWithRedemptionMethod = await supabase
-    .from('profiles')
-    .select(BUSINESS_PROFILE_FIELDS_WITH_REDEMPTION)
-    .eq('id', businessProfileId)
-    .single()
-
-  let profile = profileWithRedemptionMethod.data as BusinessProfile | null
-
-  if (isMissingRedemptionMethodError(profileWithRedemptionMethod.error)) {
-    const { data: legacyProfile } = await supabase
-      .from('profiles')
-      .select(BUSINESS_PROFILE_FIELDS)
-      .eq('id', businessProfileId)
-      .single()
-
-    profile = legacyProfile
-      ? {
-          ...legacyProfile,
-          redemption_method: null,
-        }
-      : null
-  }
-
-  const { data: businessWorkspace } = await (supabase as any)
-    .from('businesses')
-    .select(
-      'id, status, subscription_tier, archived_at, archive_reason, restore_requested_at'
-    )
-    .eq('legacy_profile_id', businessProfileId)
-    .maybeSingle()
-
-  const lifecycle = businessWorkspace as BusinessWorkspaceLifecycle | null
+  const lifecycle = canonicalBusiness
+  const canonicalBusinessId = lifecycle?.id ?? requestedBusinessId
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
-  await reconcileDemoPartnerRewardsNetwork(lifecycle?.id ?? null)
+  await reconcileDemoPartnerRewardsNetwork(canonicalBusinessId)
   const [rewardsSummary, payoutStatus] = await Promise.all([
-    getPartnerRewardsSummary(lifecycle?.id ?? null),
-    getBusinessPayoutStatus(lifecycle?.id ?? null, { refreshStripe: view === 'rewards' }),
+    getPartnerRewardsSummary(canonicalBusinessId),
+    getBusinessPayoutStatus(canonicalBusinessId, {
+      refreshStripe: view === 'rewards',
+    }),
   ])
 
-  const { data: verification } = lifecycle?.id
+  const { data: verification } = canonicalBusinessId
     ? await (supabase as any)
         .from('business_verifications')
         .select('status')
-        .eq('business_id', lifecycle.id)
+        .eq('business_id', canonicalBusinessId)
         .maybeSingle()
     : { data: null }
 
-  const { data: offers } = await supabase
-    .from('offers')
-    .select('*')
-    .eq('business_id', businessProfileId)
-    .order('created_at', { ascending: false })
+  const offerBusinessIds = [
+    canonicalBusinessId,
+    legacyProfileId,
+    !canonicalBusinessId && !legacyProfileId ? user.id : null,
+  ].filter((value): value is string => Boolean(value))
+
+  const { data: offers } = offerBusinessIds.length
+    ? await supabase
+        .from('offers')
+        .select('*')
+        .in('business_id', offerBusinessIds)
+        .order('created_at', { ascending: false })
+    : { data: [] }
 
   const offerIds = (offers ?? []).map((offer) => offer.id)
 
@@ -290,7 +355,7 @@ export default async function BusinessDashboard({
       viewCount={viewCount}
       clickCount={clickCount}
       conversionRate={conversionRate}
-      businessId={lifecycle?.id ?? null}
+      businessId={canonicalBusinessId}
       businessStatus={lifecycle?.status ?? 'active'}
       archivedAt={lifecycle?.archived_at ?? null}
       archiveReason={lifecycle?.archive_reason ?? null}
