@@ -14,6 +14,8 @@ import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-of
 import { getOwnerAuthorizedBusinessOffers } from '@/lib/services/owner-business-offer-service'
 import type { OwnerBusinessRedemptionsResult } from '@/lib/services/owner-business-redemption-service'
 import { getOwnerAuthorizedBusinessRedemptions } from '@/lib/services/owner-business-redemption-service'
+import type { OwnerBusinessAnalyticsResult } from '@/lib/services/owner-business-analytics-service'
+import { getOwnerAuthorizedBusinessAnalytics } from '@/lib/services/owner-business-analytics-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import { getOwnerAuthorizedOrganizationCampaigns } from '@/lib/services/owner-organization-campaign-service'
 import type { OwnerOrganizationSellersResult } from '@/lib/services/owner-organization-seller-service'
@@ -40,9 +42,7 @@ type SupportPageProps = {
   }>
 }
 
-type ActorProfile = {
-  role: string
-}
+type ActorProfile = { role: string }
 
 const VALID_WORKSPACE_ROLES: WorkspaceRole[] = [
   'customer',
@@ -84,26 +84,15 @@ function resolveSelectedWorkspace({
   if (!workspaceId) return null
   const validWorkspaceRole = resolveWorkspaceRole(workspaceRole)
   if (!validWorkspaceRole) return null
-
-  return (
-    workspaces.find(
-      (workspace) =>
-        workspace.id === workspaceId &&
-        workspace.role === validWorkspaceRole
-    ) ?? null
-  )
+  return workspaces.find(
+    (workspace) => workspace.id === workspaceId && workspace.role === validWorkspaceRole
+  ) ?? null
 }
 
-export default async function OwnerSupportPage({
-  searchParams,
-}: SupportPageProps) {
+export default async function OwnerSupportPage({ searchParams }: SupportPageProps) {
   const params = searchParams ? await searchParams : {}
   const supabase = await createClient()
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) redirect('/login')
 
@@ -127,11 +116,17 @@ export default async function OwnerSupportPage({
 
   let businessOffersResult: OwnerBusinessOffersResult | null = null
   let businessRedemptionsResult: OwnerBusinessRedemptionsResult | null = null
+  let businessAnalyticsResult: OwnerBusinessAnalyticsResult | null = null
 
   if (selectedWorkspace?.role === 'business' && workspaceMode === 'read-only') {
-    ;[businessOffersResult, businessRedemptionsResult] = await Promise.all([
+    ;[
+      businessOffersResult,
+      businessRedemptionsResult,
+      businessAnalyticsResult,
+    ] = await Promise.all([
       getOwnerAuthorizedBusinessOffers(selectedWorkspace.id, selectedWorkspace.role),
       getOwnerAuthorizedBusinessRedemptions(selectedWorkspace.id, selectedWorkspace.role),
+      getOwnerAuthorizedBusinessAnalytics(selectedWorkspace.id, selectedWorkspace.role),
     ])
   }
 
@@ -152,7 +147,6 @@ export default async function OwnerSupportPage({
   }
 
   let customerActivityResult: OwnerCustomerActivityResult | null = null
-
   if (selectedWorkspace?.role === 'customer' && workspaceMode === 'read-only') {
     customerActivityResult = await getOwnerAuthorizedCustomerActivity(
       selectedWorkspace.id,
@@ -160,15 +154,9 @@ export default async function OwnerSupportPage({
     )
   }
 
-  const businessCount = workspaceResult.workspaces.filter(
-    (workspace) => workspace.role === 'business'
-  ).length
-  const organizationCount = workspaceResult.workspaces.filter(
-    (workspace) => workspace.role === 'organization'
-  ).length
-  const customerCount = workspaceResult.workspaces.filter(
-    (workspace) => workspace.role === 'customer'
-  ).length
+  const businessCount = workspaceResult.workspaces.filter((workspace) => workspace.role === 'business').length
+  const organizationCount = workspaceResult.workspaces.filter((workspace) => workspace.role === 'organization').length
+  const customerCount = workspaceResult.workspaces.filter((workspace) => workspace.role === 'customer').length
 
   const initialRole = resolveInitialRole(params.role)
   const initialEnvironment = resolveInitialEnvironment(params.environment)
@@ -178,14 +166,10 @@ export default async function OwnerSupportPage({
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-7xl">
         <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 transition hover:text-blue-900"
-          >
+          <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 transition hover:text-blue-900">
             <span aria-hidden="true">←</span>
             Owner dashboard
           </Link>
-
           <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Client Assistance</p>
@@ -222,12 +206,12 @@ export default async function OwnerSupportPage({
         {selectedWorkspace ? (
           <section className="mt-6 space-y-5">
             <SelectedWorkspacePanel workspace={selectedWorkspace} mode={workspaceMode} />
-
             {workspaceMode === 'read-only' ? (
               <ReadOnlyWorkspaceView
                 workspace={selectedWorkspace}
                 businessOffersResult={businessOffersResult}
                 businessRedemptionsResult={businessRedemptionsResult}
+                businessAnalyticsResult={businessAnalyticsResult}
                 organizationCampaignsResult={organizationCampaignsResult}
                 organizationSellersResult={organizationSellersResult}
                 organizationFinancialsResult={organizationFinancialsResult}
@@ -236,9 +220,7 @@ export default async function OwnerSupportPage({
             ) : (
               <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
                 <p className="font-bold text-blue-950">Workspace selected</p>
-                <p className="mt-2 text-sm leading-6 text-blue-900">
-                  Use Support Mode from the workspace card below to inspect account activity without entering the user experience.
-                </p>
+                <p className="mt-2 text-sm leading-6 text-blue-900">Use Support Mode from the workspace card below to inspect account activity without entering the user experience.</p>
               </div>
             )}
           </section>
