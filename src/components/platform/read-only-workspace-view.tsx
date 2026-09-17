@@ -4,12 +4,14 @@ import type {
 } from '@/lib/types/identity-access'
 import ReadOnlyBusinessOffersSection from '@/components/platform/read-only-business-offers-section'
 import ReadOnlyBusinessRedemptionsSection from '@/components/platform/read-only-business-redemptions-section'
+import ReadOnlyBusinessAnalyticsSection from '@/components/platform/read-only-business-analytics-section'
 import ReadOnlyOrganizationCampaignsSection from '@/components/platform/read-only-organization-campaigns-section'
 import ReadOnlyOrganizationSellersSection from '@/components/platform/read-only-organization-sellers-section'
 import ReadOnlyOrganizationFinancialsSection from '@/components/platform/read-only-organization-financials-section'
 import ReadOnlyCustomerActivitySection from '@/components/platform/read-only-customer-activity-section'
 import type { OwnerBusinessOffersResult } from '@/lib/services/owner-business-offer-service'
 import type { OwnerBusinessRedemptionsResult } from '@/lib/services/owner-business-redemption-service'
+import type { OwnerBusinessAnalyticsResult } from '@/lib/services/owner-business-analytics-service'
 import type { OwnerOrganizationCampaignsResult } from '@/lib/services/owner-organization-campaign-service'
 import type { OwnerOrganizationSellersResult } from '@/lib/services/owner-organization-seller-service'
 import type { OwnerOrganizationFinancialsResult } from '@/lib/services/owner-organization-financial-service'
@@ -19,6 +21,7 @@ type ReadOnlyWorkspaceViewProps = {
   workspace: WorkspaceCardData
   businessOffersResult?: OwnerBusinessOffersResult | null
   businessRedemptionsResult?: OwnerBusinessRedemptionsResult | null
+  businessAnalyticsResult?: OwnerBusinessAnalyticsResult | null
   organizationCampaignsResult?: OwnerOrganizationCampaignsResult | null
   organizationSellersResult?: OwnerOrganizationSellersResult | null
   organizationFinancialsResult?: OwnerOrganizationFinancialsResult | null
@@ -48,27 +51,23 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
       return [
         {
           title: 'Profile',
-          description:
-            'Review business identity, contact details, branding, and onboarding progress.',
+          description: 'Review business identity, contact details, branding, and onboarding progress.',
           status: 'available',
         },
         {
           title: 'Offers',
-          description:
-            'Review active, paused, scheduled, and expired business offers.',
+          description: 'Review active, paused, scheduled, and expired business offers.',
           status: 'available',
         },
         {
           title: 'Redemptions',
-          description:
-            'Review coupon usage, confirmation state, customer value, and rejected redemption activity for this business.',
+          description: 'Review coupon usage, confirmation state, customer value, and rejected redemption activity for this business.',
           status: 'available',
         },
         {
           title: 'Analytics',
-          description:
-            'Review offer views, clicks, conversion, and engagement.',
-          status: 'coming',
+          description: 'Review offer views, clicks, saves, confirmed redemptions, and conversion.',
+          status: 'available',
         },
       ]
 
@@ -76,26 +75,22 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
       return [
         {
           title: 'Profile',
-          description:
-            'Review organization identity, contact details, and onboarding progress.',
+          description: 'Review organization identity, contact details, and onboarding progress.',
           status: 'available',
         },
         {
           title: 'Campaigns',
-          description:
-            'Review draft, active, paused, completed, and archived fundraising campaigns.',
+          description: 'Review draft, active, paused, completed, and archived fundraising campaigns.',
           status: 'available',
         },
         {
           title: 'Sellers',
-          description:
-            'Review seller roster linkage, paid sales, and campaign performance.',
+          description: 'Review seller roster linkage, paid sales, and campaign performance.',
           status: 'available',
         },
         {
           title: 'Financials',
-          description:
-            'Review passes sold, gross volume, fees, organization earnings, and transfer activity.',
+          description: 'Review passes sold, gross volume, fees, organization earnings, and transfer activity.',
           status: 'available',
         },
       ]
@@ -104,26 +99,22 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
       return [
         {
           title: 'Profile',
-          description:
-            'Review customer identity, contact details, and account readiness.',
+          description: 'Review customer identity, contact details, and account readiness.',
           status: 'available',
         },
         {
           title: 'Purchased passes',
-          description:
-            'Review fundraiser passes associated with this customer.',
+          description: 'Review fundraiser passes associated with this customer.',
           status: 'available',
         },
         {
           title: 'Saved offers',
-          description:
-            'Review offers currently saved to the customer account.',
+          description: 'Review offers currently saved to the customer account.',
           status: 'available',
         },
         {
           title: 'Redemptions',
-          description:
-            'Review the customer’s coupon redemption history.',
+          description: 'Review the customer’s coupon redemption history.',
           status: 'available',
         },
       ]
@@ -131,10 +122,7 @@ function getWorkspaceAreas(role: WorkspaceRole): WorkspaceArea[] {
 }
 
 function getProgressWidth(percentage?: number | null): string {
-  const safePercentage = Math.max(
-    0,
-    Math.min(100, Math.round(percentage ?? 0))
-  )
+  const safePercentage = Math.max(0, Math.min(100, Math.round(percentage ?? 0)))
   return `${safePercentage}%`
 }
 
@@ -142,6 +130,7 @@ export default function ReadOnlyWorkspaceView({
   workspace,
   businessOffersResult = null,
   businessRedemptionsResult = null,
+  businessAnalyticsResult = null,
   organizationCampaignsResult = null,
   organizationSellersResult = null,
   organizationFinancialsResult = null,
@@ -153,17 +142,13 @@ export default function ReadOnlyWorkspaceView({
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-slate-950 px-4 py-5 text-white sm:px-6">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-300">
-          Read-only workspace
-        </p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-300">Read-only workspace</p>
         <div className="mt-2 flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="break-words text-xl font-bold">{workspace.name}</h2>
             <p className="mt-1 text-sm text-slate-300">{getRoleLabel(workspace.role)} account</p>
           </div>
-          <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold">
-            Viewing only
-          </span>
+          <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold">Viewing only</span>
         </div>
       </div>
 
@@ -181,9 +166,7 @@ export default function ReadOnlyWorkspaceView({
           <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
             <div className="h-full rounded-full bg-blue-600" style={{ width: getProgressWidth(workspace.setupPercentage) }} />
           </div>
-          <p className="mt-2 text-sm text-slate-600">
-            {workspace.completedSetupItems ?? 0} of {workspace.totalSetupItems ?? 0} items complete
-          </p>
+          <p className="mt-2 text-sm text-slate-600">{workspace.completedSetupItems ?? 0} of {workspace.totalSetupItems ?? 0} items complete</p>
         </article>
         <article className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Contact</p>
@@ -235,9 +218,7 @@ export default function ReadOnlyWorkspaceView({
           ))}
         </div>
         <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-          <p className="text-sm leading-6 text-blue-900">
-            This view is intentionally read-only. Support data is loaded through owner-authorized repository and service queries without entering or mutating the client workspace.
-          </p>
+          <p className="text-sm leading-6 text-blue-900">This view is intentionally read-only. Support data is loaded through owner-authorized repository and service queries without entering or mutating the client workspace.</p>
         </div>
       </div>
 
@@ -245,6 +226,7 @@ export default function ReadOnlyWorkspaceView({
         <>
           <ReadOnlyBusinessOffersSection offersResult={businessOffersResult} />
           <ReadOnlyBusinessRedemptionsSection redemptionsResult={businessRedemptionsResult} />
+          <ReadOnlyBusinessAnalyticsSection analyticsResult={businessAnalyticsResult} />
         </>
       ) : null}
 
