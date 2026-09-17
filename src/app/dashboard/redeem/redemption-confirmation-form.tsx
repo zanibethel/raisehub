@@ -4,8 +4,19 @@ import { useState, useTransition } from 'react'
 
 import { confirmRedemptionAction } from '@/app/redemptions/actions'
 
-export default function RedemptionConfirmationForm() {
-  const [code, setCode] = useState('')
+type Props = {
+  initialCode?: string
+}
+
+function normalizeCode(value: string) {
+  return value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6)
+}
+
+export default function RedemptionConfirmationForm({ initialCode = '' }: Props) {
+  const [code, setCode] = useState(normalizeCode(initialCode))
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -41,18 +52,11 @@ export default function RedemptionConfirmationForm() {
       <label className="block">
         <span className="text-sm font-bold text-slate-900">Supporter verification code</span>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Enter the code only when you want to confirm a redemption immediately. Normal redemptions do not require this step.
+          Scan the supporter’s RaiseHub QR code or enter the short code manually to confirm a redemption immediately. Normal redemptions do not require this step.
         </p>
         <input
           value={code}
-          onChange={(event) =>
-            setCode(
-              event.target.value
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, '')
-                .slice(0, 6)
-            )
-          }
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
           inputMode="text"
           autoCapitalize="characters"
           autoComplete="off"
@@ -63,6 +67,12 @@ export default function RedemptionConfirmationForm() {
         />
       </label>
 
+      {initialCode && code ? (
+        <p className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-bold text-blue-800">
+          QR code detected. Review the code, then tap Verify Now.
+        </p>
+      ) : null}
+
       <button
         type="submit"
         disabled={isPending || code.length !== 6}
@@ -72,7 +82,7 @@ export default function RedemptionConfirmationForm() {
       </button>
 
       <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-        This optional verification path is designed to become the same foundation used by future QR and POS integrations.
+        QR scanning and manual code entry confirm the same RaiseHub redemption record.
       </p>
 
       {message ? (
