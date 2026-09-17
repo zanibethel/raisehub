@@ -5,10 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type DemoLaunchResponse = {
-  error?: string
-  href?: string
-}
+const BUSINESS_DEMO_URL = 'https://raisehub-demo.vercel.app/demo?role=business'
 
 const partnershipFlow = [
   {
@@ -53,8 +50,6 @@ export default function BusinessSignupPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [demoLaunching, setDemoLaunching] = useState(false)
-  const [demoError, setDemoError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -101,32 +96,6 @@ export default function BusinessSignupPage() {
     setLoading(false)
   }
 
-  async function launchBusinessDemo() {
-    setDemoLaunching(true)
-    setDemoError(null)
-
-    try {
-      const response = await fetch('/api/demo/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ role: 'business' }),
-      })
-      const result = (await response.json()) as DemoLaunchResponse
-
-      if (!response.ok || result.error) {
-        setDemoError(result.error ?? 'The business demo could not be launched.')
-        setDemoLaunching(false)
-        return
-      }
-
-      window.location.assign(result.href?.trim() || '/dashboard')
-    } catch {
-      setDemoError('The business demo could not be reached. Please try again.')
-      setDemoLaunching(false)
-    }
-  }
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-6xl">
@@ -155,21 +124,13 @@ export default function BusinessSignupPage() {
                     Your offer helps make the fundraiser valuable. RaiseHub connects that value to local supporters and gives them a reason to walk through your door.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={launchBusinessDemo}
-                  disabled={demoLaunching}
-                  className="shrink-0 rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
+                <a
+                  href={BUSINESS_DEMO_URL}
+                  className="shrink-0 rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-center text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
-                  {demoLaunching ? 'Opening Business Demo…' : 'Explore Business Demo →'}
-                </button>
+                  Explore Business Demo →
+                </a>
               </div>
-
-              {demoError ? (
-                <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {demoError}
-                </p>
-              ) : null}
 
               <div className="mt-7 space-y-0">
                 {partnershipFlow.map((step, index) => (
@@ -227,14 +188,12 @@ export default function BusinessSignupPage() {
             <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-center">
               <p className="text-sm font-bold text-gray-900">Want to look around first?</p>
               <p className="mt-1 text-xs leading-5 text-gray-600">Open a sample business workspace with demo data. Nothing you do there affects live businesses.</p>
-              <button
-                type="button"
-                onClick={launchBusinessDemo}
-                disabled={demoLaunching}
-                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
+              <a
+                href={BUSINESS_DEMO_URL}
+                className="mt-3 block w-full rounded-xl bg-blue-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               >
-                {demoLaunching ? 'Opening Business Demo…' : 'Explore Business Demo'}
-              </button>
+                Explore Business Demo
+              </a>
             </div>
 
             <div className="mt-6 border-t border-gray-200 pt-5 text-sm text-gray-600">
