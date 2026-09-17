@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import InsightCard from '@/components/dashboard/insight-card'
-import { createClient } from '@/lib/supabase/client'
+import { getBusinessOfferWizardContextAction } from '@/app/dashboard/offer-wizard-actions'
 
 type BusinessDashboardCreateOfferProps = {
   activeOffersCount: number
@@ -32,34 +32,33 @@ export default function BusinessDashboardCreateOffer({
   )
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadSavedDraft() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const result = await getBusinessOfferWizardContextAction()
+      if (cancelled || !result.success || !result.savedDraft) return
 
-      if (!user) return
+      const row = result.savedDraft as {
+        draft?: unknown
+        updated_at?: unknown
+      }
+      if (!row.draft || typeof row.draft !== 'object' || Array.isArray(row.draft)) return
 
-      const { data } = await supabase
-        .from('business_offer_drafts')
-        .select('draft, updated_at')
-        .eq('business_id', user.id)
-        .maybeSingle()
-
-      if (!data || !data.draft || typeof data.draft !== 'object') return
-
-      const draft = data.draft as { title?: unknown }
+      const draft = row.draft as { title?: unknown }
       setSavedDraft({
         title:
           typeof draft.title === 'string' && draft.title.trim()
             ? draft.title.trim()
             : 'Saved offer draft',
         updatedAt:
-          typeof data.updated_at === 'string' ? data.updated_at : null,
+          typeof row.updated_at === 'string' ? row.updated_at : null,
       })
     }
 
-    loadSavedDraft()
+    void loadSavedDraft()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const resumeCard = savedDraft ? (
@@ -88,7 +87,7 @@ export default function BusinessDashboardCreateOffer({
         {resumeCard}
         <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5">
           <h2 className="font-bold text-yellow-900">
-            You are using all {activeOfferLimit} free active offers
+            You are using all {activeOfferLimit} active offer slots
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-yellow-800">
@@ -117,7 +116,7 @@ export default function BusinessDashboardCreateOffer({
             ? 'Create your first exclusive offer'
             : isGrowthPlan
               ? 'Create another Growth offer'
-              : `You can publish ${remainingOfferSlots} more free offer${
+              : `You can publish ${remainingOfferSlots} more active offer${
                   remainingOfferSlots === 1 ? '' : 's'
                 }`
         }
@@ -125,7 +124,7 @@ export default function BusinessDashboardCreateOffer({
           activeOffersCount === 0
             ? 'Use the guided RaiseHub wizard to create a members-only offer.'
             : isGrowthPlan
-              ? 'Growth removes the free active-offer limit, so you can build offers around multiple customer goals.'
+              ? 'Growth removes the standard active-offer limit, so you can build offers around multiple customer goals.'
               : 'Create an offer aimed at a different customer goal than your existing promotions.'
         }
         recommendation="Choose one high-value offer that stays inexpensive to fulfill."
