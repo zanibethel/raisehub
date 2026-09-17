@@ -1,6 +1,7 @@
 import { evaluateCampaignPublishingEligibility } from '@/lib/campaign-publishing/evaluate'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
+import { canViewOrganization } from '@/lib/services/capability-resolution-service'
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -8,6 +9,7 @@ import type { OrganizationWorkspaceView } from './organization-dashboard-content
 import OrganizationWorkspaceFrame from './organization-workspace-frame'
 
 type OrganizationDashboardProps = {
+  organizationId?: string | null
   organizationLegacyProfileId?: string | null
   view?: OrganizationWorkspaceView
 }
@@ -50,6 +52,7 @@ type CanonicalOrganizationPricingRow = {
   name: string | null
   town_name: string | null
   state_code: string | null
+  is_demo: boolean | null
 }
 
 type OrganizationMembershipRoleRow = { membership_role: string }
@@ -117,6 +120,7 @@ function netPurchaseAmounts(purchase: CampaignPurchase) {
 }
 
 export default async function OrganizationDashboard({
+  organizationId,
   organizationLegacyProfileId,
   view = 'dashboard',
 }: OrganizationDashboardProps = {}) {
@@ -126,24 +130,37 @@ export default async function OrganizationDashboard({
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const organizationProfileId =
-    organizationLegacyProfileId?.trim() || user.id
+  const requestedOrganizationId = organizationId?.trim() || null
+  const requestedLegacyProfileId =
+    organizationLegacyProfileId?.trim() || null
 
-  const [{ data: organizationProfile }, { data: canonicalOrganization }] =
-    await Promise.all([
-      supabase
+  if (requestedOrganizationId) {
+    const access = await canViewOrganization(requestedOrganizationId)
+    if (!access.allowed) return null
+  }
+
+  const canonicalQuery = supabase
+    .from('organizations')
+    .select('id, legacy_profile_id, name, town_name, state_code, is_demo')
+
+  const { data: canonicalOrganization } = requestedOrganizationId
+    ? await canonicalQuery.eq('id', requestedOrganizationId).maybeSingle<CanonicalOrganizationPricingRow>()
+    : await canonicalQuery
+        .eq('legacy_profile_id', requestedLegacyProfileId ?? user.id)
+        .maybeSingle<CanonicalOrganizationPricingRow>()
+
+  const canonicalOrganizationId = canonicalOrganization?.id ?? requestedOrganizationId
+  const organizationProfileId =
+    canonicalOrganization?.legacy_profile_id ?? requestedLegacyProfileId
+
+  const { data: organizationProfile } = organizationProfileId
+    ? await supabase
         .from('profiles')
         .select('is_demo')
         .eq('id', organizationProfileId)
-        .maybeSingle(),
-      supabase
-        .from('organizations')
-        .select('id, legacy_profile_id, name, town_name, state_code')
-        .eq('legacy_profile_id', organizationProfileId)
-        .maybeSingle<CanonicalOrganizationPricingRow>(),
-    ])
+        .maybeSingle()
+    : { data: null }
 
-  const canonicalOrganizationId = canonicalOrganization?.id ?? null
   const { data: organizationMembership } = canonicalOrganizationId
     ? await supabase
         .from('organization_memberships')
@@ -157,22 +174,34 @@ export default async function OrganizationDashboard({
   const isSellerWorkspace =
     organizationMembership?.membership_role === 'seller'
   const canManageOrganization = Boolean(
-    canonicalOrganization?.legacy_profile_id === user.id ||
+    organizationProfileId === user.id ||
       organizationMembership?.membership_role === 'admin' ||
       organizationMembership?.membership_role === 'manager'
   )
+  const isDemoOrganization =
+    organizationProfile?.is_demo ?? canonicalOrganization?.is_demo ?? false
 
   const campaignCreationPricing = await resolveEffectivePricing({
     organizationId: canonicalOrganizationId,
-    isDemo: organizationProfile?.is_demo ?? false,
+    isDemo: isDemoOrganization,
   })
 
   let campaignQuery = supabase.from('campaigns').select('*')
-  campaignQuery = canonicalOrganizationId
-    ? campaignQuery.or(
-        `canonical_organization_id.eq.${canonicalOrganizationId},organization_id.eq.${organizationProfileId}`
-      )
-    : campaignQuery.eq('organization_id', organizationProfileId)
+  if (canonicalOrganizationId && organizationProfileId) {
+    campaignQuery = campaignQuery.or(
+      `canonical_organization_id.eq.${canonicalOrganizationId},organization_id.eq.${organizationProfileId}`
+    )
+  } else if (canonicalOrganizationId) {
+    campaignQuery = campaignQuery.eq(
+      'canonical_organization_id',
+      canonicalOrganizationId
+    )
+  } else {
+    campaignQuery = campaignQuery.eq(
+      'organization_id',
+      organizationProfileId ?? user.id
+    )
+  }
 
   const [{ data: campaigns }, stripeAccountResult] = await Promise.all([
     campaignQuery.order('created_at', { ascending: false }),
