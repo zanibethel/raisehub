@@ -160,6 +160,41 @@ Owner Support can now review:
 
 ---
 
+### Canonical workspace dashboard bridge
+
+**Prior state:** A canonical Business or Organization workspace without a `legacy_profile_id` could be recognized by access control but blocked by the dashboard with **workspace is not connected yet**.
+
+**Status:** PRIMARY DASHBOARD PATHS LIVE
+
+The main Business and Organization experiences now route by canonical workspace ID. Legacy profile IDs remain compatibility data rather than a prerequisite for opening the selected workspace.
+
+Business migration completed during this audit:
+
+- Main dashboard routes the canonical `businesses.id` into the Business dashboard loader.
+- Business profile data can load directly from `businesses` when no legacy profile exists.
+- Offer reads accept canonical and legacy-linked offer rows during the transition.
+- Offer create, edit, pause, and reactivate actions resolve the currently selected Business workspace server-side.
+- Offer RLS now authorizes active Business members for reads and limits writes to Owner/Manager memberships.
+- `/dashboard/offers` edits the selected canonical Business instead of silently editing `profiles.id = auth.uid()`.
+- Canonical businesses receive a workspace-linked profile editor with membership authorization.
+- Offer recommendations use the canonical Business category.
+- Saved offer drafts are now isolated by canonical Business through `business_workspace_offer_drafts`; the old user-owned draft table remains intact for legacy-only accounts.
+- A person managing multiple businesses can therefore maintain separate business-owned drafts rather than sharing one user-level draft.
+- Rewards and Reports preserve the selected canonical Business ID.
+
+Organization migration confirmed during this audit:
+
+- Main dashboard routes canonical `organizations.id` directly into the Organization dashboard loader.
+- Campaign reads use `canonical_organization_id` with legacy fallback only where required for historical rows.
+- Campaign creation already writes `canonical_organization_id` and authorizes Organization Admin/Manager membership.
+- Campaign update/review actions already resolve authorization through the canonical Organization when present.
+- Campaigns and Reports preserve the selected canonical Organization ID.
+- Seller and financial dashboard data already operate from canonical Organization context.
+
+The previous `WorkspaceUnavailable` bridge is no longer required by the primary dashboard router. Existing legacy links remain supported so this migration does not strand older accounts.
+
+---
+
 ## 2. Already Live — Placeholder-Like Fallback Is Defensive
 
 ### Cron configuration guards
@@ -299,32 +334,29 @@ The business website builder exists, but there is not yet a clear public RaiseHu
 
 ---
 
-## 4. Architectural Debt — Real, But Do Not Bypass
+## 4. Architectural Debt — Remaining Compatibility Work
 
-### Canonical workspace without legacy dashboard connection
+### Legacy-profile compatibility references
 
-**Customer-facing fallback:** `{workspace.name} is not connected yet`
+**Status:** NON-BLOCKING TRANSITION DEBT
 
-**Status:** REAL ARCHITECTURAL GAP
+`legacy_profile_id` still exists throughout RaiseHub because historical Business and Organization data was originally attached to profile IDs. It should not be removed wholesale until historical rows are migrated or their canonical linkage is proven complete.
 
-The current dashboard still depends on a legacy profile connection for some business and organization experiences. When a canonical workspace exists without that bridge, RaiseHub deliberately shows a safe unavailable state rather than loading unrelated account data.
+The key distinction after this audit is:
 
-This is the correct safety behavior today, but it is not the desired end state.
+- A missing legacy profile no longer blocks the primary selected Business or Organization dashboard.
+- New Business offer writes can use the canonical Business ID.
+- New Organization campaigns already store the canonical Organization ID.
+- Legacy IDs remain as explicit compatibility fallbacks for historical rows and older accounts.
 
-**Recommended next project:**
+Remaining work should therefore be handled as targeted compatibility cleanup, not by restoring a global legacy-profile requirement.
 
-Move Business and Organization dashboard loaders to accept the canonical workspace ID directly, then remove the legacy-profile requirement one dashboard section at a time.
+Recommended follow-up checks:
 
-Do **not** solve this by guessing a legacy profile, falling back to the signed-in profile, or weakening workspace isolation.
-
-Suggested migration order:
-
-1. Business profile / offers.
-2. Business redemptions / analytics / rewards.
-3. Organization campaigns.
-4. Organization seller roster.
-5. Organization financials / Stripe connection.
-6. Remove the `WorkspaceUnavailable` legacy bridge only after all role loaders resolve canonically.
+1. Runtime-test a brand-new canonical Business with no legacy profile from signup through profile edit, offer draft, publish, pause/reactivate, QR redemption, analytics, and Partner Rewards.
+2. Runtime-test a brand-new canonical Organization from signup through profile completion, campaign creation/review, seller roster, checkout, financial reporting, and Stripe payout onboarding.
+3. Search individual specialty routes for direct `profiles.id = auth.uid()` assumptions and migrate only those that represent workspace-owned state.
+4. Keep legacy fallbacks until historical production records have an explicit canonical owner.
 
 ---
 
@@ -348,9 +380,9 @@ These are legitimate states when a user or network has not created data yet.
 
 ### Highest priority
 
-**Canonical workspace -> dashboard migration**
+**Canonical workspace runtime verification + targeted compatibility cleanup**
 
-Reason: this is the remaining placeholder that can block a legitimately authorized user from using an otherwise-created workspace.
+Reason: the architectural blocker has been removed from the primary dashboard path. The next job is proving the no-legacy-profile flows end-to-end and finding any specialty route that still stores workspace-owned data against the signed-in person.
 
 ### Integration backlog
 
