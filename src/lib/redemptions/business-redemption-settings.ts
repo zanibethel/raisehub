@@ -34,7 +34,7 @@ const BUSINESS_REDEMPTION_DESCRIPTION =
   'RaiseHub records customer redemptions immediately and gives your business a 24-hour review window for exceptions.'
 
 const BUSINESS_REDEMPTION_HELPER_TEXT =
-  '24-Hour Auto Validation is the core workflow. Instant verification is an optional checkout tool; QR, discount-code, and POS integrations will confirm the same redemption record as they are released.'
+  '24-Hour Auto Validation is the core workflow. Manual code entry and QR Instant Verification are optional tools for immediate confirmation. POS discount-code and Square integrations remain planned.'
 
 function getBusinessRedemptionSettingOption({
   option,
