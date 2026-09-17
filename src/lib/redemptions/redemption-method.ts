@@ -57,10 +57,10 @@ const REDEMPTION_METHOD_OPTIONS: RedemptionMethodOption[] = [
   },
   {
     value: 'qr_code',
-    label: 'QR / POS Code',
+    label: 'QR Instant Verification',
     description:
-      'A scannable RaiseHub code can confirm the same redemption through a supported point-of-sale workflow.',
-    availability: 'planned',
+      'Customers receive a short-lived QR after redeeming. Staff can scan it with a phone camera to open RaiseHub Instant Verification with the code prefilled.',
+    availability: 'supplemental',
   },
   {
     value: 'staff_code',
