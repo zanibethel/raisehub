@@ -79,12 +79,18 @@ export default function BusinessSignupPage() {
 
     async function routeExistingAccount() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!cancelled && user) router.replace('/workspace/new/business')
+      if (cancelled || !user) return
+
+      const destination = referralToken
+        ? `/workspace/new/business?ref=${encodeURIComponent(referralToken)}`
+        : '/workspace/new/business'
+
+      router.replace(destination)
     }
 
     void routeExistingAccount()
     return () => { cancelled = true }
-  }, [router, supabase])
+  }, [referralToken, router, supabase])
 
   const businessDemoUrl = referralToken
     ? `${BUSINESS_DEMO_URL}&ref=${encodeURIComponent(referralToken)}`
@@ -98,7 +104,7 @@ export default function BusinessSignupPage() {
     const destination = '/onboarding/business'
     const rememberedToken = referralToken || readBusinessReferralCookie(document.cookie) || ''
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         data: {
@@ -226,18 +232,18 @@ export default function BusinessSignupPage() {
             <form onSubmit={handleSignup} className="mt-6 space-y-4">
               <div>
                 <label htmlFor="business-signup-email" className="mb-2 block text-sm font-medium text-gray-700">Business email</label>
-                <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
+                <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" autoComplete="email" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
               </div>
               <div>
                 <label htmlFor="business-signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
-                <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
+                <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} autoComplete="new-password" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
               </div>
               <button disabled={loading} className="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white shadow transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading ? 'Creating account...' : 'Become a RaiseHub Partner'}
               </button>
             </form>
 
-            {message ? <p className={`mt-4 text-sm ${message.startsWith('Account created') ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
+            {message ? <p aria-live="polite" className={`mt-4 text-sm ${message.startsWith('Account created') ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
 
             <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-center">
               <p className="text-sm font-bold text-gray-900">Want to look around first?</p>
