@@ -60,9 +60,12 @@ test('selects unique redemption-event offer ids missing from the active set', ()
 test('skips the historical query when no missing redemption offers exist', () => {
   assert.match(
     historicalLoaderSource,
-    /historicalOfferIds\.length > 0\s*\? await supabase/
+    /const historicalOffersQuery = historicalOfferIds\.length > 0\s*\? supabase/
   )
-  assert.match(historicalLoaderSource, /:\s*\{ data: \[\] \}/)
+  assert.match(
+    historicalLoaderSource,
+    /const \{ data: historicalOffersData \} = historicalOffersQuery\s*\? await applyEnvironmentScope\(historicalOffersQuery, environment\)\s*:\s*\{ data: \[\] \}/
+  )
 })
 
 test('loads historical offers by redemption event offer ids', () => {

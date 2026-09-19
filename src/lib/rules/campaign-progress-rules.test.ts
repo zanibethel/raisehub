@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildSellableCampaignOption } from './campaign-progress-rules'
+import {
+  buildSellableCampaignOption,
+  isCampaignPurchaseProgressEligible,
+} from './campaign-progress-rules'
 
 type CampaignInput =
   Parameters<
@@ -90,5 +93,59 @@ test(
       invalidPrice.passPrice,
       null
     )
+  }
+)
+
+test(
+  'counts only explicit successful payment states toward campaign progress',
+  () => {
+    for (const status of [
+      'test_paid',
+      'paid',
+      'succeeded',
+      'completed',
+      'captured',
+      'settled',
+      ' PAID ',
+    ]) {
+      assert.equal(
+        isCampaignPurchaseProgressEligible(status),
+        true,
+        status
+      )
+    }
+  }
+)
+
+test(
+  'excludes pending failed refunded and disputed payment states from campaign progress',
+  () => {
+    for (const status of [
+      null,
+      undefined,
+      '',
+      'pending',
+      'processing',
+      'failed',
+      'cancelled',
+      'canceled',
+      'refunded',
+      'partially_refunded',
+      'disputed',
+      'dispute_lost',
+      'chargeback',
+      'requires_action',
+      'requires_payment_method',
+      'incomplete',
+      'expired',
+      'voided',
+      'unknown',
+    ]) {
+      assert.equal(
+        isCampaignPurchaseProgressEligible(status),
+        false,
+        String(status)
+      )
+    }
   }
 )

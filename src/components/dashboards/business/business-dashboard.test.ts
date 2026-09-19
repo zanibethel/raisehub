@@ -30,7 +30,7 @@ test('requests redemption method in the primary profile query', () => {
 test('continues to scope the profile query to the selected business', () => {
   assert.match(
     dashboardSource,
-    /\.eq\('id', businessProfileId\)\s*\.single\(\)/
+    /\.eq\('id', businessProfileId\)\s*\.maybeSingle\(\)/
   )
 })
 
