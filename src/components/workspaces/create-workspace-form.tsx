@@ -10,6 +10,7 @@ type WorkspaceKind = 'business' | 'organization'
 
 type Props = {
   kind: WorkspaceKind
+  referralToken?: string
 }
 
 const COPY = {
@@ -41,7 +42,7 @@ const COPY = {
   },
 } as const
 
-export default function CreateWorkspaceForm({ kind }: Props) {
+export default function CreateWorkspaceForm({ kind, referralToken }: Props) {
   const router = useRouter()
   const copy = COPY[kind]
   const [name, setName] = useState('')
@@ -84,6 +85,24 @@ export default function CreateWorkspaceForm({ kind }: Props) {
     if (!workspaceId) {
       setMessage('The workspace was created, but RaiseHub could not open it automatically.')
       setLoading(false)
+      return
+    }
+
+    if (kind === 'business') {
+      const token = referralToken?.trim()
+      if (token) {
+        const { error: referralError } = await supabase.rpc('claim_business_referral', {
+          p_referral_token: token,
+          p_referred_business_id: workspaceId,
+        })
+
+        if (referralError) {
+          console.error('Unable to link business referral after workspace creation.')
+        }
+      }
+
+      router.push('/onboarding/business')
+      router.refresh()
       return
     }
 

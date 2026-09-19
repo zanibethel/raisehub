@@ -13,6 +13,14 @@ const campaignPageSource = fs.readFileSync(
   'utf8'
 )
 
+const campaignProgressMigrationSource = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'supabase/migrations/20260806221500_harden_public_campaign_rpcs_by_environment.sql'
+  ),
+  'utf8'
+)
+
 test('campaign recovery and progress RPCs include explicit environment expectations', () => {
   assert.match(campaignRepositorySource, /get_campaign_recovery_context/)
   assert.match(campaignRepositorySource, /get_public_campaign_progress/)
@@ -34,5 +42,49 @@ test('campaign detail route preserves live mode while passing environment to ref
   assert.match(
     campaignPageSource,
     /getPublicCampaignProgress\([\s\S]*\[campaign\.id\],[\s\S]*environment[\s\S]*\)/
+  )
+})
+
+
+test('public campaign progress counts only explicit successful payment states', () => {
+  const progressFunctionStart = campaignProgressMigrationSource.indexOf(
+    'create or replace function public.get_public_campaign_progress'
+  )
+  const sellersFunctionStart = campaignProgressMigrationSource.indexOf(
+    'create or replace function public.get_public_campaign_sellers'
+  )
+
+  assert.notEqual(progressFunctionStart, -1)
+  assert.notEqual(sellersFunctionStart, -1)
+
+  const progressFunction = campaignProgressMigrationSource.slice(
+    progressFunctionStart,
+    sellersFunctionStart
+  )
+
+  for (const status of [
+    'test_paid',
+    'paid',
+    'succeeded',
+    'completed',
+    'captured',
+    'settled',
+  ]) {
+    assert.match(progressFunction, new RegExp(`'${status}'`))
+  }
+
+  for (const status of [
+    'pending',
+    'failed',
+    'refunded',
+    'partially_refunded',
+    'disputed',
+  ]) {
+    assert.doesNotMatch(progressFunction, new RegExp(`'${status}'`))
+  }
+
+  assert.match(
+    progressFunction,
+    /then coalesce\(cp\.organization_earnings, 0\)\s*else 0/
   )
 })

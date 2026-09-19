@@ -79,12 +79,18 @@ export default function BusinessSignupPage() {
 
     async function routeExistingAccount() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!cancelled && user) router.replace('/workspace/new/business')
+      if (cancelled || !user) return
+
+      const destination = referralToken
+        ? `/workspace/new/business?ref=${encodeURIComponent(referralToken)}`
+        : '/workspace/new/business'
+
+      router.replace(destination)
     }
 
     void routeExistingAccount()
     return () => { cancelled = true }
-  }, [router, supabase])
+  }, [referralToken, router, supabase])
 
   const businessDemoUrl = referralToken
     ? `${BUSINESS_DEMO_URL}&ref=${encodeURIComponent(referralToken)}`
@@ -98,7 +104,7 @@ export default function BusinessSignupPage() {
     const destination = '/onboarding/business'
     const rememberedToken = referralToken || readBusinessReferralCookie(document.cookie) || ''
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         data: {

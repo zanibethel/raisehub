@@ -22,7 +22,7 @@ test(
 
     assert.equal(
       guidance.loadingLabel,
-      'Redeeming...'
+      'Recording Redemption...'
     )
   }
 )
@@ -32,27 +32,34 @@ test(
 // =============================================================================
 
 test(
-  'warns the customer to wait for business staff',
+  'explains immediate redemption and the business review window',
   () => {
     const guidance =
       getUseOfferGuidance()
 
     assert.match(
       guidance.confirmationMessage,
-      /staff member is ready/i
+      /participating business/i
     )
-  }
-)
-
-test(
-  'warns that redemption cannot be undone',
-  () => {
-    const guidance =
-      getUseOfferGuidance()
 
     assert.match(
       guidance.confirmationMessage,
-      /cannot be undone/i
+      /records it immediately/i
+    )
+
+    assert.match(
+      guidance.confirmationMessage,
+      /24 hours/i
+    )
+
+    assert.match(
+      guidance.confirmationMessage,
+      /unauthorized redemption/i
+    )
+
+    assert.match(
+      guidance.confirmationMessage,
+      /confirms automatically/i
     )
 
     assert.match(

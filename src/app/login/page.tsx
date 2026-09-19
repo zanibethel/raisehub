@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { getSafeInternalPath } from '@/lib/navigation/safe-internal-path'
 import { createClient } from '@/lib/supabase/client'
 
 function GoogleIcon() {
@@ -28,8 +29,7 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return '/dashboard'
 
     const next = new URLSearchParams(window.location.search).get('next')
-
-    return next?.startsWith('/') ? next : '/dashboard'
+    return getSafeInternalPath(next)
   }
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {

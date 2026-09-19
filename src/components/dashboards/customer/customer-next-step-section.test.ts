@@ -12,7 +12,7 @@ const nextStepSource = readFileSync(
 
 const dashboardSource = readFileSync(
   new URL(
-    './customer-dashboard-content.tsx',
+    './customer-dashboard.tsx',
     import.meta.url
   ),
   'utf8'
@@ -100,35 +100,17 @@ test(
 )
 
 test(
-  'wires live dashboard counts into next-step guidance',
+  'keeps current dashboard shortcuts aligned with focused customer routes',
   () => {
     assert.ok(
       dashboardSource.includes(
-        '<CustomerNextStepSection'
+        'href="/dashboard/deals#available-offers"'
       )
     )
 
     assert.ok(
       dashboardSource.includes(
-        'availableOfferCount={'
-      )
-    )
-
-    assert.ok(
-      dashboardSource.includes(
-        'savedDealCount={'
-      )
-    )
-
-    assert.ok(
-      dashboardSource.includes(
-        'readyToUseDealCount={'
-      )
-    )
-
-    assert.ok(
-      dashboardSource.includes(
-        'purchaseCount={'
+        'href="/dashboard/activity"'
       )
     )
   }

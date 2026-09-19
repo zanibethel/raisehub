@@ -1,188 +1,170 @@
-# Launch readiness report
+# RaiseHub Launch Readiness Report
 
-Current verdict:
-- NO-GO unless all remaining launch-critical checks are proven
+**Last verified:** 2026-09-19  
+**Verification branch:** `chatgpt/launch-readiness-2026-09-19`  
+**Pull request:** #142  
+**Current state:** Launch-hardening changes verified in Preview; production merge remains owner-gated.
 
-Completed:
-- Audited all application call sites for `get_campaign_recovery_context(uuid)`, `get_public_campaign_progress(uuid[])`, `get_public_campaign_sellers(uuid)`, and `resolve_campaign_seller_referral(uuid, text)`
-- Added a shared environment-aware RPC contract in app code with explicit `expected environment mode` and `expected demo group`
-- Updated public campaign recovery/progress/referral call sites to pass environment expectations
-- Added backward-compatible RPC fallback behavior so app can deploy before SQL without breaking public pages
-- Prepared a new migration with hardened environment-aware signatures and grant/revoke updates
-- Updated local Supabase typings for changed/new RPC signatures
-- Added regression tests for strict RPC environment argument wiring and live-mode compatibility
+---
 
-Application changes:
-- `src/lib/data-environment.ts`
-- `src/lib/data-environment.test.ts`
-- `src/lib/repositories/campaign-repository.ts`
-- `src/lib/repositories/public-campaign-repository.ts`
-- `src/lib/repositories/public-campaign-repository.test.ts`
-- `src/lib/repositories/public-rpc-environment-contract.test.ts`
-- `src/app/campaigns/[id]/page.tsx`
-- `src/lib/supabase/database.types.ts`
+## Executive Summary
 
-Migration prepared:
-- `supabase/migrations/20260806221500_harden_public_campaign_rpcs_by_environment.sql`
+RaiseHub is no longer in the state described by the older July project-status checklist. The current repository contains working payment, redemption, workspace, owner-console, analytics, notification, demo/live-boundary, and Stripe foundations that were added after that document was written.
 
-Supabase status:
-- Prepared, not applied
+The current launch-hardening branch resolves or verifies several concrete readiness issues:
 
-Tests:
-- Pending local run: `npm test`
-- Pending local run: `npx tsc --noEmit`
-- Pending local run: `npm run lint`
-- Pending local run: `npm run build`
+- auth/login redirects are constrained to internal RaiseHub paths;
+- authenticated business referral onboarding preserves attribution;
+- duplicate business-workspace creation is prevented;
+- stale test expectations have been aligned with the current product architecture;
+- campaign progress is regression-tested against explicit successful payment statuses;
+- the full unit-test suite passes;
+- lint has zero errors;
+- TypeScript passes;
+- the production build passes;
+- CodeQL and secret-history scanning pass;
+- the production dependency audit passes after updating Next.js and its image-processing dependency chain;
+- both RaiseHub and RaiseHub Demo Preview deployments are READY.
 
-Required ChatGPT database action:
-- Review and apply: `supabase/migrations/20260806221500_harden_public_campaign_rpcs_by_environment.sql`
-- Run verification SQL listed in `## Supabase migration handoff`
+This branch has **not** been merged or deployed to production.
 
-Remaining blockers:
-- Migration is not yet applied in Supabase
-- Post-apply verification SQL has not yet been executed in Supabase
-- Full local validation commands still must pass on this branch
+---
 
-Safe to merge:
-- No
+## Automated Verification
 
-## Supabase migration handoff
+Current PR #142 head verification:
 
-Prepared, not yet applied to Supabase
+- Unit tests: **486 passed, 0 failed**
+- ESLint: **0 errors, 271 warnings**
+- TypeScript: **passed**
+- Next.js production build: **passed**
+- Next.js version: **16.3.5**
+- CodeQL: **passed**
+- Secret-history scan: **passed**
+- Production dependency audit: **passed**
+- RaiseHub Vercel Preview: **READY**
+- RaiseHub Demo Vercel Preview: **READY**
 
-- Exact migration filename:
-  - `supabase/migrations/20260806221500_harden_public_campaign_rpcs_by_environment.sql`
+The remaining lint warnings are cleanup debt, not current CI blockers. The largest groups are explicit `any` usage, native `<img>` usage, and several React/Next.js best-practice warnings.
 
-- Complete list of functions changed:
-  - `public.get_campaign_recovery_context`
-  - `public.get_public_campaign_progress`
-  - `public.get_public_campaign_sellers`
-  - `public.resolve_campaign_seller_referral`
+---
 
-- Old and new function signatures:
-  - `public.get_campaign_recovery_context(uuid)` → `public.get_campaign_recovery_context(uuid, text, text)`
-  - `public.get_public_campaign_progress(uuid[])` → `public.get_public_campaign_progress(uuid[], text, text)`
-  - `public.get_public_campaign_sellers(uuid)` → `public.get_public_campaign_sellers(uuid, text, text)`
-  - `public.resolve_campaign_seller_referral(uuid, text)` → `public.resolve_campaign_seller_referral(uuid, text, text, text)`
+## Supabase / Data-Boundary Verification
 
-- Required grants and revocations:
-  - Revoke anon/auth/public access from old signatures:
-    - `revoke all on function public.get_campaign_recovery_context(uuid) from public, anon, authenticated;`
-    - `revoke all on function public.get_public_campaign_progress(uuid[]) from public, anon, authenticated;`
-    - `revoke all on function public.get_public_campaign_sellers(uuid) from public, anon, authenticated;`
-    - `revoke all on function public.resolve_campaign_seller_referral(uuid, text) from public, anon, authenticated;`
-  - Revoke then grant anon/auth/service_role execute on new signatures:
-    - `public.get_campaign_recovery_context(uuid, text, text)`
-    - `public.get_public_campaign_progress(uuid[], text, text)`
-    - `public.get_public_campaign_sellers(uuid, text, text)`
-    - `public.resolve_campaign_seller_referral(uuid, text, text, text)`
+Read-only verification against the live RaiseHub Supabase project confirms:
 
-- Expected behavior for production:
-  - Calls must send `p_expected_environment_mode = 'production'` and `p_expected_demo_group = null`
-  - Production calls can only return rows where campaign ownership is exactly `is_demo = false AND demo_group IS NULL`
-  - Production calls cannot retrieve demo rows or demo-group-scoped data
+- migration `harden_public_campaign_rpcs_by_environment` is already applied;
+- environment-aware signatures exist for:
+  - `get_campaign_recovery_context`;
+  - `get_public_campaign_progress`;
+  - `get_public_campaign_sellers`;
+  - `resolve_campaign_seller_referral`;
+- legacy public signatures are not executable by `anon` or `authenticated`;
+- production-mode reads exclude demo campaigns;
+- demo recovery reads require the matching `demo_group`;
+- campaign progress counts only explicit successful payment states.
 
-- Expected behavior for Demo:
-  - Calls must send `p_expected_environment_mode = 'demo'` and a non-empty `p_expected_demo_group`
-  - Demo calls can only return rows where campaign ownership is exactly `is_demo = true AND demo_group = p_expected_demo_group`
-  - Demo group A cannot retrieve Demo group B data
+The repository now includes regression coverage for the payment-status contract.
 
-- Rollback SQL or rollback migration plan:
-  - Immediate rollback plan:
-    1. Re-grant anon/auth execute on old signatures (`uuid` / `uuid[]` / `uuid,text` variants) if emergency restore is required.
-    2. Revoke execute on new signatures from anon/auth.
-    3. Optionally drop the new overloads:
-       - `drop function if exists public.get_campaign_recovery_context(uuid, text, text);`
-       - `drop function if exists public.get_public_campaign_progress(uuid[], text, text);`
-       - `drop function if exists public.get_public_campaign_sellers(uuid, text, text);`
-       - `drop function if exists public.resolve_campaign_seller_referral(uuid, text, text, text);`
-  - Preferred rollback approach: apply a dedicated rollback migration to preserve auditability.
+RaiseHub intentionally still uses one Supabase project for production and demo data. Safety therefore depends on the environment fields, RLS, scoped RPCs, and application-level workspace/environment rules continuing to agree. The verified public campaign RPC boundary is currently enforcing that contract.
 
-- Any required deployment ordering:
-  - Backward-compatible staged deployment is required.
-  - Stage 1: deploy this application branch first (it includes fallback to old signatures when new overloads are not yet present).
-  - Stage 2: apply `20260806221500_harden_public_campaign_rpcs_by_environment.sql`.
-  - Stage 3 (optional cleanup): remove fallback paths in app code after SQL is confirmed in all environments.
+---
 
-- Exact verification SQL for ChatGPT to run after applying it:
-  - Verify signatures exist:
-    ```sql
-    select n.nspname as schema, p.proname as function_name, pg_get_function_identity_arguments(p.oid) as args
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public'
-      and p.proname in (
-        'get_campaign_recovery_context',
-        'get_public_campaign_progress',
-        'get_public_campaign_sellers',
-        'resolve_campaign_seller_referral'
-      )
-    order by p.proname, args;
-    ```
-  - Verify old signatures are no longer executable by anon/auth:
-    ```sql
-    select
-      has_function_privilege('anon', 'public.get_campaign_recovery_context(uuid)', 'EXECUTE') as anon_old_recovery_exec,
-      has_function_privilege('authenticated', 'public.get_campaign_recovery_context(uuid)', 'EXECUTE') as auth_old_recovery_exec,
-      has_function_privilege('anon', 'public.get_public_campaign_progress(uuid[])', 'EXECUTE') as anon_old_progress_exec,
-      has_function_privilege('authenticated', 'public.get_public_campaign_progress(uuid[])', 'EXECUTE') as auth_old_progress_exec,
-      has_function_privilege('anon', 'public.get_public_campaign_sellers(uuid)', 'EXECUTE') as anon_old_sellers_exec,
-      has_function_privilege('authenticated', 'public.get_public_campaign_sellers(uuid)', 'EXECUTE') as auth_old_sellers_exec,
-      has_function_privilege('anon', 'public.resolve_campaign_seller_referral(uuid, text)', 'EXECUTE') as anon_old_referral_exec,
-      has_function_privilege('authenticated', 'public.resolve_campaign_seller_referral(uuid, text)', 'EXECUTE') as auth_old_referral_exec;
-    ```
-  - Verify production cannot read demo context/progress/sellers/referral:
-    ```sql
-    with demo_campaign as (
-      select id, demo_group
-      from public.campaigns
-      where is_demo = true and demo_group is not null
-      order by created_at desc
-      limit 1
-    )
-    select
-      (select count(*) from public.get_campaign_recovery_context((select id from demo_campaign), 'production', null)) as prod_demo_recovery_count,
-      (select count(*) from public.get_public_campaign_progress(array[(select id from demo_campaign)], 'production', null)) as prod_demo_progress_count,
-      (select count(*) from public.get_public_campaign_sellers((select id from demo_campaign), 'production', null)) as prod_demo_sellers_count,
-      (select count(*) from public.resolve_campaign_seller_referral(
-        (select id from demo_campaign),
-        coalesce((select referral_code from public.campaign_sellers where campaign_id = (select id from demo_campaign) and referral_code is not null limit 1), 'no-code'),
-        'production',
-        null
-      )) as prod_demo_referral_count;
-    ```
-  - Verify demo group isolation and same-group success:
-    ```sql
-    with grouped as (
-      select id, demo_group
-      from public.campaigns
-      where is_demo = true and demo_group is not null
-      order by created_at desc
-    ),
-    g1 as (
-      select id, demo_group from grouped limit 1
-    ),
-    g2 as (
-      select id, demo_group from grouped where demo_group <> (select demo_group from g1) limit 1
-    )
-    select
-      (select count(*) from public.get_public_campaign_progress(array[(select id from g1)], 'demo', (select demo_group from g1))) as demo_same_group_progress_count,
-      (select count(*) from public.get_public_campaign_progress(array[(select id from g1)], 'demo', coalesce((select demo_group from g2), '__missing_group__'))) as demo_cross_group_progress_count;
-    ```
-  - Verify production still succeeds for production campaigns:
-    ```sql
-    with live_campaign as (
-      select id
-      from public.campaigns
-      where is_demo = false and demo_group is null
-      order by created_at desc
-      limit 1
-    )
-    select
-      (select count(*) from public.get_campaign_recovery_context((select id from live_campaign), 'production', null)) as prod_live_recovery_count,
-      (select count(*) from public.get_public_campaign_progress(array[(select id from live_campaign)], 'production', null)) as prod_live_progress_count;
-    ```
+## Security Review Status
 
-- Expected Supabase security advisor results:
-  - No new warnings about broad anon/auth execute on old insecure signatures for these four RPCs.
-  - New signatures remain SECURITY DEFINER but are explicitly environment-gated and keep public access only for required public experience flows.
+### Verified
+
+- Open-redirect hardening is included in PR #142.
+- CodeQL passes.
+- Secret-history scan passes.
+- Production dependency audit passes.
+- Security-definer functions reviewed so far use fixed `search_path` values and the public campaign RPCs explicitly validate environment mode/demo group.
+- Authenticated business/owner mutation functions inspected so far include actor or role checks rather than trusting client-supplied IDs alone.
+
+### Remaining configuration item
+
+Supabase's security advisor reports **Leaked Password Protection is disabled**.
+
+This is an Auth configuration setting rather than a repository-code defect. It should be enabled before broad public onboarding if the project plan supports the feature.
+
+### SECURITY DEFINER warnings
+
+Supabase also reports executable `SECURITY DEFINER` functions. These should not be blanket-revoked: several are deliberately exposed public/authenticated capability boundaries and contain their own authorization/environment checks.
+
+One internal helper, `sync_business_growth_rewards(uuid)`, is currently callable by `authenticated` even though current application pages invoke it through the server-side admin client and other database functions/triggers invoke it internally. Tightening that grant is a reasonable hardening follow-up, but it is a database permission change and remains owner-gated.
+
+---
+
+## Runtime Observability
+
+Vercel runtime-error review found:
+
+- production: two historical `Invalid Refresh Token: Refresh Token Not Found` middleware errors, with the most recent on 2026-09-17;
+- demo: two historical PostgREST single-row errors on dashboard routes, last seen on 2026-09-15.
+
+Current source already contains stale-session recovery handling and the current dashboard code has moved several formerly strict single-row reads to safer current patterns. No corresponding current-branch Preview error cluster has been observed from automated verification.
+
+These historical errors should be watched after the production merge rather than treated as evidence that the current Preview is failing.
+
+---
+
+## What PR #142 Changes
+
+1. Harden unsafe auth/login redirect destinations.
+2. Preserve referral attribution through authenticated business signup.
+3. Prevent duplicate business-workspace creation.
+4. Continue new business workspaces through onboarding.
+5. Stabilize stale launch-readiness tests against current product behavior.
+6. Add payment-status regression coverage.
+7. Fix the Spotlight carousel lint blocker.
+8. Update Next.js to 16.3.5 and refresh the vulnerable Sharp/browser-mapping dependency chain.
+
+No production data writes, production migrations, RLS changes, real payment actions, payout actions, refunds, or production deployment were performed as part of this work.
+
+---
+
+## Remaining Gates Before Broad Onboarding
+
+### Owner-gated
+
+- Merge PR #142 to `main` and allow the normal production deployment.
+- Enable Supabase Leaked Password Protection if desired/available for the project.
+- Apply any future database/RLS/permission hardening only after explicit review.
+
+### Runtime verification
+
+After PR #142 reaches production, perform one authenticated smoke path with a fresh/non-legacy business account:
+
+1. business signup;
+2. email/auth confirmation as applicable;
+3. business workspace creation;
+4. onboarding/profile completion;
+5. first offer creation;
+6. dashboard/rewards navigation;
+7. sign out / sign back in;
+8. verify no duplicate workspace is offered;
+9. verify referral attribution if the account entered through a referral link.
+
+This is the main remaining proof that automated repository checks cannot substitute for.
+
+---
+
+## Not Initial-Business-Onboarding Blockers
+
+The following remain valid future/platform work but should not be confused with the minimum business-onboarding launch gate:
+
+- broad lint-warning cleanup;
+- optional POS integrations;
+- advanced website analytics;
+- AI marketing/copy tools;
+- additional referral/reward expansions;
+- deeper owner automation;
+- advanced payout automation beyond the currently intended launch scope.
+
+---
+
+## Current Decision Point
+
+PR #142 is technically mergeable and has passed the repository/security/deployment checks listed above.
+
+**Next production action:** owner approval to merge PR #142, followed by the authenticated smoke test and post-deploy runtime-log review.

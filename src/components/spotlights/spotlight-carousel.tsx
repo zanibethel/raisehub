@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   dismissSpotlightAction,
@@ -40,15 +40,11 @@ export default function SpotlightCarousel({
     void recordSpotlightViewAction(current.id, workspaceKey)
   }, [current, open, workspaceKey])
 
-  const imageStyle = useMemo(
-    () =>
-      current?.image_url
-        ? {
-            backgroundImage: `linear-gradient(to top, rgba(15,23,42,.58), rgba(15,23,42,.08)), url(${JSON.stringify(current.image_url).slice(1, -1)})`,
-          }
-        : undefined,
-    [current?.image_url]
-  )
+  const imageStyle = current?.image_url
+    ? {
+        backgroundImage: `linear-gradient(to top, rgba(15,23,42,.58), rgba(15,23,42,.08)), url(${JSON.stringify(current.image_url).slice(1, -1)})`,
+      }
+    : undefined
 
   if (!open || !current) return null
 
