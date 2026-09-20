@@ -26,6 +26,7 @@ export type OrganizationComplianceSnapshot = {
 }
 
 export const ORGANIZATION_TYPE_OPTIONS = [
+  ['school', 'School (general)'],
   ['school_district', 'Public school or district'],
   ['school_sponsored_group', 'School-sponsored club or team'],
   ['pta_pto', 'PTA / PTO'],
