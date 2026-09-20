@@ -3,7 +3,9 @@
 import { useRef, useState } from 'react'
 import {
   AUTHORIZATION_STATUS_OPTIONS,
+  getAuthorizationStatusLabel,
   getOrganizationComplianceCompleteness,
+  getTaxExemptStatusLabel,
   maskTaxIdLast4,
   ORGANIZATION_TYPE_OPTIONS,
   TAX_EXEMPT_STATUS_OPTIONS,
@@ -234,11 +236,11 @@ export default function OrganizationProfileSetupSection({
               </div>
               <div>
                 <p className="font-medium text-gray-900">Tax-exempt status</p>
-                <p>{formatOrganizationType(savedProfile.taxExemptStatus) || 'Not provided'}</p>
+                <p>{getTaxExemptStatusLabel(savedProfile.taxExemptStatus)}</p>
               </div>
               <div>
                 <p className="font-medium text-gray-900">Authorization status</p>
-                <p>{formatOrganizationType(savedProfile.authorizationStatus) || 'Not provided'}</p>
+                <p>{getAuthorizationStatusLabel(savedProfile.authorizationStatus)}</p>
               </div>
               <div className="sm:col-span-2">
                 <p className="font-medium text-gray-900">Authorization contact</p>
