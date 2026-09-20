@@ -52,6 +52,11 @@ type PublicSellerProgress = {
   amountRaised: number
 }
 
+type SellerProgressPurchase = {
+  payment_status: string | null
+  organization_earnings: number | string | null
+}
+
 function buildCampaignHref(input: {
   campaignId: string
   seller?: string
@@ -239,14 +244,16 @@ export default async function CampaignPage({
       .eq('campaign_seller_id', managedSeller.campaign_seller_id)
 
     if (!sellerProgressError) {
-      const qualifyingPurchases = (sellerPurchases ?? []).filter((purchase) =>
+      const sellerPurchaseRows = (sellerPurchases ?? []) as SellerProgressPurchase[]
+      const qualifyingPurchases = sellerPurchaseRows.filter((purchase) =>
         isCampaignPurchaseProgressEligible(purchase.payment_status)
       )
 
       sellerProgress = {
         passesSold: qualifyingPurchases.length,
         amountRaised: qualifyingPurchases.reduce(
-          (sum, purchase) => sum + Number(purchase.organization_earnings ?? 0),
+          (sum: number, purchase: SellerProgressPurchase) =>
+            sum + Number(purchase.organization_earnings ?? 0),
           0
         ),
       }
