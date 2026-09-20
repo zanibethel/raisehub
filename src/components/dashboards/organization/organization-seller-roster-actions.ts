@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -54,7 +55,73 @@ export async function listCampaignSellerRosterAction(
   })
 
   if (error) return { success: false, error: error.message || 'The seller roster could not be loaded.' }
-  return { success: true, data: (data ?? []).map((row: Record<string, unknown>) => normalizeRow(row)) }
+
+  const rows: CampaignSellerRosterRow[] = (data ?? []).map(
+    (row: Record<string, unknown>) => normalizeRow(row)
+  )
+  const sellerIds = rows.map((row) => row.id).filter(Boolean)
+
+  if (sellerIds.length === 0) {
+    return { success: true, data: rows }
+  }
+
+  const { data: purchaseData, error: purchaseError } = await admin
+    .from('campaign_purchases')
+    .select('campaign_seller_id, payment_status, amount_paid, organization_earnings, created_at')
+    .eq('campaign_id', campaignId)
+    .in('campaign_seller_id', sellerIds)
+
+  if (purchaseError) {
+    console.error('Unable to recompute seller roster progress:', purchaseError)
+    return { success: true, data: rows }
+  }
+
+  const metricsBySellerId = new Map<
+    string,
+    {
+      passesSold: number
+      grossSales: number
+      organizationEarnings: number
+      lastSaleAt: string | null
+    }
+  >()
+
+  for (const purchase of purchaseData ?? []) {
+    const sellerId = String(purchase.campaign_seller_id ?? '')
+    if (!sellerId || !isCampaignPurchaseProgressEligible(purchase.payment_status)) continue
+
+    const current = metricsBySellerId.get(sellerId) ?? {
+      passesSold: 0,
+      grossSales: 0,
+      organizationEarnings: 0,
+      lastSaleAt: null,
+    }
+
+    current.passesSold += 1
+    current.grossSales += Number(purchase.amount_paid ?? 0)
+    current.organizationEarnings += Number(purchase.organization_earnings ?? 0)
+
+    const createdAt = purchase.created_at ? String(purchase.created_at) : null
+    if (createdAt && (!current.lastSaleAt || createdAt > current.lastSaleAt)) {
+      current.lastSaleAt = createdAt
+    }
+
+    metricsBySellerId.set(sellerId, current)
+  }
+
+  return {
+    success: true,
+    data: rows.map((row) => {
+      const metrics = metricsBySellerId.get(row.id)
+      return metrics ? { ...row, ...metrics } : {
+        ...row,
+        passesSold: 0,
+        grossSales: 0,
+        organizationEarnings: 0,
+        lastSaleAt: null,
+      }
+    }),
+  }
 }
 
 export async function createCampaignSellersAction(

@@ -201,6 +201,22 @@ export default function OrganizationSignupPage() {
               campaign.
             </p>
 
+            <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+              <p className="font-bold">School, PTA/PTO, booster club, or student group?</p>
+              <p className="mt-1">
+                Review the school setup path before entering tax or payout information, and use the
+                IT access page if your district filters school computers.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link href="/schools" className="font-bold text-blue-700 hover:underline">
+                  School setup →
+                </Link>
+                <Link href="/schools/it-access" className="font-bold text-blue-700 hover:underline">
+                  IT access →
+                </Link>
+              </div>
+            </div>
+
             <form
               onSubmit={handleSignup}
               className="mt-6 space-y-4"

@@ -130,6 +130,33 @@ export default function SupportPage() {
           </Link>
         </header>
 
+        <section className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm sm:p-6">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+            Schools & districts
+          </p>
+          <h2 className="mt-2 text-xl font-black text-slate-950">
+            School computer blocked or vendor review required?
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Use the School IT & Vendor Access page for RaiseHub domains, browser requirements,
+            student-data-minimization details, policy links, and a copy-ready request for district IT.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/schools/it-access"
+              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
+            >
+              School IT Access
+            </Link>
+            <Link
+              href="/schools"
+              className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50"
+            >
+              School Setup Guide
+            </Link>
+          </div>
+        </section>
+
         <CustomerSupportHistory />
 
         <section className="mt-6">

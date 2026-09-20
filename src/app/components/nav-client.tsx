@@ -827,6 +827,14 @@ function MobileMenu({
           ) : (
             <nav className="space-y-1">
               <Link
+                href="/schools"
+                onClick={onClose}
+                className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Schools &amp; IT Access
+              </Link>
+
+              <Link
                 href="/login"
                 onClick={onClose}
                 className="block rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -934,6 +942,14 @@ export default function NavClient({
             </>
           ) : (
             <>
+              <Link
+                href="/schools"
+                onClick={closeOverlay}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+              >
+                Schools
+              </Link>
+
               <Link
                 href="/login"
                 onClick={closeOverlay}

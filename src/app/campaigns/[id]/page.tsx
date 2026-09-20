@@ -6,6 +6,7 @@ import SelectableCampaignCarousel from '@/app/components/selectable-campaign-car
 import ShareCampaignButton from '@/app/components/share-campaign-button'
 import {
   buildCampaignDetailProgressState,
+  isCampaignPurchaseProgressEligible,
 } from '@/lib/rules/campaign-progress-rules'
 import { isCampaignCurrentlySellable } from '@/lib/rules/identity-access-rules'
 import {
@@ -44,6 +45,16 @@ type ManagedSellerResolution = {
   campaign_seller_id: string
   display_name: string
   valid_for_attribution: boolean
+}
+
+type PublicSellerProgress = {
+  passesSold: number
+  amountRaised: number
+}
+
+type SellerProgressPurchase = {
+  payment_status: string | null
+  organization_earnings: number | string | null
 }
 
 function buildCampaignHref(input: {
@@ -221,6 +232,34 @@ export default async function CampaignPage({
     managedSeller = ((data ?? [])[0] ?? null) as ManagedSellerResolution | null
   }
 
+  let sellerProgress: PublicSellerProgress | null = null
+
+  if (managedSeller?.valid_for_attribution) {
+    // campaign_seller_id exists in the live schema but is not yet represented
+    // in the generated database types used by this repository.
+    const { data: sellerPurchases, error: sellerProgressError } = await (admin as any)
+      .from('campaign_purchases')
+      .select('payment_status, organization_earnings')
+      .eq('campaign_id', campaign.id)
+      .eq('campaign_seller_id', managedSeller.campaign_seller_id)
+
+    if (!sellerProgressError) {
+      const sellerPurchaseRows = (sellerPurchases ?? []) as SellerProgressPurchase[]
+      const qualifyingPurchases = sellerPurchaseRows.filter((purchase) =>
+        isCampaignPurchaseProgressEligible(purchase.payment_status)
+      )
+
+      sellerProgress = {
+        passesSold: qualifyingPurchases.length,
+        amountRaised: qualifyingPurchases.reduce(
+          (sum: number, purchase: SellerProgressPurchase) =>
+            sum + Number(purchase.organization_earnings ?? 0),
+          0
+        ),
+      }
+    }
+  }
+
   const attributedSellerName = managedSeller?.valid_for_attribution
     ? managedSeller.display_name
     : isManagedSellerCode
@@ -325,6 +364,43 @@ export default async function CampaignPage({
             </>
           )}
         </div>
+
+        {managedSeller?.valid_for_attribution && sellerProgress ? (
+          <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+              Seller progress
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-emerald-950">
+              Help {managedSeller.display_name} keep the momentum going
+            </h2>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-emerald-100 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Passes credited
+                </p>
+                <p className="mt-1 text-3xl font-black text-emerald-700">
+                  {sellerProgress.passesSold}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Helped raise
+                </p>
+                <p className="mt-1 text-3xl font-black text-emerald-700">
+                  ${sellerProgress.amountRaised.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-emerald-900">
+              {sellerProgress.passesSold === 0
+                ? `Be one of the first supporters credited to ${managedSeller.display_name}. A qualifying purchase from this page helps both the seller and the organization.`
+                : `Every qualifying purchase from this page stays credited to ${managedSeller.display_name} and the organization. Buy a pass for yourself or send one to someone else as a gift.`}
+            </p>
+          </section>
+        ) : null}
 
         <div className="mt-6 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
           🎟️ Buy one pass. Save locally. Support your community.

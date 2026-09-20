@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import AccountMenu from '@/app/components/account-menu'
+import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -13,7 +14,6 @@ import ShareSellerLink from './share-seller-link'
 export const dynamic = 'force-dynamic'
 
 const SELLER_WORKSPACE_KEY = 'seller:current'
-const CREDITED_PAYMENT_STATUSES = new Set(['paid', 'test_paid', 'partially_refunded', 'disputed'])
 
 type SellerProfile = { id: string; display_name: string; bio: string | null; avatar_url: string | null; status: string }
 type CampaignSeller = { id: string; campaign_id: string; organization_id: string; display_name: string; referral_code: string; status: string }
@@ -132,7 +132,9 @@ export default async function SellerDashboardPage({ searchParams }: SellerDashbo
   const selectedPurchases = selectedCampaignId
     ? purchaseRows.filter((purchase) => purchase.campaign_id === selectedCampaignId)
     : []
-  const creditedPurchases = selectedPurchases.filter((purchase) => CREDITED_PAYMENT_STATUSES.has(purchase.payment_status))
+  const creditedPurchases = selectedPurchases.filter((purchase) =>
+    isCampaignPurchaseProgressEligible(purchase.payment_status)
+  )
   const grossSales = creditedPurchases.reduce((sum, purchase) => sum + Number(purchase.amount_paid ?? 0), 0)
   const organizationFunds = creditedPurchases.reduce((sum, purchase) => sum + Number(purchase.organization_earnings ?? 0), 0)
   const canShareSelectedCampaign = campaignIsShareable(selectedCampaign, selectedEntry)
