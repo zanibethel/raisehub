@@ -116,6 +116,8 @@ export default async function PlatformHomePage() {
           <Link href="/terms" className="hover:text-blue-700">Terms</Link>
           <Link href="/privacy" className="hover:text-blue-700">Privacy</Link>
           <Link href="/refund-policy" className="hover:text-blue-700">Refund Policy</Link>
+          <Link href="/schools" className="hover:text-blue-700">Schools</Link>
+          <Link href="/schools/it-access" className="hover:text-blue-700">School IT Access</Link>
         </div>
         <p className="mt-4">© {new Date().getFullYear()} RaiseHub</p>
       </footer>
