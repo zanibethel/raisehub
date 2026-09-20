@@ -1,5 +1,10 @@
 'use server'
 
+import {
+  buildOrganizationComplianceSnapshot,
+  normalizeOrganizationComplianceSnapshot,
+  type OrganizationComplianceSnapshot,
+} from '@/lib/organizations/compliance-profile'
 import { isCampaignPurchaseProgressEligible } from '@/lib/rules/campaign-progress-rules'
 import { createClient } from '@/lib/supabase/server'
 
@@ -11,16 +16,25 @@ export type CampaignPerformanceSeller = {
   lastSaleAt: string | null
 }
 
+export type CampaignReportOrganizationContext = OrganizationComplianceSnapshot & {
+  source: 'completion_snapshot' | 'current_profile'
+}
+
 export type CampaignPerformanceReport = {
   campaignId: string
   campaignName: string
   status: string
   createdAt: string | null
+  startsAt: string | null
+  endsAt: string | null
+  completedAt: string | null
+  goalAmount: number
   passesSold: number
   grossRevenue: number
   organizationEarnings: number
   sellerCount: number
   supporterCount: number
+  organizationContext: CampaignReportOrganizationContext | null
   sellers: CampaignPerformanceSeller[]
 }
 
@@ -29,8 +43,21 @@ type CampaignRow = {
   name: string
   status: string
   created_at: string | null
+  starts_at: string | null
+  ends_at: string | null
+  completed_at: string | null
+  completion_snapshot: unknown
+  goal_amount: number | null
   organization_id: string
   canonical_organization_id: string | null
+}
+
+type OrganizationReportRow = {
+  name: string | null
+  organization_type: string | null
+  town_name: string | null
+  state_code: string | null
+  compliance_profile: unknown
 }
 
 type PurchaseRow = {
@@ -83,29 +110,31 @@ export async function loadCampaignPerformanceReportAction(
 
   if (!user) return { success: false, error: 'Sign in to view this report.' }
 
-  const { data: campaign, error: campaignError } = await supabase
-    .from('campaigns')
-    .select('id, name, status, created_at, organization_id, canonical_organization_id')
+  const { data: campaign, error: campaignError } = await (supabase.from('campaigns') as any)
+    .select(
+      'id, name, status, created_at, starts_at, ends_at, completed_at, completion_snapshot, goal_amount, organization_id, canonical_organization_id'
+    )
     .eq('id', campaignId)
-    .maybeSingle<CampaignRow>()
+    .maybeSingle()
 
   if (campaignError || !campaign) {
     return { success: false, error: 'Campaign report was not found.' }
   }
 
-  let authorized = campaign.organization_id === user.id
+  const reportCampaign = campaign as CampaignRow
+  let authorized = reportCampaign.organization_id === user.id
 
-  if (!authorized && campaign.canonical_organization_id) {
+  if (!authorized && reportCampaign.canonical_organization_id) {
     const [{ data: organization }, { data: membership }] = await Promise.all([
       supabase
         .from('organizations')
         .select('legacy_profile_id')
-        .eq('id', campaign.canonical_organization_id)
+        .eq('id', reportCampaign.canonical_organization_id)
         .maybeSingle<{ legacy_profile_id: string | null }>(),
       supabase
         .from('organization_memberships')
         .select('membership_role, status')
-        .eq('organization_id', campaign.canonical_organization_id)
+        .eq('organization_id', reportCampaign.canonical_organization_id)
         .eq('user_id', user.id)
         .eq('status', 'active')
         .maybeSingle<{ membership_role: string; status: string }>(),
@@ -118,6 +147,38 @@ export async function loadCampaignPerformanceReportAction(
   }
 
   if (!authorized) return { success: false, error: 'You do not have access to this campaign report.' }
+
+  let organizationContext: CampaignReportOrganizationContext | null = null
+  const completionSnapshot = normalizeOrganizationComplianceSnapshot(
+    reportCampaign.completion_snapshot
+  )
+
+  if (completionSnapshot) {
+    organizationContext = {
+      ...completionSnapshot,
+      source: 'completion_snapshot',
+    }
+  } else if (reportCampaign.canonical_organization_id) {
+    const { data: organizationData } = await (supabase.from('organizations') as any)
+      .select('name, organization_type, town_name, state_code, compliance_profile')
+      .eq('id', reportCampaign.canonical_organization_id)
+      .maybeSingle()
+
+    if (organizationData) {
+      const organization = organizationData as OrganizationReportRow
+      organizationContext = {
+        ...buildOrganizationComplianceSnapshot({
+          organizationName: organization.name,
+          organizationType: organization.organization_type,
+          townName: organization.town_name,
+          stateCode: organization.state_code,
+          complianceProfile: organization.compliance_profile,
+          capturedAt: new Date().toISOString(),
+        }),
+        source: 'current_profile',
+      }
+    }
+  }
 
   const { data, error } = await (supabase.from('campaign_purchases') as any)
     .select(
@@ -173,15 +234,20 @@ export async function loadCampaignPerformanceReportAction(
   return {
     success: true,
     data: {
-      campaignId: campaign.id,
-      campaignName: campaign.name,
-      status: campaign.status,
-      createdAt: campaign.created_at,
+      campaignId: reportCampaign.id,
+      campaignName: reportCampaign.name,
+      status: reportCampaign.status,
+      createdAt: reportCampaign.created_at,
+      startsAt: reportCampaign.starts_at,
+      endsAt: reportCampaign.ends_at,
+      completedAt: reportCampaign.completed_at,
+      goalAmount: Number(reportCampaign.goal_amount ?? 0),
       passesSold: purchases.length,
       grossRevenue,
       organizationEarnings,
       sellerCount: sellers.length,
       supporterCount: supporters.size,
+      organizationContext,
       sellers,
     },
   }
