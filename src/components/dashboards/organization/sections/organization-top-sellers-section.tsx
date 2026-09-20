@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 
+import { maskTaxIdLast4 } from '@/lib/organizations/compliance-profile'
 import {
   loadCampaignPerformanceReportAction,
   type CampaignPerformanceReport,
@@ -43,6 +44,18 @@ function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+function humanize(value: string | null | undefined) {
+  if (!value) return 'Not provided'
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function reportValue(value: string | null | undefined) {
+  return value?.trim() || 'Not provided'
+}
+
 function escapeCsv(value: string | number) {
   return `"${String(value).replaceAll('"', '""')}"`
 }
@@ -80,7 +93,31 @@ export default function OrganizationTopSellersSection({
   function downloadCsv() {
     if (!report) return
 
+    const organization = report.organizationContext
     const rows = [
+      ['campaign', report.campaignName],
+      ['status', report.status],
+      ['goal_amount', report.goalAmount.toFixed(2)],
+      ['starts_at', report.startsAt ?? ''],
+      ['ends_at', report.endsAt ?? ''],
+      ['completed_at', report.completedAt ?? ''],
+      ['passes_sold', report.passesSold],
+      ['gross_sales', report.grossRevenue.toFixed(2)],
+      ['organization_earnings', report.organizationEarnings.toFixed(2)],
+      ['supporters', report.supporterCount],
+      ['recorded_sellers', report.sellerCount],
+      ['organization_name', organization?.organizationName ?? ''],
+      ['organization_type', organization?.organizationType ?? ''],
+      ['legal_entity_name', organization?.legalEntityName ?? ''],
+      ['tax_id_masked', organization ? maskTaxIdLast4(organization.taxIdLast4) : 'Not provided'],
+      ['tax_exempt_status', organization?.taxExemptStatus ?? ''],
+      ['authorization_status', organization?.authorizationStatus ?? ''],
+      ['authorization_contact_name', organization?.authorizationContactName ?? ''],
+      ['authorization_contact_role', organization?.authorizationContactRole ?? ''],
+      ['authorization_contact_email', organization?.authorizationContactEmail ?? ''],
+      ['organization_data_source', organization?.source ?? ''],
+      ['organization_data_captured_at', organization?.capturedAt ?? ''],
+      [],
       ['rank', 'seller', 'passes_sold', 'gross_sales', 'organization_earnings', 'last_recorded_sale'],
       ...report.sellers.map((seller, index) => [
         index + 1,
@@ -155,7 +192,7 @@ export default function OrganizationTopSellersSection({
 
       {report && !isPending ? (
         <>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-6">
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Status</p>
               <p className="mt-1 font-bold capitalize text-gray-900">{report.status}</p>
@@ -172,9 +209,59 @@ export default function OrganizationTopSellersSection({
               <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Organization earnings</p>
               <p className="mt-1 font-bold text-emerald-700">{formatCurrency(report.organizationEarnings)}</p>
             </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Supporters</p>
+              <p className="mt-1 font-bold text-gray-900">{report.supporterCount.toLocaleString()}</p>
+            </div>
             <div className="col-span-2 rounded-xl bg-slate-50 p-3 lg:col-span-1">
               <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Recorded sellers</p>
               <p className="mt-1 font-bold text-gray-900">{report.sellerCount.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                  Organization details
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  {report.organizationContext?.organizationName || 'Organization information'}
+                </h3>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-blue-800">
+                {report.organizationContext?.source === 'completion_snapshot'
+                  ? 'Snapshot from campaign close'
+                  : 'Current profile values'}
+              </span>
+            </div>
+
+            <p className="mt-2 text-sm leading-6 text-blue-950">
+              Available organization values are included for recordkeeping. Missing values are shown
+              as Not provided and do not make the campaign report incomplete.
+            </p>
+
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                ['Organization type', humanize(report.organizationContext?.organizationType)],
+                ['Legal entity', reportValue(report.organizationContext?.legalEntityName)],
+                ['Tax ID', report.organizationContext ? maskTaxIdLast4(report.organizationContext.taxIdLast4) : 'Not provided'],
+                ['Tax-exempt status', humanize(report.organizationContext?.taxExemptStatus)],
+                ['Authorization', humanize(report.organizationContext?.authorizationStatus)],
+                [
+                  'Authorization contact',
+                  [
+                    report.organizationContext?.authorizationContactName,
+                    report.organizationContext?.authorizationContactRole,
+                    report.organizationContext?.authorizationContactEmail,
+                  ].filter(Boolean).join(' · ') || 'Not provided',
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-blue-100 bg-white p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+                  <p className="mt-1 break-words font-semibold text-slate-900">{value}</p>
+                </div>
+              ))}
             </div>
           </div>
 
