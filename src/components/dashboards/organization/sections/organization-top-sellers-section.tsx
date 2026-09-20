@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 
-import { maskTaxIdLast4 } from '@/lib/organizations/compliance-profile'
+import {
+  getAuthorizationStatusLabel,
+  getOrganizationTypeLabel,
+  getTaxExemptStatusLabel,
+  maskTaxIdLast4,
+} from '@/lib/organizations/compliance-profile'
 import {
   loadCampaignPerformanceReportAction,
   type CampaignPerformanceReport,
@@ -42,14 +47,6 @@ function formatDate(value: string | null) {
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-}
-
-function humanize(value: string | null | undefined) {
-  if (!value) return 'Not provided'
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
 }
 
 function reportValue(value: string | null | undefined) {
@@ -243,11 +240,11 @@ export default function OrganizationTopSellersSection({
 
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['Organization type', humanize(report.organizationContext?.organizationType)],
+                ['Organization type', getOrganizationTypeLabel(report.organizationContext?.organizationType)],
                 ['Legal entity', reportValue(report.organizationContext?.legalEntityName)],
                 ['Tax ID', report.organizationContext ? maskTaxIdLast4(report.organizationContext.taxIdLast4) : 'Not provided'],
-                ['Tax-exempt status', humanize(report.organizationContext?.taxExemptStatus)],
-                ['Authorization', humanize(report.organizationContext?.authorizationStatus)],
+                ['Tax-exempt status', getTaxExemptStatusLabel(report.organizationContext?.taxExemptStatus)],
+                ['Authorization', getAuthorizationStatusLabel(report.organizationContext?.authorizationStatus)],
                 [
                   'Authorization contact',
                   [
