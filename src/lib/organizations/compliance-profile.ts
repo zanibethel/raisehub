@@ -50,10 +50,34 @@ export const AUTHORIZATION_STATUS_OPTIONS = [
   ['not_provided', 'Not provided'],
   ['not_required', 'Not required for this organization'],
   ['pending', 'Approval / authorization pending'],
-  ['organization_confirmed', 'Confirmed by organization'],
-  ['school_confirmed', 'Confirmed by school or campus'],
-  ['district_confirmed', 'Confirmed by district'],
+  ['organization_confirmed', 'Confirmed internally by organization'],
+  ['school_confirmed', 'Organization reports school or campus approval'],
+  ['district_confirmed', 'Organization reports district approval'],
 ] as const
+
+function labelForOption(
+  value: string | null | undefined,
+  options: readonly (readonly [string, string])[]
+) {
+  if (!value) return 'Not provided'
+  return options.find(([optionValue]) => optionValue === value)?.[1] ??
+    value
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+}
+
+export function getOrganizationTypeLabel(value: string | null | undefined) {
+  return labelForOption(value, ORGANIZATION_TYPE_OPTIONS)
+}
+
+export function getTaxExemptStatusLabel(value: string | null | undefined) {
+  return labelForOption(value, TAX_EXEMPT_STATUS_OPTIONS)
+}
+
+export function getAuthorizationStatusLabel(value: string | null | undefined) {
+  return labelForOption(value, AUTHORIZATION_STATUS_OPTIONS)
+}
 
 const SCHOOL_RELATED_TYPES = new Set([
   'school_district',
