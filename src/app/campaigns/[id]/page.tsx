@@ -230,7 +230,9 @@ export default async function CampaignPage({
   let sellerProgress: PublicSellerProgress | null = null
 
   if (managedSeller?.valid_for_attribution) {
-    const { data: sellerPurchases, error: sellerProgressError } = await admin
+    // campaign_seller_id exists in the live schema but is not yet represented
+    // in the generated database types used by this repository.
+    const { data: sellerPurchases, error: sellerProgressError } = await (admin as any)
       .from('campaign_purchases')
       .select('payment_status, organization_earnings')
       .eq('campaign_id', campaign.id)
