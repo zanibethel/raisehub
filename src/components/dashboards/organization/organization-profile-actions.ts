@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { serializeOrganizationComplianceProfile } from '@/lib/organizations/compliance-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -14,6 +15,13 @@ type UpdateOrganizationProfileInput = {
   websiteUrl: string
   townName: string
   stateCode: string
+  legalEntityName: string
+  taxIdLast4: string
+  taxExemptStatus: string
+  authorizationStatus: string
+  authorizationContactName: string
+  authorizationContactRole: string
+  authorizationContactEmail: string
 }
 
 type UpdateOrganizationProfileResult =
@@ -75,6 +83,16 @@ export async function updateOrganizationProfileAction(
     return { error: 'This account is not authorized to edit this organization.' }
   }
 
+  const complianceProfile = serializeOrganizationComplianceProfile({
+    legalEntityName: input.legalEntityName,
+    taxIdLast4: input.taxIdLast4,
+    taxExemptStatus: input.taxExemptStatus,
+    authorizationStatus: input.authorizationStatus,
+    authorizationContactName: input.authorizationContactName,
+    authorizationContactRole: input.authorizationContactRole,
+    authorizationContactEmail: input.authorizationContactEmail,
+  })
+
   const payload = {
     name,
     organization_type: clean(input.organizationType, 80),
@@ -84,6 +102,7 @@ export async function updateOrganizationProfileAction(
     website_url: clean(input.websiteUrl, 500),
     town_name: townName,
     state_code: stateCode,
+    compliance_profile: complianceProfile,
     status: 'active',
     updated_at: new Date().toISOString(),
   }
