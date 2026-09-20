@@ -1,6 +1,15 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import {
+  AUTHORIZATION_STATUS_OPTIONS,
+  getAuthorizationStatusLabel,
+  getOrganizationComplianceCompleteness,
+  getTaxExemptStatusLabel,
+  maskTaxIdLast4,
+  ORGANIZATION_TYPE_OPTIONS,
+  TAX_EXEMPT_STATUS_OPTIONS,
+} from '@/lib/organizations/compliance-profile'
 import { updateOrganizationProfileAction } from '../organization-profile-actions'
 
 type OrganizationProfile = {
@@ -12,6 +21,13 @@ type OrganizationProfile = {
   websiteUrl: string
   townName: string
   stateCode: string
+  legalEntityName: string
+  taxIdLast4: string
+  taxExemptStatus: string
+  authorizationStatus: string
+  authorizationContactName: string
+  authorizationContactRole: string
+  authorizationContactEmail: string
 }
 
 type Props = {
@@ -116,6 +132,20 @@ export default function OrganizationProfileSetupSection({
     setIsEditing(false)
   }
 
+  const complianceCompleteness = getOrganizationComplianceCompleteness({
+    organizationType: (isEditing ? form : savedProfile).organizationType,
+    profile: {
+      legalEntityName: (isEditing ? form : savedProfile).legalEntityName || null,
+      taxIdLast4: (isEditing ? form : savedProfile).taxIdLast4 || null,
+      taxExemptStatus: (isEditing ? form : savedProfile).taxExemptStatus || null,
+      authorizationStatus: (isEditing ? form : savedProfile).authorizationStatus || null,
+      authorizationContactName: (isEditing ? form : savedProfile).authorizationContactName || null,
+      authorizationContactRole: (isEditing ? form : savedProfile).authorizationContactRole || null,
+      authorizationContactEmail: (isEditing ? form : savedProfile).authorizationContactEmail || null,
+      updatedAt: null,
+    },
+  })
+
   if (complete && !isEditing) {
     const location = [savedProfile.townName, savedProfile.stateCode]
       .filter(Boolean)
@@ -134,6 +164,9 @@ export default function OrganizationProfileSetupSection({
               </p>
               <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">
                 Setup complete
+              </span>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
+                {complianceCompleteness.completed} of {complianceCompleteness.total} recommended details
               </span>
             </div>
             <h2 className="mt-1 truncate text-lg font-semibold text-gray-950">
@@ -193,6 +226,30 @@ export default function OrganizationProfileSetupSection({
                 <p className="font-medium text-gray-900">Short description</p>
                 <p>{savedProfile.description || 'Not set yet'}</p>
               </div>
+              <div>
+                <p className="font-medium text-gray-900">Legal entity name</p>
+                <p>{savedProfile.legalEntityName || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Tax ID</p>
+                <p>{maskTaxIdLast4(savedProfile.taxIdLast4 || null)}</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Tax-exempt status</p>
+                <p>{getTaxExemptStatusLabel(savedProfile.taxExemptStatus)}</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Authorization status</p>
+                <p>{getAuthorizationStatusLabel(savedProfile.authorizationStatus)}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="font-medium text-gray-900">Authorization contact</p>
+                <p>
+                  {[savedProfile.authorizationContactName, savedProfile.authorizationContactRole, savedProfile.authorizationContactEmail]
+                    .filter(Boolean)
+                    .join(' · ') || 'Not provided'}
+                </p>
+              </div>
             </div>
 
             <button
@@ -224,7 +281,7 @@ export default function OrganizationProfileSetupSection({
             Organization setup
           </p>
           <h2 className="mt-2 text-2xl font-bold text-gray-900">
-            {complete ? 'Edit organization details' : 'Finish setup before launching'}
+            {complete ? 'Edit organization details' : 'Finish the basic organization setup'}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
             Your town and state determine which managed RaiseHub pricing applies. These details also appear throughout campaign management and public fundraiser pages.
@@ -257,13 +314,9 @@ export default function OrganizationProfileSetupSection({
           Organization type
           <select value={form.organizationType} onChange={(event) => updateField('organizationType', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500">
             <option value="">Choose a type</option>
-            <option value="school">School</option>
-            <option value="sports_team">Sports team</option>
-            <option value="nonprofit">Nonprofit</option>
-            <option value="club">Club</option>
-            <option value="church">Church</option>
-            <option value="community_group">Community group</option>
-            <option value="other">Other</option>
+            {ORGANIZATION_TYPE_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
         </label>
 
@@ -296,6 +349,84 @@ export default function OrganizationProfileSetupSection({
           Short description
           <textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} className="mt-2 min-h-28 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500" placeholder="Tell supporters what your organization does and what funds will support." />
         </label>
+
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                Optional compliance &amp; reporting details
+              </p>
+              <h3 className="mt-1 text-lg font-black text-slate-950">
+                {complianceCompleteness.completed} of {complianceCompleteness.total} recommended details complete
+              </h3>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-blue-800">
+              Does not block creation or promotion
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-blue-950">
+            Add these when they are available. RaiseHub can include them in campaign-ending reports,
+            but missing values will not stop you from creating, sharing, or promoting a fundraiser.
+            Payment or payout providers may still require their own verification before money can move.
+          </p>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-gray-700 sm:col-span-2">
+              Legal entity name
+              <input value={form.legalEntityName} onChange={(event) => updateField('legalEntityName', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500" placeholder="Official organization name, when available" />
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              Tax-exempt status
+              <select value={form.taxExemptStatus} onChange={(event) => updateField('taxExemptStatus', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500">
+                <option value="">Choose when known</option>
+                {TAX_EXEMPT_STATUS_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              EIN / tax ID last four
+              <input
+                inputMode="numeric"
+                value={form.taxIdLast4}
+                onChange={(event) => updateField('taxIdLast4', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500"
+                placeholder="1234"
+                maxLength={4}
+              />
+              <span className="mt-1 block text-xs text-gray-500">
+                RaiseHub only keeps the last four digits here for reporting; do not enter the full EIN.
+              </span>
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              School / organization authorization
+              <select value={form.authorizationStatus} onChange={(event) => updateField('authorizationStatus', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500">
+                <option value="">Choose when known</option>
+                {AUTHORIZATION_STATUS_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              Authorization contact name
+              <input value={form.authorizationContactName} onChange={(event) => updateField('authorizationContactName', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500" placeholder="Optional" />
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              Authorization contact role
+              <input value={form.authorizationContactRole} onChange={(event) => updateField('authorizationContactRole', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500" placeholder="Principal, treasurer, sponsor…" />
+            </label>
+
+            <label className="text-sm font-medium text-gray-700">
+              Authorization contact email
+              <input type="email" value={form.authorizationContactEmail} onChange={(event) => updateField('authorizationContactEmail', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-500" placeholder="Optional" />
+            </label>
+          </div>
+        </div>
 
         <div className="flex flex-wrap gap-3 sm:col-span-2">
           <button type="submit" disabled={loading} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">

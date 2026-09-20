@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { evaluateCampaignPublishingEligibility } from '@/lib/campaign-publishing/evaluate'
 import { evaluateCampaignRisk } from '@/lib/campaign-review/evaluate'
+import { buildOrganizationComplianceSnapshot } from '@/lib/organizations/compliance-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -34,8 +35,10 @@ type OrganizationRow = {
   id: string
   legacy_profile_id: string | null
   name: string | null
+  organization_type: string | null
   town_name: string | null
   state_code: string | null
+  compliance_profile: unknown
 }
 
 type CampaignOwnerRow = {
@@ -137,7 +140,7 @@ async function getOrganizationById(organizationId: string) {
   const admin = createAdminClient() as any
   const { data } = await admin
     .from('organizations')
-    .select('id, legacy_profile_id, name, town_name, state_code')
+    .select('id, legacy_profile_id, name, organization_type, town_name, state_code, compliance_profile')
     .eq('id', organizationId)
     .maybeSingle()
   return (data ?? null) as OrganizationRow | null
@@ -147,7 +150,7 @@ async function getOrganizationForLegacyProfile(profileId: string) {
   const admin = createAdminClient() as any
   const { data } = await admin
     .from('organizations')
-    .select('id, legacy_profile_id, name, town_name, state_code')
+    .select('id, legacy_profile_id, name, organization_type, town_name, state_code, compliance_profile')
     .eq('legacy_profile_id', profileId)
     .maybeSingle()
   return (data ?? null) as OrganizationRow | null
@@ -482,9 +485,34 @@ export async function updateCampaignStatusAction(campaignId: string, status: str
     return { error: 'Only a draft campaign can be published or a paused campaign resumed.' }
   }
 
+  const completedAt =
+    status === 'completed' && currentStatus !== 'completed'
+      ? new Date().toISOString()
+      : null
+  const completionSnapshot =
+    completedAt && authorized.organization
+      ? buildOrganizationComplianceSnapshot({
+          organizationName: authorized.organization.name,
+          organizationType: authorized.organization.organization_type,
+          townName: authorized.organization.town_name,
+          stateCode: authorized.organization.state_code,
+          complianceProfile: authorized.organization.compliance_profile,
+          capturedAt: completedAt,
+        })
+      : null
+
+  const updatePayload =
+    completedAt
+      ? {
+          status,
+          completed_at: completedAt,
+          completion_snapshot: completionSnapshot,
+        }
+      : { status }
+
   const { error } = await admin
     .from('campaigns')
-    .update({ status })
+    .update(updatePayload)
     .eq('id', campaignId)
 
   if (error) return { error: 'The campaign status could not be updated. Try again.' }
