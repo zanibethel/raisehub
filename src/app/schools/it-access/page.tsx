@@ -116,6 +116,44 @@ export default function SchoolItAccessPage() {
           </article>
         </section>
 
+        <section className="grid gap-4 md:grid-cols-2">
+          <article className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-cyan-700">
+              Service architecture
+            </p>
+            <h2 className="mt-2 text-xl font-black text-slate-950">
+              Core vendors used by RaiseHub
+            </h2>
+            <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+              <li>• Vercel hosts and delivers the RaiseHub web application.</li>
+              <li>• Supabase provides authentication and application database services.</li>
+              <li>• Stripe processes checkout and payment information.</li>
+              <li>• RaiseHub does not require a school to install desktop software or a browser extension.</li>
+            </ul>
+          </article>
+
+          <article className="rounded-3xl border border-fuchsia-100 bg-white p-6 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-wide text-fuchsia-700">
+              Accessibility & procurement
+            </p>
+            <h2 className="mt-2 text-xl font-black text-slate-950">
+              Need district-specific documentation?
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              Districts may require accessibility, security, privacy, purchasing, or vendor forms
+              beyond this public page. RaiseHub does not represent that a formal VPAT or independent
+              accessibility certification has been completed unless that documentation is provided
+              directly.
+            </p>
+            <a
+              href="mailto:support@raisehub.app?subject=School%20vendor%20documentation%20request"
+              className="mt-4 inline-flex font-bold text-blue-700 hover:underline"
+            >
+              Request vendor documentation →
+            </a>
+          </article>
+        </section>
+
         <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm sm:p-8">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">
             Student-data minimization
