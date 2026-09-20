@@ -56,7 +56,9 @@ export async function listCampaignSellerRosterAction(
 
   if (error) return { success: false, error: error.message || 'The seller roster could not be loaded.' }
 
-  const rows = (data ?? []).map((row: Record<string, unknown>) => normalizeRow(row))
+  const rows: CampaignSellerRosterRow[] = (data ?? []).map(
+    (row: Record<string, unknown>) => normalizeRow(row)
+  )
   const sellerIds = rows.map((row) => row.id).filter(Boolean)
 
   if (sellerIds.length === 0) {
