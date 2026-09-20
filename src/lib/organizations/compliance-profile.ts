@@ -161,6 +161,33 @@ export function maskTaxIdLast4(value: string | null | undefined) {
   return digits ? `**-***${digits}` : 'Not provided'
 }
 
+
+export function normalizeOrganizationComplianceSnapshot(
+  value: unknown
+): OrganizationComplianceSnapshot | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+
+  const record = value as Record<string, unknown>
+  const capturedAt = cleanText(record.capturedAt, 80)
+  if (!capturedAt) return null
+
+  return {
+    version: 1,
+    capturedAt,
+    organizationName: cleanText(record.organizationName, 160),
+    organizationType: cleanText(record.organizationType, 80),
+    townName: cleanText(record.townName, 120),
+    stateCode: cleanText(record.stateCode, 2)?.toUpperCase() ?? null,
+    legalEntityName: cleanText(record.legalEntityName, 200),
+    taxIdLast4: cleanTaxIdLast4(record.taxIdLast4),
+    taxExemptStatus: cleanText(record.taxExemptStatus, 80),
+    authorizationStatus: cleanText(record.authorizationStatus, 80),
+    authorizationContactName: cleanText(record.authorizationContactName, 160),
+    authorizationContactRole: cleanText(record.authorizationContactRole, 120),
+    authorizationContactEmail: cleanText(record.authorizationContactEmail, 320),
+  }
+}
+
 export function buildOrganizationComplianceSnapshot({
   organizationName,
   organizationType,
