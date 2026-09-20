@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 
+import { normalizeOrganizationComplianceProfile } from '@/lib/organizations/compliance-profile'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -16,6 +17,7 @@ type OrganizationSetupRecord = {
   website_url: string | null
   town_name: string | null
   state_code: string | null
+  compliance_profile: unknown
 }
 
 type OrganizationProfileSetupLoaderProps = {
@@ -65,7 +67,7 @@ export default async function OrganizationProfileSetupLoader({
     .maybeSingle()
   const organizationRequest = (admin.from('organizations') as any)
     .select(
-      'id, name, organization_type, description, phone, email, website_url, town_name, state_code'
+      'id, name, organization_type, description, phone, email, website_url, town_name, state_code, compliance_profile'
     )
     .eq('id', selectedOrganizationId)
     .maybeSingle()
@@ -80,6 +82,10 @@ export default async function OrganizationProfileSetupLoader({
     return <WorkspaceStatusReporter item="profile" status="attention" />
   }
 
+  const complianceProfile = normalizeOrganizationComplianceProfile(
+    organization.compliance_profile
+  )
+
   const profileData = {
     name: organization.name || profile?.business_name || profile?.display_name || '',
     organizationType: organization.organization_type || '',
@@ -90,6 +96,13 @@ export default async function OrganizationProfileSetupLoader({
     websiteUrl: organization.website_url || profile?.website_url || '',
     townName: organization.town_name || '',
     stateCode: organization.state_code || '',
+    legalEntityName: complianceProfile.legalEntityName || '',
+    taxIdLast4: complianceProfile.taxIdLast4 || '',
+    taxExemptStatus: complianceProfile.taxExemptStatus || '',
+    authorizationStatus: complianceProfile.authorizationStatus || '',
+    authorizationContactName: complianceProfile.authorizationContactName || '',
+    authorizationContactRole: complianceProfile.authorizationContactRole || '',
+    authorizationContactEmail: complianceProfile.authorizationContactEmail || '',
   }
 
   const isComplete = Boolean(
