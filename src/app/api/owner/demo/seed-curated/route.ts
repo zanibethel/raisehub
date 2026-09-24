@@ -486,8 +486,14 @@ export async function POST() {
           usage_rule: offer.usageRule,
           discount: offer.discount,
           starts_at: dateFromNow(offer.startOffsetDays),
-          ends_at: dateFromNow(offer.endOffsetDays),
-          expires_at: dateFromNow(offer.endOffsetDays, false),
+          ends_at:
+            offer.endOffsetDays === null
+              ? null
+              : dateFromNow(offer.endOffsetDays),
+          expires_at:
+            offer.endOffsetDays === null
+              ? null
+              : dateFromNow(offer.endOffsetDays, false),
           is_active: offer.active,
           is_demo: true,
           demo_group: LAKEVIEW_DEMO_GROUP_KEY,
