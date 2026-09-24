@@ -29,17 +29,19 @@ const customerCommandCenterSource = readFileSync(
 test('keeps the deals page compact and touch friendly', () => {
   assert.match(
     dealsSource,
-    /rounded-3xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6/
+    /rounded-2xl border px-4 py-3/
   )
   assert.match(dealsSource, /className="min-h-12 w-full/)
   assert.match(dealsSource, /inline-flex min-h-10 shrink-0/)
+  assert.match(dealsSource, />\s*Local Deals\s*</)
 })
 
 test('keeps deal filters horizontally scrollable on narrow screens', () => {
   assert.match(
     dealsSource,
-    /className="mt-3 flex gap-2 overflow-x-auto pb-1"/
+    /flex gap-2 overflow-x-auto/
   )
+  assert.match(dealsSource, /\[scrollbar-width:none\]/)
   assert.match(dealsSource, /aria-label="Deal filters"/)
 })
 
