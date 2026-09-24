@@ -11,10 +11,10 @@ export default function OnboardingProgress({
   const remainingMinutes = Math.max(totalSteps - currentStep + 1, 1)
 
   return (
-    <div className="mb-6 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-lg backdrop-blur">
+    <div className="mb-6 border-b border-slate-200 pb-5 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm">
       <div className="flex items-center justify-between gap-4 text-sm">
         <div>
-          <p className="font-semibold text-blue-700">Business Setup</p>
+          <p className="font-black text-blue-700">Business Setup</p>
           <p className="mt-1 text-gray-500">
             Step {currentStep} of {totalSteps}
           </p>
