@@ -8,7 +8,6 @@ import OrganizationDashboard from '@/components/dashboards/organization/organiza
 import OwnerDashboard from '@/components/dashboards/owner/owner-dashboard'
 import SpotlightCarousel from '@/components/spotlights/spotlight-carousel'
 import { getAppMode } from '@/lib/app-mode'
-import { reconcileDemoPartnerRewardsGroup } from '@/lib/rewards/demo-partner-rewards-reconciliation'
 import {
   resolveWorkspaceSelection,
   type DashboardExperienceRole,
@@ -107,10 +106,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getAuthenticatedWorkspaces(),
   ])
 
-  if (profile?.is_demo && profile.demo_group) {
-    await reconcileDemoPartnerRewardsGroup(profile.demo_group)
-  }
-
   if (!authenticatedWorkspacesResult.success) {
     console.error(
       'Unable to load authenticated workspaces:',
@@ -129,12 +124,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const selectedWorkspace = workspaceSelection.selectedWorkspace
   const experienceRole = workspaceSelection.experienceRole
   const spotlightWorkspaceKey = selectedWorkspace?.key ?? `${experienceRole}:default`
-  const spotlights = await getEligibleSpotlights({
-    userId: user.id,
-    experienceRole,
-    selectedWorkspace,
-    isDemo: profile?.is_demo === true,
-  })
+  let spotlights: Awaited<ReturnType<typeof getEligibleSpotlights>> = []
+  try {
+    spotlights = await getEligibleSpotlights({
+      userId: user.id,
+      experienceRole,
+      selectedWorkspace,
+      isDemo: profile?.is_demo === true,
+    })
+  } catch (error) {
+    console.error('Unable to load spotlights without blocking dashboard:', error)
+  }
 
   return (
     <main
