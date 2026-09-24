@@ -14,14 +14,22 @@ function money(cents: number) {
 }
 
 export default async function OwnerDashboard() {
-  const [platformAnalyticsResult, rewardsReportResult] = await Promise.all([
+  const [analyticsSettled, rewardsSettled] = await Promise.allSettled([
     getOwnerPlatformAnalytics(),
     getOwnerPartnerRewardsQuarterReport(),
   ])
-  const platformMetrics = platformAnalyticsResult.status === 'success'
+  const platformAnalyticsResult = analyticsSettled.status === 'fulfilled' ? analyticsSettled.value : null
+  const rewardsReportResult = rewardsSettled.status === 'fulfilled' ? rewardsSettled.value : null
+  if (analyticsSettled.status === 'rejected') {
+    console.error('Unable to load platform analytics without blocking owner dashboard:', analyticsSettled.reason)
+  }
+  if (rewardsSettled.status === 'rejected') {
+    console.error('Unable to load Partner Rewards report without blocking owner dashboard:', rewardsSettled.reason)
+  }
+  const platformMetrics = platformAnalyticsResult?.status === 'success'
     ? platformAnalyticsResult.metrics.production
     : null
-  const rewardsReport = rewardsReportResult.status === 'success'
+  const rewardsReport = rewardsReportResult?.status === 'success'
     ? rewardsReportResult.report
     : null
 
