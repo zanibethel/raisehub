@@ -195,7 +195,12 @@ export async function getPublicBusinessDirectory(options: {
         activeOfferCount: offerCountByProfileId.get(profile.id) ?? 0,
       } satisfies PublicBusinessDirectoryEntry
     })
-    .filter((entry) => Boolean(entry.canonicalBusinessId))
+    .filter(
+      (entry) =>
+        Boolean(entry.canonicalBusinessId) &&
+        (entry.verificationStatus === 'approved' ||
+          entry.verificationStatus === 'pending')
+    )
     .sort((a, b) => {
       if (a.verificationStatus === 'approved' && b.verificationStatus !== 'approved') return -1
       if (b.verificationStatus === 'approved' && a.verificationStatus !== 'approved') return 1
