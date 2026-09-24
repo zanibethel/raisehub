@@ -128,28 +128,28 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
   return (
     <>
       <BusinessWorkspaceContext workspaceKey={businessWorkspaceKey} />
-      <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-6 sm:py-14">
+      <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
         <div className="mx-auto max-w-3xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-green-700">
+          <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+            <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-green-500/20 blur-3xl" />
+            <div className="relative z-10">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-green-300">
                 {business.name}
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
                 Grow beyond the free plan
               </h1>
-              <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
                 Free businesses can keep up to 3 active offers. Growth removes that limit and unlocks the paid growth tier while community participation stays available on every plan.
               </p>
+              <Link
+                href={businessDashboardHref}
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white"
+              >
+                Back to Dashboard
+              </Link>
             </div>
-
-            <Link
-              href={businessDashboardHref}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
+          </section>
 
           {params.checkout === 'success' ? (
             <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
@@ -176,8 +176,8 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
             </div>
           ) : null}
 
-          <section className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="grid gap-6 md:grid-cols-[1fr_1.2fr] md:items-start">
+          <section className="mt-7">
+            <div className="grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-start">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.16em] text-blue-700">Growth includes</p>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
@@ -188,8 +188,8 @@ export default async function UpgradePage({ searchParams }: UpgradePageProps) {
                   <li>✓ Secure billing management through Stripe</li>
                 </ul>
 
-                <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                  <p className="font-bold text-slate-900">Current RaiseHub tier</p>
+                <div className="mt-6 divide-y divide-slate-200 border-y border-slate-200 text-sm text-slate-600">
+                  <div className="py-3"><p className="font-bold text-slate-900">Current RaiseHub tier</p>
                   <p className="mt-1 capitalize">{business.subscription_tier || 'free'}</p>
                   <p className="mt-3 font-bold text-slate-900">Stripe status</p>
                   <p className="mt-1 capitalize">{billingState.subscription_status.replaceAll('_', ' ')}</p>
