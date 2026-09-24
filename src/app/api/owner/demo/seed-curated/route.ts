@@ -414,6 +414,27 @@ export async function POST() {
         },
         counts
       )
+
+      const verificationTimestamp = new Date().toISOString()
+      const { error: verificationError } = await admin
+        .from('business_verifications')
+        .upsert(
+          {
+            business_id: result.data.id,
+            status: 'approved',
+            application_cycle: 1,
+            applied_at: verificationTimestamp,
+            reviewed_at: verificationTimestamp,
+            approved_at: verificationTimestamp,
+            declined_at: null,
+            revoked_at: null,
+            reviewed_by: owner.id,
+            review_note: 'Curated RaiseHub demo business approved for the isolated Lakeview demo scenario.',
+          },
+          { onConflict: 'business_id' }
+        )
+
+      if (verificationError) throw verificationError
     }
     counts.businesses = LAKEVIEW_BUSINESSES.length
 
