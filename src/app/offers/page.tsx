@@ -255,19 +255,26 @@ export default async function OffersPage() {
                     className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md sm:p-6"
                   >
                     <div className="flex items-start gap-3">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5">
+                      <Link
+                        href={`/businesses/${profile.id}`}
+                        aria-label={`View ${businessName} business profile`}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 transition hover:border-green-300"
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={profile.logo_url || '/default-business-logo.png'}
                           alt=""
                           className="max-h-full max-w-full object-contain"
                         />
-                      </span>
+                      </Link>
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-black uppercase tracking-[0.12em] text-amber-700">
+                        <Link
+                          href={`/businesses/${profile.id}`}
+                          className="block truncate text-xs font-black uppercase tracking-[0.12em] text-amber-700 hover:text-green-700"
+                        >
                           {businessName}
-                        </p>
+                        </Link>
                         <h3 className="mt-1 line-clamp-2 text-lg font-black leading-6 text-slate-950">
                           {hasActivePass
                             ? offer.title || 'Local offer'
