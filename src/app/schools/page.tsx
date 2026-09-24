@@ -29,189 +29,197 @@ const officialResources = [
   },
 ]
 
+const organizationTypes = [
+  {
+    eyebrow: 'School or district-controlled group',
+    title: 'Use the entity your district authorizes',
+    text: 'A teacher, sponsor, coach, or campus club should coordinate with the district or campus finance office before entering payout information. RaiseHub will not tell a school-controlled group to create a separate EIN simply to open a fundraiser.',
+    tone: 'text-blue-700',
+  },
+  {
+    eyebrow: 'PTA or PTO',
+    title: 'Use the parent organization’s own legal identity',
+    text: 'Texas generally treats PTAs and PTOs separately from the school’s exempt status. If the parent organization claims an exemption, use the organization’s own approved records rather than the school’s tax identity.',
+    tone: 'text-green-700',
+  },
+  {
+    eyebrow: 'Booster club',
+    title: 'Keep booster finances separate from the school',
+    text: 'Texas does not automatically extend a school’s exempt status to a booster club. The booster club should use its own legal, tax, and payout information when it is the fundraiser owner.',
+    tone: 'text-violet-700',
+  },
+  {
+    eyebrow: 'Other nonprofit or community group',
+    title: 'Match RaiseHub to the real organization',
+    text: 'Use the organization that is actually authorized to receive the fundraiser proceeds. An EIN identifies an organization, but an EIN by itself does not establish that the organization is tax-exempt.',
+    tone: 'text-amber-700',
+  },
+]
+
 export default function SchoolsPage() {
   return (
-    <main className="min-h-screen bg-[#F0F6FF] px-4 py-8 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-xl sm:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
-            RaiseHub for schools
-          </p>
-          <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-5xl">
-            Fundraising that works with the way schools actually operate
-          </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            RaiseHub can support district-controlled school groups, student clubs, PTAs, PTOs,
-            booster clubs, teams, and other community organizations. The important first step is
-            identifying which legal or school entity is actually running the fundraiser so the
-            account, payout information, and approvals match the right organization.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/signup/organization"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
-            >
-              Start an organization account
-            </Link>
-            <Link
-              href="/schools/it-access"
-              className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100"
-            >
-              School IT & vendor access
-            </Link>
+    <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-5xl">
+        <Link
+          href="/home"
+          className="inline-flex min-h-10 items-center text-sm font-black text-blue-700"
+        >
+          ← Back to RaiseHub
+        </Link>
+
+        <header className="relative mt-4 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-10">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/25 blur-3xl" />
+          <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-green-500/15 blur-3xl" />
+
+          <div className="relative z-10 max-w-3xl">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">
+              RaiseHub for schools
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">
+              Fundraising that fits how schools actually operate
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
+              RaiseHub can support district-controlled school groups, student clubs, PTAs, PTOs, booster clubs, teams, and other community organizations. Start by identifying which legal or school entity is actually running the fundraiser.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/signup/organization"
+                className="inline-flex min-h-11 items-center rounded-xl bg-blue-600 px-4 text-sm font-black text-white hover:bg-blue-500"
+              >
+                Start Organization Account
+              </Link>
+              <Link
+                href="/schools/it-access"
+                className="inline-flex min-h-11 items-center rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white hover:bg-white/15"
+              >
+                School IT & Vendor Access
+              </Link>
+            </div>
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-blue-600">
-              School or district-controlled group
-            </p>
-            <h2 className="mt-2 text-xl font-black text-slate-950">
-              Use the entity your district authorizes
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              A teacher, sponsor, coach, or campus club should coordinate with the district or
-              campus finance office before entering payout information. RaiseHub will not tell a
-              school-controlled group to create a separate EIN simply to open a fundraiser.
-            </p>
-          </article>
+        <section className="mt-8" aria-labelledby="school-entity-heading">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+            Choose the right entity
+          </p>
+          <h2
+            id="school-entity-heading"
+            className="mt-1 text-2xl font-black tracking-tight"
+          >
+            Match the fundraiser to who actually owns it
+          </h2>
 
-          <article className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
-              PTA or PTO
-            </p>
-            <h2 className="mt-2 text-xl font-black text-slate-950">
-              Use the parent organization&apos;s own legal identity
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Texas generally treats PTAs and PTOs separately from the school&apos;s exempt status.
-              If the parent organization claims an exemption, use the organization&apos;s own
-              approved records rather than the school&apos;s tax identity.
-            </p>
-          </article>
-
-          <article className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-violet-700">
-              Booster club
-            </p>
-            <h2 className="mt-2 text-xl font-black text-slate-950">
-              Keep booster finances separate from the school
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Texas does not automatically extend a school&apos;s exempt status to a booster club.
-              The booster club should use its own legal, tax, and payout information when it is the
-              fundraiser owner.
-            </p>
-          </article>
-
-          <article className="rounded-3xl border border-amber-100 bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-wide text-amber-700">
-              Other nonprofit or community group
-            </p>
-            <h2 className="mt-2 text-xl font-black text-slate-950">
-              Match RaiseHub to the real organization
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Use the organization that is actually authorized to receive the fundraiser proceeds.
-              An EIN identifies an organization, but an EIN by itself does not establish that the
-              organization is tax-exempt.
-            </p>
-          </article>
+          <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+            {organizationTypes.map((item) => (
+              <article key={item.eyebrow} className="py-5">
+                <p className={`text-xs font-black uppercase tracking-[0.12em] ${item.tone}`}>
+                  {item.eyebrow}
+                </p>
+                <h3 className="mt-1 text-xl font-black">{item.title}</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                  {item.text}
+                </p>
+              </article>
+            ))}
+          </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            Student and seller participation
+        <section className="mt-9">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+            Student & seller participation
           </p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">
+          <h2 className="mt-1 text-2xl font-black tracking-tight">
             Student accounts are optional
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            An organization can add seller, student, or participant display names to a campaign
-            roster and generate an individual link and QR code for each person. A student does not
-            need an email address or RaiseHub account for that managed roster entry to receive
-            campaign credit.
+            An organization can add seller, student, or participant display names to a campaign roster and generate an individual link and QR code for each person. A student does not need an email address or RaiseHub account for that managed roster entry to receive campaign credit.
           </p>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl bg-blue-50 p-5">
-              <h3 className="font-black text-blue-950">Organization-managed seller</h3>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-700">
+                Lower-data path
+              </p>
+              <h3 className="mt-2 text-lg font-black text-blue-950">
+                Organization-managed seller
+              </h3>
               <p className="mt-2 text-sm leading-6 text-blue-900">
-                The organizer creates the roster entry, prints or shares the QR code, and can view
-                seller totals. This is the preferred low-data path for younger students.
+                The organizer creates the roster entry, prints or shares the QR code, and can view seller totals. This is the preferred low-data path for younger students.
               </p>
-            </div>
-            <div className="rounded-2xl bg-emerald-50 p-5">
-              <h3 className="font-black text-emerald-950">Optional seller account</h3>
-              <p className="mt-2 text-sm leading-6 text-emerald-900">
-                A seller who is permitted to create an account can claim their roster entry, keep
-                the same referral history, see their own results, update their seller profile, and
-                retrieve their personal link or QR code again later.
+            </article>
+
+            <article className="rounded-2xl border border-green-200 bg-green-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-green-700">
+                Optional account
               </p>
-            </div>
+              <h3 className="mt-2 text-lg font-black text-green-950">
+                Seller claims the existing roster entry
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-green-900">
+                A permitted seller can keep the same referral history, see their own results, update their profile, and retrieve their personal link or QR code later.
+              </p>
+            </article>
           </div>
 
-          <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            For children under 13, use the organization-managed roster by default. Do not direct a
-            child to create their own RaiseHub account unless the school or organization has
-            confirmed the appropriate parent or school authorization for that use.
-          </p>
+          <div className="mt-4 border-l-4 border-amber-400 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+            For children under 13, use the organization-managed roster by default. Do not direct a child to create their own RaiseHub account unless the school or organization has confirmed the appropriate parent or school authorization.
+          </div>
         </section>
 
-        <section className="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+        <section className="mt-9 border-y border-slate-200 py-6">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
             Public seller links
           </p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">
-            Every seller QR code opens the fundraiser, not a student-data page
+          <h2 className="mt-2 text-2xl font-black">
+            QR codes open the fundraiser, not a student-data page
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            A seller QR code opens the public campaign purchase page with that seller&apos;s
-            attribution already attached. Supporters can see overall fundraiser progress and the
-            seller&apos;s public progress, then purchase a pass or buy a separate pass as a gift.
-            Private seller-account details are not required on the public page.
+            A seller QR code opens the public campaign purchase page with that seller’s attribution attached. Supporters can see overall fundraiser progress and the seller’s public progress, then purchase a pass or buy a separate pass as a gift. Private seller-account details are not required on the public page.
           </p>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-9">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            Texas reference links
+            Official reference links
           </p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">
-            Official resources for your finance or administration team
+          <h2 className="mt-1 text-2xl font-black tracking-tight">
+            Resources for finance and administration teams
           </h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {officialResources.map((resource) => (
               <a
                 key={resource.href}
                 href={resource.href}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-blue-700 hover:border-blue-200 hover:bg-blue-50"
+                className="inline-flex min-h-12 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
               >
-                {resource.label} ↗
+                <span>{resource.label}</span>
+                <span aria-hidden="true">↗</span>
               </a>
             ))}
           </div>
-          <p className="mt-5 text-xs leading-5 text-slate-500">
-            These links are provided for planning and verification. RaiseHub does not provide legal
-            or tax advice, and a district or organization may have additional local policies.
+
+          <p className="mt-4 text-xs leading-5 text-slate-500">
+            These links are provided for planning and verification. RaiseHub does not provide legal or tax advice, and a district or organization may have additional local policies.
           </p>
         </section>
 
-        <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8">
-          <h2 className="text-2xl font-black text-emerald-950">
-            Using a school-managed computer?
+        <section className="mt-9 border-y border-green-200 bg-green-50/70 px-4 py-6 sm:px-5">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+            School-managed computers
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-green-950">
+            Give district IT the details they need
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-900">
-            If RaiseHub is blocked or your district requires vendor approval, send your IT team our
-            school access page. It includes the domains, browser requirements, privacy links, and
-            support contacts they need for review.
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-green-900">
+            If RaiseHub is blocked or your district requires vendor approval, the school access page includes domains, browser requirements, privacy links, and support contacts for review.
           </p>
           <Link
             href="/schools/it-access"
-            className="mt-5 inline-flex rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800"
+            className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-green-700 px-4 text-sm font-black text-white hover:bg-green-800"
           >
             Open School IT Access →
           </Link>
