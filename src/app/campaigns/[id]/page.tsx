@@ -303,10 +303,11 @@ export default async function CampaignPage({
   const campaignOrganizationProfile = (organizations ?? []).find(
     (candidate) => candidate.id === campaign.organization_id
   )
-  const campaignOrganizationName =
+  const campaignOrganizationName = String(
     campaignOrganizationProfile?.display_name ||
     campaignOrganizationProfile?.business_name ||
     'Local organization'
+  )
   const campaignOrganizationLogo = campaignOrganizationProfile?.logo_url ?? null
   const campaignInitials = campaignOrganizationName
     .split(/\s+/)
