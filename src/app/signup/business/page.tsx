@@ -16,35 +16,45 @@ const BUSINESS_DEMO_URL = 'https://raisehub-demo.vercel.app/demo?role=business'
 const partnershipFlow = [
   {
     number: '01',
+    icon: '🏪',
+    badge: 'FREE',
     title: 'Join RaiseHub free',
-    description:
-      'Create your Community Partner profile and publish up to three active offers with no required subscription.',
+    description: 'Create your local business profile and publish up to three active offers.',
+    accent: 'green',
   },
   {
     number: '02',
+    icon: '🏷️',
+    badge: 'YOUR OFFER',
     title: 'Create an offer customers want',
-    description:
-      'Choose the discount, redemption rules, and how customers will redeem it at your business.',
+    description: 'Choose the value, redemption rules, and how customers use it at your business.',
+    accent: 'blue',
   },
   {
     number: '03',
-    title: 'Local organizations sell RaiseHub passes',
-    description:
-      'Schools, teams, nonprofits, and community groups fundraise by selling passes filled with valuable local offers like yours.',
+    icon: '🎟️',
+    badge: 'LOCAL FUNDRAISING',
+    title: 'Fundraisers sell RaiseHub passes',
+    description: 'Schools, teams, nonprofits, and community groups sell passes filled with local offers like yours.',
+    accent: 'amber',
   },
   {
     number: '04',
-    title: 'Supporters discover and visit your business',
-    description:
-      'Pass holders can find your offer, visit your business, and redeem it through RaiseHub’s supported redemption and instant-verification tools.',
+    icon: '📍',
+    badge: 'NEW VISITS',
+    title: 'Supporters discover your business',
+    description: 'Pass holders find your offer, visit your business, and redeem through RaiseHub.',
+    accent: 'violet',
   },
   {
     number: '05',
-    title: 'Track results & earn Partner Points',
-    description:
-      'See offer activity and redemptions while earning Partner Points for qualifying participation. Your Rewards Center shows what you have earned and what you can do next.',
+    icon: '↗',
+    badge: 'PARTNER REWARDS',
+    title: 'Grow your business & earn rewards',
+    description: 'Track real activity and earn Partner Points for qualifying participation as your local reach grows.',
+    accent: 'emerald',
   },
-]
+] as const
 
 const rewardWays = [
   'Complete your profile',
@@ -183,21 +193,47 @@ export default function BusinessSignupPage() {
                 </a>
               </div>
 
-              <div className="mt-7 space-y-0">
-                {partnershipFlow.map((step, index) => (
-                  <div key={step.number} className="relative flex gap-4 pb-6 last:pb-0">
-                    {index < partnershipFlow.length - 1 ? (
-                      <div className="absolute left-[19px] top-10 h-[calc(100%-2rem)] w-px bg-green-200" aria-hidden="true" />
-                    ) : null}
-                    <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-black text-white shadow-sm">
-                      {step.number}
-                    </div>
-                    <div className="min-w-0 pt-1">
-                      <h3 className="font-bold text-gray-900">{step.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-gray-600">{step.description}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="mt-7 grid gap-4 sm:grid-cols-2">
+                {partnershipFlow.map((step, index) => {
+                  const accentClasses = {
+                    green: 'border-green-200 bg-gradient-to-br from-green-50 to-white text-green-800',
+                    blue: 'border-blue-200 bg-gradient-to-br from-blue-50 to-white text-blue-800',
+                    amber: 'border-amber-200 bg-gradient-to-br from-amber-50 to-white text-amber-800',
+                    violet: 'border-violet-200 bg-gradient-to-br from-violet-50 to-white text-violet-800',
+                    emerald: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white text-emerald-800',
+                  }[step.accent]
+
+                  return (
+                    <article
+                      key={step.number}
+                      className={`relative overflow-hidden rounded-3xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${accentClasses} ${index === partnershipFlow.length - 1 ? 'sm:col-span-2' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl shadow-sm ring-1 ring-black/5" aria-hidden="true">
+                            {step.icon}
+                          </span>
+                          <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm ring-1 ring-black/5">
+                            {step.badge}
+                          </span>
+                        </div>
+                        <span className="text-3xl font-black leading-none opacity-20">{step.number}</span>
+                      </div>
+                      <h3 className="mt-5 text-lg font-black leading-snug text-slate-950">{step.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
+                      {index < partnershipFlow.length - 1 ? (
+                        <div className="mt-4 flex items-center gap-2 text-xs font-black uppercase tracking-wide opacity-60">
+                          <span>Next step</span><span aria-hidden="true">→</span>
+                        </div>
+                      ) : (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-emerald-700 px-3 py-1.5 text-xs font-black text-white">Track results</span>
+                          <span className="rounded-full bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-950">Earn Partner Points</span>
+                        </div>
+                      )}
+                    </article>
+                  )
+                })}
               </div>
             </div>
 
