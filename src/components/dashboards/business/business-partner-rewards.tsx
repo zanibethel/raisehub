@@ -78,7 +78,7 @@ export function PartnerRewardsDashboardCard({ summary }: { summary: PartnerRewar
   return (
     <Link
       href="/dashboard/rewards"
-      className="block rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-green-50 p-4 shadow-sm transition hover:border-amber-300 hover:shadow-md"
+      className="block border-b border-amber-200 bg-transparent px-1 pb-4 pt-1 transition sm:rounded-2xl sm:border sm:bg-gradient-to-br sm:from-amber-50 sm:via-white sm:to-green-50 sm:p-4 sm:shadow-sm sm:hover:border-amber-300 sm:hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
