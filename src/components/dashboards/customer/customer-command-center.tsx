@@ -157,7 +157,7 @@ export default function CustomerCommandCenter({
           <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">Explore & support</p>
           <h2 className="mt-1 text-xl font-black text-slate-950">Quick Actions</h2>
           <div className="mt-3 grid grid-cols-4 gap-2.5">
-            <QuickAction href="/dashboard/deals" title="Browse Deals" tone="green" icon={<DealIcon />} />
+            <QuickAction href="/dashboard/deals#available-offers" title="Browse Deals" tone="green" icon={<DealIcon />} />
             <QuickAction href="/dashboard/deals" title="Saved Deals" tone="blue" icon={<HeartIcon />} />
             <QuickAction href="/dashboard/activity" title="My Activity" tone="violet" icon={<ActivityIcon />} />
             <QuickAction href="/campaigns" title="Support Fundraiser" tone="amber" icon={<FundraiserIcon />} />
