@@ -42,6 +42,19 @@ function formatCustomerValue(value: number): string {
     : `$${value.toFixed(2)}`
 }
 
+function formatOfferDate(value: string | null): string {
+  if (!value) return 'No listed expiration'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Date unavailable'
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 export default async function OffersPage() {
   const supabase = await createClient()
   const environment = getActiveDataEnvironment()
@@ -70,7 +83,9 @@ export default async function OffersPage() {
         environment
       )
 
-      savedOfferIds = new Set((savedOffers ?? []).map((savedOffer) => savedOffer.offer_id))
+      savedOfferIds = new Set(
+        (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
+      )
     }
   }
 
@@ -91,12 +106,22 @@ export default async function OffersPage() {
 
   if (offersError) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-12 sm:px-8">
-        <div className="mx-auto max-w-6xl rounded-3xl border border-red-100 bg-white p-8 shadow-xl">
-          <h1 className="text-3xl font-bold text-gray-900">Local Deals</h1>
-          <p className="mt-3 text-sm text-gray-600">
-            We could not load available offers right now. Please try again.
-          </p>
+      <main className="min-h-screen bg-[#F7FAFC] px-4 py-10 sm:px-8">
+        <div className="mx-auto max-w-5xl">
+          <Link href="/" className="text-sm font-black text-blue-700">
+            ← Back to home
+          </Link>
+          <section className="mt-5 rounded-3xl border border-red-200 bg-white p-6 shadow-sm sm:p-8">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-red-600">
+              Local Deals
+            </p>
+            <h1 className="mt-2 text-2xl font-black text-slate-950">
+              Deals are temporarily unavailable
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              We could not load available offers right now. Please try again.
+            </p>
+          </section>
         </div>
       </main>
     )
@@ -118,7 +143,9 @@ export default async function OffersPage() {
 
   const profileById = Object.fromEntries(
     profiles
-      .filter((profile) => Boolean(profile.business_name?.trim() || profile.display_name?.trim()))
+      .filter((profile) =>
+        Boolean(profile.business_name?.trim() || profile.display_name?.trim())
+      )
       .map((profile) => [profile.id, profile])
   )
 
@@ -128,153 +155,205 @@ export default async function OffersPage() {
   })
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-blue-50 px-4 py-12 sm:px-8">
+    <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-5 rounded-3xl border border-yellow-100 bg-white/90 p-6 shadow-xl sm:flex-row sm:items-center sm:justify-between sm:p-8">
-          <div>
-            <Link href="/" className="text-sm font-medium text-blue-700 hover:underline">
-              ← Back to home
-            </Link>
-            <h1 className="mt-4 text-3xl font-bold text-gray-900">Exclusive Local Deals</h1>
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Preview participating local businesses and the value waiting inside their offers.
-              Exact deal terms and redemption details unlock with an active RaiseHub Pass.
-            </p>
-          </div>
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center text-sm font-black text-blue-700"
+        >
+          ← Back to home
+        </Link>
 
-          {!user ? (
-            <div className="flex shrink-0 flex-col gap-3 sm:items-end">
-              <Link
-                href="/login?next=/offers"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
-              >
-                Have an active pass? Log in here
-              </Link>
-              <Link
-                href="/signup?source=offers"
-                className="text-center text-sm font-semibold text-yellow-700 hover:underline sm:text-right"
-              >
-                Need a pass? Choose a fundraiser →
-              </Link>
+        <section className="relative mt-4 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-10">
+          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-400/20 blur-3xl" />
+          <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
+
+          <div className="relative z-10 max-w-3xl">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+              Shop local. Save locally.
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+              Local Deals
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+              Explore participating businesses and the value included with a RaiseHub Pass.
+            </p>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-slate-100">
+                {visibleOffers.length} {visibleOffers.length === 1 ? 'active offer' : 'active offers'}
+              </span>
+
+              {hasActivePass ? (
+                <span className="rounded-full bg-green-400/15 px-3 py-1.5 text-xs font-black text-green-200">
+                  ✓ Pass active — full details unlocked
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-400/15 px-3 py-1.5 text-xs font-black text-amber-200">
+                  Pass required for exact deal details
+                </span>
+              )}
             </div>
-          ) : !hasActivePass ? (
+          </div>
+        </section>
+
+        {!hasActivePass ? (
+          <section className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
+                Preview mode
+              </p>
+              <p className="mt-0.5 text-sm font-bold leading-5 text-slate-800">
+                You can see participating businesses and offer value before unlocking exact terms.
+              </p>
+            </div>
+
             <Link
-              href="/campaigns"
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-yellow-500 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-yellow-600"
+              href={user ? '/campaigns' : '/signup?source=offers'}
+              className="shrink-0 rounded-xl bg-amber-500 px-3 py-2 text-xs font-black text-white transition hover:bg-amber-600"
             >
-              Choose a Fundraiser
+              Get a pass
             </Link>
-          ) : (
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
-              Active pass verified
-            </div>
-          )}
-        </div>
+          </section>
+        ) : null}
 
         {visibleOffers.length > 0 ? (
-          <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {visibleOffers.map((offer) => {
-              const profile = profileById[offer.business_id]
-              const businessName =
-                profile.display_name || profile.business_name || 'Local Business'
-              const isSaved = savedOfferIds.has(offer.id)
-
-              return (
-                <article
-                  key={offer.id}
-                  className="overflow-hidden rounded-3xl border border-yellow-100 bg-white/95 shadow-xl"
+          <section className="mt-7" aria-labelledby="available-local-deals">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                  Community partners
+                </p>
+                <h2
+                  id="available-local-deals"
+                  className="mt-1 text-2xl font-black tracking-tight text-slate-950"
                 >
-                  <div className="flex items-center gap-4 border-b border-yellow-100 p-6">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={profile.logo_url || '/default-business-logo.png'}
-                      alt={`${businessName} logo`}
-                      className="h-14 w-14 rounded-xl border border-gray-200 object-cover"
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold uppercase tracking-wide text-yellow-700">
-                        {businessName}
-                      </p>
-                      <h2 className="mt-1 text-xl font-bold text-gray-900">
-                        {hasActivePass ? offer.title : 'Exclusive Local Deal'}
-                      </h2>
-                    </div>
-                  </div>
+                  Available Local Deals
+                </h2>
+              </div>
 
-                  <div className="p-6">
+              {!user ? (
+                <Link
+                  href="/login?next=/offers"
+                  className="text-sm font-black text-blue-700"
+                >
+                  Log in
+                </Link>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleOffers.map((offer) => {
+                const profile = profileById[offer.business_id]
+                const businessName =
+                  profile.display_name || profile.business_name || 'Local Business'
+                const isSaved = savedOfferIds.has(offer.id)
+
+                return (
+                  <article
+                    key={offer.id}
+                    className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md sm:p-6"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={profile.logo_url || '/default-business-logo.png'}
+                          alt=""
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black uppercase tracking-[0.12em] text-amber-700">
+                          {businessName}
+                        </p>
+                        <h3 className="mt-1 line-clamp-2 text-lg font-black leading-6 text-slate-950">
+                          {hasActivePass
+                            ? offer.title || 'Local offer'
+                            : 'Exclusive Local Deal'}
+                        </h3>
+                      </div>
+
+                      {hasActivePass && isSaved ? (
+                        <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-green-700">
+                          Saved
+                        </span>
+                      ) : null}
+                    </div>
+
                     {hasActivePass ? (
                       <>
-                        <p className="text-lg font-semibold text-green-700">
+                        <p className="mt-4 text-lg font-black text-green-700">
                           {offer.discount || 'Special savings available'}
                         </p>
-                        <p className="mt-3 text-sm text-gray-700">
+                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
                           {offer.description || 'Exclusive customer offer'}
                         </p>
-                        <div className="mt-5 space-y-2 text-sm text-gray-600">
-                          {profile.address ? <p>📍 {profile.address}</p> : null}
-                          {profile.phone ? <p>📞 {profile.phone}</p> : null}
-                          <p>
-                            Valid until:{' '}
-                            {offer.ends_at
-                              ? new Date(offer.ends_at).toLocaleDateString()
-                              : 'No listed expiration'}
-                          </p>
-                        </div>
-                        {isSaved ? (
-                          <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700">
-                            Added to your pass
-                          </div>
-                        ) : (
-                          <SaveOfferButton offerId={offer.id} />
-                        )}
                       </>
                     ) : (
-                      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-center">
-                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-yellow-100 text-lg">
-                          🔒
-                        </div>
-
+                      <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
                         {offer.customer_value !== null ? (
-                          <div className="mx-auto mt-4 inline-flex items-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-green-800">
-                            <span className="text-base font-black">
-                              {formatCustomerValue(offer.customer_value)} value
-                            </span>
-                          </div>
+                          <p className="text-lg font-black text-green-700">
+                            {formatCustomerValue(offer.customer_value)} value
+                          </p>
                         ) : (
-                          <p className="mt-4 font-bold text-green-700">Member value available</p>
+                          <p className="text-sm font-black text-green-700">
+                            Member value available
+                          </p>
                         )}
-
-                        <p className="mt-4 text-sm font-semibold text-gray-900">
-                          Active pass required
+                        <p className="mt-2 text-xs leading-5 text-slate-600">
+                          Unlock the exact offer, discount, description, and redemption details with an active pass.
                         </p>
-                        <p className="mt-2 text-xs leading-5 text-gray-600">
-                          Activate a RaiseHub Pass to reveal the exact offer, discount,
-                          description, and redemption details.
-                        </p>
-                        <Link
-                          href={user ? '/campaigns' : '/signup?source=offers'}
-                          className="mt-4 inline-flex rounded-lg bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600"
-                        >
-                          Choose a Fundraiser
-                        </Link>
                       </div>
                     )}
 
-                    <Link
-                      href={`/offers/${offer.id}`}
-                      className="mt-5 inline-flex text-sm font-medium text-blue-700 hover:underline"
-                    >
-                      View offer page →
-                    </Link>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+                    <div className="mt-4 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">
+                      {profile.address ? (
+                        <p className="line-clamp-2">
+                          <span className="font-black text-slate-700">Location:</span>{' '}
+                          {profile.address}
+                        </p>
+                      ) : null}
+                      <p className={profile.address ? 'mt-1.5' : ''}>
+                        <span className="font-black text-slate-700">Offer:</span>{' '}
+                        {formatOfferDate(offer.ends_at)}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto pt-5">
+                      {hasActivePass && !isSaved ? (
+                        <SaveOfferButton offerId={offer.id} />
+                      ) : null}
+
+                      <Link
+                        href={`/offers/${offer.id}`}
+                        className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2.5 text-center text-sm font-black transition ${
+                          hasActivePass && !isSaved
+                            ? 'mt-3 border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                            : 'bg-blue-700 text-white hover:bg-blue-800'
+                        }`}
+                      >
+                        {hasActivePass ? 'View Deal Details' : 'Preview Offer'}
+                      </Link>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
         ) : (
-          <div className="mt-8 rounded-3xl border border-yellow-100 bg-white p-8 text-sm text-gray-600 shadow-xl">
-            No active local offers are available right now.
-          </div>
+          <section className="mt-8 border-t border-slate-200 py-10 text-center">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Local Deals
+            </p>
+            <h2 className="mt-2 text-xl font-black text-slate-950">
+              New offers are coming
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
+              Participating businesses do not have any active offers published right now.
+            </p>
+          </section>
         )}
       </div>
     </main>
