@@ -74,15 +74,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white px-3 py-8 sm:px-8 sm:py-16">
-      <section className="mx-auto max-w-md border-b border-blue-100 bg-transparent px-1 pb-8 pt-2 sm:rounded-3xl sm:border sm:bg-white sm:p-9 sm:shadow-xl">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
-          Welcome back
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-16">
+      <section className="mx-auto max-w-md">
+        <div className="mb-7 rounded-3xl bg-slate-950 px-5 py-6 text-white shadow-lg sm:px-7">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-300">RaiseHub account</p>
+          <h1 className="mt-2 text-2xl font-black">Welcome back</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-300">One login connects your RaiseHub roles, workspaces, passes, and activity.</p>
+        </div>
+
+        <div className="border-t border-slate-200 pt-6 sm:rounded-3xl sm:border sm:bg-white sm:p-8 sm:shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-green-700">
+          Sign in
         </p>
 
-        <h1 className="mt-3 text-3xl font-bold text-blue-700">
+        <h2 className="mt-2 text-3xl font-black text-slate-950">
           Log in to RaiseHub
-        </h1>
+        </h2>
 
         <p className="mt-3 text-sm leading-6 text-gray-600">
           Access your offers, fundraising activity, community impact, and
@@ -93,7 +100,7 @@ export default function LoginPage() {
           <label className="block">
             <span className="text-sm font-semibold text-gray-700">Email</span>
             <input
-              className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+              className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               type="email"
               placeholder="you@example.com"
               value={email}
@@ -118,7 +125,7 @@ export default function LoginPage() {
             </div>
 
             <input
-              className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+              className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               type="password"
               placeholder="Your password"
               value={password}
@@ -130,7 +137,7 @@ export default function LoginPage() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-blue-600 px-4 py-3 font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Logging in...' : 'Log In'}
           </button>
@@ -154,7 +161,7 @@ export default function LoginPage() {
           type="button"
           onClick={() => handleOAuth('google')}
           disabled={Boolean(oauthProvider)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:opacity-50"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
         >
           <GoogleIcon />
           {oauthProvider === 'google' ? 'Connecting...' : 'Google sign-in'}
@@ -169,6 +176,7 @@ export default function LoginPage() {
             Sign up free
           </Link>
         </p>
+        </div>
       </section>
     </main>
   )
