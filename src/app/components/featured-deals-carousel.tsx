@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { applyEnvironmentScope, getActiveDataEnvironment } from '@/lib/data-environment'
 import FeaturedDealsCarouselClient from './featured-deals-carousel-client'
-import { isDemoMode } from '@/lib/app-mode'
 import { getPublicPartnerProfiles } from '@/lib/repositories/public-partner-profile-repository'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -22,60 +22,6 @@ type Offer = {
   business_id: string
   featured?: boolean
 }
-
-const DEMO_SAMPLE_PROFILES: Record<string, Profile> = {
-  'demo-business-1': {
-    id: 'demo-business-1',
-    business_name: 'Maple Street Coffee Co.',
-    display_name: 'Maple Street Coffee Co.',
-    logo_url: null,
-    role: 'business',
-  },
-  'demo-business-2': {
-    id: 'demo-business-2',
-    business_name: 'Riverside Pizza Kitchen',
-    display_name: 'Riverside Pizza Kitchen',
-    logo_url: null,
-    role: 'business',
-  },
-  'demo-business-3': {
-    id: 'demo-business-3',
-    business_name: 'Bright Smiles Family Dentistry',
-    display_name: 'Bright Smiles Family Dentistry',
-    logo_url: null,
-    role: 'business',
-  },
-}
-
-const DEMO_SAMPLE_OFFERS: Offer[] = [
-  {
-    id: 'demo-offer-1',
-    title: 'Buy One Latte, Get One Free',
-    discount: 'BOGO',
-    description: 'Treat a friend on us — valid any time, any size.',
-    starts_at: null,
-    ends_at: null,
-    business_id: 'demo-business-1',
-  },
-  {
-    id: 'demo-offer-2',
-    title: '20% Off Any Large Pizza',
-    discount: '20% off',
-    description: 'Perfect for family night or a team celebration.',
-    starts_at: null,
-    ends_at: null,
-    business_id: 'demo-business-2',
-  },
-  {
-    id: 'demo-offer-3',
-    title: 'Free Teeth Whitening with New Patient Exam',
-    discount: 'Free add-on',
-    description: 'New patients only — includes full exam and cleaning.',
-    starts_at: null,
-    ends_at: null,
-    business_id: 'demo-business-3',
-  },
-]
 
 async function getFeaturedOfferOwnerIds(now: string) {
   try {
@@ -130,19 +76,23 @@ async function getFeaturedOfferOwnerIds(now: string) {
 export default async function FeaturedDealsCarousel() {
   const supabase = await createClient()
   const now = new Date().toISOString()
-  const demoMode = isDemoMode()
+  const environment = getActiveDataEnvironment()
 
-  const { data: offers, error: offersError } = await supabase
+  const offersQuery = supabase
     .from('offers')
     .select(
-      'id, title, discount, description, starts_at, ends_at, business_id'
+      'id, title, discount, description, starts_at, ends_at, business_id, is_demo, demo_group'
     )
     .eq('is_active', true)
-    .eq('is_demo', demoMode)
     .or(`starts_at.is.null,starts_at.lte.${now}`)
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
     .limit(50)
+
+  const { data: offers, error: offersError } = await applyEnvironmentScope(
+    offersQuery,
+    environment
+  )
 
   if (offersError) return null
 
@@ -151,21 +101,12 @@ export default async function FeaturedDealsCarousel() {
       (offer) => Boolean(offer.business_id) && Boolean(offer.title?.trim())
     ) ?? []
 
-  if (candidateOffers.length === 0 && demoMode) {
-    return (
-      <FeaturedDealsCarouselClient
-        offers={DEMO_SAMPLE_OFFERS}
-        profileById={DEMO_SAMPLE_PROFILES}
-      />
-    )
-  }
-
   if (candidateOffers.length === 0) return null
 
   const businessIds = [...new Set(candidateOffers.map((offer) => offer.business_id))]
   const { profiles, error: profilesError } = await getPublicPartnerProfiles(
     businessIds,
-    { role: 'business' }
+    { role: 'business', environment }
   )
 
   if (profilesError) return null
@@ -183,15 +124,6 @@ export default async function FeaturedDealsCarousel() {
   const validOffers = candidateOffers.filter((offer) =>
     Boolean(profileById[offer.business_id])
   )
-
-  if (validOffers.length === 0 && demoMode) {
-    return (
-      <FeaturedDealsCarouselClient
-        offers={DEMO_SAMPLE_OFFERS}
-        profileById={DEMO_SAMPLE_PROFILES}
-      />
-    )
-  }
 
   if (validOffers.length === 0) return null
 
