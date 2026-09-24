@@ -2,16 +2,20 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 import Link from 'next/link'
-import LogoCarousel from '../components/logo-carousel'
-import FeaturedDealsCarousel from '../components/featured-deals-carousel'
+
 import CampaignProgressCarousel from '../components/campaign-progress-carousel'
+import FeaturedDealsCarousel from '../components/featured-deals-carousel'
+import LogoCarousel from '../components/logo-carousel'
 import { getAppMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function PlatformHomePage() {
   const supabase = await createClient()
   const appMode = getAppMode()
-  const experienceHref = appMode === 'demo' ? 'https://raisehub.app/home' : 'https://demo.raisehub.app/home'
+  const experienceHref =
+    appMode === 'demo'
+      ? 'https://raisehub.app/home'
+      : 'https://demo.raisehub.app/home'
   const experienceLabel = appMode === 'demo' ? 'Go Live' : 'Enter Demo'
 
   const {
@@ -19,100 +23,163 @@ export default async function PlatformHomePage() {
   } = await supabase.auth.getUser()
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-6 text-gray-900 sm:px-8 sm:py-16">
-      <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-        <div className="absolute left-1/2 top-[-120px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
-        <div className="absolute left-[-80px] top-[280px] h-[260px] w-[260px] rounded-full bg-cyan-300/20 blur-3xl" />
-        <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
+    <main className="relative min-h-screen overflow-x-hidden bg-[#F7FAFC] px-4 pb-8 text-slate-950 sm:px-8 sm:pb-12">
+      <div className="absolute inset-x-0 top-0 -z-10 h-[560px] overflow-hidden" aria-hidden="true">
+        <div className="absolute left-1/2 top-[-180px] h-[520px] w-[780px] -translate-x-1/2 rounded-full bg-blue-300/35 blur-3xl" />
+        <div className="absolute left-[-120px] top-[180px] h-[300px] w-[300px] rounded-full bg-green-300/20 blur-3xl" />
+        <div className="absolute right-[-100px] top-[280px] h-[280px] w-[280px] rounded-full bg-amber-200/30 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-5xl text-center">
-        <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm backdrop-blur sm:px-4 sm:text-sm">
-          Fundraising powered by local businesses
-        </p>
+      <section className="mx-auto max-w-6xl pt-8 sm:pt-16">
+        <div className="overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-8 text-white shadow-2xl sm:px-10 sm:py-12">
+          <div className="relative">
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-500/25 blur-2xl" />
+            <div className="absolute -bottom-24 right-20 h-56 w-56 rounded-full bg-green-400/15 blur-2xl" />
 
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-blue-700 sm:mt-6 sm:text-6xl">
-          RaiseHub
-        </h1>
+            <div className="relative z-10 max-w-3xl">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-300">
+                Fundraising powered by local businesses
+              </p>
 
-        <p className="mx-auto mt-3 max-w-2xl text-base leading-6 text-gray-700 sm:mt-6 sm:text-lg">
-          Raise money for schools and organizations while promoting local businesses. Supporters save locally, businesses gain visibility, and communities win together.
-        </p>
+              <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">
+                Fundraise locally.
+                <span className="block text-green-300">Reward supporters.</span>
+                Grow together.
+              </h1>
 
-        <div className="mx-auto mt-5 grid max-w-3xl grid-cols-3 gap-2 sm:mt-8 sm:gap-4">
-          <Link
-            href="/campaigns"
-            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-blue-600 px-2 py-2 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-blue-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
-          >
-            Browse Fundraisers
-          </Link>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+                RaiseHub connects community fundraisers, local businesses, and supporters through digital passes filled with valuable local offers.
+              </p>
 
-          <Link
-            href="/signup?source=offers"
-            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-green-600 px-2 py-2 text-center text-xs font-semibold leading-4 text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
-          >
-            View Local Deals
-          </Link>
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+                <Link
+                  href="/campaigns"
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-4 text-center text-sm font-black text-white shadow-lg transition hover:bg-blue-500"
+                >
+                  Browse Fundraisers
+                </Link>
 
-          <Link
-            href={experienceHref}
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-yellow-300 bg-yellow-400 px-2 py-2 text-center text-xs font-semibold leading-4 text-slate-950 shadow-lg transition hover:bg-yellow-300 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-700 sm:min-h-12 sm:px-5 sm:py-3 sm:text-base"
-          >
-            {experienceLabel}
-          </Link>
+                <Link
+                  href="/offers"
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-4 text-center text-sm font-black text-white shadow-lg transition hover:bg-green-500"
+                >
+                  View Local Deals
+                </Link>
+
+                <Link
+                  href={experienceHref}
+                  className="col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 sm:min-h-12"
+                >
+                  {experienceLabel}
+                </Link>
+              </div>
+
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm font-black text-blue-200 hover:text-white"
+                >
+                  Open my dashboard <span aria-hidden="true">→</span>
+                </Link>
+              ) : null}
+            </div>
+          </div>
         </div>
-
-        {user ? (
-          <Link
-            href="/dashboard"
-            className="mt-3 inline-flex min-h-9 items-center justify-center rounded-lg border border-blue-300 bg-white/90 px-4 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition hover:bg-white hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:mt-4 sm:min-h-11 sm:rounded-xl sm:px-5 sm:py-2 sm:text-sm"
-          >
-            View Dashboard
-          </Link>
-        ) : null}
-      </div>
+      </section>
 
       <LogoCarousel />
-      <FeaturedDealsCarousel />
       <CampaignProgressCarousel />
+      <FeaturedDealsCarousel />
 
-      <div className="mx-auto mt-16 max-w-5xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-blue-700">Choose Your Path</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-gray-600">RaiseHub works differently depending on your role. Find the path that fits you.</p>
+      <section className="mx-auto mt-14 max-w-6xl sm:mt-20">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">
+            Choose Your Path
+          </p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+            One community, three ways to participate
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Start a fundraiser, bring your business into the network, or support a campaign and unlock local savings.
+          </p>
         </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          <div className="flex flex-col rounded-2xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h3 className="text-lg font-semibold text-blue-700">For schools &amp; organizations</h3>
-            <p className="mt-2 flex-1 text-sm text-gray-600">Launch digital fundraising passes that supporters can buy online and use for months.</p>
-            <Link href="/signup/organization" className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700">Start a Fundraiser</Link>
-          </div>
+        <div className="-mr-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pr-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mr-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pr-0">
+          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:w-auto sm:min-w-0 sm:p-6">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-xl font-black text-blue-700">
+              ↑
+            </span>
+            <h3 className="mt-5 text-lg font-black text-slate-950">Schools &amp; organizations</h3>
+            <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
+              Launch digital fundraising passes supporters can buy online and use at participating businesses.
+            </p>
+            <Link
+              href="/signup/organization"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-black text-white hover:bg-blue-700"
+            >
+              Start a Fundraiser
+            </Link>
+          </article>
 
-          <div className="flex flex-col rounded-2xl border border-green-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h3 className="text-lg font-semibold text-green-700">For businesses</h3>
-            <p className="mt-2 flex-1 text-sm text-gray-600">Promote local offers, attract new customers, and track redemption performance in one place.</p>
-            <Link href="/signup/business" className="mt-4 inline-block rounded-xl bg-green-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-green-700">Join as a Business</Link>
-          </div>
+          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-green-100 bg-white p-5 shadow-sm sm:w-auto sm:min-w-0 sm:p-6">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-xl font-black text-green-700">
+              ↗
+            </span>
+            <h3 className="mt-5 text-lg font-black text-slate-950">Local businesses</h3>
+            <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
+              Publish offers, attract new customers, support local fundraising, and earn Partner Points.
+            </p>
+            <Link
+              href="/signup/business"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-green-600 px-4 text-sm font-black text-white hover:bg-green-700"
+            >
+              Join as a Business
+            </Link>
+          </article>
 
-          <div className="flex flex-col rounded-2xl border border-yellow-100 bg-white/90 p-6 shadow-xl backdrop-blur">
-            <h3 className="text-lg font-semibold text-yellow-600">For supporters</h3>
-            <p className="mt-2 flex-1 text-sm text-gray-600">Buy a pass, save money at local businesses, and help fund programs that matter.</p>
-            <Link href="/signup?source=offers" className="mt-4 inline-block rounded-xl bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-yellow-700">View Local Deals</Link>
+          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:w-auto sm:min-w-0 sm:p-6">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-xl font-black text-amber-700">
+              ♥
+            </span>
+            <h3 className="mt-5 text-lg font-black text-slate-950">Supporters</h3>
+            <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
+              Support a fundraiser, activate your pass, and save at businesses participating in the RaiseHub community.
+            </p>
+            <Link
+              href="/campaigns"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-500 px-4 text-sm font-black text-slate-950 hover:bg-amber-400"
+            >
+              Find a Fundraiser
+            </Link>
+          </article>
+        </div>
+      </section>
+
+      <section className="mx-auto mt-14 max-w-6xl border-y border-slate-200 py-8 sm:mt-20 sm:py-10">
+        <div className="grid grid-cols-3 divide-x divide-slate-200 text-center">
+          <div className="px-2 sm:px-6">
+            <p className="text-xl font-black text-blue-700 sm:text-3xl">6 Months</p>
+            <p className="mt-2 text-[11px] leading-4 text-slate-500 sm:text-sm">
+              Reusable supporter pass access
+            </p>
+          </div>
+          <div className="px-2 sm:px-6">
+            <p className="text-xl font-black text-green-700 sm:text-3xl">Local Growth</p>
+            <p className="mt-2 text-[11px] leading-4 text-slate-500 sm:text-sm">
+              Visibility and customer traffic
+            </p>
+          </div>
+          <div className="px-2 sm:px-6">
+            <p className="text-xl font-black text-amber-600 sm:text-3xl">Shared Impact</p>
+            <p className="mt-2 text-[11px] leading-4 text-slate-500 sm:text-sm">
+              Fundraisers and businesses win together
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="mx-auto mt-16 max-w-5xl rounded-3xl border border-white/60 bg-white/85 p-8 shadow-xl backdrop-blur">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div><p className="text-3xl font-bold text-blue-700">6 Months</p><p className="mt-2 text-sm text-gray-600">Reusable digital pass access for supporters</p></div>
-          <div><p className="text-3xl font-bold text-green-700">Local Growth</p><p className="mt-2 text-sm text-gray-600">More visibility and foot traffic for participating businesses</p></div>
-          <div><p className="text-3xl font-bold text-yellow-600">Shared Impact</p><p className="mt-2 text-sm text-gray-600">Schools, organizations, businesses, and families all benefit together</p></div>
-        </div>
-      </div>
-
-      <footer className="mx-auto mt-16 max-w-5xl border-t border-blue-100 pt-6 text-center text-sm text-gray-500">
-        <div className="flex flex-wrap justify-center gap-4">
+      <footer className="mx-auto mt-10 max-w-6xl pt-4 text-center text-sm text-slate-500">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
           <Link href="/terms" className="hover:text-blue-700">Terms</Link>
           <Link href="/privacy" className="hover:text-blue-700">Privacy</Link>
           <Link href="/refund-policy" className="hover:text-blue-700">Refund Policy</Link>
