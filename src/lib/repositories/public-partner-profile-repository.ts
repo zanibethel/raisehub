@@ -18,6 +18,11 @@ export type PublicPartnerProfile = EnvironmentOwnedRecord & {
   address: string | null
   website_url: string | null
   google_maps_url: string | null
+  business_category: string | null
+  business_description: string | null
+  facebook_url: string | null
+  instagram_url: string | null
+  tiktok_url: string | null
 }
 
 export async function getPublicPartnerProfiles(
@@ -33,7 +38,7 @@ export async function getPublicPartnerProfiles(
   let query = admin
     .from('profiles')
     .select(
-      'id, role, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, is_demo, demo_group'
+      'id, role, business_name, display_name, logo_url, phone, address, website_url, google_maps_url, business_category, business_description, facebook_url, instagram_url, tiktok_url, is_demo, demo_group'
     )
 
   if (profileIds) {
