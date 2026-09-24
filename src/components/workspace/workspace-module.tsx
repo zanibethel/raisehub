@@ -18,6 +18,7 @@ export type WorkspaceModuleProps = {
   collapsible?: boolean
   defaultCollapsed?: boolean
   tone?: WorkspaceModuleTone
+  surface?: 'card' | 'section'
 }
 
 const TONE_CLASSES: Record<WorkspaceModuleTone, {
@@ -76,9 +77,11 @@ export function WorkspaceModule({
   collapsible = false,
   defaultCollapsed = false,
   tone = 'slate',
+  surface = 'card',
 }: WorkspaceModuleProps) {
   const classes = TONE_CLASSES[tone]
   const hasContent = Boolean(children)
+  const sectionFirst = surface === 'section'
 
   const header = (
     <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:gap-3">
@@ -133,7 +136,7 @@ export function WorkspaceModule({
   return (
     <section
       id={id}
-      className={`rounded-3xl border ${classes.border} bg-white p-3.5 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-5`}
+      className={sectionFirst ? 'py-1 sm:py-2' : `rounded-3xl border ${classes.border} bg-white p-3.5 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-5`}
     >
       <div className="flex items-start justify-between gap-2.5 sm:gap-3">
         {header}
