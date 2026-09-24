@@ -9,6 +9,7 @@ import OrganizationWorkspaceShell from './organization-workspace-shell'
 type Props = ComponentProps<typeof OrganizationDashboardContent> & {
   organizationName: string
   organizationLocation: string
+  organizationLogoUrl?: string | null
   isSellerWorkspace?: boolean
   view?: OrganizationWorkspaceView
 }
@@ -16,6 +17,7 @@ type Props = ComponentProps<typeof OrganizationDashboardContent> & {
 export default function OrganizationWorkspaceFrame({
   organizationName,
   organizationLocation,
+  organizationLogoUrl = null,
   isSellerWorkspace = false,
   view = 'dashboard',
   ...props
@@ -24,6 +26,7 @@ export default function OrganizationWorkspaceFrame({
     <OrganizationWorkspaceShell
       organizationName={organizationName}
       organizationLocation={organizationLocation}
+      organizationLogoUrl={organizationLogoUrl}
       activeCampaigns={props.activeCampaigns}
       totalCampaigns={props.totalCampaigns}
       totalFundsRaised={props.totalFundsRaised}
@@ -49,7 +52,13 @@ export default function OrganizationWorkspaceFrame({
         </section>
       ) : null}
 
-      <OrganizationDashboardContent view={view} {...props} />
+      <OrganizationDashboardContent
+        view={view}
+        organizationName={organizationName}
+        organizationLocation={organizationLocation}
+        organizationLogoUrl={organizationLogoUrl}
+        {...props}
+      />
     </OrganizationWorkspaceShell>
   )
 }
