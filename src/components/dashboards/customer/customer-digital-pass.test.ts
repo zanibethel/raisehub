@@ -521,21 +521,21 @@ test(
 )
 
 test(
-  'passes support details into the digital pass',
+  'passes support details into the visual customer home',
   () => {
     assertSourceIncludes(
       dashboardSource,
-      '<CustomerDigitalPass'
+      '<CustomerCommandCenter'
     )
 
     assertSourceIncludes(
       dashboardSource,
-      'supportedOrganizationName={'
+      'supportedOrganizationName={supportedOrganizationName}'
     )
 
     assertSourceIncludes(
       dashboardSource,
-      'supportedCampaignName={'
+      'supportedCampaignName={supportedCampaignName}'
     )
   }
 )
