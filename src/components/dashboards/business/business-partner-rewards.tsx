@@ -84,14 +84,14 @@ export function PartnerRewardsDashboardCard({ summary }: { summary: PartnerRewar
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Partner Rewards</p>
           <p className="mt-1 text-3xl font-black text-slate-950">{formatPoints(summary.totalPoints)} points</p>
-          <p className="mt-1 text-sm text-slate-600">{summary.period?.label ?? 'Current quarter'}</p>
+          <p className="mt-1 text-sm text-slate-600">Continuous balance · points do not expire each quarter</p>
         </div>
         <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">
-          {summary.period?.label ?? 'Rewards'}
+          {summary.founderStatus ? `${summary.founderMultiplier}× Founder` : 'Rewards'}
         </span>
       </div>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        Points determine your share of the quarterly Partner Rewards Pool. They do not have a fixed cash value.
+        Your spendable Partner Points carry forward across quarters. Quarterly activity can still determine cash reward-pool awards.
       </p>
       <div className="mt-3 flex items-center justify-between text-sm font-bold text-green-700">
         <span>View Rewards Center</span>
@@ -175,7 +175,7 @@ export default function BusinessPartnerRewardsCenter({
     if (!businessId || isPending || !item.is_active) return
 
     const confirmed = window.confirm(
-      `Use ${formatPoints(item.point_cost)} Partner Points for ${item.name}?\n\nSpent points will no longer count toward your share of this quarter’s Partner Rewards Pool.`
+      `Use ${formatPoints(item.point_cost)} Partner Points for ${item.name}?\n\nYour remaining Partner Point balance will continue carrying forward across quarters.`
     )
     if (!confirmed) return
 
@@ -238,11 +238,25 @@ export default function BusinessPartnerRewardsCenter({
 
   return (
     <div className="mt-4 space-y-4 sm:mt-5 sm:space-y-5">
+      {summary.founderStatus ? (
+        <section className="rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-100 via-yellow-50 to-green-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Founding 100 Business</span>
+            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">{summary.founderMultiplier}× Partner Points</span>
+          </div>
+          <h2 className="mt-3 text-2xl font-black text-slate-950">Your Founder Bonus is active</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            As one of RaiseHub&apos;s first 100 verified businesses, you earn {summary.founderMultiplier}× positive Partner Points for your first year as a verified partner.
+            {summary.founderMultiplierEndsAt ? ` Bonus active through ${formatDate(summary.founderMultiplierEndsAt)}.` : ''}
+          </p>
+        </section>
+      ) : null}
+
       <section className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-green-50 p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Current earning period</p>
-            <h2 className="mt-1 text-3xl font-black text-slate-950">{summary.period?.label ?? 'Partner Rewards'}</h2>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Partner Rewards</p>
+            <h2 className="mt-1 text-3xl font-black text-slate-950">Continuous Partner Points</h2>
             {summary.period ? (
               <p className="mt-1 text-sm text-slate-500">
                 {new Date(summary.period.starts_at).toLocaleDateString()} – {new Date(summary.period.ends_at).toLocaleDateString()}
@@ -250,7 +264,7 @@ export default function BusinessPartnerRewardsCenter({
             ) : null}
           </div>
           <div className="rounded-2xl bg-slate-950 px-5 py-3 text-white">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-300">Points so far</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-300">Available balance</p>
             <p className="text-3xl font-black">{formatPoints(summary.totalPoints)}</p>
           </div>
         </div>
@@ -259,6 +273,7 @@ export default function BusinessPartnerRewardsCenter({
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">Eligible</p>
             <p className="mt-1 text-2xl font-black text-green-700">{formatPoints(summary.eligiblePoints)}</p>
+            <p className="mt-1 text-xs text-slate-500">Carries forward</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">Pending</p>
@@ -280,9 +295,9 @@ export default function BusinessPartnerRewardsCenter({
             <details className="mt-2">
               <summary className="cursor-pointer text-sm font-black text-blue-700">Learn how Partner Rewards work</summary>
               <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 text-sm leading-6 text-slate-700">
-                <p><strong>Your eligible points ÷ all eligible Partner Points = your percentage of that quarter’s rewards pool.</strong></p>
+                <p><strong>Your Partner Point balance is continuous and does not reset when a quarter ends.</strong></p>
                 <p className="mt-2">The pool changes with qualifying RaiseHub platform performance, so a Partner Point never has a guaranteed fixed cash value.</p>
-                <p className="mt-2"><strong>Using points now is a tradeoff:</strong> points redeemed for RaiseHub benefits are removed from your eligible quarter total and no longer increase your quarter-end pool share.</p>
+                <p className="mt-2">Quarterly cash rewards use points earned during that quarter for the pool-share calculation. Spending your carried Partner Point balance does not erase points you already earned for quarterly reporting.</p>
               </div>
             </details>
           </div>
@@ -346,7 +361,7 @@ export default function BusinessPartnerRewardsCenter({
             <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Grow now</p>
             <h3 className="mt-1 text-xl font-black text-slate-950">Use your Partner Points</h3>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-              Exchange eligible points for temporary RaiseHub benefits instead of keeping every point for the quarter-end reward pool.
+              Exchange your available Partner Points for RaiseHub benefits. Unused points stay in your balance across future quarters.
             </p>
           </div>
           <span className="rounded-full bg-green-50 px-3 py-1 text-sm font-black text-green-700">
@@ -392,7 +407,7 @@ export default function BusinessPartnerRewardsCenter({
             <p className="text-xs font-black uppercase tracking-[0.14em] text-green-700">What should I do next?</p>
             <h3 className="mt-1 text-xl font-black text-slate-950">Ways to earn more</h3>
           </div>
-          <span className="text-sm font-bold text-slate-500">{summary.period?.label ?? 'Current quarter'}</span>
+          <span className="text-sm font-bold text-slate-500">Continuous earning</span>
         </div>
 
         <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
