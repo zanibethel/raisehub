@@ -517,7 +517,7 @@ export default async function CampaignPage({
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             {hasActivePass
-              ? 'You can still support this fundraiser with an additional donation or send a separate pass as a gift.'
+              ? 'You can still support this fundraiser with an additional donation or send one to someone else as a gift.'
               : 'One purchase supports this campaign and unlocks exclusive local offers through your RaiseHub Pass.'}
           </p>
 
