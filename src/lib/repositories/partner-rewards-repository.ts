@@ -72,6 +72,10 @@ export type PartnerRewardsSummary = {
   activeRedemptions: PartnerRewardRedemption[]
   activeExtraOfferSlots: number
   quarterHistory: PartnerRewardQuarterHistoryItem[]
+  currentPeriodEligiblePoints: number
+  founderStatus: boolean
+  founderMultiplier: number
+  founderMultiplierEndsAt: string | null
 }
 
 const EMPTY_SUMMARY: PartnerRewardsSummary = {
@@ -86,6 +90,10 @@ const EMPTY_SUMMARY: PartnerRewardsSummary = {
   activeRedemptions: [],
   activeExtraOfferSlots: 0,
   quarterHistory: [],
+  currentPeriodEligiblePoints: 0,
+  founderStatus: false,
+  founderMultiplier: 1,
+  founderMultiplierEndsAt: null,
 }
 
 function toNumber(value: unknown) {
@@ -235,7 +243,7 @@ export async function getPartnerRewardsSummary(
 
   const supabase = await createClient()
 
-  const [{ data: marketplaceData }, { data: redemptionData }, quarterHistory] = await Promise.all([
+  const [{ data: marketplaceData }, { data: redemptionData }, { data: founderData }, quarterHistory] = await Promise.all([
     (supabase as any)
       .from('partner_reward_marketplace_items')
       .select('id, code, name, description, category, point_cost, duration_days, benefit_config, is_active, sort_order')
@@ -245,6 +253,11 @@ export async function getPartnerRewardsSummary(
       .select('id, marketplace_item_id, points_spent, status, starts_at, ends_at, benefit_snapshot, created_at')
       .eq('business_id', businessId)
       .order('created_at', { ascending: false }),
+    (supabase as any)
+      .from('businesses')
+      .select('founder_status, founder_multiplier, founder_multiplier_ends_at')
+      .eq('id', businessId)
+      .maybeSingle(),
     getBusinessQuarterHistory(supabase as any, businessId),
   ])
 
@@ -263,6 +276,9 @@ export async function getPartnerRewardsSummary(
       benefit_snapshot: toBenefitConfig(redemption.benefit_snapshot),
     })
   )
+  const founderStatus = founderData?.founder_status === true
+  const founderMultiplier = toNumber(founderData?.founder_multiplier) || 1
+  const founderMultiplierEndsAt = founderData?.founder_multiplier_ends_at ?? null
   const activeRedemptions = redemptions.filter((redemption) => redemptionIsActive(redemption))
   const activeExtraOfferSlots = activeRedemptions.reduce(
     (sum, redemption) => sum + extraOfferSlotsFromRedemption(redemption),
@@ -282,6 +298,9 @@ export async function getPartnerRewardsSummary(
       activeRedemptions,
       activeExtraOfferSlots,
       quarterHistory,
+      founderStatus,
+      founderMultiplier,
+      founderMultiplierEndsAt,
     }
   }
 
@@ -291,7 +310,6 @@ export async function getPartnerRewardsSummary(
     .from('partner_point_events')
     .select('id, event_type, points, eligibility_status, source_type, source_id, created_at')
     .eq('business_id', businessId)
-    .eq('reward_period_id', period.id)
     .order('created_at', { ascending: false })
 
   if (eventError) {
@@ -303,24 +321,38 @@ export async function getPartnerRewardsSummary(
       activeRedemptions,
       activeExtraOfferSlots,
       quarterHistory,
+      founderStatus,
+      founderMultiplier,
+      founderMultiplierEndsAt,
     }
   }
 
   const events = (eventData ?? []) as PartnerPointEvent[]
-  const eligiblePoints = events
-    .filter((event) => event.eligibility_status === 'eligible')
+  const earnedEligiblePoints = events
+    .filter((event) => event.eligibility_status === 'eligible' && event.event_type !== 'reward_marketplace_redemption')
     .reduce((sum, event) => sum + toNumber(event.points), 0)
+  const spentPoints = redemptions
+    .filter((redemption) => redemption.status !== 'reversed')
+    .reduce((sum, redemption) => sum + toNumber(redemption.points_spent), 0)
+  const eligiblePoints = Math.max(0, earnedEligiblePoints - spentPoints)
   const pendingPoints = events
     .filter((event) => event.eligibility_status === 'pending')
     .reduce((sum, event) => sum + toNumber(event.points), 0)
   const totalPoints = eligiblePoints + pendingPoints
+  const currentPeriodEligiblePoints = events
+    .filter((event) => event.eligibility_status === 'eligible' && event.event_type !== 'reward_marketplace_redemption')
+    .filter((event) => {
+      const createdAt = new Date(event.created_at).getTime()
+      return createdAt >= new Date(period.starts_at).getTime() && createdAt < new Date(period.ends_at).getTime()
+    })
+    .reduce((sum, event) => sum + toNumber(event.points), 0)
   const networkEligiblePoints = await getEnvironmentNetworkEligiblePoints(
     businessId,
     period.id
   )
   const currentShare =
     networkEligiblePoints && networkEligiblePoints > 0
-      ? eligiblePoints / networkEligiblePoints
+      ? currentPeriodEligiblePoints / networkEligiblePoints
       : null
 
   return {
@@ -335,5 +367,9 @@ export async function getPartnerRewardsSummary(
     activeRedemptions,
     activeExtraOfferSlots,
     quarterHistory,
+    currentPeriodEligiblePoints,
+    founderStatus,
+    founderMultiplier,
+    founderMultiplierEndsAt,
   }
 }
