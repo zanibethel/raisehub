@@ -117,9 +117,9 @@ export default async function SellerOnboardingPage({ searchParams }: Props) {
     : '/seller/claim-roster'
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-14">
       <div className="mx-auto max-w-3xl">
-        <section className="rounded-3xl border border-blue-100 bg-white p-7 shadow-xl sm:p-10">
+        <section className="border-t border-slate-200 pt-7 sm:rounded-3xl sm:border sm:bg-white sm:p-9 sm:shadow-sm">
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Seller setup</p>
           <h1 className="mt-3 text-3xl font-bold">
             {setupError
@@ -137,18 +137,18 @@ export default async function SellerOnboardingPage({ searchParams }: Props) {
           {setupError ? (
             <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{setupError}</div>
           ) : (
-            <div className="mt-7 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><p className="font-bold text-emerald-800">1. Join</p><p className="mt-1 text-sm text-gray-600">Use the organization’s seller signup link.</p></div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4"><p className="font-bold text-blue-800">2. Claim</p><p className="mt-1 text-sm text-gray-600">Choose your unclaimed roster name.</p></div>
-              <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4"><p className="font-bold text-violet-800">3. Share</p><p className="mt-1 text-sm text-gray-600">Use the same link and QR already assigned to that name.</p></div>
+            <div className="mt-7 divide-y divide-slate-200 border-y border-slate-200 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              <div className="py-4 sm:px-4"><p className="font-black text-emerald-800">1. Join</p><p className="mt-1 text-sm text-slate-600">Use the organization’s seller signup link.</p></div>
+              <div className="py-4 sm:px-4"><p className="font-black text-blue-800">2. Claim</p><p className="mt-1 text-sm text-slate-600">Choose your unclaimed roster name.</p></div>
+              <div className="py-4 sm:px-4"><p className="font-black text-violet-800">3. Share</p><p className="mt-1 text-sm text-slate-600">Use the same link and QR already assigned to that name.</p></div>
             </div>
           )}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             {!setupError ? (
-              <Link href={claimHref} className="rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700">Link my roster name</Link>
+              <Link href={claimHref} className="min-h-12 rounded-xl bg-blue-600 px-5 py-3 text-center font-black text-white hover:bg-blue-700">Link my roster name</Link>
             ) : null}
-            <Link href="/dashboard" className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-center font-semibold text-gray-700 hover:bg-gray-50">Go to dashboard</Link>
+            <Link href="/dashboard" className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 text-center font-black text-slate-700 hover:bg-slate-50">Go to dashboard</Link>
           </div>
 
           {!campaignId ? (
