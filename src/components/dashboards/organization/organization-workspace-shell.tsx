@@ -8,6 +8,7 @@ import {
   type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
 import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navigation'
+import WorkspacePullToRefresh from '@/components/workspace/workspace-pull-to-refresh'
 import type { OrganizationWorkspaceView } from './organization-dashboard-content'
 
 type Props = {
@@ -113,8 +114,10 @@ export default function OrganizationWorkspaceShell({
   }
 
   return (
-    <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
-      {children}
-    </WorkspaceShell>
+    <WorkspacePullToRefresh>
+      <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
+        {children}
+      </WorkspaceShell>
+    </WorkspacePullToRefresh>
   )
 }
