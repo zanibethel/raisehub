@@ -170,6 +170,7 @@ export default function OrganizationDashboardContent({
   return (
     <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
       <WorkspaceModule
+        surface="section"
         title="Fundraising performance"
         description="Across all campaigns"
         tone="green"
@@ -197,6 +198,7 @@ export default function OrganizationDashboardContent({
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         {recommendedActions.length > 0 ? (
           <WorkspaceModule
+            surface="section"
             title="Recommended actions"
             eyebrow="Needs your attention"
             badge={
@@ -222,6 +224,7 @@ export default function OrganizationDashboardContent({
         ) : null}
 
         <WorkspaceModule
+          surface="section"
           title="Campaigns"
           tone="blue"
           action={
