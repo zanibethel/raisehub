@@ -148,6 +148,18 @@ export default function BusinessSignupPage() {
               Offer a valuable local deal, reach supporters who want to shop local, and help schools, teams, nonprofits, and community groups build a fundraiser people actually want to buy.
             </p>
 
+            <div className="mt-6 rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-100 via-yellow-50 to-green-50 p-5 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Founding 100 Bonus</span>
+                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">2× Partner Points for 1 Year</span>
+                <span className="rounded-full bg-green-700 px-3 py-1 text-xs font-black text-white">First 100 Verified Businesses</span>
+              </div>
+              <h2 className="mt-3 text-xl font-black text-slate-950">Join early. Earn double.</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                The first 100 production businesses to become verified on RaiseHub automatically receive Founding Business status and earn 2× positive Partner Points for one year from verification.
+              </p>
+            </div>
+
             {referralToken ? (
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">
                 You were invited by a RaiseHub business partner. We&apos;ll remember this referral while you explore RaiseHub or the Business Demo and link it automatically when your business account is created.
@@ -206,7 +218,7 @@ export default function BusinessSignupPage() {
 
               <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-gray-700">
                 <strong className="text-gray-900">How Partner Points work:</strong>{' '}
-                use eligible points for available RaiseHub benefits, or keep them toward your share of the quarterly Partner Rewards Pool. Partner Points do not have a fixed cash value, and reward eligibility depends on the applicable program rules.
+                eligible Partner Points carry forward across quarters and can be used for available RaiseHub benefits. Quarterly activity may also qualify your business for a share of the Partner Rewards Pool. Partner Points do not have a fixed cash value, and reward eligibility depends on the applicable program rules.
               </div>
             </div>
 
@@ -223,7 +235,8 @@ export default function BusinessSignupPage() {
           </section>
 
           <aside className="h-fit rounded-3xl border border-green-100 bg-white p-7 shadow-xl sm:p-8">
-            <p className="text-sm font-semibold text-green-700">Start free. Stay free.</p>
+            <div className="flex flex-wrap gap-2"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">FOUNDING 100</span><span className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-800">2× POINTS · 1 YEAR</span></div>
+            <p className="mt-3 text-sm font-semibold text-green-700">Start free. Stay free.</p>
             <h2 className="mt-2 text-2xl font-bold text-blue-700">Become a RaiseHub Partner</h2>
             <p className="mt-3 text-sm leading-6 text-gray-600">
               Create and manage up to 3 active offers with no required subscription. Upgrade only when you want additional offers or advanced features. After email confirmation, we will guide you through the complete business setup process.
