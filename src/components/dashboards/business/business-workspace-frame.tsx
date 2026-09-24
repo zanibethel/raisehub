@@ -16,6 +16,7 @@ import {
   type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
 import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navigation'
+import WorkspacePullToRefresh from '@/components/workspace/workspace-pull-to-refresh'
 
 type BusinessWorkspaceFrameProps = ComponentProps<typeof BusinessDashboardContent> & {
   view?: BusinessWorkspaceView
@@ -126,8 +127,9 @@ export default function BusinessWorkspaceFrame({
   }
 
   return (
-    <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
-      {view === 'dashboard' ? (
+    <WorkspacePullToRefresh>
+      <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
+        {view === 'dashboard' ? (
         <BusinessCommandCenter {...props} rewardsSummary={rewardsSummary} />
       ) : view === 'rewards' ? (
         <div className="space-y-4 sm:space-y-5">
@@ -147,7 +149,8 @@ export default function BusinessWorkspaceFrame({
         </div>
       ) : (
         <BusinessDashboardContent {...props} view={view} />
-      )}
-    </WorkspaceShell>
+        )}
+      </WorkspaceShell>
+    </WorkspacePullToRefresh>
   )
 }
