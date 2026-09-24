@@ -4,25 +4,17 @@ import type {
   CustomerDashboardOffer,
 } from '@/types/customer-dashboard'
 
-// =============================================================================
-// Types
-// =============================================================================
-
 type Props = {
   hasPurchasedPass: boolean
   enrichedOffers: CustomerDashboardOffer[]
   savedOfferIds: Set<string>
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
 function formatOfferDate(
   value: string | null | undefined
 ): string {
   if (!value) {
-    return 'No listed end date'
+    return 'No listed expiration'
   }
 
   const date = new Date(value)
@@ -44,10 +36,6 @@ function formatCustomerValue(value: number): string {
     : `$${value.toFixed(2)}`
 }
 
-// =============================================================================
-// Component
-// =============================================================================
-
 export default function CustomerAvailableDealsSection({
   hasPurchasedPass,
   enrichedOffers,
@@ -58,181 +46,118 @@ export default function CustomerAvailableDealsSection({
       id="available-deals"
       aria-labelledby="customer-available-deals-heading"
     >
-      <div className="overflow-hidden rounded-3xl border border-blue-100 bg-white/90 p-5 shadow-xl backdrop-blur sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-          Local Benefits
-        </p>
-
-        <div className="mt-2 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <h2
-              id="customer-available-deals-heading"
-              className="break-words text-2xl font-bold leading-tight text-gray-900"
-            >
-              Available Local Deals
-            </h2>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-              Browse participating business offers available through the RaiseHub community.
-            </p>
-          </div>
-
-          <span className="w-fit shrink-0 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-            {enrichedOffers.length}{' '}
-            {enrichedOffers.length === 1 ? 'offer' : 'offers'}
-          </span>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+            Local benefits
+          </p>
+          <h2
+            id="customer-available-deals-heading"
+            className="mt-1 text-2xl font-black tracking-tight text-slate-950"
+          >
+            Available Local Deals
+          </h2>
         </div>
+
+        <span className="shrink-0 text-xs font-black text-slate-500">
+          {enrichedOffers.length}{' '}
+          {enrichedOffers.length === 1 ? 'offer' : 'offers'}
+        </span>
       </div>
 
-      {!hasPurchasedPass ? (
-        <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:mt-6 sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-            Active Pass Required
-          </p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {enrichedOffers.map((offer) => {
+          const isSaved = savedOfferIds.has(offer.id)
+          const businessName = offer.business_name || 'Local Business'
+          const customerValue =
+            typeof offer.customer_value === 'number' &&
+            Number.isFinite(offer.customer_value)
+              ? `${formatCustomerValue(offer.customer_value)} value`
+              : null
 
-          <h3 className="mt-2 break-words text-xl font-bold leading-snug text-gray-900">
-            Support a fundraiser to unlock full deal access
-          </h3>
-
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-            Preview participating businesses and the value of their offers below. The exact deal, discount, description, and redemption details stay locked until your RaiseHub Pass is active.
-          </p>
-
-          <Link
-            href="/campaigns"
-            className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
-          >
-            Find a Fundraiser
-          </Link>
-        </div>
-      ) : null}
-
-      <div className="mt-5 sm:mt-6">
-        {enrichedOffers.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {enrichedOffers.map((offer) => {
-              const isSaved = savedOfferIds.has(offer.id)
-              const businessName = offer.business_name || 'Local Business'
-              const customerValue =
-                typeof offer.customer_value === 'number' &&
-                Number.isFinite(offer.customer_value)
-                  ? `${formatCustomerValue(offer.customer_value)} value`
-                  : null
-
-              return (
-                <article
-                  key={offer.id}
-                  className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6"
-                >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="break-words text-xs font-semibold uppercase tracking-wide text-blue-700">
-                        {businessName}
-                      </p>
-
-                      <h3 className="mt-2 break-words text-lg font-bold leading-snug text-gray-900">
-                        {hasPurchasedPass
-                          ? offer.title || 'Local offer'
-                          : 'Exclusive Local Deal'}
-                      </h3>
-                    </div>
-
-                    {isSaved && hasPurchasedPass ? (
-                      <span className="shrink-0 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-                        Saved
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-3 break-words font-semibold leading-6 text-green-700">
-                    {hasPurchasedPass
-                      ? offer.discount || 'Member benefit available'
-                      : customerValue || 'Member value available'}
+          return (
+            <article
+              key={offer.id}
+              className="flex min-w-0 h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md sm:p-6"
+            >
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="break-words text-xs font-black uppercase tracking-[0.12em] text-blue-700">
+                    {businessName}
                   </p>
 
-                  <p className="mt-2 break-words text-sm leading-6 text-gray-600">
+                  <h3 className="mt-2 break-words text-lg font-black leading-snug text-slate-950">
                     {hasPurchasedPass
-                      ? offer.description || 'Offer details are available through your RaiseHub Pass.'
-                      : 'Activate a RaiseHub Pass to reveal the exact offer and redemption details.'}
+                      ? offer.title || 'Local offer'
+                      : 'Exclusive Local Deal'}
+                  </h3>
+                </div>
+
+                {isSaved && hasPurchasedPass ? (
+                  <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
+                    Saved
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-3 break-words font-black leading-6 text-green-700">
+                {hasPurchasedPass
+                  ? offer.discount || 'Member benefit available'
+                  : customerValue || 'Member value available'}
+              </p>
+
+              <p className="mt-2 break-words text-sm leading-6 text-slate-600">
+                {hasPurchasedPass
+                  ? offer.description || 'Offer details are available through your RaiseHub Pass.'
+                  : 'Activate a RaiseHub Pass to reveal the exact offer and redemption details.'}
+              </p>
+
+              <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">
+                {offer.address ? (
+                  <p>
+                    <span className="font-black text-slate-700">Location:</span>{' '}
+                    {offer.address}
                   </p>
+                ) : null}
 
-                  <dl className="mt-4 space-y-4 rounded-2xl bg-gray-50 p-4 text-sm">
-                    {offer.address ? (
-                      <div>
-                        <dt className="font-semibold text-gray-900">
-                          Location
-                        </dt>
+                {hasPurchasedPass && offer.phone ? (
+                  <p>
+                    <span className="font-black text-slate-700">Phone:</span>{' '}
+                    <a
+                      href={`tel:${offer.phone}`}
+                      className="font-bold text-blue-700 underline underline-offset-4"
+                    >
+                      {offer.phone}
+                    </a>
+                  </p>
+                ) : null}
 
-                        <dd className="mt-1 break-words leading-6 text-gray-600">
-                          {offer.address}
-                        </dd>
-                      </div>
-                    ) : null}
+                <p>
+                  <span className="font-black text-slate-700">Offer:</span>{' '}
+                  {formatOfferDate(offer.ends_at)}
+                </p>
+              </div>
 
-                    {hasPurchasedPass && offer.phone ? (
-                      <div>
-                        <dt className="font-semibold text-gray-900">
-                          Phone
-                        </dt>
-
-                        <dd className="mt-1">
-                          <a
-                            href={`tel:${offer.phone}`}
-                            className="break-words font-medium text-blue-700 underline underline-offset-4"
-                          >
-                            {offer.phone}
-                          </a>
-                        </dd>
-                      </div>
-                    ) : null}
-
-                    <div>
-                      <dt className="font-semibold text-gray-900">
-                        Offer ends
-                      </dt>
-
-                      <dd className="mt-1 text-gray-600">
-                        {formatOfferDate(offer.ends_at)}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <div className="mt-auto pt-5">
-                    {hasPurchasedPass ? (
-                      <Link
-                        href={`/offers/${offer.id}`}
-                        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800"
-                      >
-                        View Deal Details
-                      </Link>
-                    ) : (
-                      <Link
-                        href="/campaigns"
-                        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
-                      >
-                        Unlock With a Pass
-                      </Link>
-                    )}
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-green-50 p-5 shadow-lg sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              No Offers Available
-            </p>
-
-            <h3 className="mt-2 break-words text-xl font-bold text-gray-900">
-              New local deals are coming
-            </h3>
-
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              Participating businesses have not published any active offers yet. Check back as more community partners join RaiseHub.
-            </p>
-          </div>
-        )}
+              <div className="mt-auto pt-5">
+                {hasPurchasedPass ? (
+                  <Link
+                    href={`/offers/${offer.id}`}
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
+                  >
+                    View Deal Details
+                  </Link>
+                ) : (
+                  <Link
+                    href="/campaigns"
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-black text-amber-800 transition hover:bg-amber-100"
+                  >
+                    Unlock With a Pass
+                  </Link>
+                )}
+              </div>
+            </article>
+          )
+        })}
       </div>
     </section>
   )
