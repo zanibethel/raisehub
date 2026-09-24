@@ -64,9 +64,9 @@ export default async function CustomerSupportHistory() {
         Signed-in requests appear here. RaiseHub replies are shown only after Support publishes them.
       </p>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
         {requests.map((request) => (
-          <details key={request.id} className="group rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <details key={request.id} className="group py-4">
             <summary className="flex cursor-pointer list-none items-start justify-between gap-4">
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2">
@@ -91,7 +91,7 @@ export default async function CustomerSupportHistory() {
               </span>
             </summary>
 
-            <div className="mt-4 border-t border-slate-200 pt-4">
+            <div className="mt-4 border-t border-slate-100 pt-4">
               <p className="text-xs font-black uppercase tracking-wide text-slate-500">Your message</p>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{request.message}</p>
 
