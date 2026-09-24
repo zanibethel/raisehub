@@ -125,10 +125,13 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="rounded-3xl border border-blue-100 bg-white p-6 shadow-xl sm:p-8">
-        <p className="text-sm font-semibold text-green-700">Support local. Save local.</p>
-        <h1 className="mt-2 text-3xl font-bold text-blue-600">Unlock local deals while supporting your community</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">Choose a fundraiser, create your account, and continue to purchase a RaiseHub pass. Creating your account does not charge you.</p>
+      <div className="rounded-3xl bg-slate-950 px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-green-300">Support local. Save local.</p>
+        <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight sm:text-4xl">Unlock local deals while supporting your community</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">Choose a fundraiser, create your account, and continue to purchase a RaiseHub pass. Creating your account does not charge you.</p>
+      </div>
+
+      <div className="mt-7 border-t border-slate-200 pt-7 sm:rounded-3xl sm:border sm:bg-white sm:p-8 sm:shadow-sm">
 
         {requestedSeller ? (
           <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900">
@@ -149,13 +152,13 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
             <button type="button" onClick={() => setSelectedCampaignId(null)} className="mt-4 text-sm font-medium text-blue-700 hover:underline">Choose a different fundraiser</button>
           </div>
         ) : campaigns.length > 0 ? (
-          <div className="mt-8 space-y-8">
+          <div className="mt-8 space-y-7">
             {campaignGroups.map((group) => group.campaigns.length > 0 ? (
               <section key={group.title}>
                 <h2 className="text-lg font-bold text-gray-900">{group.title}</h2>
                 <div className="mt-4 flex snap-x gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {group.campaigns.map((campaign) => (
-                    <button key={campaign.id} type="button" onClick={() => setSelectedCampaignId(campaign.id)} className="w-[280px] min-w-[280px] snap-start rounded-2xl border border-blue-100 bg-white p-5 text-left shadow-md transition hover:border-blue-300 hover:shadow-lg">
+                    <button key={campaign.id} type="button" onClick={() => setSelectedCampaignId(campaign.id)} className="w-[82vw] max-w-[320px] min-w-[82vw] snap-start rounded-2xl border border-blue-100 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md sm:min-w-[300px]">
                       <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{campaign.organizationName || 'Local organization'}</p>
                       <h3 className="mt-2 text-lg font-bold text-gray-900">{campaign.name}</h3>
                       <div className="mt-4 space-y-2 text-sm text-gray-600">
@@ -176,13 +179,13 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
         <form onSubmit={handleSignup} className="mt-8 space-y-4">
           <div>
             <label htmlFor="signup-email" className="mb-2 block text-sm font-medium text-gray-700">Email</label>
-            <input id="signup-email" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+            <input id="signup-email" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
           </div>
           <div>
             <label htmlFor="signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
-            <input id="signup-password" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
+            <input id="signup-password" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
           </div>
-          <button disabled={loading} className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+          <button disabled={loading} className="min-h-12 w-full rounded-xl bg-blue-600 px-4 py-3 font-black text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? 'Creating account...' : selectedCampaign ? 'Create Account and Continue' : 'Create Customer Account'}
           </button>
         </form>
