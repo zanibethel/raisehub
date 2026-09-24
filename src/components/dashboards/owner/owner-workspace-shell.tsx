@@ -85,7 +85,7 @@ export default function OwnerWorkspaceShell({
   }
 
   return (
-    <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
+    <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
       {children}
     </WorkspaceShell>
   )
