@@ -2,46 +2,65 @@ import Link from 'next/link'
 
 import { getAppMode } from '@/lib/app-mode'
 
-const liveFeatures = [
-  'Create or manage a real organization',
-  'Join active campaigns and purchase real coupon passes',
-  'Manage a real business or participate as a seller',
-  'Use real accounts, records, and payments',
-]
-
-const demoFeatures = [
-  'No signup required and no real payments',
-  'Explore supporter, business, and organization roles',
-  'Use realistic sample campaigns, offers, and activity',
-  'Nothing affects the Live Platform',
-]
-
 const fundraisingSteps = [
   {
     number: '1',
+    icon: '🏪',
     title: 'Businesses add offers',
-    description: 'Local businesses provide discounts that bring supporters back.',
+    description: 'Local discounts that bring supporters back.',
     accent: 'border-green-200 bg-green-50 text-green-800',
   },
   {
     number: '2',
+    icon: '👥',
     title: 'Organizations launch',
-    description: 'Schools and community groups sell a digital fundraising pass.',
+    description: 'Schools and groups sell a digital fundraising pass.',
     accent: 'border-blue-200 bg-blue-50 text-blue-800',
   },
   {
     number: '3',
+    icon: '●',
     title: 'Supporters buy',
-    description: 'Each purchase supports the fundraiser and unlocks local savings.',
-    accent: 'border-yellow-200 bg-yellow-50 text-yellow-800',
+    description: 'Each purchase supports the organization.',
+    accent: 'border-amber-200 bg-amber-50 text-amber-800',
   },
   {
     number: '4',
+    icon: '↗',
     title: 'Everyone benefits',
-    description: 'Organizations earn, supporters save, and businesses gain customers.',
+    description: 'Organizations earn, businesses gain customers, and communities grow.',
     accent: 'border-cyan-200 bg-cyan-50 text-cyan-800',
   },
 ] as const
+
+function ModeTip({
+  label,
+  tone,
+  children,
+}: {
+  label: string
+  tone: 'blue' | 'green'
+  children: React.ReactNode
+}) {
+  const toneClasses =
+    tone === 'blue'
+      ? 'border-blue-200 bg-blue-50 text-blue-800'
+      : 'border-green-200 bg-green-50 text-green-800'
+
+  return (
+    <details className="group relative shrink-0">
+      <summary
+        aria-label={label}
+        className={`flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-xl border text-lg font-black shadow-sm transition marker:hidden ${toneClasses}`}
+      >
+        i
+      </summary>
+      <div className="absolute bottom-14 right-0 z-20 w-64 rounded-2xl border border-slate-200 bg-white p-4 text-left text-xs leading-5 text-slate-600 shadow-xl">
+        {children}
+      </div>
+    </details>
+  )
+}
 
 export default function HomePage() {
   const appMode = getAppMode()
@@ -49,113 +68,98 @@ export default function HomePage() {
   const demoHref = appMode === 'demo' ? '/home' : 'https://demo.raisehub.app/home'
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-8 text-gray-900 sm:px-8 sm:py-12">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-4 py-8 text-slate-950 sm:px-8 sm:py-12">
       <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div className="absolute left-1/2 top-[-160px] h-[360px] w-[700px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-3xl" />
         <div className="absolute bottom-[-120px] right-[-80px] h-[320px] w-[320px] rounded-full bg-green-300/25 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-4xl">
         <header className="text-center">
-          <p className="inline-flex rounded-full border border-blue-200 bg-white/85 px-4 py-1 text-sm font-medium text-blue-700 shadow-sm backdrop-blur">
+          <p className="inline-flex rounded-full border border-blue-200 bg-white/90 px-4 py-2 text-sm font-black text-blue-700 shadow-sm backdrop-blur">
             Fundraising that benefits everyone
           </p>
-          <h1 className="mt-5 text-4xl font-bold tracking-tight text-blue-700 sm:text-6xl">RaiseHub</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-gray-700 sm:text-lg">
+          <h1 className="mt-5 text-5xl font-black tracking-tight text-blue-600 sm:text-6xl">
+            RaiseHub
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-7 text-slate-600 sm:text-lg">
             Support organizations. Reward local businesses. Build stronger communities.
           </p>
         </header>
 
         <section
           aria-labelledby="how-raisehub-works"
-          className="mt-8 rounded-3xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur sm:mt-10 sm:p-8"
+          className="mt-8 rounded-[2rem] border border-white/80 bg-white/95 p-5 shadow-xl backdrop-blur sm:mt-10 sm:p-8"
         >
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600 sm:text-sm sm:tracking-[0.18em]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
               One simple fundraising loop
             </p>
-            <h2 id="how-raisehub-works" className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">
+            <h2
+              id="how-raisehub-works"
+              className="mt-2 text-3xl font-black tracking-tight text-slate-950"
+            >
               How RaiseHub Works
             </h2>
-            <p className="mx-auto mt-2 max-w-3xl text-sm leading-6 text-gray-600 sm:mt-3 sm:text-base">
-              Local offers power a fundraising pass that helps organizations raise money while rewarding supporters and participating businesses.
-            </p>
           </div>
 
-          <ol className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
+          <ol className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
             {fundraisingSteps.map((step) => (
-              <li key={step.number} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-bold sm:h-10 sm:w-10 sm:text-lg ${step.accent}`}>
-                  {step.number}
+              <li
+                key={step.number}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full border text-base font-black ${step.accent}`}>
+                    {step.number}
+                  </div>
+                  <span className="text-2xl" aria-hidden="true">
+                    {step.icon}
+                  </span>
                 </div>
-                <h3 className="mt-3 text-sm font-bold leading-5 text-slate-950 sm:mt-4 sm:text-lg sm:font-semibold">
+                <h3 className="mt-4 text-base font-black leading-5 text-slate-950 sm:text-lg">
                   {step.title}
                 </h3>
-                <p className="mt-1.5 text-xs leading-5 text-gray-600 sm:mt-2 sm:text-sm sm:leading-6">
+                <p className="mt-2 text-sm leading-6 text-slate-600">
                   {step.description}
                 </p>
               </li>
             ))}
           </ol>
 
-          <p className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-semibold leading-5 text-blue-950 sm:mt-6 sm:px-5 sm:py-4 sm:text-base sm:leading-6">
-            One purchase supports a fundraiser, rewards the seller, saves the customer money, and brings business back to local companies.
-          </p>
-        </section>
-
-        <section aria-labelledby="experience-heading" className="mt-8 sm:mt-10">
-          <div className="text-center">
-            <h2 id="experience-heading" className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              How would you like to experience RaiseHub today?
-            </h2>
-            <p className="mx-auto mt-2 max-w-2xl text-sm text-gray-600 sm:text-base">
-              Choose the real operating platform or explore safely with sample data first.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-5 lg:grid-cols-2">
-            <article className="flex flex-col rounded-3xl border border-blue-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Live Platform</p>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">Real activity</span>
-              </div>
-              <h3 className="mt-4 text-2xl font-bold text-gray-900">Start or join a real fundraiser.</h3>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Enter RaiseHub&apos;s production experience with normal authentication, onboarding, and Stripe payments.
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-gray-700">
-                {liveFeatures.map((feature) => (
-                  <li key={feature} className="flex gap-3"><span className="font-bold text-blue-600" aria-hidden="true">✓</span><span>{feature}</span></li>
-                ))}
-              </ul>
-              <Link href={liveHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+          <div className="mt-6 space-y-3 border-t border-slate-200 pt-6">
+            <div className="flex gap-2">
+              <Link
+                href={liveHref}
+                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-center font-black text-white shadow-md transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
                 Enter Live Platform
+                <span className="ml-2" aria-hidden="true">→</span>
               </Link>
-            </article>
+              <ModeTip label="What is the Live Platform?" tone="blue">
+                <strong className="block text-slate-950">Live Platform</strong>
+                Uses real accounts, real records, and production data. Purchases and payments can be real, and activity affects the live RaiseHub platform.
+              </ModeTip>
+            </div>
 
-            <article className="flex flex-col rounded-3xl border border-green-200 bg-white/95 p-6 shadow-xl backdrop-blur sm:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Interactive Demo</p>
-                <span className="rounded-full border border-yellow-300 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-900">Sample data only</span>
-              </div>
-              <h3 className="mt-4 text-2xl font-bold text-gray-900">Explore before creating an account.</h3>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Experience every major role using realistic examples. All activity is simulated and separated from live organizations.
-              </p>
-              <ul className="mt-5 space-y-3 text-sm text-gray-700">
-                {demoFeatures.map((feature) => (
-                  <li key={feature} className="flex gap-3"><span className="font-bold text-green-600" aria-hidden="true">✓</span><span>{feature}</span></li>
-                ))}
-              </ul>
-              <Link href={demoHref} className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-center font-semibold text-white shadow-lg transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+            <div className="flex gap-2">
+              <Link
+                href={demoHref}
+                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border-2 border-green-500 bg-green-50 px-5 py-3 text-center font-black text-green-700 transition hover:bg-green-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+              >
                 Launch Interactive Demo
+                <span className="ml-2" aria-hidden="true">→</span>
               </Link>
-            </article>
+              <ModeTip label="What is the Interactive Demo?" tone="green">
+                <strong className="block text-slate-950">Interactive Demo</strong>
+                Uses realistic sample accounts and sample data. No real payments are required, and demo activity stays separated from the Live Platform.
+              </ModeTip>
+            </div>
           </div>
         </section>
 
-        <footer className="mt-8 text-center text-xs text-gray-500">
-          Live and Interactive Demo use one RaiseHub product with a strict boundary between real and sample activity.
+        <footer className="mt-7 text-center text-xs leading-5 text-slate-500">
+          Live and Interactive Demo use the same RaiseHub product with a strict boundary between real and sample activity.
         </footer>
       </div>
     </main>
