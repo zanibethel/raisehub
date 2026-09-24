@@ -185,13 +185,36 @@ export default async function BusinessDashboard({
   const canonicalBusinessId = lifecycle?.id ?? requestedBusinessId
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
-  await reconcileDemoPartnerRewardsNetwork(canonicalBusinessId)
-  const [rewardsSummary, payoutStatus] = await Promise.all([
+  // Keep optional rewards/payment maintenance from blocking the entire dashboard.
+  // The dedicated Rewards view can do the heavier reconciliation work; the main
+  // dashboard should still render if an auxiliary integration is slow or unavailable.
+  if (view === 'rewards') {
+    try {
+      await reconcileDemoPartnerRewardsNetwork(canonicalBusinessId)
+    } catch (error) {
+      console.error('Unable to reconcile Partner Rewards without blocking dashboard:', error)
+    }
+  }
+
+  const [rewardsResult, payoutResult] = await Promise.allSettled([
     getPartnerRewardsSummary(canonicalBusinessId),
     getBusinessPayoutStatus(canonicalBusinessId, {
       refreshStripe: view === 'rewards',
     }),
   ])
+
+  const rewardsSummary =
+    rewardsResult.status === 'fulfilled'
+      ? rewardsResult.value
+      : await getPartnerRewardsSummary(null)
+  const payoutStatus = payoutResult.status === 'fulfilled' ? payoutResult.value : null
+
+  if (rewardsResult.status === 'rejected') {
+    console.error('Unable to load Partner Rewards without blocking dashboard:', rewardsResult.reason)
+  }
+  if (payoutResult.status === 'rejected') {
+    console.error('Unable to load payout status without blocking dashboard:', payoutResult.reason)
+  }
 
   const { data: verification } = canonicalBusinessId
     ? await (supabase as any)
