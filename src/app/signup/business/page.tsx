@@ -146,12 +146,12 @@ export default function BusinessSignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 px-5 py-10 text-gray-900 sm:px-8 sm:py-16">
+    <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-blue-50 px-3 py-8 text-gray-900 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-6xl">
         <Link href="/" className="text-sm font-medium text-blue-700 hover:underline">← Back to RaiseHub</Link>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-3xl border border-green-100 bg-white/95 p-7 shadow-xl sm:p-10">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className="border-b border-green-100 bg-transparent px-1 pb-8 pt-2 sm:rounded-3xl sm:border sm:bg-white/95 sm:p-10 sm:shadow-xl">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">RaiseHub Community Partner</p>
             <h1 className="mt-4 text-4xl font-bold leading-tight text-gray-900">Support your community while growing your business</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
