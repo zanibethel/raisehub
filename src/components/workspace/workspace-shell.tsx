@@ -151,7 +151,7 @@ export function WorkspaceShell({ children, bottomNavigation = [], identity, topB
         </div>
       ) : null}
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-7">
+      <main className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-7">
         <div className="space-y-4 sm:space-y-6">
           {identity ? <WorkspaceIdentityCard {...identity} /> : null}
           {children}
@@ -208,7 +208,7 @@ export function WorkspaceIdentityCard({ eyebrow, title, subtitle, detail, image,
   const classes = TONE_CLASSES[tone]
 
   return (
-    <section className={`rounded-3xl border ${classes.border} bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]`}>
+    <section className={`border-b ${classes.border} bg-transparent px-1 pb-4 pt-1 sm:rounded-3xl sm:border sm:bg-white sm:p-4 sm:shadow-[0_10px_28px_rgba(15,23,42,0.08)]`}>
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
         {image ? <div className="shrink-0">{image}</div> : null}
 
