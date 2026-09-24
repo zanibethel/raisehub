@@ -71,7 +71,7 @@ async function loadDirectoryMetadata(
   environment: DataEnvironment,
   nowIso: string
 ) {
-  const admin = createAdminClient()
+  const admin = createAdminClient() as any
 
   if (profileIds.length === 0) {
     return {
