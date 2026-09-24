@@ -182,6 +182,7 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
         <WorkspaceModule
+          surface="section"
           title="Customer activity"
           eyebrow="Today’s snapshot"
           icon={<ActivityIcon />}
@@ -197,6 +198,7 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
 
         {actions.length > 0 ? (
           <WorkspaceModule
+            surface="section"
             title="Recommended actions"
             eyebrow="Needs your attention"
             icon={<AttentionIcon />}
