@@ -55,16 +55,16 @@ const choices = [
 
 export default function GoLivePage() {
   return (
-    <main className="min-h-screen bg-[#F0F6FF] px-4 py-8 sm:px-8 sm:py-12">
+    <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-5xl">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-xl sm:p-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+        <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-8 text-center text-white shadow-xl sm:px-8 sm:py-10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">
             Ready to use RaiseHub?
           </p>
-          <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">
             What would you like to do next?
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
             Explore real campaigns or choose the role that best matches how you want to participate.
           </p>
         </section>
@@ -73,9 +73,9 @@ export default function GoLivePage() {
           {choices.map((choice) => (
             <article
               key={choice.title}
-              className={`flex min-h-64 flex-col rounded-3xl border p-5 shadow-sm sm:p-6 ${choice.accent}`}
+              className={`flex min-h-56 flex-col rounded-2xl border p-5 shadow-sm sm:p-6 ${choice.accent}`}
             >
-              <h2 className="text-2xl font-black text-slate-950">
+              <h2 className="text-xl font-black text-slate-950">
                 {choice.title}
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-700">
@@ -83,7 +83,7 @@ export default function GoLivePage() {
               </p>
               <Link
                 href={choice.href}
-                className={`mt-auto inline-flex min-h-12 items-center justify-center rounded-2xl px-4 py-3 text-center text-sm font-bold text-white transition ${choice.actionClass}`}
+                className={`mt-auto inline-flex min-h-12 items-center justify-center rounded-xl px-4 py-3 text-center text-sm font-black text-white transition ${choice.actionClass}`}
               >
                 {choice.action}
               </Link>
@@ -94,7 +94,7 @@ export default function GoLivePage() {
         <div className="mt-6 text-center">
           <Link
             href={buildProductionUrl('/')}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex min-h-11 items-center justify-center text-sm font-black text-blue-700"
           >
             Return to the homepage
           </Link>
