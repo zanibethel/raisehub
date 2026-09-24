@@ -45,8 +45,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-16">
-      <section className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/95 p-7 shadow-xl sm:p-9">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-16">
+      <section className="mx-auto max-w-md border-t border-slate-200 pt-7 sm:rounded-3xl sm:border sm:bg-white sm:p-8 sm:shadow-sm">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
           Account recovery
         </p>
@@ -73,13 +73,13 @@ export default function ForgotPasswordPage() {
               placeholder="you@example.com"
               autoComplete="email"
               required
-              className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+              className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </label>
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-blue-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? 'Sending reset link...' : 'Send Password Reset Link'}
           </button>
