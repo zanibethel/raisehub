@@ -74,8 +74,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-10 sm:px-8 sm:py-16">
-      <section className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/95 p-7 shadow-xl sm:p-9">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white px-3 py-8 sm:px-8 sm:py-16">
+      <section className="mx-auto max-w-md border-b border-blue-100 bg-transparent px-1 pb-8 pt-2 sm:rounded-3xl sm:border sm:bg-white sm:p-9 sm:shadow-xl">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
           Welcome back
         </p>
