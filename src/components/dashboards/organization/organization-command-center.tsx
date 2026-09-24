@@ -163,6 +163,7 @@ export default function OrganizationCommandCenter({
           {recentActivity.length > 0 ? (
             <div className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
               {recentActivity.map((campaign) => {
+                const campaignDetails = campaign as typeof campaign & { created_at?: string | null }
                 const metrics = props.metricsByCampaign[campaign.id]
                 return (
                   <Link
@@ -179,7 +180,7 @@ export default function OrganizationCommandCenter({
                         {campaignStatusLabel(campaign.status)} · {metrics?.supporterCount ?? 0} supporters · ${metricValue(metrics?.amountRaised ?? 0)} raised
                       </span>
                     </span>
-                    <span className="shrink-0 text-right text-xs font-bold text-slate-400">{formatDate(campaign.created_at)}</span>
+                    <span className="shrink-0 text-right text-xs font-bold text-slate-400">{formatDate(campaignDetails.created_at)}</span>
                   </Link>
                 )
               })}
@@ -204,8 +205,9 @@ export default function OrganizationCommandCenter({
           {campaignPreview.length > 0 ? (
             <div className="-mr-3 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {campaignPreview.map((campaign, index) => {
+                const campaignDetails = campaign as typeof campaign & { goal_amount?: number | null }
                 const metrics = props.metricsByCampaign[campaign.id]
-                const goal = Math.max(Number(campaign.goal_amount ?? 0), 0)
+                const goal = Math.max(Number(campaignDetails.goal_amount ?? 0), 0)
                 const raised = Math.max(metrics?.amountRaised ?? 0, 0)
                 const progress = goal > 0 ? Math.min((raised / goal) * 100, 100) : 0
 
