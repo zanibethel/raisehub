@@ -55,7 +55,7 @@ export default function OrganizationSignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-yellow-50 px-3 py-8 text-gray-900 sm:px-8 sm:py-16">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-14">
       <div className="mx-auto max-w-6xl">
         <Link
           href="/"
@@ -65,7 +65,7 @@ export default function OrganizationSignupPage() {
         </Link>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="border-b border-blue-100 bg-transparent px-1 pb-8 pt-2 sm:rounded-3xl sm:border sm:bg-white/95 sm:p-10 sm:shadow-xl">
+          <section className="px-1 pb-8 pt-2 lg:pr-8">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">
               RaiseHub Fundraising
             </p>
@@ -80,12 +80,12 @@ export default function OrganizationSignupPage() {
               exclusive offers from local businesses.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-yellow-100 bg-yellow-50 p-5">
-              <h2 className="text-lg font-bold text-yellow-800">
+            <div className="mt-9 border-y border-slate-200 py-7">
+              <h2 className="text-xl font-black text-slate-950">
                 How fundraising with RaiseHub works
               </h2>
 
-              <div className="mt-5 space-y-5">
+              <div className="mt-5 divide-y divide-slate-200">
                 {[
                   {
                     number: '1',
@@ -114,7 +114,7 @@ export default function OrganizationSignupPage() {
                 ].map((step) => (
                   <div
                     key={step.number}
-                    className="flex gap-4"
+                    className="flex gap-4 py-4 first:pt-0 last:pb-0"
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
                       {step.number}
@@ -133,36 +133,13 @@ export default function OrganizationSignupPage() {
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-2xl font-bold text-blue-700">
-                  Simple Setup
-                </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Create and launch campaigns in one place
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
-                <p className="text-2xl font-bold text-green-700">
-                  Local Value
-                </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Passes include participating business offers
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-4">
-                <p className="text-2xl font-bold text-yellow-700">
-                  Live Progress
-                </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Track sales, sellers, supporters, and funds raised
-                </p>
-              </div>
+            <div className="mt-8 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-5 text-center">
+              <div className="px-2"><p className="text-lg font-black text-blue-700 sm:text-xl">Simple Setup</p><p className="mt-1 text-xs leading-5 text-slate-500">Create and launch campaigns in one place</p></div>
+              <div className="px-2"><p className="text-lg font-black text-green-700 sm:text-xl">Local Value</p><p className="mt-1 text-xs leading-5 text-slate-500">Passes include participating business offers</p></div>
+              <div className="px-2"><p className="text-lg font-black text-amber-700 sm:text-xl">Live Progress</p><p className="mt-1 text-xs leading-5 text-slate-500">Track sales, sellers, supporters, and funds raised</p></div>
             </div>
 
-            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-600">
+            <div className="mt-8 border-l-4 border-blue-500 pl-4 text-sm leading-6 text-slate-600">
               <strong className="text-gray-900">
                 RaiseHub is more than a donation page.
               </strong>{' '}
@@ -170,7 +147,7 @@ export default function OrganizationSignupPage() {
               gains a stronger reason for people to participate and share.
             </div>
 
-            <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-900">
+            <div className="mt-6 border-l-4 border-green-500 pl-4 text-sm leading-6 text-slate-700">
               <h2 className="text-lg font-bold text-blue-800">
                 Clear costs. No surprises.
               </h2>
@@ -186,7 +163,7 @@ export default function OrganizationSignupPage() {
             </div>
           </section>
 
-          <aside className="h-fit rounded-3xl border border-blue-100 bg-white p-7 shadow-xl sm:p-8">
+          <aside className="h-fit border-t border-slate-200 pt-7 lg:sticky lg:top-6 lg:rounded-3xl lg:border lg:bg-white lg:p-8 lg:shadow-sm">
             <p className="text-sm font-semibold text-blue-700">
               Start your fundraiser
             </p>
@@ -236,7 +213,7 @@ export default function OrganizationSignupPage() {
                     setEmail(event.target.value)
                   }
                   placeholder="you@organization.org"
-                  className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   required
                 />
               </div>
@@ -257,14 +234,14 @@ export default function OrganizationSignupPage() {
                   }
                   placeholder="At least 8 characters"
                   minLength={8}
-                  className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   required
                 />
               </div>
 
               <button
                 disabled={loading}
-                className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-12 w-full rounded-xl bg-blue-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? 'Creating account...'
