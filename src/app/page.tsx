@@ -20,7 +20,11 @@ const fundraisingSteps = [
   },
   {
     number: '3',
-    icon: '
+    icon: 'purchase',
+    title: 'Supporters buy',
+    description: 'Each purchase supports the organization.',
+    accent: 'border-amber-200 bg-amber-50 text-amber-800',
+  },
   {
     number: '4',
     icon: '↗',
@@ -86,7 +90,7 @@ export default function HomePage() {
                       className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-xl font-black text-amber-700"
                       aria-hidden="true"
                     >
-                      {step.icon}
+                      &#36;
                     </span>
                   ) : (
                     <span className="text-2xl" aria-hidden="true">
