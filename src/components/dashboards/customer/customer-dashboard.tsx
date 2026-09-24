@@ -74,10 +74,22 @@ export default async function CustomerDashboard({
 
   const admin = createAdminClient()
 
-  await (admin as any).rpc('finalize_due_redemptions')
+  try {
+    await (admin as any).rpc('finalize_due_redemptions')
+  } catch (error) {
+    console.error('Unable to finalize due redemptions without blocking customer dashboard:', error)
+  }
 
   const resolvedCustomerProfileId = customerProfileId?.trim() || user.id
-  const passAccess = await getCustomerPassAccess(resolvedCustomerProfileId, nowDate)
+  const passAccessResult = await Promise.allSettled([
+    getCustomerPassAccess(resolvedCustomerProfileId, nowDate),
+  ])
+  const passAccess = passAccessResult[0].status === 'fulfilled'
+    ? passAccessResult[0].value
+    : { activeEntitlement: null, hasActivePass: false }
+  if (passAccessResult[0].status === 'rejected') {
+    console.error('Unable to load pass access without blocking customer dashboard:', passAccessResult[0].reason)
+  }
   const activeEntitlement = passAccess.activeEntitlement
   const hasPurchasedPass = passAccess.hasActivePass
 
