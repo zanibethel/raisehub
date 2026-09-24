@@ -95,7 +95,7 @@ export default function CustomerCommandCenter({
 
   return (
     <div className="-mx-3 -mt-4 pb-2 sm:mx-0 sm:mt-0">
-      <section className={`relative overflow-hidden px-5 py-8 text-white sm:rounded-3xl sm:px-8 sm:py-10 ${{
+      <section className={`relative overflow-hidden px-5 py-8 text-white sm:rounded-3xl sm:px-8 sm:py-10 ${
         hasActivePass
           ? 'bg-gradient-to-br from-green-700 via-green-600 to-blue-700'
           : 'bg-gradient-to-br from-amber-600 via-orange-500 to-blue-700'
@@ -111,7 +111,7 @@ export default function CustomerCommandCenter({
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/90">
             {hasActivePass
-              ? `${{availableOfferCount} local ${{availableOfferCount === 1 ? 'deal is' : 'deals are'} ready to explore.`
+              ? `${availableOfferCount} local ${availableOfferCount === 1 ? 'deal is' : 'deals are'} ready to explore.`
               : 'Support a participating fundraiser to unlock local business offers and track your impact.'}
           </p>
 
@@ -178,10 +178,10 @@ export default function CustomerCommandCenter({
               {featuredDeals.map((offer, index) => (
                 <Link
                   key={offer.id}
-                  href={hasActivePass ? `/offers/${{offer.id}` : '/campaigns'}
+                  href={hasActivePass ? `/offers/${offer.id}` : '/campaigns'}
                   className="min-w-[76%] snap-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:min-w-[280px]"
                 >
-                  <div className={`relative h-24 overflow-hidden ${{
+                  <div className={`relative h-24 overflow-hidden ${
                     index % 3 === 0
                       ? 'bg-gradient-to-br from-green-100 via-white to-blue-100'
                       : index % 3 === 1
@@ -203,7 +203,7 @@ export default function CustomerCommandCenter({
                       {hasActivePass
                         ? offer.discount || 'Member benefit available'
                         : typeof offer.customer_value === 'number'
-                          ? `$${{offer.customer_value} value`
+                          ? `$${offer.customer_value} value`
                           : 'Member value available'}
                     </p>
                     <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500">
@@ -246,7 +246,7 @@ export default function CustomerCommandCenter({
                 return (
                   <Link
                     key={purchase.id}
-                    href={purchase.campaigns?.id ? `/campaigns/${{purchase.campaigns.id}` : '/dashboard/activity'}
+                    href={purchase.campaigns?.id ? `/campaigns/${purchase.campaigns.id}` : '/dashboard/activity'}
                     className="flex items-center gap-3 py-3.5"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
