@@ -46,9 +46,11 @@ test('campaign progress is derived from seeded organization earnings', () => {
   assert.equal(progress.stem, 97.2)
 })
 
-test('offer plan includes active, future, expiring, and inactive states', () => {
-  assert.equal(LAKEVIEW_OFFERS.some((offer) => offer.active && offer.startOffsetDays <= 0), true)
-  assert.equal(LAKEVIEW_OFFERS.some((offer) => offer.active && offer.startOffsetDays > 0), true)
-  assert.equal(LAKEVIEW_OFFERS.some((offer) => offer.active && offer.endOffsetDays <= 10), true)
-  assert.equal(LAKEVIEW_OFFERS.some((offer) => !offer.active && offer.endOffsetDays < 0), true)
+test('active curated offers do not expire while inactive history stays historical', () => {
+  const activeOffers = LAKEVIEW_OFFERS.filter((offer) => offer.active)
+
+  assert.equal(activeOffers.length > 0, true)
+  assert.equal(activeOffers.every((offer) => offer.startOffsetDays <= 0), true)
+  assert.equal(activeOffers.every((offer) => offer.endOffsetDays === null), true)
+  assert.equal(LAKEVIEW_OFFERS.some((offer) => !offer.active && offer.endOffsetDays !== null && offer.endOffsetDays < 0), true)
 })
