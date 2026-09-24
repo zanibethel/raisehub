@@ -150,19 +150,26 @@ export default async function OfferPage({ params }: OfferPageProps) {
           <div className="absolute -bottom-24 right-24 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
 
           <div className="relative z-10 flex items-start gap-4">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-lg sm:h-20 sm:w-20">
+            <Link
+              href={`/businesses/${profile!.id}`}
+              aria-label={`View ${businessName} business profile`}
+              className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-lg transition hover:scale-[1.02] sm:h-20 sm:w-20"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={profile!.logo_url || '/default-business-logo.png'}
                 alt=""
                 className="max-h-full max-w-full object-contain"
               />
-            </span>
+            </Link>
 
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+              <Link
+                href={`/businesses/${profile!.id}`}
+                className="text-xs font-black uppercase tracking-[0.16em] text-amber-300 hover:text-green-200"
+              >
                 {businessName}
-              </p>
+              </Link>
               <h1 className="mt-2 break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
                 {isUnlocked
                   ? offer.title || 'Exclusive Local Deal'
