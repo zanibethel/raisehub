@@ -191,7 +191,7 @@ export default async function CampaignPage({
   const noticeMessage = getCampaignNotice(notice)
   const { data: organizations } = await supabase
     .from('profiles')
-    .select('id, business_name, display_name')
+    .select('id, business_name, display_name, logo_url')
     .eq('role', 'organization')
     .order('business_name', { ascending: true })
 
@@ -300,165 +300,284 @@ export default async function CampaignPage({
     unavailable: Boolean(progressError),
   })
 
+  const campaignOrganizationProfile = (organizations ?? []).find(
+    (candidate) => candidate.id === campaign.organization_id
+  )
+  const campaignOrganizationName =
+    campaignOrganizationProfile?.display_name ||
+    campaignOrganizationProfile?.business_name ||
+    'Local organization'
+  const campaignOrganizationLogo = campaignOrganizationProfile?.logo_url ?? null
+  const campaignInitials = campaignOrganizationName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+  const campaignEndDate = campaign.ends_at ? new Date(campaign.ends_at) : null
+  const campaignDaysRemaining =
+    campaignEndDate && !Number.isNaN(campaignEndDate.getTime())
+      ? Math.max(0, Math.ceil((campaignEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : null
+  const passPriceLabel = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(effectivePricing.passPrice)
+
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-12">
-      <div className="mx-auto max-w-3xl">
-        <Link href="/campaigns" className="text-sm text-blue-600">← Back to fundraisers</Link>
+    <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-5xl">
+        <Link
+          href="/campaigns"
+          className="inline-flex min-h-10 items-center text-sm font-black text-blue-700"
+        >
+          ← Back to fundraisers
+        </Link>
 
         {noticeMessage ? (
-          <div className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
             {noticeMessage}
           </div>
         ) : null}
 
         {managedSeller?.valid_for_attribution ? (
-          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Seller link recognized</p>
-            <p className="mt-1 text-lg font-bold text-emerald-950">Supporting {managedSeller.display_name}</p>
-            <p className="mt-1 text-sm text-emerald-800">
-              A completed purchase from this link will be credited to this seller and the campaign.
-            </p>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-black text-emerald-700">
+              ✓
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                Seller link recognized
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-emerald-950">
+                Your purchase will be credited to {managedSeller.display_name}.
+              </p>
+            </div>
           </div>
         ) : seller && isManagedSellerCode ? (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Campaign link still works</p>
-            <p className="mt-1 text-lg font-bold text-amber-950">Supporting the campaign generally</p>
-            <p className="mt-1 text-sm text-amber-800">
-              This seller code is no longer eligible for new credit. Your support will still benefit the campaign without assigning it to a seller.
-            </p>
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+            This seller code is no longer eligible for new credit. Your purchase will still support the campaign.
           </div>
-        ) : (
-          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700">General campaign link</p>
-            <p className="mt-1 text-sm text-blue-900">
-              Your support will benefit this campaign without assigning the purchase to a specific seller.
-            </p>
-          </div>
-        )}
+        ) : null}
 
-        <h1 className="mt-4 text-3xl font-bold text-gray-900">{campaign.name}</h1>
-        <p className="mt-2 text-gray-600">{campaign.description || 'Support this local fundraiser.'}</p>
+        <section className="relative mt-5 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-10">
+          <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-blue-500/25 blur-2xl" />
+          <div className="absolute -bottom-20 right-20 h-52 w-52 rounded-full bg-green-400/15 blur-2xl" />
 
-        <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
-          <p className="text-sm text-gray-500">Progress</p>
-          {progressState.status === 'available' ? (
-            <>
-              <p className="mt-2 text-3xl font-bold text-blue-700">{progressState.goalPercentage.toFixed(0)}% of goal</p>
-              <div className="mt-3 h-3 w-full rounded-full bg-gray-200">
-                <div className="h-3 rounded-full bg-blue-600" style={{ width: `${progressState.goalPercentage}%` }} />
+          <div className="relative z-10 flex items-start gap-4">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 text-xl font-black text-blue-700 shadow-lg sm:h-20 sm:w-20">
+              {campaignOrganizationLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={campaignOrganizationLogo}
+                  alt=""
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                campaignInitials || 'RH'
+              )}
+            </span>
+
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-300">
+                {campaignOrganizationName}
+              </p>
+              <h1 className="mt-2 text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                {campaign.name}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                {campaign.description || 'Support this local fundraiser and unlock RaiseHub savings.'}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">
+                  {passPriceLabel} pass
+                </span>
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-green-100">
+                  {campaignDaysRemaining === null
+                    ? 'Flexible timeline'
+                    : campaignDaysRemaining === 1
+                      ? '1 day remaining'
+                      : `${campaignDaysRemaining} days remaining`}
+                </span>
               </div>
-              <p className="mt-2 text-sm text-gray-600">
-                ${progressState.amountRaised.toLocaleString()} raised of ${goal.toLocaleString()}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                Campaign progress
               </p>
-              {progressState.amountRemaining !== null ? (
-                <p className="mt-1 text-sm text-gray-500">${progressState.amountRemaining.toLocaleString()} remaining</p>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <p className="mt-2 text-3xl font-bold text-slate-600">Progress temporarily unavailable</p>
-              <div className="mt-3 h-3 w-full rounded-full bg-slate-200" />
-              <p className="mt-2 text-sm text-gray-600">
-                Fundraising totals are temporarily unavailable. You can still support this campaign right now.
-              </p>
-            </>
-          )}
-        </div>
+              {progressState.status === 'available' ? (
+                <p className="mt-1 text-3xl font-black text-slate-950">
+                  {progressState.goalPercentage.toFixed(0)}%
+                </p>
+              ) : (
+                <p className="mt-1 text-xl font-black text-slate-700">
+                  Progress temporarily unavailable
+                </p>
+              )}
+            </div>
+
+            {progressState.status === 'available' ? (
+              <div className="text-right">
+                <p className="text-lg font-black text-green-700">
+                  ${progressState.amountRaised.toLocaleString()}
+                </p>
+                <p className="text-xs font-bold text-slate-500">
+                  raised of ${goal.toLocaleString()}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className={`h-full rounded-full ${
+                progressState.status === 'available' ? 'bg-green-600' : 'bg-slate-300'
+              }`}
+              style={{
+                width:
+                  progressState.status === 'available'
+                    ? `${progressState.goalPercentage}%`
+                    : '0%',
+              }}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={
+                progressState.status === 'available'
+                  ? Math.round(progressState.goalPercentage)
+                  : undefined
+              }
+            />
+          </div>
+
+          {progressState.status === 'available' && progressState.amountRemaining !== null ? (
+            <p className="mt-3 text-sm font-semibold text-slate-500">
+              ${progressState.amountRemaining.toLocaleString()} remaining to reach the goal
+            </p>
+          ) : progressState.status !== 'available' ? (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Fundraising totals are temporarily unavailable, but you can still support this campaign.
+            </p>
+          ) : null}
+        </section>
 
         {managedSeller?.valid_for_attribution && sellerProgress ? (
-          <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm sm:p-6">
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-              Seller progress
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-emerald-950">
-              Help {managedSeller.display_name} keep the momentum going
-            </h2>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-emerald-100 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Passes credited
-                </p>
-                <p className="mt-1 text-3xl font-black text-emerald-700">
+          <section className="mt-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
+                Seller progress
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Help {managedSeller.display_name} keep the momentum going
+              </h2>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 divide-x divide-slate-200 border-y border-slate-200 py-4 text-center">
+              <div className="px-3">
+                <p className="text-2xl font-black text-emerald-700">
                   {sellerProgress.passesSold}
                 </p>
+                <p className="mt-1 text-xs font-bold text-slate-500">Passes credited</p>
               </div>
-              <div className="rounded-xl border border-emerald-100 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Helped raise
-                </p>
-                <p className="mt-1 text-3xl font-black text-emerald-700">
+              <div className="px-3">
+                <p className="text-2xl font-black text-emerald-700">
                   ${sellerProgress.amountRaised.toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 2,
                   })}
                 </p>
+                <p className="mt-1 text-xs font-bold text-slate-500">Helped raise</p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-emerald-900">
-              {sellerProgress.passesSold === 0
-                ? `Be one of the first supporters credited to ${managedSeller.display_name}. A qualifying purchase from this page helps both the seller and the organization.`
-                : `Every qualifying purchase from this page stays credited to ${managedSeller.display_name} and the organization. Buy a pass for yourself or send one to someone else as a gift.`}
-            </p>
           </section>
         ) : null}
 
-        <div className="mt-6 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
-          🎟️ Buy one pass. Save locally. Support your community.
-        </div>
+        <section className="mt-7">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+                Support this fundraiser
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                {hasActivePass ? 'Your pass is already active' : 'Get your RaiseHub Pass'}
+              </h2>
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-800">
+              {passPriceLabel}
+            </span>
+          </div>
 
-        <div className="mt-6 rounded-2xl border bg-white p-6 shadow">
-          <p className="text-lg font-semibold text-gray-900">
-            {hasActivePass ? 'Your pass is active' : 'Get your fundraising pass'}
-          </p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             {hasActivePass
-              ? 'You already have active RaiseHub access. You can still support this fundraiser with an additional donation or give a separate pass to someone else.'
-              : 'One purchase gives you access to exclusive local deals while supporting this campaign. You can also buy a separate pass as a gift.'}
+              ? 'You can still support this fundraiser with an additional donation or send a separate pass as a gift.'
+              : 'One purchase supports this campaign and unlocks exclusive local offers through your RaiseHub Pass.'}
           </p>
 
           {hasActivePass ? (
-            <div className="mt-4 rounded-xl border border-green-100 bg-green-50 p-4">
-              <p className="text-sm font-semibold text-green-800">Current pass expiration</p>
-              <p className="mt-1 text-lg font-bold text-green-900">
-                {activePassExpiresAt ? new Date(activePassExpiresAt).toLocaleDateString() : 'No expiration date'}
+            <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-green-700">
+                Current pass
               </p>
-              <p className="mt-2 text-xs leading-5 text-green-700">
-                Your current pass stays unchanged when you buy a gift. The recipient gets their own six-month access when they claim it.
+              <p className="mt-1 text-sm font-bold text-green-950">
+                {activePassExpiresAt
+                  ? `Active through ${new Date(activePassExpiresAt).toLocaleDateString()}`
+                  : 'Active with no listed expiration'}
               </p>
             </div>
           ) : null}
 
-          <div className="mt-4 space-y-3">
-            <BuyCampaignPassButton
-              campaignId={campaign.id}
-              passPrice={effectivePricing.passPrice}
-              organizations={organizations ?? []}
-              defaultOrganizationId={campaign.organization_id}
-              sellerName={attributedSellerName}
-              hasActivePass={hasActivePass}
-              initialDonationAmount={donation}
-              initialSelectedOrganizationId={organization ?? null}
-            />
-            <GiftCampaignPassButton
-              campaignId={campaign.id}
-              passPrice={effectivePricing.passPrice}
-              sellerName={attributedSellerName}
-            />
-            <div className="flex justify-center">
-              <ShareCampaignButton campaignId={campaign.id} campaignName={campaign.name} />
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="space-y-3">
+              <BuyCampaignPassButton
+                campaignId={campaign.id}
+                passPrice={effectivePricing.passPrice}
+                organizations={organizations ?? []}
+                defaultOrganizationId={campaign.organization_id}
+                sellerName={attributedSellerName}
+                hasActivePass={hasActivePass}
+                initialDonationAmount={donation}
+                initialSelectedOrganizationId={organization ?? null}
+              />
+              <GiftCampaignPassButton
+                campaignId={campaign.id}
+                passPrice={effectivePricing.passPrice}
+                sellerName={attributedSellerName}
+              />
+              <div className="flex justify-center pt-1">
+                <ShareCampaignButton campaignId={campaign.id} campaignName={campaign.name} />
+              </div>
+            </div>
+
+            <p className="mt-4 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">
+              100% of optional donations go directly to the selected organization.
+            </p>
+          </div>
+        </section>
+
+        <section className="mt-7 border-y border-slate-200 py-5">
+          <div className="grid grid-cols-3 divide-x divide-slate-200 text-center">
+            <div className="px-2">
+              <p className="text-lg font-black text-blue-700">Local</p>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">Supports organizations</p>
+            </div>
+            <div className="px-2">
+              <p className="text-lg font-black text-green-700">Useful</p>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">Unlocks local offers</p>
+            </div>
+            <div className="px-2">
+              <p className="text-lg font-black text-amber-700">Shareable</p>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">Buy or send as a gift</p>
             </div>
           </div>
-
-          <p className="mt-3 text-xs text-gray-500">
-            100% of donations go directly to the selected organization.
-          </p>
-        </div>
-
-        <div className="mt-6 space-y-2 text-sm text-gray-600">
-          <p>✔ Supports local organizations</p>
-          <p>✔ Powered by local businesses</p>
-          <p>✔ Easy to use digital pass</p>
-        </div>
+        </section>
       </div>
     </main>
   )
