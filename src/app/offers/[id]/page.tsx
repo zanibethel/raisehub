@@ -40,7 +40,7 @@ type BusinessProfile = EnvironmentOwnedRecord & {
 }
 
 function formatOfferDate(value: string | null): string {
-  if (!value) return 'No published end date'
+  if (!value) return 'No listed expiration'
 
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Date unavailable'
@@ -66,6 +66,9 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const { id } = await params
   const supabase = await createClient()
   const environment = getActiveDataEnvironment()
+  const now = new Date()
+  const nowIso = now.toISOString()
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -77,8 +80,13 @@ export default async function OfferPage({ params }: OfferPageProps) {
     )
     .eq('id', id)
     .eq('is_active', true)
+    .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+    .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
 
-  const { data: offerData } = await applyEnvironmentScope(offerQuery, environment).maybeSingle()
+  const { data: offerData } = await applyEnvironmentScope(
+    offerQuery,
+    environment
+  ).maybeSingle()
   const offer = offerData as OfferRecord | null
   if (!offer) notFound()
 
@@ -98,7 +106,7 @@ export default async function OfferPage({ params }: OfferPageProps) {
   let isSaved = false
 
   if (user) {
-    const { hasActivePass } = await getCustomerPassAccess(user.id)
+    const { hasActivePass } = await getCustomerPassAccess(user.id, now)
     isUnlocked = hasActivePass
 
     if (isUnlocked) {
@@ -128,168 +136,217 @@ export default async function OfferPage({ params }: OfferPageProps) {
   const offerReturnPath = `/offers/${offer.id}`
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-blue-50 px-4 py-8 sm:px-8 sm:py-16">
-      <div className="mx-auto max-w-2xl">
+    <main className="min-h-screen bg-[#F7FAFC] px-3 py-6 text-slate-950 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-4xl">
         <Link
           href="/offers"
-          className="inline-flex min-h-11 items-center text-sm font-semibold text-yellow-700 underline-offset-4 hover:underline"
+          className="inline-flex min-h-10 items-center text-sm font-black text-blue-700"
         >
           ← Back to Local Deals
         </Link>
 
-        <article className="mt-4 overflow-hidden rounded-3xl border border-yellow-100 bg-white/95 shadow-xl sm:mt-6">
-          <header className="border-b border-yellow-100 p-5 sm:p-8">
-            <div className="flex items-start gap-4">
+        <section className="relative mt-4 overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-10">
+          <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-400/20 blur-3xl" />
+          <div className="absolute -bottom-24 right-24 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
+
+          <div className="relative z-10 flex items-start gap-4">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-lg sm:h-20 sm:w-20">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={profile!.logo_url || '/default-business-logo.png'}
-                alt={`${businessName} logo`}
-                className="h-14 w-14 shrink-0 rounded-xl border border-gray-200 object-cover sm:h-16 sm:w-16"
+                alt=""
+                className="max-h-full max-w-full object-contain"
               />
-              <div className="min-w-0">
-                <p className="break-words text-xs font-semibold uppercase tracking-wide text-yellow-700">
-                  {businessName}
-                </p>
-                <h1 className="mt-1 break-words text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">
-                  {isUnlocked ? offer.title || 'Exclusive Local Deal' : 'Exclusive Local Deal'}
-                </h1>
+            </span>
+
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                {businessName}
+              </p>
+              <h1 className="mt-2 break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                {isUnlocked
+                  ? offer.title || 'Exclusive Local Deal'
+                  : 'Exclusive Local Deal'}
+              </h1>
+
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
+                {isUnlocked ? (
+                  <span className="rounded-full bg-green-400/15 px-3 py-1.5 text-green-200">
+                    ✓ Pass benefit unlocked
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-400/15 px-3 py-1.5 text-amber-200">
+                    Pass required for exact details
+                  </span>
+                )}
+
+                {offer.customer_value !== null ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-slate-100">
+                    {formatCustomerValue(offer.customer_value)} value
+                  </span>
+                ) : null}
               </div>
             </div>
-          </header>
+          </div>
+        </section>
 
-          <div className="p-5 sm:p-8">
-            {isUnlocked ? (
-              <section className="rounded-2xl border border-green-100 bg-green-50 p-5 sm:p-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                  Pass Benefit
-                </p>
-                <p className="mt-2 break-words text-xl font-bold text-green-800">
-                  {offer.discount || 'Special savings available'}
-                </p>
-                <p className="mt-3 break-words text-sm leading-6 text-gray-700 sm:text-base">
-                  {offer.description || 'Exclusive customer offer'}
-                </p>
-              </section>
-            ) : (
-              <section className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-center sm:p-6">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-xl">
-                  🔒
-                </div>
-                {offer.customer_value !== null ? (
-                  <div className="mx-auto mt-4 inline-flex items-center rounded-full border border-green-200 bg-green-50 px-4 py-2 text-green-800">
-                    <span className="text-lg font-black">
-                      {formatCustomerValue(offer.customer_value)} value
-                    </span>
-                  </div>
-                ) : null}
-                <h2 className="mt-4 text-lg font-bold text-gray-900">
-                  Deal details require a RaiseHub Pass
-                </h2>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
-                  Support a participating fundraiser to reveal the discount, full offer
-                  description, and redemption details.
-                </p>
-              </section>
-            )}
+        {isUnlocked ? (
+          <section className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5 sm:p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+              Pass Benefit
+            </p>
+            <p className="mt-2 break-words text-2xl font-black text-green-900">
+              {offer.discount || 'Special savings available'}
+            </p>
+            <p className="mt-3 break-words text-sm leading-6 text-slate-700 sm:text-base">
+              {offer.description || 'Exclusive customer offer'}
+            </p>
+          </section>
+        ) : (
+          <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+              Preview
+            </p>
+            <h2 className="mt-2 text-xl font-black text-slate-950">
+              Unlock the full deal with a RaiseHub Pass
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Support a participating fundraiser to reveal the discount, full description, and redemption details for this offer.
+            </p>
 
-            <section
-              aria-labelledby="offer-information-heading"
-              className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5"
+            <Link
+              href={user ? '/campaigns' : '/signup?source=offers'}
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-white transition hover:bg-amber-600"
             >
-              <h2 id="offer-information-heading" className="font-bold text-gray-900">
-                Offer Information
-              </h2>
-              <dl className="mt-4 space-y-4 text-sm">
-                <div>
-                  <dt className="font-semibold text-gray-900">Valid until</dt>
-                  <dd className="mt-1 text-gray-600">{formatOfferDate(offer.ends_at)}</dd>
-                </div>
-                {profile!.address ? (
-                  <div>
-                    <dt className="font-semibold text-gray-900">Location</dt>
-                    <dd className="mt-1 break-words text-gray-600">{profile!.address}</dd>
-                  </div>
-                ) : null}
-                {profile!.phone ? (
-                  <div>
-                    <dt className="font-semibold text-gray-900">Phone</dt>
-                    <dd className="mt-1">
-                      <a
-                        href={`tel:${profile!.phone}`}
-                        className="break-words font-medium text-blue-700 underline underline-offset-4"
-                      >
-                        {profile!.phone}
-                      </a>
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-            </section>
+              {user ? 'Choose a Fundraiser' : 'Get a RaiseHub Pass'}
+            </Link>
+          </section>
+        )}
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {isUnlocked ? (
-                <>
-                  <SavedOfferButton offerId={offer.id} initiallySaved={isSaved} />
-                  <TrackedOfferLink
-                    href="/dashboard#my-pass"
-                    offerId={offer.id}
-                    clickType="dashboard_click"
-                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-5 py-3 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
-                  >
-                    Open My Pass
-                  </TrackedOfferLink>
-                </>
-              ) : user ? (
-                <Link
-                  href="/campaigns"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800"
-                >
-                  Choose a Fundraiser Pass
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href={`/login?next=${encodeURIComponent(offerReturnPath)}`}
-                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-800"
-                  >
-                    Log In
-                  </Link>
-                  <Link
-                    href="/signup?source=offers"
-                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
-                  >
-                    Create Customer Account
-                  </Link>
-                </>
-              )}
+        <section className="mt-7" aria-labelledby="offer-information-heading">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+              Business & offer
+            </p>
+            <h2
+              id="offer-information-heading"
+              className="mt-1 text-2xl font-black tracking-tight text-slate-950"
+            >
+              Offer Information
+            </h2>
+          </div>
+
+          <dl className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+            <div className="grid gap-1 py-4 sm:grid-cols-[150px_1fr] sm:gap-4">
+              <dt className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                Availability
+              </dt>
+              <dd className="text-sm font-bold text-slate-800">
+                {formatOfferDate(offer.ends_at)}
+              </dd>
             </div>
 
-            {profile!.website_url || profile!.google_maps_url ? (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {profile!.website_url ? (
-                  <a
-                    href={normalizeExternalUrl(profile!.website_url)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
-                  >
-                    Visit Website
-                  </a>
-                ) : null}
-                {profile!.google_maps_url ? (
-                  <a
-                    href={normalizeExternalUrl(profile!.google_maps_url)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-green-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-green-700 transition hover:bg-green-50"
-                  >
-                    View Map
-                  </a>
-                ) : null}
+            {profile!.address ? (
+              <div className="grid gap-1 py-4 sm:grid-cols-[150px_1fr] sm:gap-4">
+                <dt className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                  Location
+                </dt>
+                <dd className="break-words text-sm font-bold text-slate-800">
+                  {profile!.address}
+                </dd>
               </div>
             ) : null}
+
+            {profile!.phone ? (
+              <div className="grid gap-1 py-4 sm:grid-cols-[150px_1fr] sm:gap-4">
+                <dt className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                  Phone
+                </dt>
+                <dd>
+                  <a
+                    href={`tel:${profile!.phone}`}
+                    className="break-words text-sm font-black text-blue-700 underline underline-offset-4"
+                  >
+                    {profile!.phone}
+                  </a>
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+
+        <section className="mt-7">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+            Next step
+          </p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
+            {isUnlocked ? 'Use this deal' : 'Unlock local savings'}
+          </h2>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {isUnlocked ? (
+              <>
+                <SavedOfferButton offerId={offer.id} initiallySaved={isSaved} />
+                <TrackedOfferLink
+                  href="/dashboard#my-pass"
+                  offerId={offer.id}
+                  clickType="dashboard_click"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
+                >
+                  Open My Pass
+                </TrackedOfferLink>
+              </>
+            ) : user ? (
+              <Link
+                href="/campaigns"
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800 sm:col-span-2"
+              >
+                Choose a Fundraiser Pass
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={`/login?next=${encodeURIComponent(offerReturnPath)}`}
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup?source=offers"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
+                >
+                  Create Customer Account
+                </Link>
+              </>
+            )}
           </div>
-        </article>
+
+          {profile!.website_url || profile!.google_maps_url ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {profile!.website_url ? (
+                <a
+                  href={normalizeExternalUrl(profile!.website_url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-black text-slate-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-700"
+                >
+                  Visit Website
+                </a>
+              ) : null}
+
+              {profile!.google_maps_url ? (
+                <a
+                  href={normalizeExternalUrl(profile!.google_maps_url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-black text-slate-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-700"
+                >
+                  View Map
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
       </div>
     </main>
   )
