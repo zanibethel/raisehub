@@ -18,6 +18,14 @@ const dashboardSource = readFileSync(
   'utf8'
 )
 
+const customerCommandCenterSource = readFileSync(
+  new URL(
+    './customer-command-center.tsx',
+    import.meta.url
+  ),
+  'utf8'
+)
+
 test(
   'covers every major customer next-step state',
   () => {
@@ -103,13 +111,13 @@ test(
   'keeps current dashboard shortcuts aligned with focused customer routes',
   () => {
     assert.ok(
-      dashboardSource.includes(
+      customerCommandCenterSource.includes(
         'href="/dashboard/deals#available-offers"'
       )
     )
 
     assert.ok(
-      dashboardSource.includes(
+      customerCommandCenterSource.includes(
         'href="/dashboard/activity"'
       )
     )
