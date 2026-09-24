@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 import OrganizationDashboardContent, {
   type OrganizationWorkspaceView,
 } from './organization-dashboard-content'
+import OrganizationCommandCenter from './organization-command-center'
 import OrganizationWorkspaceShell from './organization-workspace-shell'
 
 type Props = ComponentProps<typeof OrganizationDashboardContent> & {
@@ -49,7 +50,16 @@ export default function OrganizationWorkspaceFrame({
         </section>
       ) : null}
 
-      <OrganizationDashboardContent view={view} {...props} />
+      {view === 'dashboard' ? (
+        <OrganizationCommandCenter
+          organizationName={organizationName}
+          organizationLocation={organizationLocation}
+          view={view}
+          {...props}
+        />
+      ) : (
+        <OrganizationDashboardContent view={view} {...props} />
+      )}
     </OrganizationWorkspaceShell>
   )
 }
