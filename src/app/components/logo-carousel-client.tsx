@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
 type PartnerProfile = {
@@ -262,6 +263,17 @@ export default function LogoCarouselClient({
               ) : null}
 
               <div className="flex flex-wrap gap-3 pt-2">
+                <Link
+                  href={`/businesses/${selectedPartner.id}`}
+                  onClick={() => {
+                    setSelectedPartner(null)
+                    resumeAutoAdvanceLater()
+                  }}
+                  className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-800"
+                >
+                  View RaiseHub Profile
+                </Link>
+
                 {selectedPartner.website_url ? (
                   <a
                     href={
@@ -307,6 +319,15 @@ export default function LogoCarouselClient({
           </div>
         </div>
       ) : null}
+
+      <div className="mx-auto mt-4 w-full max-w-6xl">
+        <Link
+          href="/businesses"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 text-sm font-black text-green-700 transition hover:bg-green-100"
+        >
+          Browse all local partners <span aria-hidden="true">→</span>
+        </Link>
+      </div>
     </>
   )
 }
