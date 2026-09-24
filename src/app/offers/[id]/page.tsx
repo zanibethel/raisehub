@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import TrackedOfferLink from '@/app/components/tracked-offer-link'
+import UseOfferButton from '@/app/components/use-offer-button'
 import SavedOfferButton from '@/app/offers/[id]/saved-offer-button'
 import {
   applyEnvironmentScope,
@@ -287,46 +288,56 @@ export default async function OfferPage({ params }: OfferPageProps) {
             Next step
           </p>
           <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
-            {isUnlocked ? 'Use this deal' : 'Unlock local savings'}
+            {isUnlocked ? 'Redeem this offer' : 'Unlock local savings'}
           </h2>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {isUnlocked ? (
-              <>
+          {isUnlocked ? (
+            <>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Only redeem when you are at the participating business and ready to use the offer. RaiseHub records the redemption immediately and shows a confirmation screen for staff.
+              </p>
+
+              <UseOfferButton offerId={offer.id} />
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <SavedOfferButton offerId={offer.id} initiallySaved={isSaved} />
                 <TrackedOfferLink
                   href="/dashboard#my-pass"
                   offerId={offer.id}
                   clickType="dashboard_click"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
                 >
                   Open My Pass
                 </TrackedOfferLink>
-              </>
-            ) : user ? (
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {user ? (
               <Link
                 href="/campaigns"
                 className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800 sm:col-span-2"
               >
                 Choose a Fundraiser Pass
               </Link>
-            ) : (
-              <>
-                <Link
-                  href={`/login?next=${encodeURIComponent(offerReturnPath)}`}
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/signup?source=offers"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
-                >
-                  Create Customer Account
-                </Link>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <Link
+                    href={`/login?next=${encodeURIComponent(offerReturnPath)}`}
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-800"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/signup?source=offers"
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-50"
+                  >
+                    Create Customer Account
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
 
           {profile!.website_url || profile!.google_maps_url ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
