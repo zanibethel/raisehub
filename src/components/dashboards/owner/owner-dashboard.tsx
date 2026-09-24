@@ -38,7 +38,7 @@ export default async function OwnerDashboard() {
       <OwnerDashboardContent platformMetrics={platformMetrics} />
 
       {rewardsReport ? (
-        <section className="mt-8 rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-green-50 p-5 shadow-sm sm:p-6">
+        <section className="mt-8 border-b border-amber-200 bg-transparent px-1 pb-6 pt-1 sm:rounded-3xl sm:border sm:bg-gradient-to-br sm:from-amber-50 sm:via-white sm:to-green-50 sm:p-6 sm:shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Running quarterly report</p>
@@ -76,8 +76,8 @@ export default async function OwnerDashboard() {
         </section>
       ) : null}
 
-      <section className="mt-8 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm sm:p-5">
+      <section className="mt-8 grid gap-3 lg:grid-cols-2">
+        <article className="border-b border-amber-200 bg-transparent px-1 py-4 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-700">Trust and safety</p>
@@ -90,7 +90,7 @@ export default async function OwnerDashboard() {
           </div>
         </article>
 
-        <article className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm sm:p-5">
+        <article className="border-b border-green-200 bg-transparent px-1 py-4 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-green-700">Partner trust</p>
@@ -103,7 +103,7 @@ export default async function OwnerDashboard() {
           </div>
         </article>
 
-        <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm sm:p-5">
+        <article className="border-b border-blue-200 bg-transparent px-1 py-4 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">Customer assistance</p>
@@ -116,7 +116,7 @@ export default async function OwnerDashboard() {
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <article className="border-b border-slate-200 bg-transparent px-1 py-4 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Platform settings</p>
