@@ -268,7 +268,7 @@ export default async function CampaignPage({
 
   const [
     { data: campaignOrganization },
-    { data: campaignOrganizationProfile },
+    { data: campaignEnvironmentProfile },
   ] = await Promise.all([
     admin
       .from('organizations')
@@ -285,7 +285,7 @@ export default async function CampaignPage({
   const effectivePricing = await resolveEffectivePricing({
     campaignId: campaign.id,
     organizationId: campaignOrganization?.id ?? null,
-    isDemo: campaignOrganizationProfile?.is_demo ?? false,
+    isDemo: campaignEnvironmentProfile?.is_demo ?? false,
     now,
   })
 
