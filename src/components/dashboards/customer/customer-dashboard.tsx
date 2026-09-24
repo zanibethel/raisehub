@@ -1,6 +1,3 @@
-import Link from 'next/link'
-
-import { WorkspaceModule } from '@/components/workspace/workspace-module'
 import {
   applyEnvironmentScope,
   getActiveDataEnvironment,
@@ -13,7 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 
 import CustomerActivityContent from './customer-activity-content'
 import CustomerDashboardContent from './customer-dashboard-content'
-import CustomerDigitalPass from './customer-digital-pass'
+import CustomerCommandCenter from './customer-command-center'
 import CustomerWorkspaceFrame, {
   type CustomerWorkspaceView,
 } from './customer-workspace-frame'
@@ -346,18 +343,6 @@ export default async function CustomerDashboard({
   const availableOfferCount = redeemableOfferIds.size
   const totalRedemptionCount = activeRedemptions.length
 
-  const digitalPass = (
-    <CustomerDigitalPass
-      hasActivePass={hasPurchasedPass}
-      entitlementType={activeEntitlement?.entitlement_type}
-      startsAt={activeEntitlement?.starts_at}
-      expiresAt={activeEntitlement?.expires_at}
-      supportedOrganizationName={supportedOrganizationName}
-      supportedCampaignName={supportedCampaignName}
-      availableOfferCount={availableOfferCount}
-    />
-  )
-
   return (
     <CustomerWorkspaceFrame
       view={view}
@@ -389,45 +374,19 @@ export default async function CustomerDashboard({
           hasPurchasedPass={hasPurchasedPass}
         />
       ) : (
-        <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
-          {digitalPass}
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <WorkspaceModule title="Saved deals" tone="blue">
-              <p className="text-3xl font-black text-slate-950">{savedOfferIds.size}</p>
-              <p className="mt-1 text-sm text-slate-500">Offers saved to your pass</p>
-            </WorkspaceModule>
-            <WorkspaceModule title="Redemptions" tone="green">
-              <p className="text-3xl font-black text-slate-950">{totalRedemptionCount}</p>
-              <p className="mt-1 text-sm text-slate-500">Recorded offer uses, including the 24-hour review window</p>
-            </WorkspaceModule>
-            <WorkspaceModule title="Fundraisers supported" tone="amber">
-              <p className="text-3xl font-black text-slate-950">{purchasedPasses.length}</p>
-              <p className="mt-1 text-sm text-slate-500">Pass purchases recorded</p>
-            </WorkspaceModule>
-          </div>
-
-          <WorkspaceModule
-            title="What would you like to do?"
-            description="Open a focused page instead of searching through one long dashboard."
-            tone="slate"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Link
-                href="/dashboard/deals#available-offers"
-                className="rounded-2xl border border-blue-200 bg-blue-50 p-4 font-bold text-blue-800"
-              >
-                Explore offers →
-              </Link>
-              <Link
-                href="/dashboard/activity"
-                className="rounded-2xl border border-green-200 bg-green-50 p-4 font-bold text-green-800"
-              >
-                Review savings and activity →
-              </Link>
-            </div>
-          </WorkspaceModule>
-        </div>
+        <CustomerCommandCenter
+          customerEmail={user.email}
+          hasActivePass={hasPurchasedPass}
+          availableOfferCount={availableOfferCount}
+          savedOfferCount={savedOfferIds.size}
+          totalRedemptionCount={totalRedemptionCount}
+          supportedOrganizationName={supportedOrganizationName}
+          supportedCampaignName={supportedCampaignName}
+          expiresAt={activeEntitlement?.expires_at}
+          enrichedOffers={enrichedOffers}
+          purchasedPasses={purchasedPasses}
+          organizationById={organizationById}
+        />
       )}
     </CustomerWorkspaceFrame>
   )
