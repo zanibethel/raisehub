@@ -93,10 +93,10 @@ export default async function SignupPage({
     )
 
   return (
-    <main className="min-h-screen bg-[#F0F6FF] p-5 sm:p-8">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white px-3 py-5 sm:p-8">
       <Suspense
         fallback={
-          <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-md">
+          <div className="mx-auto max-w-md border-b border-gray-200 bg-transparent p-6 text-center sm:rounded-2xl sm:border sm:bg-white sm:shadow-md">
             <p className="text-sm text-gray-600">
               Loading signup...
             </p>
