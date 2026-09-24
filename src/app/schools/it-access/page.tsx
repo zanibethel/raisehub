@@ -22,34 +22,34 @@ export default function SchoolItAccessPage() {
   return (
     <main className="min-h-screen bg-[#F0F6FF] px-4 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-xl sm:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+        <header className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-5 py-7 text-white shadow-xl sm:px-8 sm:py-10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">
             School IT & vendor review
           </p>
-          <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-5xl">
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-5xl">
             RaiseHub network and access requirements
           </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
             This page is intended for district technology, network, privacy, procurement, and
             vendor-review teams evaluating RaiseHub for school fundraising access.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/schools"
-              className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700"
+              className="inline-flex min-h-11 items-center rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white"
             >
               School setup overview
             </Link>
             <a
               href="mailto:support@raisehub.app?subject=School%20IT%20or%20vendor%20review"
-              className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white"
+              className="inline-flex min-h-11 items-center rounded-xl bg-blue-600 px-4 text-sm font-black text-white"
             >
               Contact RaiseHub support
             </a>
           </div>
         </header>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-8 border-y border-slate-200 py-6">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
             Allowlist
           </p>
@@ -92,8 +92,8 @@ export default function SchoolItAccessPage() {
           </code>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
+        <section className="mt-8 grid gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
             <h2 className="text-xl font-black text-slate-950">Browser requirements</h2>
             <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
               <li>• Current Chrome, Edge, Safari, or Firefox.</li>
@@ -104,7 +104,7 @@ export default function SchoolItAccessPage() {
             </ul>
           </article>
 
-          <article className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+          <article className="rounded-2xl border border-green-200 bg-green-50 p-5">
             <h2 className="text-xl font-black text-slate-950">Not required</h2>
             <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
               <li>• Camera access is not required for organization setup.</li>
@@ -116,8 +116,8 @@ export default function SchoolItAccessPage() {
           </article>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <article className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+        <section className="mt-8 grid gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5">
             <p className="text-xs font-black uppercase tracking-wide text-cyan-700">
               Service architecture
             </p>
@@ -132,7 +132,7 @@ export default function SchoolItAccessPage() {
             </ul>
           </article>
 
-          <article className="rounded-3xl border border-fuchsia-100 bg-white p-6 shadow-sm">
+          <article className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-5">
             <p className="text-xs font-black uppercase tracking-wide text-fuchsia-700">
               Accessibility & procurement
             </p>
@@ -154,7 +154,7 @@ export default function SchoolItAccessPage() {
           </article>
         </section>
 
-        <section className="rounded-3xl border border-violet-100 bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-8 border-y border-violet-200 bg-violet-50/60 px-4 py-6 sm:px-5">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-700">
             Student-data minimization
           </p>
@@ -175,7 +175,7 @@ export default function SchoolItAccessPage() {
           </p>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-8 border-y border-slate-200 py-6">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
             Vendor review links
           </p>
@@ -200,7 +200,7 @@ export default function SchoolItAccessPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
+        <section className="mt-8 border-y border-amber-200 bg-amber-50 px-4 py-6 sm:px-5">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
             Copy-ready request
           </p>
@@ -215,7 +215,7 @@ export default function SchoolItAccessPage() {
           </div>
         </section>
 
-        <p className="px-2 text-xs leading-5 text-slate-500">
+        <p className="mt-6 px-2 text-xs leading-5 text-slate-500">
           Districts may apply additional local security, procurement, accessibility, records, or
           privacy requirements. Contact support@raisehub.app if your review requires information not
           listed here.
