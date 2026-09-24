@@ -146,12 +146,12 @@ export default function BusinessSignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-blue-50 px-3 py-8 text-gray-900 sm:px-8 sm:py-16">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-14">
       <div className="mx-auto max-w-6xl">
         <Link href="/" className="text-sm font-medium text-blue-700 hover:underline">← Back to RaiseHub</Link>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="border-b border-green-100 bg-transparent px-1 pb-8 pt-2 sm:rounded-3xl sm:border sm:bg-white/95 sm:p-10 sm:shadow-xl">
+          <section className="px-1 pb-8 pt-2 lg:pr-8">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">RaiseHub Community Partner</p>
             <h1 className="mt-4 text-4xl font-bold leading-tight text-gray-900">Support your community while growing your business</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
@@ -176,68 +176,54 @@ export default function BusinessSignupPage() {
               </div>
             ) : null}
 
-            <div className="mt-8 rounded-3xl border border-blue-100 bg-blue-50/70 p-5 sm:p-7">
+            <div className="mt-9 border-y border-slate-200 py-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">How it works</p>
-                  <h2 className="mt-2 text-2xl font-bold text-blue-800">From local offer to new customer</h2>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-green-700">How it works</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">From local offer to new customer</h2>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
                     Your offer helps make the fundraiser valuable. RaiseHub connects that value to local supporters and gives them a reason to walk through your door.
                   </p>
                 </div>
                 <a
                   href={businessDemoUrl}
-                  className="shrink-0 rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-center text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                  className="shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 >
                   Explore Business Demo →
                 </a>
               </div>
 
-              <div className="mt-7 grid gap-4 sm:grid-cols-2">
-                {partnershipFlow.map((step, index) => {
-                  const accentClasses = {
-                    green: 'border-green-200 bg-gradient-to-br from-green-50 to-white text-green-800',
-                    blue: 'border-blue-200 bg-gradient-to-br from-blue-50 to-white text-blue-800',
-                    amber: 'border-amber-200 bg-gradient-to-br from-amber-50 to-white text-amber-800',
-                    violet: 'border-violet-200 bg-gradient-to-br from-violet-50 to-white text-violet-800',
-                    emerald: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white text-emerald-800',
-                  }[step.accent]
-
-                  return (
-                    <article
-                      key={step.number}
-                      className={`relative overflow-hidden rounded-3xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${accentClasses} ${index === partnershipFlow.length - 1 ? 'sm:col-span-2' : ''}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl shadow-sm ring-1 ring-black/5" aria-hidden="true">
-                            {step.icon}
-                          </span>
-                          <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm ring-1 ring-black/5">
-                            {step.badge}
-                          </span>
-                        </div>
-                        <span className="text-3xl font-black leading-none opacity-20">{step.number}</span>
+              <div className="mt-7 divide-y divide-slate-200">
+                {partnershipFlow.map((step, index) => (
+                  <article key={step.number} className="grid grid-cols-[3rem_1fr] gap-4 py-5 first:pt-0 last:pb-0">
+                    <div className="flex flex-col items-center">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl shadow-sm ring-1 ring-slate-200" aria-hidden="true">
+                        {step.icon}
+                      </span>
+                      {index < partnershipFlow.length - 1 ? <span className="mt-2 h-full w-px bg-slate-200" aria-hidden="true" /> : null}
+                    </div>
+                    <div className="min-w-0 pb-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-black text-slate-400">{step.number}</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+                          {step.badge}
+                        </span>
                       </div>
-                      <h3 className="mt-5 text-lg font-black leading-snug text-slate-950">{step.title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
-                      {index < partnershipFlow.length - 1 ? (
-                        <div className="mt-4 flex items-center gap-2 text-xs font-black uppercase tracking-wide opacity-60">
-                          <span>Next step</span><span aria-hidden="true">→</span>
+                      <h3 className="mt-2 text-lg font-black leading-snug text-slate-950">{step.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{step.description}</p>
+                      {index === partnershipFlow.length - 1 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-800">Track results</span>
+                          <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-800">Earn Partner Points</span>
                         </div>
-                      ) : (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <span className="rounded-full bg-emerald-700 px-3 py-1.5 text-xs font-black text-white">Track results</span>
-                          <span className="rounded-full bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-950">Earn Partner Points</span>
-                        </div>
-                      )}
-                    </article>
-                  )
-                })}
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
 
-            <div className="mt-8 rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-green-50 p-5 sm:p-7">
+            <div className="mt-8 border-l-4 border-amber-400 pl-4 sm:pl-5">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Partner Rewards</p>
               <h2 className="mt-2 text-2xl font-bold text-gray-900">Earn rewards as you help RaiseHub grow</h2>
               <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -252,25 +238,25 @@ export default function BusinessSignupPage() {
                 ))}
               </div>
 
-              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-gray-700">
+              <div className="mt-5 text-sm leading-6 text-slate-600">
                 <strong className="text-gray-900">How Partner Points work:</strong>{' '}
                 eligible Partner Points carry forward across quarters and can be used for available RaiseHub benefits. Quarterly activity may also qualify your business for a share of the Partner Rewards Pool. Partner Points do not have a fixed cash value, and reward eligibility depends on the applicable program rules.
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl border border-green-100 bg-green-50 p-4"><p className="text-2xl font-bold text-green-700">3 Offers</p><p className="mt-1 text-sm text-gray-600">Free active offer allowance</p></div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4"><p className="text-2xl font-bold text-blue-700">Local Reach</p><p className="mt-1 text-sm text-gray-600">Visibility with community supporters</p></div>
-              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 p-4"><p className="text-2xl font-bold text-yellow-700">Shared Impact</p><p className="mt-1 text-sm text-gray-600">Better fundraising through better value</p></div>
+            <div className="mt-8 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-5 text-center">
+              <div className="px-2"><p className="text-lg font-black text-green-700 sm:text-xl">3 Offers</p><p className="mt-1 text-xs leading-5 text-slate-500">Free active offer allowance</p></div>
+              <div className="px-2"><p className="text-lg font-black text-blue-700 sm:text-xl">Local Reach</p><p className="mt-1 text-xs leading-5 text-slate-500">Visibility with community supporters</p></div>
+              <div className="px-2"><p className="text-lg font-black text-amber-700 sm:text-xl">Shared Impact</p><p className="mt-1 text-xs leading-5 text-slate-500">Better fundraising through better value</p></div>
             </div>
 
-            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-600">
+            <div className="mt-8 border-l-4 border-green-500 pl-4 text-sm leading-6 text-slate-600">
               <strong className="text-gray-900">You are not being asked to donate money.</strong>{' '}
               Your contribution is the offer you choose to provide. RaiseHub handles the fundraising experience while your business gets visibility, customer traffic, redemption tracking, and access to Partner Rewards opportunities.
             </div>
           </section>
 
-          <aside className="h-fit rounded-3xl border border-green-100 bg-white p-7 shadow-xl sm:p-8">
+          <aside className="h-fit border-t border-slate-200 pt-7 lg:sticky lg:top-6 lg:rounded-3xl lg:border lg:bg-white lg:p-8 lg:shadow-sm">
             <div className="flex flex-wrap gap-2"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">FOUNDING 100</span><span className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-800">2× POINTS · 1 YEAR</span></div>
             <p className="mt-3 text-sm font-semibold text-green-700">Start free. Stay free.</p>
             <h2 className="mt-2 text-2xl font-bold text-blue-700">Become a RaiseHub Partner</h2>
@@ -281,13 +267,13 @@ export default function BusinessSignupPage() {
             <form onSubmit={handleSignup} className="mt-6 space-y-4">
               <div>
                 <label htmlFor="business-signup-email" className="mb-2 block text-sm font-medium text-gray-700">Business email</label>
-                <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
+                <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100" required />
               </div>
               <div>
                 <label htmlFor="business-signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
-                <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} className="w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-green-500" required />
+                <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100" required />
               </div>
-              <button disabled={loading} className="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white shadow transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <button disabled={loading} className="min-h-12 w-full rounded-xl bg-green-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
                 {loading ? 'Creating account...' : 'Become a RaiseHub Partner'}
               </button>
             </form>
