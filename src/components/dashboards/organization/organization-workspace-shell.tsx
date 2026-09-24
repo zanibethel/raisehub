@@ -13,6 +13,7 @@ import type { OrganizationWorkspaceView } from './organization-dashboard-content
 type Props = {
   organizationName: string
   organizationLocation: string
+  organizationLogoUrl?: string | null
   activeCampaigns: number
   totalCampaigns: number
   totalFundsRaised: number
@@ -43,6 +44,7 @@ function MoreIcon() {
 export default function OrganizationWorkspaceShell({
   organizationName,
   organizationLocation,
+  organizationLogoUrl = null,
   activeCampaigns,
   totalCampaigns,
   totalFundsRaised,
@@ -90,7 +92,10 @@ export default function OrganizationWorkspaceShell({
           ? `${totalCampaigns} total campaign${totalCampaigns === 1 ? '' : 's'}`
           : `$${totalFundsRaised.toLocaleString()} raised across all campaigns`,
     tone: 'blue',
-    image: (
+    image: organizationLogoUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={organizationLogoUrl} alt="" className="h-12 w-12 rounded-xl border border-slate-200 bg-white object-contain" />
+    ) : (
       <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-lg font-black text-blue-700">
         {organizationName.trim().charAt(0).toUpperCase() || 'O'}
       </span>
@@ -113,7 +118,7 @@ export default function OrganizationWorkspaceShell({
   }
 
   return (
-    <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
+    <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
       {children}
     </WorkspaceShell>
   )
