@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/business-notifications",
-      "schedule": "0 15 * * *"
+      "schedule": "0 15 * * 1"
     },
     {
       "path": "/api/cron/partner-rewards-report",
