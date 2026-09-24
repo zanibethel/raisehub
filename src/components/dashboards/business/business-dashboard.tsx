@@ -179,7 +179,11 @@ export default async function BusinessDashboard({
   }
 
   const admin = createAdminClient()
-  await (admin as any).rpc('finalize_due_redemptions')
+  try {
+    await (admin as any).rpc('finalize_due_redemptions')
+  } catch (error) {
+    console.error('Unable to finalize due redemptions without blocking dashboard:', error)
+  }
 
   const lifecycle = canonicalBusiness
   const canonicalBusinessId = lifecycle?.id ?? requestedBusinessId
