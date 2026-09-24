@@ -210,7 +210,7 @@ export function WorkspaceIdentityCard({ eyebrow, title, subtitle, detail, image,
   return (
     <section className={`border-b ${classes.border} bg-transparent px-1 pb-4 pt-1 sm:rounded-3xl sm:border sm:bg-white sm:p-4 sm:shadow-[0_10px_28px_rgba(15,23,42,0.08)]`}>
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-        {image ? <div className="shrink-0">{image}</div> : null}
+        {image ? <div className="hidden shrink-0 sm:block">{image}</div> : null}
 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
