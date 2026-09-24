@@ -17,6 +17,11 @@ const dashboardSource = readFileSync(
   'utf8'
 )
 
+const customerCommandCenterSource = readFileSync(
+  new URL('./customer-command-center.tsx', import.meta.url),
+  'utf8'
+)
+
 // =============================================================================
 // Focused mobile deals experience
 // =============================================================================
@@ -125,15 +130,15 @@ test('routes customer deals and activity through dedicated workspace views', () 
 
 test('keeps mobile-friendly dashboard shortcuts pointed at focused pages', () => {
   assert.match(
-    dashboardSource,
+    customerCommandCenterSource,
     /href="\/dashboard\/deals#available-offers"/
   )
   assert.match(
-    dashboardSource,
+    customerCommandCenterSource,
     /href="\/dashboard\/activity"/
   )
   assert.match(
-    dashboardSource,
-    /className="grid gap-3 sm:grid-cols-2"/
+    customerCommandCenterSource,
+    /className="mt-3 grid grid-cols-4 gap-2\.5"/
   )
 })
