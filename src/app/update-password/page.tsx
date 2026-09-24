@@ -85,8 +85,8 @@ export default function UpdatePasswordPage() {
 
   if (checkingSession) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-16">
-        <section className="mx-auto max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
+      <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-16">
+        <section className="mx-auto max-w-md border-t border-slate-200 py-8 text-center sm:rounded-3xl sm:border sm:bg-white sm:p-8 sm:shadow-sm">
           <p className="font-semibold text-blue-700">
             Verifying your password-reset link...
           </p>
@@ -96,8 +96,8 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-100 via-slate-50 to-green-50 px-5 py-16">
-      <section className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/95 p-7 shadow-xl sm:p-9">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-16">
+      <section className="mx-auto max-w-md border-t border-slate-200 pt-7 sm:rounded-3xl sm:border sm:bg-white sm:p-8 sm:shadow-sm">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">
           Secure your account
         </p>
@@ -125,7 +125,7 @@ export default function UpdatePasswordPage() {
                 minLength={8}
                 autoComplete="new-password"
                 required
-                className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
             </label>
 
@@ -141,13 +141,13 @@ export default function UpdatePasswordPage() {
                 minLength={8}
                 autoComplete="new-password"
                 required
-                className="mt-2 w-full rounded-xl border border-gray-300 p-3 outline-none focus:border-blue-500"
+                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
             </label>
 
             <button
               disabled={loading}
-              className="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+              className="min-h-12 w-full rounded-xl bg-green-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50"
             >
               {loading ? 'Updating password...' : 'Update Password'}
             </button>
@@ -155,7 +155,7 @@ export default function UpdatePasswordPage() {
         ) : (
           <Link
             href="/forgot-password"
-            className="mt-7 block rounded-xl bg-blue-600 px-5 py-3 text-center font-semibold text-white hover:bg-blue-700"
+            className="mt-7 block min-h-12 rounded-xl bg-blue-600 px-5 py-3 text-center font-black text-white hover:bg-blue-700"
           >
             Request a New Reset Link
           </Link>
