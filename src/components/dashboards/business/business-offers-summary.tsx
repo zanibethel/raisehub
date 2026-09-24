@@ -50,6 +50,7 @@ export default function BusinessOffersSummary({ offers, redemptionCountByOfferId
 
   return (
     <WorkspaceModule
+      surface="section"
       id="active-offers"
       title="Active offers"
       eyebrow="Work"
