@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { getAppMode } from '@/lib/app-mode'
+import ModeTip from './components/mode-tip'
 
 const fundraisingSteps = [
   {
@@ -32,35 +33,6 @@ const fundraisingSteps = [
     accent: 'border-cyan-200 bg-cyan-50 text-cyan-800',
   },
 ] as const
-
-function ModeTip({
-  label,
-  tone,
-  children,
-}: {
-  label: string
-  tone: 'blue' | 'green'
-  children: React.ReactNode
-}) {
-  const toneClasses =
-    tone === 'blue'
-      ? 'border-blue-200 bg-blue-50 text-blue-800'
-      : 'border-green-200 bg-green-50 text-green-800'
-
-  return (
-    <details className="group relative shrink-0">
-      <summary
-        aria-label={label}
-        className={`flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-xl border text-lg font-black shadow-sm transition marker:hidden ${toneClasses}`}
-      >
-        i
-      </summary>
-      <div className="absolute bottom-14 right-0 z-20 w-64 rounded-2xl border border-slate-200 bg-white p-4 text-left text-xs leading-5 text-slate-600 shadow-xl">
-        {children}
-      </div>
-    </details>
-  )
-}
 
 export default function HomePage() {
   const appMode = getAppMode()
