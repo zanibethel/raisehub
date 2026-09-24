@@ -104,8 +104,8 @@ export default async function PlatformHomePage() {
           </p>
         </div>
 
-        <div className="-mr-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pr-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mr-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pr-0">
-          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-blue-100 bg-white p-5 shadow-sm lg:w-auto lg:min-w-0 sm:p-6">
+        <div className="-mr-4 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pr-4 pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+          <article style={{ flex: '0 0 min(82vw, 360px)' }} className="flex shrink-0 snap-start flex-col rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-xl font-black text-blue-700">
               ↑
             </span>
@@ -121,7 +121,7 @@ export default async function PlatformHomePage() {
             </Link>
           </article>
 
-          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-green-100 bg-white p-5 shadow-sm lg:w-auto lg:min-w-0 sm:p-6">
+          <article style={{ flex: '0 0 min(82vw, 360px)' }} className="flex shrink-0 snap-start flex-col rounded-3xl border border-green-100 bg-white p-5 shadow-sm sm:p-6">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-xl font-black text-green-700">
               ↗
             </span>
@@ -137,7 +137,7 @@ export default async function PlatformHomePage() {
             </Link>
           </article>
 
-          <article className="flex w-[82%] min-w-[82%] snap-start flex-col rounded-3xl border border-amber-100 bg-white p-5 shadow-sm lg:w-auto lg:min-w-0 sm:p-6">
+          <article style={{ flex: '0 0 min(82vw, 360px)' }} className="flex shrink-0 snap-start flex-col rounded-3xl border border-amber-100 bg-white p-5 shadow-sm sm:p-6">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-xl font-black text-amber-700">
               ♥
             </span>
