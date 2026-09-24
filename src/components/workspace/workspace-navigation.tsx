@@ -43,6 +43,7 @@ export function buildWorkspaceNavigation({
   reportsLabel = 'Reports',
   reportsHref,
   helpHref = '/support',
+  helpLabel = 'Help',
   activeSlot = 'dashboard',
   icons,
 }: {
@@ -51,6 +52,7 @@ export function buildWorkspaceNavigation({
   reportsLabel?: string
   reportsHref: string
   helpHref?: string
+  helpLabel?: string
   activeSlot?: WorkspaceNavigationSlot
   icons: Record<WorkspaceNavigationSlot, ReactNode>
 }): WorkspaceNavigationItem[] {
@@ -78,7 +80,7 @@ export function buildWorkspaceNavigation({
     },
     help: {
       slot: 'help',
-      label: 'Help',
+      label: helpLabel,
       href: helpHref,
       icon: icons.help,
       active: activeSlot === 'help',
