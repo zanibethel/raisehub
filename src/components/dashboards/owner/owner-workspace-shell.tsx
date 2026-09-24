@@ -7,6 +7,7 @@ import {
   type WorkspaceIdentity,
 } from '@/components/workspace/workspace-shell'
 import { buildWorkspaceNavigation } from '@/components/workspace/workspace-navigation'
+import WorkspacePullToRefresh from '@/components/workspace/workspace-pull-to-refresh'
 
 export type OwnerWorkspaceView =
   | 'dashboard'
@@ -85,8 +86,10 @@ export default function OwnerWorkspaceShell({
   }
 
   return (
-    <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
-      {children}
-    </WorkspaceShell>
+    <WorkspacePullToRefresh>
+      <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
+        {children}
+      </WorkspaceShell>
+    </WorkspacePullToRefresh>
   )
 }
