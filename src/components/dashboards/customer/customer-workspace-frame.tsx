@@ -89,7 +89,7 @@ export default function CustomerWorkspaceFrame({
 
   return (
     <WorkspacePullToRefresh>
-      <WorkspaceShell identity={identity} bottomNavigation={bottomNavigation}>
+      <WorkspaceShell identity={view === 'dashboard' ? undefined : identity} bottomNavigation={bottomNavigation}>
         {children}
       </WorkspaceShell>
     </WorkspacePullToRefresh>
