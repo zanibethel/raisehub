@@ -63,7 +63,7 @@ export default function SchoolItAccessPage() {
             {coreDomains.map((domain) => (
               <code
                 key={domain}
-                className="block overflow-x-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-slate-100"
+                className="block break-all whitespace-normal rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 [overflow-wrap:anywhere]"
               >
                 {domain}
               </code>
@@ -79,7 +79,7 @@ export default function SchoolItAccessPage() {
             {checkoutDomains.map((domain) => (
               <code
                 key={domain}
-                className="block overflow-x-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-slate-100"
+                className="block break-all whitespace-normal rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 [overflow-wrap:anywhere]"
               >
                 {domain}
               </code>
@@ -87,7 +87,7 @@ export default function SchoolItAccessPage() {
           </div>
 
           <h3 className="mt-7 text-lg font-black text-slate-950">Optional demo access</h3>
-          <code className="mt-3 block overflow-x-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm text-slate-100">
+          <code className="mt-3 block break-all whitespace-normal rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 [overflow-wrap:anywhere]">
             https://demo.raisehub.app
           </code>
         </section>
@@ -205,13 +205,13 @@ export default function SchoolItAccessPage() {
             Copy-ready request
           </p>
           <h2 className="mt-2 text-2xl font-black text-amber-950">Suggested note for district IT</h2>
-          <div className="mt-4 space-y-2 rounded-2xl border border-amber-200 bg-white p-5 text-sm leading-6 text-slate-700">
+          <div className="mt-4 min-w-0 space-y-2 overflow-hidden rounded-2xl border border-amber-200 bg-white p-5 text-sm leading-6 text-slate-700">
             <p>Please review RaiseHub for school fundraising access.</p>
-            <p><strong>Core site:</strong> <code>https://raisehub.app</code></p>
-            <p><strong>Authentication/data:</strong> <code>https://buoczurgckoazbkwgcik.supabase.co</code></p>
-            <p><strong>Checkout:</strong> <code>https://checkout.stripe.com</code>, <code>https://js.stripe.com</code>, <code>https://api.stripe.com</code></p>
-            <p><strong>Vendor review:</strong> <code>https://raisehub.app/schools/it-access</code></p>
-            <p><strong>Support:</strong> <code>support@raisehub.app</code></p>
+            <p><strong>Core site:</strong> <code className="break-all [overflow-wrap:anywhere]">https://raisehub.app</code></p>
+            <p><strong>Authentication/data:</strong> <code className="break-all [overflow-wrap:anywhere]">https://buoczurgckoazbkwgcik.supabase.co</code></p>
+            <p><strong>Checkout:</strong> <code className="break-all [overflow-wrap:anywhere]">https://checkout.stripe.com</code>, <code className="break-all [overflow-wrap:anywhere]">https://js.stripe.com</code>, <code className="break-all [overflow-wrap:anywhere]">https://api.stripe.com</code></p>
+            <p><strong>Vendor review:</strong> <code className="break-all [overflow-wrap:anywhere]">https://raisehub.app/schools/it-access</code></p>
+            <p><strong>Support:</strong> <code className="break-all [overflow-wrap:anywhere]">support@raisehub.app</code></p>
           </div>
         </section>
 
