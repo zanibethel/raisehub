@@ -151,7 +151,7 @@ export default function SchoolsPage() {
 
             <article className="rounded-2xl border border-green-200 bg-green-50 p-5">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-green-700">
-                Optional account
+                Optional seller account
               </p>
               <h3 className="mt-2 text-lg font-black text-green-950">
                 Seller claims the existing roster entry
