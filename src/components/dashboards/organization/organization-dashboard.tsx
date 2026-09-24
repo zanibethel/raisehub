@@ -156,7 +156,7 @@ export default async function OrganizationDashboard({
   const { data: organizationProfile } = organizationProfileId
     ? await supabase
         .from('profiles')
-        .select('is_demo')
+        .select('is_demo, logo_url')
         .eq('id', organizationProfileId)
         .maybeSingle()
     : { data: null }
@@ -410,6 +410,7 @@ export default async function OrganizationDashboard({
       view={view}
       organizationName={organizationName}
       organizationLocation={organizationLocation}
+      organizationLogoUrl={organizationProfile?.logo_url ?? null}
       isSellerWorkspace={isSellerWorkspace}
       organizationId={canonicalOrganizationId}
       totalPassesSold={totalPassesSold}
