@@ -58,7 +58,7 @@ export default function BusinessWorkspaceFrame({
     reportsHref: '/dashboard/reports',
     helpLabel: 'Rewards',
     helpHref: '/dashboard/rewards',
-    activeSlot: view === 'offers' ? 'work' : view === 'reports' ? 'reports' : 'dashboard',
+    activeSlot: view === 'offers' ? 'work' : view === 'reports' ? 'reports' : view === 'rewards' ? 'help' : 'dashboard',
     icons: {
       dashboard: <DashboardIcon />,
       work: <OffersIcon />,
