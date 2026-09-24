@@ -1,12 +1,32 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error'
 
 export default function SupportContactForm() {
   const [state, setState] = useState<SubmitState>('idle')
   const [message, setMessage] = useState('')
+  const [issueContext, setIssueContext] = useState<{ topic: string; details: string; source: string }>({ topic: '', details: '', source: '' })
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const reportIssue = params.get('reportIssue') === '1'
+    if (!reportIssue) return
+
+    const source = params.get('source') || document.referrer || ''
+    const reference = params.get('ref') || ''
+    const errorMessage = params.get('error') || ''
+    const details = [
+      'What I was trying to do: ',
+      '',
+      'What happened: ' + (errorMessage || 'RaiseHub showed an error or failed to load.'),
+      reference ? `Error reference: ${reference}` : '',
+      source ? `Page where it happened: ${source}` : '',
+    ].filter(Boolean).join('\n')
+
+    setIssueContext({ topic: 'technical', details, source })
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -23,9 +43,9 @@ export default function SupportContactForm() {
         body: JSON.stringify({
           name: String(formData.get('name') ?? ''),
           email: String(formData.get('email') ?? ''),
-          topic: String(formData.get('topic') ?? ''),
-          message: String(formData.get('message') ?? ''),
-          pageUrl: window.location.href,
+          topic: String(formData.get('topic') ?? issueContext.topic),
+          message: String(formData.get('message') ?? issueContext.details),
+          pageUrl: issueContext.source || window.location.href,
         }),
       })
 
@@ -60,7 +80,7 @@ export default function SupportContactForm() {
 
       <label className="block">
         <span className="text-sm font-bold text-slate-800">What do you need help with?</span>
-        <select name="topic" required defaultValue="" className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+        <select name="topic" required value={issueContext.topic} onChange={(event) => setIssueContext((current) => ({ ...current, topic: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
           <option value="" disabled>Select a topic</option>
           <option value="account">Account or sign in</option>
           <option value="campaign">Campaign or organization</option>
@@ -75,7 +95,7 @@ export default function SupportContactForm() {
 
       <label className="block">
         <span className="text-sm font-bold text-slate-800">Message</span>
-        <textarea name="message" required minLength={10} maxLength={4000} rows={6} placeholder="Tell us what happened, what you expected, and any steps you already tried." className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+        <textarea name="message" required minLength={10} maxLength={4000} rows={6} value={issueContext.details} onChange={(event) => setIssueContext((current) => ({ ...current, details: event.target.value }))} placeholder="Tell us what happened, what you expected, and any steps you already tried." className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-slate-950 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
       </label>
 
       <button type="submit" disabled={state === 'submitting'} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60">
