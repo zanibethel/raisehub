@@ -181,10 +181,23 @@ export default async function OrganizationDashboard({
   const isDemoOrganization =
     organizationProfile?.is_demo ?? canonicalOrganization?.is_demo ?? false
 
-  const campaignCreationPricing = await resolveEffectivePricing({
-    organizationId: canonicalOrganizationId,
-    isDemo: isDemoOrganization,
-  })
+  const pricingResult = await Promise.allSettled([
+    resolveEffectivePricing({
+      organizationId: canonicalOrganizationId,
+      isDemo: isDemoOrganization,
+    }),
+  ])
+  const campaignCreationPricing = pricingResult[0].status === 'fulfilled'
+    ? pricingResult[0].value
+    : {
+        passPrice: 20,
+        platformFeePercent: 20,
+        organizationPassEarnings: 16,
+        usedFallback: true,
+      }
+  if (pricingResult[0].status === 'rejected') {
+    console.error('Unable to resolve pricing without blocking organization dashboard:', pricingResult[0].reason)
+  }
 
   let campaignQuery = supabase.from('campaigns').select('*')
   if (canonicalOrganizationId && organizationProfileId) {
@@ -203,7 +216,7 @@ export default async function OrganizationDashboard({
     )
   }
 
-  const [{ data: campaigns }, stripeAccountResult] = await Promise.all([
+  const [campaignResult, stripeResult] = await Promise.allSettled([
     campaignQuery.order('created_at', { ascending: false }),
     canonicalOrganizationId
       ? (createAdminClient() as any)
@@ -215,6 +228,14 @@ export default async function OrganizationDashboard({
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ])
+  const campaigns = campaignResult.status === 'fulfilled' ? campaignResult.value.data : []
+  const stripeAccountResult = stripeResult.status === 'fulfilled' ? stripeResult.value : { data: null }
+  if (campaignResult.status === 'rejected') {
+    console.error('Unable to load campaigns without blocking organization dashboard:', campaignResult.reason)
+  }
+  if (stripeResult.status === 'rejected') {
+    console.error('Unable to load payout readiness without blocking organization dashboard:', stripeResult.reason)
+  }
 
   const stripeAccount = (stripeAccountResult.data ??
     null) as StripeReadinessRow | null
