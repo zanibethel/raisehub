@@ -140,7 +140,7 @@ export default function BusinessNotificationCenter({
   return (
     <section
       aria-labelledby="business-notification-center-title"
-      className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5"
+      className="border-b border-blue-100 bg-transparent px-1 pb-4 pt-1 sm:rounded-2xl sm:border sm:border-gray-200 sm:bg-white/90 sm:p-5 sm:shadow-sm sm:backdrop-blur"
     >
       <button
         type="button"
