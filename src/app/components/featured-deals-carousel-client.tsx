@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef } from 'react'
+import { useRef } from 'react'
 
 type Offer = {
   id: string
@@ -26,245 +26,70 @@ type FeaturedDealsCarouselClientProps = {
   profileById: Record<string, Profile>
 }
 
-const BASE_SCROLL_PIXELS_PER_SECOND = 34
-const MAX_EDGE_SCROLL_PIXELS_PER_SECOND = 150
-const EDGE_ZONE_RATIO = 0.28
-const RESUME_DELAY_MS = 1000
-const MINIMUM_LOOP_ITEMS = 8
-
 export default function FeaturedDealsCarouselClient({
   offers,
   profileById,
 }: FeaturedDealsCarouselClientProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const interactionRef = useRef(false)
-  const lastFrameRef = useRef<number | null>(null)
-  const fractionalDistanceRef = useRef(0)
-  const hoverDirectionRef = useRef<1 | -1>(1)
-  const hoverSpeedRef = useRef(
-    BASE_SCROLL_PIXELS_PER_SECOND
-  )
-  const resumeTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loopOffers = useMemo(() => {
-    if (!offers.length) return []
-
-    const count = Math.max(
-      offers.length,
-      MINIMUM_LOOP_ITEMS
-    )
-
-    const singleSet = Array.from(
-      { length: count },
-      (_, index) => offers[index % offers.length]
-    )
-
-    return [...singleSet, ...singleSet]
-  }, [offers])
-
-  useEffect(() => {
+  function move(direction: -1 | 1) {
     const element = scrollRef.current
-
-    if (!element || !offers.length) return
-
-    let animationFrameId = 0
-
-    function normalizePosition(
-      currentElement: HTMLDivElement
-    ) {
-      const loopWidth =
-        currentElement.scrollWidth / 2
-
-      if (loopWidth <= 0) return
-
-      if (currentElement.scrollLeft >= loopWidth) {
-        currentElement.scrollLeft -= loopWidth
-      }
-
-      if (currentElement.scrollLeft <= 0) {
-        currentElement.scrollLeft += loopWidth
-      }
-    }
-
-    function animate(timestamp: number) {
-      const currentElement = scrollRef.current
-
-      if (!currentElement) return
-
-      if (lastFrameRef.current === null) {
-        lastFrameRef.current = timestamp
-      }
-
-      const elapsedSeconds = Math.min(
-        (timestamp - lastFrameRef.current) / 1000,
-        0.05
-      )
-
-      lastFrameRef.current = timestamp
-
-      if (!interactionRef.current) {
-        fractionalDistanceRef.current +=
-          hoverSpeedRef.current * elapsedSeconds
-
-        const wholePixels = Math.floor(
-          fractionalDistanceRef.current
-        )
-
-        if (wholePixels > 0) {
-          currentElement.scrollLeft +=
-            wholePixels * hoverDirectionRef.current
-
-          fractionalDistanceRef.current -=
-            wholePixels
-
-          normalizePosition(currentElement)
-        }
-      }
-
-      animationFrameId =
-        requestAnimationFrame(animate)
-    }
-
-    animationFrameId =
-      requestAnimationFrame(animate)
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      lastFrameRef.current = null
-      fractionalDistanceRef.current = 0
-    }
-  }, [offers.length])
-
-  useEffect(() => {
-    return () => {
-      if (resumeTimerRef.current) {
-        clearTimeout(resumeTimerRef.current)
-      }
-    }
-  }, [])
-
-  function pauseForInteraction() {
-    if (resumeTimerRef.current) {
-      clearTimeout(resumeTimerRef.current)
-    }
-
-    interactionRef.current = true
-  }
-
-  function resumeAfterInteraction() {
-    if (resumeTimerRef.current) {
-      clearTimeout(resumeTimerRef.current)
-    }
-
-    resumeTimerRef.current = setTimeout(() => {
-      interactionRef.current = false
-      lastFrameRef.current = null
-      fractionalDistanceRef.current = 0
-    }, RESUME_DELAY_MS)
-  }
-
-  function handleMouseMove(
-    event: React.MouseEvent<HTMLDivElement>
-  ) {
-    const element = scrollRef.current
-
     if (!element) return
 
-    const bounds = element.getBoundingClientRect()
-    const position =
-      (event.clientX - bounds.left) / bounds.width
-
-    if (position < EDGE_ZONE_RATIO) {
-      const edgeStrength =
-        (EDGE_ZONE_RATIO - position) /
-        EDGE_ZONE_RATIO
-
-      hoverDirectionRef.current = -1
-      hoverSpeedRef.current =
-        BASE_SCROLL_PIXELS_PER_SECOND +
-        edgeStrength *
-          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
-            BASE_SCROLL_PIXELS_PER_SECOND)
-
-      return
-    }
-
-    if (position > 1 - EDGE_ZONE_RATIO) {
-      const edgeStrength =
-        (position - (1 - EDGE_ZONE_RATIO)) /
-        EDGE_ZONE_RATIO
-
-      hoverDirectionRef.current = 1
-      hoverSpeedRef.current =
-        BASE_SCROLL_PIXELS_PER_SECOND +
-        edgeStrength *
-          (MAX_EDGE_SCROLL_PIXELS_PER_SECOND -
-            BASE_SCROLL_PIXELS_PER_SECOND)
-
-      return
-    }
-
-    hoverDirectionRef.current = 1
-    hoverSpeedRef.current =
-      BASE_SCROLL_PIXELS_PER_SECOND
-  }
-
-  function resetDesktopHover() {
-    hoverDirectionRef.current = 1
-    hoverSpeedRef.current =
-      BASE_SCROLL_PIXELS_PER_SECOND
+    element.scrollBy({
+      left: direction * Math.max(240, element.clientWidth * 0.72),
+      behavior: 'smooth',
+    })
   }
 
   if (!offers.length) return null
 
   return (
     <section
-      className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-3xl border border-yellow-100 bg-white/90 p-4 shadow-xl sm:p-6"
-      aria-label="Exclusive Local Deals carousel"
+      className="mx-auto mt-12 w-full max-w-6xl sm:mt-16"
+      aria-label="Featured Offers carousel"
     >
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold text-yellow-600">
-            Exclusive Local Deals
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">
+            Local Savings
+          </p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+            Featured Offers
           </h2>
-
-          <p className="mt-1 text-sm text-gray-600">
-            Log in to unlock full deal details from participating businesses.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Preview participating businesses and the savings included with a RaiseHub pass.
           </p>
         </div>
 
-        <Link
-          href="/offers"
-          className="w-fit text-sm font-medium text-yellow-700 hover:underline"
-        >
-          View all deals →
-        </Link>
+        <div className="hidden shrink-0 gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={() => move(-1)}
+            aria-label="Previous featured offer"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-slate-700 shadow-sm hover:border-amber-300 hover:text-amber-700"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => move(1)}
+            aria-label="Next featured offer"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-xl font-black text-slate-700 shadow-sm hover:border-amber-300 hover:text-amber-700"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <div
         ref={scrollRef}
         role="list"
-        aria-label="Featured deals"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={resetDesktopHover}
-        onTouchStart={pauseForInteraction}
-        onTouchEnd={resumeAfterInteraction}
-        onTouchCancel={resumeAfterInteraction}
-        onPointerDown={pauseForInteraction}
-        onPointerUp={resumeAfterInteraction}
-        onPointerCancel={resumeAfterInteraction}
-        onFocus={pauseForInteraction}
-        onBlur={resumeAfterInteraction}
-        className="flex w-full touch-pan-x gap-6 overflow-x-auto pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
+        aria-label="Featured local offers"
+        className="-mr-4 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto pr-4 pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden sm:mr-0 sm:gap-4 sm:pr-0"
       >
-        {loopOffers.map((offer, index) => {
-          const duplicate =
-            index >= loopOffers.length / 2
-
-          const profile =
-            profileById[offer.business_id]
-
+        {offers.map((offer) => {
+          const profile = profileById[offer.business_id]
           const businessName =
             profile?.display_name ||
             profile?.business_name ||
@@ -272,97 +97,83 @@ export default function FeaturedDealsCarouselClient({
 
           return (
             <div
-              key={`${offer.id}-${index}`}
+              key={offer.id}
               role="listitem"
-              className="shrink-0"
-              aria-hidden={
-                duplicate ? true : undefined
-              }
+              className="w-[74%] min-w-[74%] snap-start sm:w-[300px] sm:min-w-[300px]"
             >
               <Link
                 href={`/offers/${offer.id}`}
-                tabIndex={duplicate ? -1 : 0}
-                onClick={pauseForInteraction}
-                className="flex w-72 shrink-0 flex-col justify-between rounded-2xl border border-yellow-100 bg-white p-5 shadow-sm transition hover:scale-105 hover:border-yellow-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
-                aria-label={
-                  duplicate
-                    ? undefined
-                    : `${businessName} — view deal`
-                }
+                className="flex min-h-52 h-full flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                aria-label={`${businessName} — view featured offer`}
               >
-                <div>
-                  {offer.featured ? (
-                    <div className="mb-3">
-                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-800">
-                        Featured Partner
-                      </span>
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={
-                        profile?.logo_url ||
-                        '/default-business-logo.png'
-                      }
-                      alt={
-                        duplicate
-                          ? ''
-                          : `${businessName} logo`
-                      }
-                      className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
+                      src={profile?.logo_url || '/default-business-logo.png'}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
                     />
+                  </span>
 
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium uppercase tracking-wide text-yellow-700">
-                        {businessName}
-                      </p>
+                  {offer.featured ? (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                      Featured Partner
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      Pass Offer
+                    </span>
+                  )}
+                </div>
 
-                      <h3 className="mt-1 text-base font-semibold text-gray-900">
-                        Exclusive Local Deal
-                      </h3>
-                    </div>
+                <div className="mt-4 min-w-0">
+                  <p className="truncate text-xs font-black uppercase tracking-[0.12em] text-amber-700">
+                    {businessName}
+                  </p>
+                  <h3 className="mt-1 line-clamp-2 text-lg font-black leading-6 text-slate-950">
+                    Exclusive local deal
+                  </h3>
+                </div>
+
+                <div className="relative mt-4 overflow-hidden rounded-2xl border border-amber-100 bg-amber-50 p-3">
+                  <div className="blur-[3px] select-none">
+                    <p className="text-sm font-black text-amber-800">
+                      {offer.discount || 'Member savings'}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                      {offer.description || 'Exclusive customer offer'}
+                    </p>
                   </div>
 
-                  <div className="relative mt-4 overflow-hidden rounded-xl border border-yellow-100 bg-yellow-50 p-4">
-                    <div className="blur-sm">
-                      <p className="text-sm font-medium text-yellow-700">
-                        {offer.discount ||
-                          'Special savings available'}
-                      </p>
-
-                      <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                        {offer.description ||
-                          'Exclusive customer offer'}
-                      </p>
-                    </div>
-
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-                      <span className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-medium text-white">
-                        🔒 Members Only
-                      </span>
-                    </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/55">
+                    <span className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white">
+                      Pass holders unlock details
+                    </span>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <p className="mb-3 text-xs text-gray-500">
-                    Valid until:{' '}
+                <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+                  <p className="text-[11px] font-semibold text-slate-500">
                     {offer.ends_at
-                      ? new Date(
-                          offer.ends_at
-                        ).toLocaleDateString()
-                      : '—'}
+                      ? `Ends ${new Date(offer.ends_at).toLocaleDateString()}`
+                      : 'No listed expiration'}
                   </p>
-
-                  <div className="block rounded-lg bg-yellow-600 px-4 py-2 text-center text-sm font-medium text-white">
-                    View Deal
-                  </div>
+                  <span className="text-sm font-black text-amber-700">View →</span>
                 </div>
               </Link>
             </div>
           )
         })}
+      </div>
+
+      <div className="mt-4">
+        <Link
+          href="/offers"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-black text-amber-800 transition hover:bg-amber-100"
+        >
+          View all deals <span aria-hidden="true">→</span>
+        </Link>
       </div>
     </section>
   )
