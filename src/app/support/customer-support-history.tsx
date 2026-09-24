@@ -53,7 +53,7 @@ export default async function CustomerSupportHistory() {
   if (requests.length === 0) return null
 
   return (
-    <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <section className="mt-8">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
         Your support requests
       </p>
