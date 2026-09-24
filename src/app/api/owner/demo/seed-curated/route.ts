@@ -465,6 +465,27 @@ export async function POST() {
         },
         counts
       )
+      const { data: seededCampaign, error: seededCampaignError } = await admin
+        .from('campaigns')
+        .select('content_revision')
+        .eq('id', campaignId)
+        .single()
+
+      if (seededCampaignError || !seededCampaign) {
+        throw seededCampaignError ?? new Error('Seeded campaign could not be reloaded.')
+      }
+
+      const { error: approvalError } = await admin
+        .from('campaigns')
+        .update({
+          status: campaign.status,
+          review_status: 'approved',
+          approved_revision: seededCampaign.content_revision,
+        })
+        .eq('id', campaignId)
+
+      if (approvalError) throw approvalError
+
       campaignIds[campaign.key] = campaignId
     }
     counts.campaigns = LAKEVIEW_CAMPAIGNS.length
