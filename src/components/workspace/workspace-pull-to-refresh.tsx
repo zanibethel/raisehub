@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useRef, useState, type ReactNode, type TouchEvent } from 'react'
 
 type Props = {
@@ -12,7 +11,6 @@ const REFRESH_THRESHOLD = 72
 const MAX_PULL_DISTANCE = 112
 
 export default function WorkspacePullToRefresh({ children }: Props) {
-  const router = useRouter()
   const startY = useRef<number | null>(null)
   const tracking = useRef(false)
   const [pullDistance, setPullDistance] = useState(0)
@@ -63,13 +61,12 @@ export default function WorkspacePullToRefresh({ children }: Props) {
     if (!shouldRefresh) return
 
     setRefreshing(true)
-    router.refresh()
 
-    // router.refresh() does not expose a completion promise. Keep the feedback
-    // visible long enough to make the gesture feel acknowledged, then release it.
+    // Standalone/home-screen installs do not expose browser reload controls.
+    // Use a real document reload so a pull also picks up the newest deployed bundle.
     window.setTimeout(() => {
-      setRefreshing(false)
-    }, 850)
+      window.location.reload()
+    }, 180)
   }
 
   const progress = Math.min(pullDistance / REFRESH_THRESHOLD, 1)
