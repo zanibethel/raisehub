@@ -30,7 +30,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { data: site, error: siteError } = await admin
     .from('business_sites')
-    .select('business_id,slug,site_title,hero_heading,hero_copy,about_heading,about_copy,phone,address,contact_email,accent_color,secondary_color,background_color,text_color,show_offers,is_published,section_order,logo_url,hero_image_url,hours_copy,facebook_url,instagram_url,tiktok_url')
+    .select('business_id,slug,site_title,hero_heading,hero_copy,about_heading,about_copy,phone,address,contact_email,accent_color,secondary_color,background_color,text_color,show_offers,is_published,section_order,logo_url,hero_image_url,hours_copy,facebook_url,instagram_url,tiktok_url,enabled_modules,menu_config,location_config,booking_config')
     .eq('slug', normalizedSlug)
     .eq('is_published', true)
     .maybeSingle()
@@ -76,7 +76,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     let offerQuery = admin
       .from('offers')
-      .select('id,title,description,benefit')
+      .select('id,title,description,discount')
       .eq('business_id', offerBusinessId)
       .eq('is_active', true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
@@ -102,7 +102,12 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Business site offers unavailable.' }, { status: 500 })
     }
 
-    offers = offerRows ?? []
+    offers = (offerRows ?? []).map((offer: any) => ({
+      id: offer.id,
+      title: offer.title,
+      description: offer.description,
+      benefit: offer.discount ?? null,
+    }))
   }
 
   const { data: activeWebsiteRedemptions, error: redemptionError } = await admin

@@ -11,6 +11,7 @@ import {
   updateBusinessOfferWizardCategoryAction,
 } from '@/app/dashboard/offer-wizard-actions'
 import { buildRecommendedOffers } from '@/lib/ai/recommendation-engine'
+import { BUSINESS_CATEGORIES } from '@/lib/business-categories'
 import OfferWizardProgress from './components/progress'
 import GoalStep, { type OfferGoal } from './components/goal-step'
 import SuggestionStep, {
@@ -25,23 +26,6 @@ import ReviewStep from './components/review-step'
 const TOTAL_STEPS = 4
 const OFFER_LIMIT_MESSAGE =
   'You have reached the free limit of 3 active offers. Upgrade to add more.'
-
-const businessCategories = [
-  'Restaurant / Food',
-  'Food Truck',
-  'Salon / Beauty',
-  'Automotive',
-  'Retail / Boutique',
-  'Fitness / Wellness',
-  'Home Services',
-  'Medical / Dental',
-  'Entertainment',
-  'Pet Services',
-  'Professional Services',
-  'Mobile Business',
-  'Pop-Up / Event Vendor',
-  'Other',
-]
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear()
@@ -414,7 +398,7 @@ export default function NewOfferPage() {
                   className="mt-3 w-full rounded-xl border border-blue-200 bg-white p-3"
                 >
                   <option value="">Select a business type</option>
-                  {businessCategories.map((category) => (
+                  {BUSINESS_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>

@@ -44,6 +44,11 @@ export default function BusinessDashboardQuickActions({
       href: '/dashboard/redeem',
       detail: 'Optional: enter a supporter code to confirm immediately.',
     },
+    {
+      title: 'Scheduler',
+      href: '/dashboard/business/scheduler',
+      detail: 'Manage services, availability, and appointment requests.',
+    },
   ]
 
   return (
@@ -57,7 +62,7 @@ export default function BusinessDashboardQuickActions({
         </h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white sm:grid-cols-4 sm:divide-x sm:divide-gray-200">
+      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white sm:grid-cols-5 sm:divide-x sm:divide-gray-200">
         {actions.map((action, index) => (
           <Link
             key={action.title}

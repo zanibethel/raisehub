@@ -2,6 +2,12 @@ import 'server-only'
 
 import { buildProductionUrl } from '@/lib/production-url'
 
+type NotificationEmailAction = {
+  label: string
+  url: string
+  tone?: 'primary' | 'success' | 'danger' | 'neutral'
+}
+
 type SendNotificationEmailInput = {
   to: string
   recipientName?: string | null
@@ -9,7 +15,12 @@ type SendNotificationEmailInput = {
   message: string
   actionUrl?: string | null
   actionLabel?: string | null
+  actions?: NotificationEmailAction[] | null
   idempotencyKey: string
+  fromEmail?: string | null
+  fromName?: string | null
+  replyTo?: string | null
+  category?: string | null
 }
 
 type SendNotificationEmailResult =
@@ -32,9 +43,44 @@ function buildActionUrl(actionUrl?: string | null) {
   return buildProductionUrl(actionUrl)
 }
 
-function buildFromAddress(from: string) {
+function buildFromAddress(from: string, fromName?: string | null) {
   if (from.includes('<') && from.includes('>')) return from
-  return `RaiseHub Notifications <${from}>`
+  const name = fromName?.trim() || 'RaiseHub Notifications'
+  return `${name} <${from}>`
+}
+
+function renderActionButtons(input: SendNotificationEmailInput) {
+  const toneStyles = {
+    primary: 'background:#0f766e;color:#ffffff;border:1px solid #0f766e;',
+    success: 'background:#15803d;color:#ffffff;border:1px solid #15803d;',
+    danger: 'background:#ffffff;color:#b91c1c;border:1px solid #fecaca;',
+    neutral: 'background:#ffffff;color:#334155;border:1px solid #cbd5e1;',
+  } as const
+
+  const actions = (input.actions ?? [])
+    .filter((action) => action.label.trim() && action.url.trim())
+    .slice(0, 4)
+    .map((action) => ({
+      label: action.label.trim(),
+      url: buildActionUrl(action.url),
+      tone: action.tone ?? 'primary',
+    }))
+    .filter((action) => Boolean(action.url))
+
+  if (actions.length) {
+    return `<div style="margin:24px 0 0;">${actions
+      .map((action) => {
+        const tone = action.tone as keyof typeof toneStyles
+        return `<a href="${escapeHtml(action.url as string)}" style="display:inline-block;margin:0 8px 8px 0;text-decoration:none;font-size:15px;font-weight:800;padding:12px 18px;border-radius:10px;${toneStyles[tone]}">${escapeHtml(action.label)}</a>`
+      })
+      .join('')}</div>`
+  }
+
+  const actionUrl = buildActionUrl(input.actionUrl)
+  if (!actionUrl) return ''
+  const actionLabel = input.actionLabel?.trim() || 'Open RaiseHub'
+
+  return `<p style="margin:24px 0 0;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:12px 18px;border-radius:10px;">${escapeHtml(actionLabel)}</a></p>`
 }
 
 function renderEmail(input: SendNotificationEmailInput) {
@@ -43,8 +89,7 @@ function renderEmail(input: SendNotificationEmailInput) {
   const safeName = input.recipientName?.trim()
     ? escapeHtml(input.recipientName.trim())
     : null
-  const actionUrl = buildActionUrl(input.actionUrl)
-  const actionLabel = input.actionLabel?.trim() || 'Open RaiseHub'
+  const actionButtons = renderActionButtons(input)
 
   return `<!doctype html>
 <html>
@@ -63,11 +108,7 @@ function renderEmail(input: SendNotificationEmailInput) {
               <td style="padding:26px;">
                 ${safeName ? `<p style="margin:0 0 14px;font-size:16px;line-height:1.6;">Hi ${safeName},</p>` : ''}
                 <p style="margin:0;font-size:16px;line-height:1.65;color:#334155;">${safeMessage}</p>
-                ${
-                  actionUrl
-                    ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;padding:12px 18px;border-radius:10px;">${escapeHtml(actionLabel)}</a></p>`
-                    : ''
-                }
+                ${actionButtons}
                 <p style="margin:28px 0 0;font-size:13px;line-height:1.55;color:#64748b;">Important RaiseHub updates also remain available in your notification center when an in-app notice is included.</p>
               </td>
             </tr>
@@ -83,7 +124,7 @@ export async function sendNotificationEmail(
   input: SendNotificationEmailInput
 ): Promise<SendNotificationEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim()
-  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  const from = input.fromEmail?.trim() || process.env.RESEND_FROM_EMAIL?.trim()
 
   if (!apiKey || !from) {
     return {
@@ -101,14 +142,14 @@ export async function sendNotificationEmail(
         'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
-        from: buildFromAddress(from),
+        from: buildFromAddress(from, input.fromName),
         to: [input.to],
         subject: input.title,
         html: renderEmail(input),
-        reply_to: 'support@raisehub.app',
+        reply_to: input.replyTo?.trim() || 'support@raisehub.app',
         tags: [
           { name: 'product', value: 'raisehub' },
-          { name: 'category', value: 'notification' },
+          { name: 'category', value: input.category?.trim() || 'notification' },
         ],
       }),
       cache: 'no-store',
