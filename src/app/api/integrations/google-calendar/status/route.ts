@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
   const { data: connection } = await admin
     .from('business_calendar_connections')
-    .select('provider_account_email,calendar_id,connection_status,last_sync_at,last_error,updated_at')
+    .select('provider_account_email,calendar_id,calendar_time_zone,connection_status,last_sync_at,last_error,updated_at')
     .eq('business_id', businessId)
     .eq('provider', 'google')
     .maybeSingle()
