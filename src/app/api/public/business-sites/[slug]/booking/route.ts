@@ -18,6 +18,7 @@ import {
 import { buildPublicRateLimitSubject } from '@/lib/security/request-identity'
 import { consumeRateLimit } from '@/lib/security/rate-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendNotificationEmail } from '@/lib/notifications/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,7 +83,7 @@ async function resolveBookingBusiness(slug: string) {
 
   const { data: business, error: businessError } = await admin
     .from('businesses')
-    .select('id,is_demo,demo_group,status,archived_at')
+    .select('id,name,email,is_demo,demo_group,status,archived_at')
     .eq('id', site.business_id)
     .maybeSingle()
 
@@ -370,6 +371,50 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 500 }
     )
   }
+
+  const displayTime = (value: string) => {
+    const [hoursText, minutes] = value.split(':')
+    const hours = Number(hoursText)
+    if (!Number.isFinite(hours)) return value
+    return `${hours % 12 || 12}:${minutes} ${hours >= 12 ? 'PM' : 'AM'}`
+  }
+
+  const appointmentSummary = `${service.name} on ${date} at ${displayTime(time)}`
+
+  const emailTasks = [
+    sendNotificationEmail({
+      to: email,
+      recipientName: name,
+      title: 'Appointment request received',
+      message: `Your request for ${appointmentSummary} at ${resolved.site.site_title} was received. The business will confirm or cancel the request from RaiseHub.`,
+      idempotencyKey: `business-booking-customer-request-${appointment.id}`,
+    }),
+  ]
+
+  if (business.email?.trim()) {
+    emailTasks.push(
+      sendNotificationEmail({
+        to: business.email.trim(),
+        recipientName: business.name,
+        title: 'New appointment request',
+        message: `${name} requested ${appointmentSummary}. Open the RaiseHub Scheduler to confirm or cancel it.`,
+        actionUrl: '/dashboard/business/scheduler',
+        actionLabel: 'Open Scheduler',
+        idempotencyKey: `business-booking-owner-request-${appointment.id}`,
+      })
+    )
+  }
+
+  void Promise.all(emailTasks).then((results) => {
+    for (const result of results) {
+      if (result.status === 'failed') {
+        console.error('Booking email delivery failed', {
+          appointmentId: appointment.id,
+          error: result.error,
+        })
+      }
+    }
+  })
 
   return NextResponse.json(
     {
