@@ -11,8 +11,8 @@ export const GOOGLE_CALENDAR_SCOPES = [
 ] as const
 
 function stateSecret() {
-  const secret = process.env.GOOGLE_CALENDAR_OAUTH_STATE_SECRET
-  if (!secret) throw new Error('Missing GOOGLE_CALENDAR_OAUTH_STATE_SECRET.')
+  const secret = process.env.GOOGLE_CALENDAR_OAUTH_STATE_SECRET ?? process.env.GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY
+  if (!secret) throw new Error('Missing GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY.')
   return secret
 }
 
