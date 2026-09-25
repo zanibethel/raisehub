@@ -3,6 +3,18 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  BUSINESS_APP_MODULES,
+  getRecommendedBusinessModules,
+  normalizeBookingConfig,
+  normalizeEnabledModules,
+  normalizeLocationConfig,
+  normalizeMenuConfig,
+  type BookingConfig,
+  type BusinessAppModuleKey,
+  type LocationConfig,
+  type MenuConfig,
+} from '@/lib/business-app-modules'
 
 type Business = {
   id: string
@@ -11,6 +23,7 @@ type Business = {
   phone: string | null
   website_url: string | null
   email: string | null
+  category: string | null
 }
 
 type BusinessSite = {
@@ -38,6 +51,10 @@ type BusinessSite = {
   facebook_url: string
   instagram_url: string
   tiktok_url: string
+  enabled_modules: BusinessAppModuleKey[]
+  menu_config: MenuConfig
+  location_config: LocationConfig
+  booking_config: BookingConfig
 }
 
 type ThemeSuggestion = {
@@ -53,18 +70,33 @@ const sectionLabels: Record<string, string> = {
   about: 'About',
   hours: 'Hours',
   offers: 'RaiseHub Offers',
+  menu: 'Menu / Catalog',
+  locations: 'Roaming Locations',
+  booking: 'Book / Schedule',
   contact: 'Contact & Social',
 }
 
 const defaultOrder = ['hero', 'about', 'hours', 'offers', 'contact']
+const moduleKeys: BusinessAppModuleKey[] = ['menu', 'locations', 'booking']
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-function normalizeOrder(value: unknown) {
-  const incoming = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-  return [...incoming.filter((item) => defaultOrder.includes(item)), ...defaultOrder.filter((item) => !incoming.includes(item))]
+function normalizeOrder(
+  value: unknown,
+  enabledModules: BusinessAppModuleKey[] = []
+) {
+  const incoming = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+  const allowed = new Set([...defaultOrder, ...enabledModules])
+  const ordered = incoming.filter((item) => allowed.has(item))
+  return [
+    ...ordered,
+    ...defaultOrder.filter((item) => !ordered.includes(item)),
+    ...enabledModules.filter((item) => !ordered.includes(item)),
+  ]
 }
 
 function rgbToHex(r: number, g: number, b: number) {
@@ -256,7 +288,7 @@ export default function BusinessWebsiteBuilderPage() {
       }
 
       const [{ data: businessData }, { data: siteData }] = await Promise.all([
-        supabase.from('businesses').select('id,name,description,phone,website_url,email').eq('id', businessId).single(),
+        supabase.from('businesses').select('id,name,description,phone,website_url,email,category').eq('id', businessId).single(),
         supabase.from('business_sites').select('*').eq('business_id', businessId).maybeSingle(),
       ])
 
@@ -268,9 +300,14 @@ export default function BusinessWebsiteBuilderPage() {
 
       const loadedBusiness = businessData as Business
       setBusiness(loadedBusiness)
+      const loadedModules = normalizeEnabledModules(siteData?.enabled_modules)
       setSite(siteData ? {
         ...(siteData as BusinessSite),
-        section_order: normalizeOrder(siteData.section_order),
+        enabled_modules: loadedModules,
+        section_order: normalizeOrder(siteData.section_order, loadedModules),
+        menu_config: normalizeMenuConfig(siteData.menu_config),
+        location_config: normalizeLocationConfig(siteData.location_config),
+        booking_config: normalizeBookingConfig(siteData.booking_config),
         logo_url: siteData.logo_url ?? '',
         hero_image_url: siteData.hero_image_url ?? '',
         hours_copy: siteData.hours_copy ?? '',
@@ -304,6 +341,10 @@ export default function BusinessWebsiteBuilderPage() {
         facebook_url: '',
         instagram_url: '',
         tiktok_url: '',
+        enabled_modules: [],
+        menu_config: normalizeMenuConfig(null),
+        location_config: normalizeLocationConfig(null),
+        booking_config: normalizeBookingConfig(null),
       })
       setLoading(false)
     }
@@ -320,6 +361,31 @@ export default function BusinessWebsiteBuilderPage() {
     next.splice(to, 0, dragging)
     setSite({ ...site, section_order: next })
     setDragging(null)
+  }
+
+  function toggleModule(moduleKey: BusinessAppModuleKey) {
+    if (!site) return
+    const enabled = site.enabled_modules.includes(moduleKey)
+    const enabledModules = enabled
+      ? site.enabled_modules.filter((item) => item !== moduleKey)
+      : [...site.enabled_modules, moduleKey]
+    const sectionOrder = enabled
+      ? site.section_order.filter((item) => item !== moduleKey)
+      : [...site.section_order, moduleKey]
+
+    setSite({
+      ...site,
+      enabled_modules: enabledModules,
+      section_order: normalizeOrder(sectionOrder, enabledModules),
+    })
+
+    if (!enabled) {
+      setEditing(moduleKey)
+      setMessage(`${BUSINESS_APP_MODULES[moduleKey].title} added. Fill in only what you need.`)
+    } else {
+      if (editing === moduleKey) setEditing(null)
+      setMessage(`${BUSINESS_APP_MODULES[moduleKey].title} removed from the published experience.`)
+    }
   }
 
   function applyTheme(theme: ThemeSuggestion) {
@@ -396,6 +462,10 @@ export default function BusinessWebsiteBuilderPage() {
       facebook_url: site.facebook_url.trim() || null,
       instagram_url: site.instagram_url.trim() || null,
       tiktok_url: site.tiktok_url.trim() || null,
+      enabled_modules: site.enabled_modules,
+      menu_config: site.menu_config,
+      location_config: site.location_config,
+      booking_config: site.booking_config,
       updated_at: new Date().toISOString(),
     }
 
@@ -403,7 +473,15 @@ export default function BusinessWebsiteBuilderPage() {
     if (error) {
       setMessage(error.message.includes('business_sites_slug_key') ? 'That website address is already taken. Try another.' : error.message)
     } else {
-      setSite({ ...(data as BusinessSite), section_order: normalizeOrder(data.section_order) })
+      const savedModules = normalizeEnabledModules(data.enabled_modules)
+      setSite({
+        ...(data as BusinessSite),
+        enabled_modules: savedModules,
+        section_order: normalizeOrder(data.section_order, savedModules),
+        menu_config: normalizeMenuConfig(data.menu_config),
+        location_config: normalizeLocationConfig(data.location_config),
+        booking_config: normalizeBookingConfig(data.booking_config),
+      })
       setMessage(publish ? 'Website + installable app published.' : 'Website saved.')
     }
     setSaving(false)
@@ -417,6 +495,14 @@ export default function BusinessWebsiteBuilderPage() {
 
   const publicUrl = `/site/${site.slug}`
   const heroTextColor = readableText(site.accent_color)
+  const recommendedModules = getRecommendedBusinessModules(business.category)
+  const moduleCards = moduleKeys
+    .map((key) => BUSINESS_APP_MODULES[key])
+    .sort(
+      (left, right) =>
+        Number(recommendedModules.includes(right.key)) -
+        Number(recommendedModules.includes(left.key))
+    )
 
   const renderEditor = (key: string) => {
     if (editing !== key) return null
@@ -435,6 +521,45 @@ export default function BusinessWebsiteBuilderPage() {
     if (key === 'about') return <div className="mt-5 space-y-4"><label className="block text-sm font-bold">Heading<input value={site.about_heading} onChange={(e) => setSite({ ...site, about_heading: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold">About your business<textarea value={site.about_copy} onChange={(e) => setSite({ ...site, about_copy: e.target.value })} rows={5} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label></div>
     if (key === 'hours') return <div className="mt-5"><label className="block text-sm font-bold">Business hours<textarea value={site.hours_copy} onChange={(e) => setSite({ ...site, hours_copy: e.target.value })} rows={5} placeholder={'Mon–Fri: 9 AM–6 PM\nSat: 10 AM–4 PM\nSun: Closed'} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label></div>
     if (key === 'offers') return <div className="mt-5"><label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={site.show_offers} onChange={(e) => setSite({ ...site, show_offers: e.target.checked })} /> Automatically show active RaiseHub offers</label><p className="mt-2 text-sm text-slate-500">Offers stay synced with the business’s RaiseHub account.</p></div>
+    if (key === 'menu') return <div className="mt-5 space-y-4">
+      <label className="block text-sm font-bold">Section heading<input value={site.menu_config.heading} onChange={(e) => setSite({ ...site, menu_config: { ...site.menu_config, heading: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
+      <label className="block text-sm font-bold">Short intro<textarea value={site.menu_config.intro} onChange={(e) => setSite({ ...site, menu_config: { ...site.menu_config, intro: e.target.value } })} rows={2} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="Optional" /></label>
+      <div className="space-y-3">
+        {site.menu_config.items.map((item, index) => <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-bold">Item / service<input value={item.name} onChange={(e) => { const items = [...site.menu_config.items]; items[index] = { ...item, name: e.target.value }; setSite({ ...site, menu_config: { ...site.menu_config, items } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" /></label>
+            <label className="text-sm font-bold">Price<input value={item.price} onChange={(e) => { const items = [...site.menu_config.items]; items[index] = { ...item, price: e.target.value }; setSite({ ...site, menu_config: { ...site.menu_config, items } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="$12" /></label>
+            <label className="text-sm font-bold">Category<input value={item.category} onChange={(e) => { const items = [...site.menu_config.items]; items[index] = { ...item, category: e.target.value }; setSite({ ...site, menu_config: { ...site.menu_config, items } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="Entrées, Services, Products…" /></label>
+            <label className="text-sm font-bold">Description<input value={item.description} onChange={(e) => { const items = [...site.menu_config.items]; items[index] = { ...item, description: e.target.value }; setSite({ ...site, menu_config: { ...site.menu_config, items } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="Optional" /></label>
+          </div>
+          <button type="button" onClick={() => setSite({ ...site, menu_config: { ...site.menu_config, items: site.menu_config.items.filter((_, itemIndex) => itemIndex !== index) } })} className="mt-3 text-sm font-bold text-red-600">Remove item</button>
+        </div>)}
+      </div>
+      <button type="button" onClick={() => setSite({ ...site, menu_config: { ...site.menu_config, items: [...site.menu_config.items, { name: '', price: '', description: '', category: '' }] } })} className="rounded-xl border border-blue-300 bg-white px-4 py-2.5 text-sm font-black text-blue-700">+ Add item</button>
+    </div>
+    if (key === 'locations') return <div className="mt-5 space-y-4">
+      <label className="block text-sm font-bold">Section heading<input value={site.location_config.heading} onChange={(e) => setSite({ ...site, location_config: { ...site.location_config, heading: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
+      <label className="block text-sm font-bold">Short intro<textarea value={site.location_config.intro} onChange={(e) => setSite({ ...site, location_config: { ...site.location_config, intro: e.target.value } })} rows={2} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="Where to find us this week…" /></label>
+      <div className="space-y-3">
+        {site.location_config.stops.map((stop, index) => <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-bold">Stop name<input value={stop.name} onChange={(e) => { const stops = [...site.location_config.stops]; stops[index] = { ...stop, name: e.target.value }; setSite({ ...site, location_config: { ...site.location_config, stops } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="Friday lunch" /></label>
+            <label className="text-sm font-bold">When<input value={stop.schedule} onChange={(e) => { const stops = [...site.location_config.stops]; stops[index] = { ...stop, schedule: e.target.value }; setSite({ ...site, location_config: { ...site.location_config, stops } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="Fri 11 AM–2 PM" /></label>
+            <label className="text-sm font-bold sm:col-span-2">Location / address<input value={stop.address} onChange={(e) => { const stops = [...site.location_config.stops]; stops[index] = { ...stop, address: e.target.value }; setSite({ ...site, location_config: { ...site.location_config, stops } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" /></label>
+            <label className="text-sm font-bold sm:col-span-2">Note<input value={stop.note} onChange={(e) => { const stops = [...site.location_config.stops]; stops[index] = { ...stop, note: e.target.value }; setSite({ ...site, location_config: { ...site.location_config, stops } }) }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3" placeholder="Optional" /></label>
+          </div>
+          <button type="button" onClick={() => setSite({ ...site, location_config: { ...site.location_config, stops: site.location_config.stops.filter((_, stopIndex) => stopIndex !== index) } })} className="mt-3 text-sm font-bold text-red-600">Remove stop</button>
+        </div>)}
+      </div>
+      <button type="button" onClick={() => setSite({ ...site, location_config: { ...site.location_config, stops: [...site.location_config.stops, { name: '', address: '', schedule: '', note: '' }] } })} className="rounded-xl border border-blue-300 bg-white px-4 py-2.5 text-sm font-black text-blue-700">+ Add stop</button>
+    </div>
+    if (key === 'booking') return <div className="mt-5 space-y-4">
+      <label className="block text-sm font-bold">Section heading<input value={site.booking_config.heading} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, heading: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
+      <label className="block text-sm font-bold">Short intro<textarea value={site.booking_config.intro} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, intro: e.target.value } })} rows={2} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="Choose a time that works for you." /></label>
+      <label className="block text-sm font-bold">Booking link<input value={site.booking_config.url} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, url: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://..." /></label>
+      <label className="block text-sm font-bold">Button label<input value={site.booking_config.label} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, label: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
+      <p className="text-sm leading-6 text-slate-500">This connects the scheduler you already use. A native RaiseHub appointment scheduler can plug into this same module later.</p>
+    </div>
     return <div className="mt-5 grid gap-4 sm:grid-cols-2"><label className="block text-sm font-bold">Phone<input value={site.phone} onChange={(e) => setSite({ ...site, phone: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold">Email<input value={site.contact_email} onChange={(e) => setSite({ ...site, contact_email: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold sm:col-span-2">Address<input value={site.address} onChange={(e) => setSite({ ...site, address: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold">Facebook<input value={site.facebook_url} onChange={(e) => setSite({ ...site, facebook_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://facebook.com/..." /></label><label className="block text-sm font-bold">Instagram<input value={site.instagram_url} onChange={(e) => setSite({ ...site, instagram_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://instagram.com/..." /></label><label className="block text-sm font-bold">TikTok<input value={site.tiktok_url} onChange={(e) => setSite({ ...site, tiktok_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://tiktok.com/@..." /></label></div>
   }
 
@@ -443,7 +568,11 @@ export default function BusinessWebsiteBuilderPage() {
     if (key === 'about') return <div key={key} className="p-6" style={{ backgroundColor: site.background_color, color: site.text_color }}><h3 className="text-xl font-black">{site.about_heading}</h3><p className="mt-2 whitespace-pre-line text-sm leading-6 opacity-80">{site.about_copy || 'Add a short description of your business.'}</p></div>
     if (key === 'hours') return site.hours_copy ? <div key={key} className="border-t p-6" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="font-black">Hours</h3><p className="mt-2 whitespace-pre-line text-sm leading-6 opacity-80">{site.hours_copy}</p></div> : null
     if (key === 'offers') return site.show_offers ? <div key={key} className="border-t p-6" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><div className="rounded-2xl p-4" style={{ backgroundColor: mixColors(site.background_color, site.secondary_color, 0.14) }}><p className="font-black" style={{ color: site.secondary_color }}>RaiseHub Offers</p><p className="mt-1 text-sm opacity-80">Active offers will appear here automatically.</p></div></div> : null
-    return <div key={key} className="border-t p-6 text-sm" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="mb-2 font-black">Contact</h3>{site.phone ? <p>{site.phone}</p> : null}{site.address ? <p>{site.address}</p> : null}{site.contact_email ? <p>{site.contact_email}</p> : null}</div>
+    if (key === 'menu') return <div key={key} className="border-t p-6" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="text-xl font-black">{site.menu_config.heading}</h3>{site.menu_config.intro ? <p className="mt-2 text-sm opacity-75">{site.menu_config.intro}</p> : null}<div className="mt-4 space-y-3">{site.menu_config.items.length ? site.menu_config.items.slice(0, 4).map((item, index) => <div key={index} className="rounded-xl border p-3" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.12) }}><div className="flex items-start justify-between gap-3"><div><p className="font-black">{item.name || 'Untitled item'}</p>{item.category ? <p className="mt-0.5 text-xs opacity-60">{item.category}</p> : null}</div>{item.price ? <strong>{item.price}</strong> : null}</div>{item.description ? <p className="mt-2 text-xs opacity-70">{item.description}</p> : null}</div>) : <p className="text-sm opacity-60">Add menu or catalog items.</p>}</div></div>
+    if (key === 'locations') return <div key={key} className="border-t p-6" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="text-xl font-black">{site.location_config.heading}</h3>{site.location_config.intro ? <p className="mt-2 text-sm opacity-75">{site.location_config.intro}</p> : null}<div className="mt-4 space-y-3">{site.location_config.stops.length ? site.location_config.stops.slice(0, 3).map((stop, index) => <div key={index} className="rounded-xl border p-3" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.12) }}><p className="font-black">{stop.name || 'Upcoming stop'}</p>{stop.schedule ? <p className="mt-1 text-sm">{stop.schedule}</p> : null}{stop.address ? <p className="mt-1 text-xs opacity-70">{stop.address}</p> : null}</div>) : <p className="text-sm opacity-60">Add upcoming locations.</p>}</div></div>
+    if (key === 'booking') return <div key={key} className="border-t p-6" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="text-xl font-black">{site.booking_config.heading}</h3>{site.booking_config.intro ? <p className="mt-2 text-sm opacity-75">{site.booking_config.intro}</p> : null}<span className="mt-4 inline-flex rounded-xl px-4 py-2.5 text-sm font-black" style={{ backgroundColor: site.accent_color, color: heroTextColor }}>{site.booking_config.label || 'Book appointment'}</span></div>
+    if (key === 'contact') return <div key={key} className="border-t p-6 text-sm" style={{ borderColor: mixColors(site.background_color, site.text_color, 0.15), backgroundColor: site.background_color, color: site.text_color }}><h3 className="mb-2 font-black">Contact</h3>{site.phone ? <p>{site.phone}</p> : null}{site.address ? <p>{site.address}</p> : null}{site.contact_email ? <p>{site.contact_email}</p> : null}</div>
+    return null
   }
 
   return <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 px-5 py-8 text-slate-900 sm:px-8">
@@ -453,6 +582,32 @@ export default function BusinessWebsiteBuilderPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-black">Website address</h2><p className="mt-1 text-sm text-slate-500">Current: raisehub.app/site/{site.slug || 'your-business'} · When wildcard DNS is enabled this slug also becomes {site.slug || 'your-business'}.raisehub.app.</p><input value={site.slug} onChange={(e) => setSite({ ...site, slug: slugify(e.target.value) })} className="mt-4 w-full rounded-xl border border-slate-300 p-3" placeholder="your-business" /></section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">Features</p>
+            <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-slate-950">Useful for {business.category || 'your business'}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Add only what customers need. Enabled features become normal draggable sections below.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {moduleCards.map((module) => {
+                const enabled = site.enabled_modules.includes(module.key)
+                const recommended = recommendedModules.includes(module.key)
+                return <div key={module.key} className={`rounded-2xl border p-4 ${enabled ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-black text-slate-950">{module.title}</p>
+                    {recommended ? <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700">Suggested</span> : null}
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-slate-600">{module.description}</p>
+                  <button type="button" onClick={() => toggleModule(module.key)} className={`mt-4 w-full rounded-xl px-3 py-2.5 text-sm font-black ${enabled ? 'border border-red-200 bg-white text-red-700' : 'bg-blue-600 text-white'}`}>
+                    {enabled ? 'Remove' : 'Add feature'}
+                  </button>
+                </div>
+              })}
+            </div>
+          </section>
 
           {site.section_order.map((key) => <section key={key} draggable onDragStart={() => setDragging(key)} onDragOver={(e) => e.preventDefault()} onDrop={() => reorderSection(key)} className={`rounded-3xl border bg-white p-5 shadow-sm transition ${dragging === key ? 'border-blue-400 opacity-60' : 'border-slate-200'}`}><div className="flex items-center gap-3"><button type="button" aria-label={`Drag ${sectionLabels[key]}`} className="cursor-grab rounded-lg border border-slate-200 px-2 py-1 text-slate-400">⋮⋮</button><div className="min-w-0 flex-1"><h2 className="font-black">{sectionLabels[key]}</h2><p className="text-xs text-slate-500">Drag to rearrange this section on the live site.</p></div><button type="button" onClick={() => setEditing(editing === key ? null : key)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">{editing === key ? 'Close' : 'Edit'}</button></div>{renderEditor(key)}</section>)}
 
