@@ -21,6 +21,11 @@ const publicSite = readFileSync(
   'utf8'
 )
 
+const installAdminApp = readFileSync(
+  join(process.cwd(), 'src/app/site/[slug]/admin/install-admin-app.tsx'),
+  'utf8'
+)
+
 test('business admin uses RaiseHub auth and owner/manager authorization', () => {
   assert.ok(adminPage.includes('supabase.auth.getUser()'))
   assert.ok(adminPage.includes("from('business_memberships')"))
@@ -41,7 +46,8 @@ test('business admin exposes the core operating sections', () => {
     assert.ok(adminPage.includes(label))
   }
 
-  assert.ok(adminPage.includes('Install Admin App'))
+  assert.ok(adminPage.includes('InstallBusinessAdminApp'))
+  assert.ok(installAdminApp.includes('Install Admin App'))
   assert.ok(adminPage.includes('Google Calendar'))
 })
 
