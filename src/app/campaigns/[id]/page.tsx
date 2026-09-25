@@ -189,12 +189,6 @@ export default async function CampaignPage({
 
   const { data: { user } } = await supabase.auth.getUser()
   const noticeMessage = getCampaignNotice(notice)
-  const { data: organizations } = await supabase
-    .from('profiles')
-    .select('id, business_name, display_name, logo_url')
-    .eq('role', 'organization')
-    .order('business_name', { ascending: true })
-
   let hasActivePass = false
   let activePassExpiresAt: string | null = null
 
@@ -272,12 +266,12 @@ export default async function CampaignPage({
   ] = await Promise.all([
     admin
       .from('organizations')
-      .select('id')
+      .select('id, name, is_demo, demo_group')
       .eq('legacy_profile_id', campaign.organization_id)
       .maybeSingle(),
     admin
       .from('profiles')
-      .select('is_demo')
+      .select('id, display_name, business_name, logo_url, is_demo, demo_group')
       .eq('id', campaign.organization_id)
       .maybeSingle(),
   ])
@@ -300,15 +294,18 @@ export default async function CampaignPage({
     unavailable: Boolean(progressError),
   })
 
-  const campaignOrganizationProfile = (organizations ?? []).find(
-    (candidate) => candidate.id === campaign.organization_id
-  )
   const campaignOrganizationName = String(
-    campaignOrganizationProfile?.display_name ||
-    campaignOrganizationProfile?.business_name ||
+    campaignEnvironmentProfile?.display_name ||
+    campaignEnvironmentProfile?.business_name ||
+    campaignOrganization?.name ||
     'Local organization'
   )
-  const campaignOrganizationLogo = campaignOrganizationProfile?.logo_url ?? null
+  const campaignOrganizationLogo = campaignEnvironmentProfile?.logo_url ?? null
+  const campaignOrganizationOption = {
+    id: campaign.organization_id,
+    display_name: campaignOrganizationName,
+    business_name: campaignOrganizationName,
+  }
   const campaignInitials = campaignOrganizationName
     .split(/\s+/)
     .filter(Boolean)
@@ -540,7 +537,7 @@ export default async function CampaignPage({
               <BuyCampaignPassButton
                 campaignId={campaign.id}
                 passPrice={effectivePricing.passPrice}
-                organizations={organizations ?? []}
+                organizations={[campaignOrganizationOption]}
                 defaultOrganizationId={campaign.organization_id}
                 sellerName={attributedSellerName}
                 hasActivePass={hasActivePass}
