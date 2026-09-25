@@ -351,7 +351,7 @@ export default function BusinessSchedulerPage() {
 
       setMessage(
         status === 'confirmed'
-          ? 'Appointment confirmed. The customer was notified when email delivery is available.'
+          ? 'Appointment accepted. The customer was notified when email delivery is available.'
           : status === 'cancelled'
             ? 'Appointment cancelled. The customer was notified when email delivery is available.'
             : 'Appointment completed.'
@@ -590,7 +590,7 @@ export default function BusinessSchedulerPage() {
                         </p>
                       </div>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-black ${appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {appointment.status}
+                        {appointment.status === 'confirmed' ? 'accepted' : appointment.status}
                       </span>
                     </div>
 
