@@ -37,6 +37,7 @@ export type LocationConfig = {
 export type BookingConfig = {
   heading: string
   intro: string
+  mode: 'internal' | 'external'
   url: string
   label: string
 }
@@ -66,8 +67,8 @@ export const BUSINESS_APP_MODULES: Record<
     title: 'Book / Schedule',
     shortTitle: 'Booking',
     description:
-      'Give customers a clear booking action now, with native RaiseHub scheduling added later.',
-    setupHint: 'Connect the booking page you already use so customers have one obvious next step.',
+      'Let customers request appointments inside RaiseHub or connect an outside scheduler.',
+    setupHint: 'Use RaiseHub scheduling for the simplest setup, or keep the booking page you already use.',
   },
 }
 
@@ -181,6 +182,14 @@ export function normalizeBookingConfig(value: unknown): BookingConfig {
         ? source.heading
         : 'Book with us',
     intro: typeof source.intro === 'string' ? source.intro : '',
+    mode:
+      source.mode === 'external'
+        ? 'external'
+        : source.mode === 'internal'
+          ? 'internal'
+          : typeof source.url === 'string' && source.url.trim()
+            ? 'external'
+            : 'internal',
     url: typeof source.url === 'string' ? source.url : '',
     label:
       typeof source.label === 'string' && source.label.trim()
