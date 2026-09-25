@@ -158,6 +158,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       title,
       message,
       idempotencyKey: `business-booking-${status}-${appointment.id}`,
+      fromEmail: 'booking@raisehub.app',
+      fromName: 'RaiseHub Booking',
+      category: 'booking',
     })
 
     if (result.status === 'failed') {
