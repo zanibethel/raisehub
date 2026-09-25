@@ -371,7 +371,7 @@ export default function BusinessWebsiteBuilderPage() {
     }
 
     setSaving(true)
-    setMessage(publish ? 'Publishing your site…' : 'Saving your site…')
+    setMessage(publish ? 'Publishing your website + installable app…' : 'Saving your site…')
     const payload = {
       business_id: business.id,
       slug: normalizedSlug,
@@ -404,7 +404,7 @@ export default function BusinessWebsiteBuilderPage() {
       setMessage(error.message.includes('business_sites_slug_key') ? 'That website address is already taken. Try another.' : error.message)
     } else {
       setSite({ ...(data as BusinessSite), section_order: normalizeOrder(data.section_order) })
-      setMessage(publish ? 'Website published.' : 'Website saved.')
+      setMessage(publish ? 'Website + installable app published.' : 'Website saved.')
     }
     setSaving(false)
   }
@@ -448,7 +448,7 @@ export default function BusinessWebsiteBuilderPage() {
 
   return <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 px-5 py-8 text-slate-900 sm:px-8">
     <section className="mx-auto max-w-5xl">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">RaiseHub Website Builder</p><h1 className="mt-2 text-3xl font-black">Build a simple site for {business.name}</h1><p className="mt-2 text-slate-600">Drag sections into order, edit only what you need, then publish.</p></div><div className="flex gap-2"><Link href="/dashboard" className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700">Dashboard</Link>{site.is_published ? <Link href={publicUrl} target="_blank" className="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">View Live Site</Link> : null}</div></div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">RaiseHub Website + App Builder</p><h1 className="mt-2 text-3xl font-black">Build once for web + app</h1><p className="mt-2 text-slate-600">Create {business.name}'s content once. RaiseHub uses it for the website and installable app.</p></div><div className="flex gap-2"><Link href="/dashboard" className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700">Dashboard</Link>{site.is_published ? <Link href={publicUrl} target="_blank" className="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">Open Website / App</Link> : null}</div></div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
@@ -456,7 +456,54 @@ export default function BusinessWebsiteBuilderPage() {
 
           {site.section_order.map((key) => <section key={key} draggable onDragStart={() => setDragging(key)} onDragOver={(e) => e.preventDefault()} onDrop={() => reorderSection(key)} className={`rounded-3xl border bg-white p-5 shadow-sm transition ${dragging === key ? 'border-blue-400 opacity-60' : 'border-slate-200'}`}><div className="flex items-center gap-3"><button type="button" aria-label={`Drag ${sectionLabels[key]}`} className="cursor-grab rounded-lg border border-slate-200 px-2 py-1 text-slate-400">⋮⋮</button><div className="min-w-0 flex-1"><h2 className="font-black">{sectionLabels[key]}</h2><p className="text-xs text-slate-500">Drag to rearrange this section on the live site.</p></div><button type="button" onClick={() => setEditing(editing === key ? null : key)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700">{editing === key ? 'Close' : 'Edit'}</button></div>{renderEditor(key)}</section>)}
 
-          <div className="flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={() => saveSite(false)} className="rounded-xl border border-blue-300 bg-white px-5 py-3 font-black text-blue-700 disabled:opacity-50">{saving ? 'Saving…' : 'Save Draft'}</button><button type="button" disabled={saving} onClick={() => saveSite(true)} className="rounded-xl bg-green-600 px-5 py-3 font-black text-white disabled:opacity-50">{site.is_published ? 'Save & Keep Published' : 'Publish Website'}</button></div>
+          <section className="rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Your outputs</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">One build, two ready-to-use experiences</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                  Publishing once creates the public website and an installable business app from the same content.
+                </p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${site.is_published ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-600'}`}>
+                {site.is_published ? 'Published' : 'Draft'}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white bg-white p-4 shadow-sm">
+                <p className="text-sm font-black text-slate-950">Website</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Shareable link at raisehub.app/site/{site.slug || 'your-business'}.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white bg-white p-4 shadow-sm">
+                <p className="text-sm font-black text-slate-950">Installable app</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Customers can add it to their Home Screen with the business name, icon and standalone launch.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+              <p className="text-sm font-black text-indigo-950">App Store / Google Play</p>
+              <p className="mt-1 text-xs leading-5 text-indigo-800">
+                A packaged native version will be an optional upgrade later. It will reuse this same business content instead of making you rebuild the app.
+              </p>
+            </div>
+
+            {site.is_published ? (
+              <Link
+                href={publicUrl}
+                target="_blank"
+                className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white"
+              >
+                Open install page
+              </Link>
+            ) : null}
+          </section>
+
+          <div className="flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={() => saveSite(false)} className="rounded-xl border border-blue-300 bg-white px-5 py-3 font-black text-blue-700 disabled:opacity-50">{saving ? 'Saving…' : 'Save Draft'}</button><button type="button" disabled={saving} onClick={() => saveSite(true)} className="rounded-xl bg-green-600 px-5 py-3 font-black text-white disabled:opacity-50">{site.is_published ? 'Save & Keep Published' : 'Publish Website + App'}</button></div>
           {message ? <p className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white">{message}</p> : null}
         </div>
 
