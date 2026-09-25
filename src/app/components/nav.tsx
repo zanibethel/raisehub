@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 
 import { isDemoMode } from '@/lib/app-mode'
+import { getActiveDataEnvironment, recordMatchesEnvironment } from '@/lib/data-environment'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
@@ -37,7 +38,7 @@ export default async function Nav() {
       await Promise.all([
         supabase
           .from('profiles')
-          .select('role')
+          .select('role, is_demo, demo_group')
           .eq('id', user.id)
           .maybeSingle(),
         supabase
@@ -82,12 +83,24 @@ export default async function Nav() {
       logoUrl = data?.logo_url ?? null
     }
 
+    const activeEnvironment = getActiveDataEnvironment()
+    const accountMatchesEnvironment = profile
+      ? recordMatchesEnvironment(profile, activeEnvironment)
+      : true
+    const environmentLabel = accountMatchesEnvironment
+      ? demoMode
+        ? 'Demo workspace'
+        : 'Live workspace'
+      : demoMode
+        ? 'Live account · Demo platform'
+        : 'Demo account · Live platform'
+
     authenticatedHeader = (
       <AuthenticatedWorkspaceHeader
         email={user.email ?? null}
         workspaceName={selectedWorkspace?.name ?? 'RaiseHub'}
         workspaceLabel={workspaceLabel(selectedWorkspace?.kind ?? profile?.role)}
-        environmentLabel={demoMode ? 'Demo workspace' : 'Live workspace'}
+        environmentLabel={environmentLabel}
         logoUrl={logoUrl}
         workspaces={workspaces}
         selectedWorkspaceKey={selectedWorkspace?.key ?? null}
