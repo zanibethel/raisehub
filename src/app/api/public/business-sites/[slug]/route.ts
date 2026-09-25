@@ -76,7 +76,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
     let offerQuery = admin
       .from('offers')
-      .select('id,title,description,benefit')
+      .select('id,title,description,discount')
       .eq('business_id', offerBusinessId)
       .eq('is_active', true)
       .or(`starts_at.is.null,starts_at.lte.${now}`)
@@ -102,7 +102,12 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Business site offers unavailable.' }, { status: 500 })
     }
 
-    offers = offerRows ?? []
+    offers = (offerRows ?? []).map((offer: any) => ({
+      id: offer.id,
+      title: offer.title,
+      description: offer.description,
+      benefit: offer.discount ?? null,
+    }))
   }
 
   const { data: activeWebsiteRedemptions, error: redemptionError } = await admin
