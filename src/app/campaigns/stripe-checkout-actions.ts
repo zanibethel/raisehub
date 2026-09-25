@@ -192,8 +192,17 @@ export async function createCampaignCheckoutAction(
     }
   }
 
+  if (!recordMatchesEnvironment(userProfileResult.data, environment)) {
+    return {
+      status: 'error',
+      message:
+        environment.mode === 'production'
+          ? 'You are signed in with a Demo account on the Live Platform. Sign out and use a Live account before starting a real payment.'
+          : 'You are signed in with a Live account in the Interactive Demo. Use a Demo account to create a simulated purchase.',
+    }
+  }
+
   const classifiedRecords = [
-    userProfileResult.data,
     organizationProfileResult.data,
     canonicalOrganizationResult.data,
     campaignClassificationResult.data,
@@ -203,7 +212,7 @@ export async function createCampaignCheckoutAction(
     return {
       status: 'error',
       message:
-        'This campaign is not available in the active RaiseHub environment. No payment was started.',
+        'This fundraiser has conflicting environment data and cannot start checkout.',
     }
   }
 
