@@ -405,16 +405,15 @@ export async function POST(request: Request, context: RouteContext) {
     )
   }
 
-  void Promise.all(emailTasks).then((results) => {
-    for (const result of results) {
-      if (result.status === 'failed') {
-        console.error('Booking email delivery failed', {
-          appointmentId: appointment.id,
-          error: result.error,
-        })
-      }
+  const emailResults = await Promise.all(emailTasks)
+  for (const result of emailResults) {
+    if (result.status === 'failed') {
+      console.error('Booking email delivery failed', {
+        appointmentId: appointment.id,
+        error: result.error,
+      })
     }
-  })
+  }
 
   return NextResponse.json(
     {
