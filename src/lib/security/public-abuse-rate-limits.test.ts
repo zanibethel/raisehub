@@ -18,6 +18,14 @@ const supportRoute = readFileSync(
   'utf8'
 )
 
+const businessBookingRoute = readFileSync(
+  join(
+    process.cwd(),
+    'src/app/api/public/business-sites/[slug]/booking/route.ts'
+  ),
+  'utf8'
+)
+
 test('password recovery is routed through the protected server endpoint', () => {
   assert.ok(passwordResetRoute.includes("scope: 'auth:password_reset'"))
   assert.ok(passwordResetRoute.includes('limit: 3'))
@@ -38,4 +46,15 @@ test('public support requests share the server-side abuse limiter', () => {
   assert.ok(supportRoute.includes('status: 429'))
   assert.ok(supportRoute.includes("'Retry-After'"))
   assert.ok(supportRoute.includes('buildPublicRateLimitSubject'))
+})
+
+
+test('public business bookings use the shared abuse limiter', () => {
+  assert.ok(businessBookingRoute.includes("'business_booking:create:demo'"))
+  assert.ok(businessBookingRoute.includes("'business_booking:create:live'"))
+  assert.ok(businessBookingRoute.includes('limit: 6'))
+  assert.ok(businessBookingRoute.includes('windowSeconds: 15 * 60'))
+  assert.ok(businessBookingRoute.includes('status: 429'))
+  assert.ok(businessBookingRoute.includes("'Retry-After'"))
+  assert.ok(businessBookingRoute.includes('buildPublicRateLimitSubject'))
 })
