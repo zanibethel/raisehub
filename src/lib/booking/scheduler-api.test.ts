@@ -3,18 +3,26 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 
-const publicBookingRoute = readFileSync(
-  join(
-    process.cwd(),
-    'src/app/api/public/business-sites/[slug]/booking/route.ts'
-  ),
-  'utf8'
-)
-
 const appointmentActionRoute = readFileSync(
   join(
     process.cwd(),
     'src/app/api/business/scheduler/appointments/[id]/route.ts'
+  ),
+  'utf8'
+)
+
+const schedulerEmailActionPage = readFileSync(
+  join(
+    process.cwd(),
+    'src/app/dashboard/business/scheduler/action/page.tsx'
+  ),
+  'utf8'
+)
+
+const publicBookingRoute = readFileSync(
+  join(
+    process.cwd(),
+    'src/app/api/public/business-sites/[slug]/booking/route.ts'
   ),
   'utf8'
 )
@@ -42,4 +50,24 @@ test('appointment state changes are constrained and notify customers', () => {
   assert.ok(appointmentActionRoute.includes('sendNotificationEmail'))
   assert.ok(appointmentActionRoute.includes("'Appointment confirmed'"))
   assert.ok(appointmentActionRoute.includes("'Appointment cancelled'"))
+})
+
+
+test('booking notification emails expose safe accept and cancel actions', () => {
+  assert.ok(publicBookingRoute.includes("label: 'Accept booking'"))
+  assert.ok(publicBookingRoute.includes("label: 'Cancel booking'"))
+  assert.ok(publicBookingRoute.includes('/dashboard/business/scheduler/action?appointment='))
+  assert.ok(publicBookingRoute.includes("fromEmail: 'booking@raisehub.app'"))
+})
+
+test('email action links require an explicit confirmation before changing status', () => {
+  assert.ok(schedulerEmailActionPage.includes("'use client'"))
+  assert.ok(schedulerEmailActionPage.includes('Yes, accept booking'))
+  assert.ok(schedulerEmailActionPage.includes('Yes, cancel booking'))
+  assert.ok(schedulerEmailActionPage.includes("method: 'PATCH'"))
+  assert.ok(
+    schedulerEmailActionPage.includes(
+      '/api/business/scheduler/appointments/'
+    )
+  )
 })
