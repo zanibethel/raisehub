@@ -10,6 +10,10 @@ type SendNotificationEmailInput = {
   actionUrl?: string | null
   actionLabel?: string | null
   idempotencyKey: string
+  fromEmail?: string | null
+  fromName?: string | null
+  replyTo?: string | null
+  category?: string | null
 }
 
 type SendNotificationEmailResult =
@@ -32,9 +36,10 @@ function buildActionUrl(actionUrl?: string | null) {
   return buildProductionUrl(actionUrl)
 }
 
-function buildFromAddress(from: string) {
+function buildFromAddress(from: string, fromName?: string | null) {
   if (from.includes('<') && from.includes('>')) return from
-  return `RaiseHub Notifications <${from}>`
+  const name = fromName?.trim() || 'RaiseHub Notifications'
+  return `${name} <${from}>`
 }
 
 function renderEmail(input: SendNotificationEmailInput) {
@@ -83,7 +88,7 @@ export async function sendNotificationEmail(
   input: SendNotificationEmailInput
 ): Promise<SendNotificationEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim()
-  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  const from = input.fromEmail?.trim() || process.env.RESEND_FROM_EMAIL?.trim()
 
   if (!apiKey || !from) {
     return {
@@ -101,14 +106,14 @@ export async function sendNotificationEmail(
         'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
-        from: buildFromAddress(from),
+        from: buildFromAddress(from, input.fromName),
         to: [input.to],
         subject: input.title,
         html: renderEmail(input),
-        reply_to: 'support@raisehub.app',
+        reply_to: input.replyTo?.trim() || 'support@raisehub.app',
         tags: [
           { name: 'product', value: 'raisehub' },
-          { name: 'category', value: 'notification' },
+          { name: 'category', value: input.category?.trim() || 'notification' },
         ],
       }),
       cache: 'no-store',
