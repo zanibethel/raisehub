@@ -400,9 +400,24 @@ export async function POST(request: Request, context: RouteContext) {
         to: business.email.trim(),
         recipientName: business.name,
         title: 'New appointment request',
-        message: `${name} requested ${appointmentSummary}. Open the RaiseHub Scheduler to confirm or cancel it.`,
-        actionUrl: '/dashboard/business/scheduler',
-        actionLabel: 'Open Scheduler',
+        message: `${name} requested ${appointmentSummary}. The request is pending until you accept or cancel it.`,
+        actions: [
+          {
+            label: 'Accept booking',
+            url: `/dashboard/business/scheduler/action?appointment=${encodeURIComponent(appointment.id)}&action=confirmed`,
+            tone: 'success',
+          },
+          {
+            label: 'Cancel booking',
+            url: `/dashboard/business/scheduler/action?appointment=${encodeURIComponent(appointment.id)}&action=cancelled`,
+            tone: 'danger',
+          },
+          {
+            label: 'Open Scheduler',
+            url: '/dashboard/business/scheduler',
+            tone: 'neutral',
+          },
+        ],
         idempotencyKey: `business-booking-owner-request-${appointment.id}`,
         fromEmail: 'booking@raisehub.app',
         fromName: 'RaiseHub Booking',
