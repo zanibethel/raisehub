@@ -388,6 +388,9 @@ export async function POST(request: Request, context: RouteContext) {
       title: 'Appointment request received',
       message: `Your request for ${appointmentSummary} at ${resolved.site.site_title} was received. The business will confirm or cancel the request from RaiseHub.`,
       idempotencyKey: `business-booking-customer-request-${appointment.id}`,
+      fromEmail: 'booking@raisehub.app',
+      fromName: 'RaiseHub Booking',
+      category: 'booking',
     }),
   ]
 
@@ -401,6 +404,9 @@ export async function POST(request: Request, context: RouteContext) {
         actionUrl: '/dashboard/business/scheduler',
         actionLabel: 'Open Scheduler',
         idempotencyKey: `business-booking-owner-request-${appointment.id}`,
+        fromEmail: 'booking@raisehub.app',
+        fromName: 'RaiseHub Booking',
+        category: 'booking',
       })
     )
   }
