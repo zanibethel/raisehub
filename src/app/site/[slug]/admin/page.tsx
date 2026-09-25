@@ -109,6 +109,8 @@ export default function BusinessSiteAdminPage() {
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('17:00')
   const [showLocations, setShowLocations] = useState(false)
+  const [calendarStatus, setCalendarStatus] = useState<'loading' | 'connected' | 'needs_attention' | 'disconnected'>('loading')
+  const [calendarLastSync, setCalendarLastSync] = useState<string | null>(null)
 
   async function refreshSchedule(businessId: string) {
     const [{ data: availabilityRows }, { data: appointmentRows }] = await Promise.all([
@@ -201,6 +203,15 @@ export default function BusinessSiteAdminPage() {
       setShowLocations(enabledModules.includes('locations'))
       setAuthorized(true)
       await refreshSchedule(siteRow.business_id)
+      try {
+        const calendarResponse = await fetch(`/api/integrations/google-calendar/status?businessId=${encodeURIComponent(siteRow.business_id)}`)
+        const calendarPayload = await calendarResponse.json().catch(() => null)
+        const status = calendarPayload?.connection?.connection_status
+        setCalendarStatus(status === 'connected' ? 'connected' : status === 'needs_attention' ? 'needs_attention' : 'disconnected')
+        setCalendarLastSync(calendarPayload?.connection?.last_sync_at ?? null)
+      } catch {
+        setCalendarStatus('disconnected')
+      }
       setLoading(false)
     }
 
@@ -456,7 +467,7 @@ export default function BusinessSiteAdminPage() {
           </div> : null}
 
           {activeSection === 'integrations' ? <div className="space-y-5">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Calendar</p><h2 className="mt-1 text-xl font-black">Google Calendar</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Connect the business’s existing Google Calendar so accepted RaiseHub appointments can appear there and, later, busy times can block RaiseHub availability.</p><div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="font-black text-amber-950">Not connected yet</p><p className="mt-1 text-sm leading-6 text-amber-800">The admin surface is ready for this integration. The secure Google Calendar OAuth/token-sync step is the next integration slice; it will not replace the business’s RaiseHub login.</p></div><button type="button" disabled className="mt-4 rounded-xl bg-slate-300 px-4 py-2.5 text-sm font-black text-slate-600">Connect Google Calendar</button></div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Calendar</p><h2 className="mt-1 text-xl font-black">Google Calendar</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Connect the business’s existing Google Calendar. Accepted RaiseHub appointments are added automatically and cancelled appointments are removed.</p><div className={`mt-4 rounded-2xl border p-4 ${calendarStatus === 'connected' ? 'border-green-200 bg-green-50' : calendarStatus === 'needs_attention' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}><p className="font-black">{calendarStatus === 'connected' ? 'Connected' : calendarStatus === 'needs_attention' ? 'Needs attention' : calendarStatus === 'loading' ? 'Checking connection…' : 'Not connected'}</p><p className="mt-1 text-sm leading-6 text-slate-700">{calendarStatus === 'connected' ? `Accepted bookings will sync automatically.${calendarLastSync ? ` Last sync: ${new Date(calendarLastSync).toLocaleString()}.` : ''}` : calendarStatus === 'needs_attention' ? 'Reconnect Google Calendar to restore appointment syncing.' : 'Connect once with Google. This does not change your RaiseHub login.'}</p></div><a href={`/api/integrations/google-calendar/connect?businessId=${encodeURIComponent(business.id)}&returnTo=${encodeURIComponent(`/site/${site.slug}/admin`)}`} className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white">{calendarStatus === 'connected' ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}</a></div>
             <div className="rounded-3xl border border-green-200 bg-green-50 p-5"><p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">RaiseHub</p><h2 className="mt-1 text-xl font-black">Offers & rewards</h2><p className="mt-2 text-sm leading-6 text-green-800">Keep managing exclusive offers, fundraising participation, and customer rewards from the main RaiseHub business dashboard.</p><Link href="/dashboard/offers" className="mt-4 inline-flex rounded-xl bg-green-700 px-4 py-2.5 text-sm font-black text-white">Go to RaiseHub Offers</Link></div>
           </div> : null}
         </section>
