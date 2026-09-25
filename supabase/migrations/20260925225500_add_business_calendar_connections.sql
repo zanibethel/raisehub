@@ -6,6 +6,7 @@ create table public.business_calendar_connections (
   provider text not null default 'google',
   provider_account_email text,
   calendar_id text not null default 'primary',
+  calendar_time_zone text,
   encrypted_access_token text,
   encrypted_refresh_token text,
   token_expires_at timestamptz,
