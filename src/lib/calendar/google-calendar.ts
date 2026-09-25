@@ -51,7 +51,7 @@ async function validAccessToken(connection: any, admin: any) {
   return payload.access_token
 }
 
-function eventBody(appointment: Appointment, businessName: string) {
+function eventBody(appointment: Appointment, businessName: string, timeZone: string) {
   const description = [
     `RaiseHub appointment for ${appointment.customer_name}`,
     `Email: ${appointment.customer_email}`,
@@ -63,8 +63,8 @@ function eventBody(appointment: Appointment, businessName: string) {
   return {
     summary: `${appointment.service_name_snapshot} — ${appointment.customer_name}`,
     description,
-    start: { dateTime: `${appointment.appointment_date}T${appointment.start_time}` },
-    end: { dateTime: `${appointment.appointment_date}T${appointment.end_time}` },
+    start: { dateTime: `${appointment.appointment_date}T${appointment.start_time}`, timeZone },
+    end: { dateTime: `${appointment.appointment_date}T${appointment.end_time}`, timeZone },
     extendedProperties: { private: { raisehubAppointmentId: appointment.id, raisehubBusinessId: appointment.business_id, raisehubBusinessName: businessName } },
   }
 }
@@ -93,7 +93,8 @@ export async function syncAppointmentToGoogleCalendar(input: {
       return { status: 'deleted' as const }
     }
 
-    const body = JSON.stringify(eventBody(input.appointment, input.businessName))
+    if (!connection.calendar_time_zone) throw new Error('Connected Google Calendar time zone is missing. Reconnect the calendar.')
+    const body = JSON.stringify(eventBody(input.appointment, input.businessName, connection.calendar_time_zone))
     const endpoint = mapping?.provider_event_id
       ? `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(mapping.provider_event_id)}`
       : `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`
