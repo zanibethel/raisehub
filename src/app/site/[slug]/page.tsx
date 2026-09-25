@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import InstallBusinessApp from './install-business-app'
+
 type BusinessSite = {
   business_id: string
   slug: string
@@ -164,5 +166,36 @@ export default function PublicBusinessMiniSitePage() {
     return <section key={key} className="px-5 py-14" style={{ backgroundColor: site.background_color }}><div className="mx-auto max-w-5xl rounded-3xl p-8 sm:p-10" style={{ backgroundColor: site.secondary_color, color: contactText }}><p className="text-sm font-black uppercase tracking-[0.18em] opacity-75">Contact</p><h2 className="mt-2 text-3xl font-black">Get in touch</h2><div className="mt-6 space-y-2 opacity-90">{site.phone ? <p><a href={`tel:${site.phone}`} className="hover:underline">{site.phone}</a></p> : null}{site.contact_email ? <p><a href={`mailto:${site.contact_email}`} className="underline">{site.contact_email}</a></p> : null}{site.address ? <p>{site.address}</p> : null}</div>{socialLinks.length ? <div className="mt-6 flex flex-wrap gap-3">{socialLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noreferrer" className="rounded-full border px-4 py-2 text-sm font-bold hover:opacity-80" style={{ borderColor: mixColors(site.secondary_color, contactText, 0.25) }}>{label}</a>)}</div> : null}</div></section>
   }
 
-  return <main className="min-h-screen" style={{ backgroundColor: site.background_color, color: site.text_color }}><header className="border-b px-5 py-4" style={{ borderColor: divider, backgroundColor: site.background_color }}><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><strong className="text-lg font-black">{site.site_title}</strong>{hideRaiseHubBranding ? null : <span className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: mutedText }}>Powered by RaiseHub</span>}</div></header>{site.section_order.map(renderSection)}</main>
+  return (
+    <main
+      className="min-h-screen"
+      style={{ backgroundColor: site.background_color, color: site.text_color }}
+    >
+      <header
+        className="border-b px-5 py-4"
+        style={{ borderColor: divider, backgroundColor: site.background_color }}
+      >
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+          <strong className="text-lg font-black">{site.site_title}</strong>
+          {hideRaiseHubBranding ? null : (
+            <span
+              className="text-xs font-bold uppercase tracking-[0.14em]"
+              style={{ color: mutedText }}
+            >
+              Powered by RaiseHub
+            </span>
+          )}
+        </div>
+      </header>
+
+      {site.section_order.map(renderSection)}
+
+      <InstallBusinessApp
+        slug={site.slug}
+        siteTitle={site.site_title}
+        themeColor={site.accent_color}
+        logoUrl={site.logo_url}
+      />
+    </main>
+  )
 }
