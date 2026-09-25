@@ -2,6 +2,8 @@ import 'server-only'
 
 import { createHmac, timingSafeEqual } from 'crypto'
 
+import { getProductionSiteUrl } from '@/lib/production-url'
+
 export const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
@@ -58,13 +60,13 @@ export function readGoogleCalendarState(value: string) {
   }
 }
 
-export function googleCalendarAuthorizationUrl(origin: string, state: string) {
+export function googleCalendarAuthorizationUrl(state: string) {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
   if (!clientId) throw new Error('Missing GOOGLE_CALENDAR_CLIENT_ID.')
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', clientId)
-  url.searchParams.set('redirect_uri', `${origin}/api/integrations/google-calendar/callback`)
+  url.searchParams.set('redirect_uri', `${getProductionSiteUrl()}/api/integrations/google-calendar/callback`)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('prompt', 'consent')
