@@ -1,5 +1,5 @@
 import type { OfferGoal } from '@/app/dashboard/offers/new/components/goal-step'
-import { getBusinessStrategy } from './business-strategies'
+import { getBusinessOfferTemplates } from './business-offer-templates'
 import { scoreOffer } from './scoring'
 
 export type RecommendedOffer = {
@@ -21,36 +21,35 @@ type RecommendationInput = {
   goal: OfferGoal
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export function buildRecommendedOffers({
   businessCategory,
   goal,
 }: RecommendationInput): RecommendedOffer[] {
-  const strategy = getBusinessStrategy(businessCategory)
+  const templates = getBusinessOfferTemplates(businessCategory)
+  const matching = templates.filter((template) => template.goals.includes(goal))
+  const fallback = templates.filter((template) => !template.goals.includes(goal))
+  const selected = [...matching, ...fallback].slice(0, 3)
 
-  const ideas = strategy.highPerceivedValueIdeas.slice(0, 3)
-
-  return ideas.map((idea, index) => {
-    const estimatedRetailValue = 8 + index * 3
-    const estimatedBusinessCost = 2 + index
-    const requiresPurchase = true
-
+  return selected.map((template) => {
     const offer = {
-      id: `${businessCategory}-${goal}-${index}`,
-      title: idea,
-      discount: idea,
-      description:
-        `${idea}. This offer is available exclusively through RaiseHub and is designed to support ${formatGoal(
-          goal
-        )}.`,
-      finePrint:
-        'RaiseHub members only. One redemption per member. Qualifying purchase may be required. Cannot be combined with other promotions.',
-      estimatedRetailValue,
-      estimatedBusinessCost,
-      requiresPurchase,
+      id: `${slugify(businessCategory || 'other')}-${goal}-${slugify(template.title)}`,
+      title: template.title,
+      discount: template.memberBenefit,
+      description: `${template.description} This recommendation is tuned for ${formatGoal(goal)}.`,
+      finePrint: template.finePrint,
+      estimatedRetailValue: template.estimatedRetailValue,
+      estimatedBusinessCost: template.estimatedBusinessCost,
+      requiresPurchase: template.requiresPurchase,
       isExclusive: true as const,
-      coachNote:
-        strategy.businessProtectionNotes[index] ??
-        strategy.businessProtectionNotes[0],
+      coachNote: template.coachNote,
     }
 
     return {
