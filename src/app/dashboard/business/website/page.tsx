@@ -556,9 +556,28 @@ export default function BusinessWebsiteBuilderPage() {
     if (key === 'booking') return <div className="mt-5 space-y-4">
       <label className="block text-sm font-bold">Section heading<input value={site.booking_config.heading} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, heading: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
       <label className="block text-sm font-bold">Short intro<textarea value={site.booking_config.intro} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, intro: e.target.value } })} rows={2} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="Choose a time that works for you." /></label>
-      <label className="block text-sm font-bold">Booking link<input value={site.booking_config.url} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, url: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://..." /></label>
+
+      <div>
+        <p className="text-sm font-black">How should customers book?</p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <button type="button" onClick={() => setSite({ ...site, booking_config: { ...site.booking_config, mode: 'internal' } })} className={`rounded-2xl border p-4 text-left transition ${site.booking_config.mode === 'internal' ? 'border-green-400 bg-green-50 ring-2 ring-green-100' : 'border-slate-200 bg-white'}`}>
+            <p className="font-black text-slate-950">RaiseHub Scheduler</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Customers choose a service and open time without leaving your website/app.</p>
+          </button>
+          <button type="button" onClick={() => setSite({ ...site, booking_config: { ...site.booking_config, mode: 'external' } })} className={`rounded-2xl border p-4 text-left transition ${site.booking_config.mode === 'external' ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 bg-white'}`}>
+            <p className="font-black text-slate-950">External booking link</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Keep using Square, Calendly, Vagaro, GlossGenius, or another scheduler.</p>
+          </button>
+        </div>
+      </div>
+
+      {site.booking_config.mode === 'internal' ? <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+        <p className="font-black text-green-950">RaiseHub scheduling is selected</p>
+        <p className="mt-1 text-sm leading-6 text-green-800">Set services and weekly availability once, then appointment requests appear in your Scheduler queue.</p>
+        <Link href="/dashboard/business/scheduler" className="mt-3 inline-flex rounded-xl bg-green-700 px-4 py-2.5 text-sm font-black text-white">Manage services & availability</Link>
+      </div> : <label className="block text-sm font-bold">Booking link<input value={site.booking_config.url} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, url: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://..." /></label>}
+
       <label className="block text-sm font-bold">Button label<input value={site.booking_config.label} onChange={(e) => setSite({ ...site, booking_config: { ...site.booking_config, label: e.target.value } })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label>
-      <p className="text-sm leading-6 text-slate-500">This connects the scheduler you already use. A native RaiseHub appointment scheduler can plug into this same module later.</p>
     </div>
     return <div className="mt-5 grid gap-4 sm:grid-cols-2"><label className="block text-sm font-bold">Phone<input value={site.phone} onChange={(e) => setSite({ ...site, phone: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold">Email<input value={site.contact_email} onChange={(e) => setSite({ ...site, contact_email: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold sm:col-span-2">Address<input value={site.address} onChange={(e) => setSite({ ...site, address: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" /></label><label className="block text-sm font-bold">Facebook<input value={site.facebook_url} onChange={(e) => setSite({ ...site, facebook_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://facebook.com/..." /></label><label className="block text-sm font-bold">Instagram<input value={site.instagram_url} onChange={(e) => setSite({ ...site, instagram_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://instagram.com/..." /></label><label className="block text-sm font-bold">TikTok<input value={site.tiktok_url} onChange={(e) => setSite({ ...site, tiktok_url: e.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-3" placeholder="https://tiktok.com/@..." /></label></div>
   }
