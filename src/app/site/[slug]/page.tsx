@@ -249,6 +249,22 @@ export default function PublicBusinessMiniSitePage() {
 
       {site.section_order.map(renderSection)}
 
+      {!hideRaiseHubBranding ? (
+        <section className="border-t px-5 py-8" style={{ borderColor: divider, backgroundColor: site.background_color }}>
+          <div className="mx-auto max-w-5xl rounded-2xl border p-5 sm:flex sm:items-center sm:justify-between sm:gap-5" style={{ borderColor: divider, backgroundColor: mixColors(site.background_color, site.accent_color, 0.045), color: site.text_color }}>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em]" style={{ color: site.accent_color }}>Exclusive RaiseHub offers</p>
+              <p className="mt-1 text-sm leading-6" style={{ color: mutedText }}>
+                Take advantage of exclusive offers for {site.site_title} through RaiseHub.
+              </p>
+            </div>
+            <Link href={`/businesses/${site.business_id}`} className="mt-4 inline-flex shrink-0 rounded-xl border px-4 py-2.5 text-sm font-black sm:mt-0" style={{ borderColor: divider, color: site.accent_color, backgroundColor: site.background_color }}>
+              View RaiseHub offers
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       <InstallBusinessApp
         slug={site.slug}
         siteTitle={site.site_title}
