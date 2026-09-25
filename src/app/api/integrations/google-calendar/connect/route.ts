@@ -31,5 +31,5 @@ export async function GET(request: Request) {
   }
 
   const state = createGoogleCalendarState({ businessId, userId: user.id, returnTo })
-  return NextResponse.redirect(googleCalendarAuthorizationUrl(url.origin, state))
+  return NextResponse.redirect(googleCalendarAuthorizationUrl(state))
 }
