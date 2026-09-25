@@ -385,8 +385,8 @@ export async function POST(request: Request, context: RouteContext) {
     sendNotificationEmail({
       to: email,
       recipientName: name,
-      title: 'Appointment request received',
-      message: `Your request for ${appointmentSummary} at ${resolved.site.site_title} was received. The business will confirm or cancel the request from RaiseHub.`,
+      title: 'Appointment request received — awaiting confirmation',
+      message: `Your request for ${appointmentSummary} at ${resolved.site.site_title} was received and is pending. The business will accept or cancel it from RaiseHub, and we will email you when they respond.`,
       idempotencyKey: `business-booking-customer-request-${appointment.id}`,
       fromEmail: 'booking@raisehub.app',
       fromName: 'RaiseHub Booking',
