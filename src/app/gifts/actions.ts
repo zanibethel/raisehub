@@ -236,8 +236,17 @@ export async function purchaseGiftPassAction(
     }
   }
 
+  if (!recordMatchesEnvironment(userProfileResult.data, environment)) {
+    return {
+      status: 'error',
+      message:
+        environment.mode === 'production'
+          ? 'You are signed in with a Demo account on the Live Platform. Sign out and use a Live account before starting a real gift checkout.'
+          : 'You are signed in with a Live account in the Interactive Demo. Use a Demo account to create a simulated gift.',
+    }
+  }
+
   const classifiedRecords = [
-    userProfileResult.data,
     organizationProfileResult.data,
     canonicalOrganizationResult.data,
     campaignClassificationResult.data,
@@ -246,7 +255,7 @@ export async function purchaseGiftPassAction(
   if (!recordsBelongToEnvironment(classifiedRecords, environment)) {
     return {
       status: 'error',
-      message: 'This gift is not available in the active RaiseHub environment.',
+      message: 'This fundraiser has conflicting environment data and cannot start gift checkout.',
     }
   }
 
