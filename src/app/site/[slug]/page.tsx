@@ -5,6 +5,16 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import InstallBusinessApp from './install-business-app'
+import {
+  normalizeBookingConfig,
+  normalizeEnabledModules,
+  normalizeLocationConfig,
+  normalizeMenuConfig,
+  type BookingConfig,
+  type BusinessAppModuleKey,
+  type LocationConfig,
+  type MenuConfig,
+} from '@/lib/business-app-modules'
 
 type BusinessSite = {
   business_id: string
@@ -30,6 +40,10 @@ type BusinessSite = {
   facebook_url: string | null
   instagram_url: string | null
   tiktok_url: string | null
+  enabled_modules: BusinessAppModuleKey[]
+  menu_config: MenuConfig
+  location_config: LocationConfig
+  booking_config: BookingConfig
 }
 
 type Offer = {
@@ -49,9 +63,20 @@ type PublicBusinessSitePayload = {
 
 const defaultOrder = ['hero', 'about', 'hours', 'offers', 'contact']
 
-function normalizeOrder(value: unknown) {
-  const incoming = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-  return [...incoming.filter((item) => defaultOrder.includes(item)), ...defaultOrder.filter((item) => !incoming.includes(item))]
+function normalizeOrder(
+  value: unknown,
+  enabledModules: BusinessAppModuleKey[] = []
+) {
+  const incoming = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+  const allowed = new Set([...defaultOrder, ...enabledModules])
+  const ordered = incoming.filter((item) => allowed.has(item))
+  return [
+    ...ordered,
+    ...defaultOrder.filter((item) => !ordered.includes(item)),
+    ...enabledModules.filter((item) => !ordered.includes(item)),
+  ]
 }
 
 function safeExternalUrl(value: string | null) {
@@ -125,7 +150,15 @@ export default function PublicBusinessMiniSitePage() {
         }
 
         const payload = (await response.json()) as PublicBusinessSitePayload
-        setSite({ ...payload.site, section_order: normalizeOrder(payload.site.section_order) })
+        const enabledModules = normalizeEnabledModules(payload.site.enabled_modules)
+        setSite({
+          ...payload.site,
+          enabled_modules: enabledModules,
+          section_order: normalizeOrder(payload.site.section_order, enabledModules),
+          menu_config: normalizeMenuConfig(payload.site.menu_config),
+          location_config: normalizeLocationConfig(payload.site.location_config),
+          booking_config: normalizeBookingConfig(payload.site.booking_config),
+        })
         setOffers(payload.offers ?? [])
         setHideRaiseHubBranding(payload.websiteBenefits?.hideRaiseHubBranding === true)
       } finally {
@@ -163,7 +196,33 @@ export default function PublicBusinessMiniSitePage() {
 
     if (key === 'offers') return site.show_offers ? <section key={key} className="border-t px-5 py-14" style={{ borderColor: divider, backgroundColor: offerSurface, color: site.text_color }}><div className="mx-auto max-w-5xl"><p className="text-sm font-black uppercase tracking-[0.18em]" style={{ color: site.secondary_color }}>RaiseHub offers</p><h2 className="mt-2 text-3xl font-black">Current customer offers</h2>{offers.length ? <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{offers.map((offer) => <Link key={offer.id} href={`/offers/${offer.id}`} className="rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md" style={{ borderColor: divider, backgroundColor: site.background_color, color: site.text_color }}><h3 className="text-lg font-black">{offer.title}</h3>{offer.benefit ? <p className="mt-2 font-bold" style={{ color: site.secondary_color }}>{offer.benefit}</p> : null}{offer.description ? <p className="mt-2 text-sm leading-6" style={{ color: mutedText }}>{offer.description}</p> : null}</Link>)}</div> : <p className="mt-5" style={{ color: mutedText }}>No active offers are posted right now. Check back soon.</p>}</div></section> : null
 
-    return <section key={key} className="px-5 py-14" style={{ backgroundColor: site.background_color }}><div className="mx-auto max-w-5xl rounded-3xl p-8 sm:p-10" style={{ backgroundColor: site.secondary_color, color: contactText }}><p className="text-sm font-black uppercase tracking-[0.18em] opacity-75">Contact</p><h2 className="mt-2 text-3xl font-black">Get in touch</h2><div className="mt-6 space-y-2 opacity-90">{site.phone ? <p><a href={`tel:${site.phone}`} className="hover:underline">{site.phone}</a></p> : null}{site.contact_email ? <p><a href={`mailto:${site.contact_email}`} className="underline">{site.contact_email}</a></p> : null}{site.address ? <p>{site.address}</p> : null}</div>{socialLinks.length ? <div className="mt-6 flex flex-wrap gap-3">{socialLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noreferrer" className="rounded-full border px-4 py-2 text-sm font-bold hover:opacity-80" style={{ borderColor: mixColors(site.secondary_color, contactText, 0.25) }}>{label}</a>)}</div> : null}</div></section>
+    if (key === 'menu') {
+      if (!site.enabled_modules.includes('menu') || !site.menu_config.items.length) return null
+      const grouped = new Map<string, typeof site.menu_config.items>()
+      for (const item of site.menu_config.items) {
+        const category = item.category.trim() || 'Featured'
+        const current = grouped.get(category) ?? []
+        current.push(item)
+        grouped.set(category, current)
+      }
+      return <section key={key} className="border-t px-5 py-14" style={{ borderColor: divider, backgroundColor: site.background_color, color: site.text_color }}><div className="mx-auto max-w-5xl"><p className="text-sm font-black uppercase tracking-[0.18em]" style={{ color: site.secondary_color }}>Explore</p><h2 className="mt-2 text-3xl font-black">{site.menu_config.heading}</h2>{site.menu_config.intro ? <p className="mt-4 max-w-3xl text-lg leading-8" style={{ color: mutedText }}>{site.menu_config.intro}</p> : null}<div className="mt-8 space-y-8">{[...grouped.entries()].map(([category, items]) => <div key={category}><h3 className="text-lg font-black" style={{ color: site.secondary_color }}>{category}</h3><div className="mt-3 grid gap-3 md:grid-cols-2">{items.map((item, index) => <div key={`${category}-${index}`} className="rounded-2xl border p-5" style={{ borderColor: divider, backgroundColor: mixColors(site.background_color, site.secondary_color, 0.04) }}><div className="flex items-start justify-between gap-4"><div><h4 className="font-black">{item.name || 'Item'}</h4>{item.description ? <p className="mt-1 text-sm leading-6" style={{ color: mutedText }}>{item.description}</p> : null}</div>{item.price ? <strong className="shrink-0">{item.price}</strong> : null}</div></div>)}</div></div>)}</div></div></section>
+    }
+
+    if (key === 'locations') {
+      if (!site.enabled_modules.includes('locations') || !site.location_config.stops.length) return null
+      return <section key={key} className="border-t px-5 py-14" style={{ borderColor: divider, backgroundColor: mixColors(site.background_color, site.secondary_color, 0.05), color: site.text_color }}><div className="mx-auto max-w-5xl"><p className="text-sm font-black uppercase tracking-[0.18em]" style={{ color: site.secondary_color }}>Find us</p><h2 className="mt-2 text-3xl font-black">{site.location_config.heading}</h2>{site.location_config.intro ? <p className="mt-4 max-w-3xl text-lg leading-8" style={{ color: mutedText }}>{site.location_config.intro}</p> : null}<div className="mt-7 grid gap-4 md:grid-cols-2">{site.location_config.stops.map((stop, index) => <article key={index} className="rounded-2xl border p-5" style={{ borderColor: divider, backgroundColor: site.background_color }}><div className="flex items-start justify-between gap-4"><h3 className="font-black">{stop.name || 'Upcoming stop'}</h3>{stop.schedule ? <span className="text-sm font-bold" style={{ color: site.secondary_color }}>{stop.schedule}</span> : null}</div>{stop.address ? <p className="mt-3 text-sm">{stop.address}</p> : null}{stop.note ? <p className="mt-2 text-sm leading-6" style={{ color: mutedText }}>{stop.note}</p> : null}{stop.address ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.address)}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-xl border px-4 py-2 text-sm font-black" style={{ borderColor: divider }}>Directions</a> : null}</article>)}</div></div></section>
+    }
+
+    if (key === 'booking') {
+      if (!site.enabled_modules.includes('booking')) return null
+      const bookingUrl = safeExternalUrl(site.booking_config.url)
+      if (!bookingUrl) return null
+      return <section key={key} className="border-t px-5 py-14" style={{ borderColor: divider, backgroundColor: site.background_color, color: site.text_color }}><div className="mx-auto max-w-5xl rounded-3xl p-8 sm:p-10" style={{ backgroundColor: site.secondary_color, color: contactText }}><p className="text-sm font-black uppercase tracking-[0.18em] opacity-75">Schedule</p><h2 className="mt-2 text-3xl font-black">{site.booking_config.heading}</h2>{site.booking_config.intro ? <p className="mt-4 max-w-2xl text-lg leading-8 opacity-90">{site.booking_config.intro}</p> : null}<a href={bookingUrl} target="_blank" rel="noreferrer" className="mt-6 inline-flex rounded-xl bg-white px-5 py-3 font-black" style={{ color: site.secondary_color }}>{site.booking_config.label || 'Book appointment'}</a></div></section>
+    }
+
+    if (key === 'contact') return <section key={key} className="px-5 py-14" style={{ backgroundColor: site.background_color }}><div className="mx-auto max-w-5xl rounded-3xl p-8 sm:p-10" style={{ backgroundColor: site.secondary_color, color: contactText }}><p className="text-sm font-black uppercase tracking-[0.18em] opacity-75">Contact</p><h2 className="mt-2 text-3xl font-black">Get in touch</h2><div className="mt-6 space-y-2 opacity-90">{site.phone ? <p><a href={`tel:${site.phone}`} className="hover:underline">{site.phone}</a></p> : null}{site.contact_email ? <p><a href={`mailto:${site.contact_email}`} className="underline">{site.contact_email}</a></p> : null}{site.address ? <p>{site.address}</p> : null}</div>{socialLinks.length ? <div className="mt-6 flex flex-wrap gap-3">{socialLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noreferrer" className="rounded-full border px-4 py-2 text-sm font-bold hover:opacity-80" style={{ borderColor: mixColors(site.secondary_color, contactText, 0.25) }}>{label}</a>)}</div> : null}</div></section>
+
+    return null
   }
 
   return (
