@@ -332,32 +332,36 @@ export default function BusinessSchedulerPage() {
     setWorking(appointment.id)
     setMessage('')
 
-    const patch: Record<string, string | null> = {
-      status,
-      updated_at: new Date().toISOString(),
-    }
+    try {
+      const response = await fetch(
+        `/api/business/scheduler/appointments/${encodeURIComponent(appointment.id)}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }
+      )
 
-    if (status === 'confirmed') patch.confirmed_at = new Date().toISOString()
-    if (status === 'cancelled') patch.cancelled_at = new Date().toISOString()
+      const payload = await response.json().catch(() => null)
 
-    const { error } = await supabase
-      .from('business_appointments')
-      .update(patch)
-      .eq('id', appointment.id)
+      if (!response.ok) {
+        setMessage(payload?.error || 'Appointment could not be updated.')
+        return
+      }
 
-    if (error) setMessage(error.message)
-    else {
       setMessage(
         status === 'confirmed'
-          ? 'Appointment confirmed.'
+          ? 'Appointment confirmed. The customer was notified when email delivery is available.'
           : status === 'cancelled'
-            ? 'Appointment cancelled.'
+            ? 'Appointment cancelled. The customer was notified when email delivery is available.'
             : 'Appointment completed.'
       )
       await refresh(business.id)
+    } catch {
+      setMessage('Appointment could not be updated. Please try again.')
+    } finally {
+      setWorking('')
     }
-
-    setWorking('')
   }
 
   if (loading) {
