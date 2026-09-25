@@ -4,6 +4,8 @@ import { createHmac, timingSafeEqual } from 'crypto'
 
 export const GOOGLE_CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+  'https://www.googleapis.com/auth/calendar.events.freebusy',
 ] as const
 
 function stateSecret() {
