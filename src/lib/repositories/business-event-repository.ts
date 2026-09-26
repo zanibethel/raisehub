@@ -60,23 +60,34 @@ export async function getPublicUpcomingBusinessEvents(
   const eventIds = events.map((event) => event.id)
   const businessIds = [...new Set(events.map((event) => event.business_id))]
 
-  const [{ data: promotions }, { data: businesses }] = await Promise.all([
-    admin
-      .from('business_event_promotions')
-      .select('event_id')
-      .in('event_id', eventIds)
-      .lte('starts_at', now)
-      .gt('ends_at', now),
-    admin
-      .from('businesses')
-      .select('id,name,logo_url')
-      .in('id', businessIds),
-  ])
+  const [{ data: promotions }, { data: businesses }, { data: promotionSettings }] =
+    await Promise.all([
+      admin
+        .from('business_event_promotions')
+        .select('event_id')
+        .in('event_id', eventIds)
+        .lte('starts_at', now)
+        .gt('ends_at', now),
+      admin
+        .from('businesses')
+        .select('id,name,logo_url')
+        .in('id', businessIds),
+      admin
+        .from('event_promotion_settings')
+        .select('local_events_featured_enabled')
+        .eq('id', 'default')
+        .maybeSingle(),
+    ])
+
+  const featuredPlacementEnabled =
+    promotionSettings?.local_events_featured_enabled !== false
 
   const promotedEventIds = new Set(
-    (promotions ?? []).map((promotion: { event_id: string }) =>
-      String(promotion.event_id)
-    )
+    featuredPlacementEnabled
+      ? (promotions ?? []).map((promotion: { event_id: string }) =>
+          String(promotion.event_id)
+        )
+      : []
   )
   type BusinessLookup = {
     id: string
