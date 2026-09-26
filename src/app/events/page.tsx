@@ -46,7 +46,10 @@ function EventRow({ event }: { event: PublicBusinessEvent }) {
         </div>
         {event.promoted ? (
           <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-950">
-            Featured event
+            {event.promotion_source === 'paid' ||
+            event.promotion_source === 'demo_paid'
+              ? 'Sponsored Local Event'
+              : 'Featured Local Event'}
           </span>
         ) : null}
       </div>
@@ -91,8 +94,8 @@ export default async function LocalEventsPage() {
             See what local businesses have coming up
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-            Community Partners can publish upcoming events here. Featured events
-            are promoted with earned Partner Points.
+            Community Partners can publish upcoming events here. Promoted events
+            may be featured with Partner Points or sponsored through RaiseHub.
           </p>
           <Link
             href="/home"

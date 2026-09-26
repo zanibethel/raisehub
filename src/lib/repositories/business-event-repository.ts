@@ -19,6 +19,7 @@ export type PublicBusinessEvent = {
   ends_at: string | null
   external_url: string | null
   promoted: boolean
+  promotion_source: 'partner_points' | 'paid' | 'demo_paid' | null
 }
 
 export async function getPublicUpcomingBusinessEvents(
@@ -64,7 +65,7 @@ export async function getPublicUpcomingBusinessEvents(
     await Promise.all([
       admin
         .from('business_event_promotions')
-        .select('event_id')
+        .select('event_id,promotion_source')
         .in('event_id', eventIds)
         .lte('starts_at', now)
         .gt('ends_at', now),
@@ -82,10 +83,22 @@ export async function getPublicUpcomingBusinessEvents(
   const featuredPlacementEnabled =
     promotionSettings?.local_events_featured_enabled !== false
 
-  const promotedEventIds = new Set(
+  const activePromotionByEventId = new Map<
+    string,
+    'partner_points' | 'paid' | 'demo_paid'
+  >(
     featuredPlacementEnabled
-      ? (promotions ?? []).map((promotion: { event_id: string }) =>
-          String(promotion.event_id)
+      ? (promotions ?? []).map(
+          (promotion: {
+            event_id: string
+            promotion_source?: 'partner_points' | 'paid' | 'demo_paid' | null
+          }) => [
+            String(promotion.event_id),
+            promotion.promotion_source === 'paid' ||
+            promotion.promotion_source === 'demo_paid'
+              ? promotion.promotion_source
+              : 'partner_points',
+          ]
         )
       : []
   )
@@ -118,7 +131,8 @@ export async function getPublicUpcomingBusinessEvents(
         starts_at: event.starts_at,
         ends_at: event.ends_at,
         external_url: event.external_url,
-        promoted: promotedEventIds.has(event.id),
+        promoted: activePromotionByEventId.has(event.id),
+        promotion_source: activePromotionByEventId.get(event.id) ?? null,
       }
     })
     .sort((left, right) => {

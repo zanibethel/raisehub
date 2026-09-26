@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { createClient } from '@/lib/supabase/client'
 
+import EventPromotionControls from './event-promotion-controls'
+
 type Business = {
   id: string
   name: string
@@ -171,6 +173,18 @@ export default function BusinessEventsPage() {
 
       setBusiness(businessData as Business)
       setEvents((eventData ?? []) as BusinessEvent[])
+
+      const promotionReturn = new URLSearchParams(window.location.search).get(
+        'promotion'
+      )
+      if (promotionReturn === 'success') {
+        setMessage(
+          'Stripe Checkout returned successfully. Promotion activates only after RaiseHub receives verified payment confirmation.'
+        )
+      } else if (promotionReturn === 'canceled') {
+        setMessage('Paid Event Promotion checkout was canceled. No promotion was activated.')
+      }
+
       setLoading(false)
     }
 
@@ -342,8 +356,8 @@ export default function BusinessEventsPage() {
             Events &amp; Promotions
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            Publish events customers should know about. Your next qualifying
-            event can be featured in RaiseHub Local Events with Partner Points.
+            Publish events customers should know about, then promote the exact
+            event with Partner Points or an Owner-managed paid boost.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
@@ -548,6 +562,11 @@ export default function BusinessEventsPage() {
                       {event.description}
                     </p>
                   ) : null}
+                  <EventPromotionControls
+                    businessId={business.id}
+                    eventId={event.id}
+                    isPublished={event.is_published}
+                  />
                   <div className="mt-4 flex gap-3">
                     <button
                       type="button"

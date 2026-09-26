@@ -27,8 +27,13 @@ function formatDate(value: string | null) {
   })
 }
 
-function kindLabel(kind: string) {
-  if (kind === 'event_promo') return 'Featured Local Event'
+function kindLabel(kind: string, metadata: Record<string, unknown>) {
+  if (kind === 'event_promo') {
+    const source = metadataText(metadata, 'promotion_source')
+    return source === 'paid' || source === 'demo_paid'
+      ? 'Sponsored Local Event'
+      : 'Featured Local Event'
+  }
   return kind
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
@@ -61,7 +66,7 @@ export default function SpotlightHistory({ items }: { items: SpotlightHistoryIte
             <article key={item.id} className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700">
-                  Spotlight · {kindLabel(item.kind)}
+                  Spotlight · {kindLabel(item.kind, item.metadata)}
                 </span>
                 {item.dismissedAt ? (
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] text-gray-600">Dismissed from popup</span>

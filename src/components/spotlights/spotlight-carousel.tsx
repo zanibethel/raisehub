@@ -26,6 +26,15 @@ function metadataText(
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function eventPromotionLabel(
+  metadata: Record<string, unknown> | null | undefined
+) {
+  const source = metadataText(metadata, 'promotion_source')
+  return source === 'paid' || source === 'demo_paid'
+    ? 'Sponsored Local Event'
+    : 'Featured Local Event'
+}
+
 function formatEventDate(value: string | null) {
   if (!value) return null
   const date = new Date(value)
@@ -127,7 +136,7 @@ export default function SpotlightCarousel({
           <div className="flex items-center justify-between bg-gradient-to-r from-blue-700 via-blue-600 to-green-600 p-5 text-white">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">RaiseHub Spotlight</p>
-              <p className="mt-1 text-sm font-bold text-white/90">{KIND_LABELS[current.kind]}</p>
+              <p className="mt-1 text-sm font-bold text-white/90">{current.kind === 'event_promo' ? eventPromotionLabel(current.metadata) : KIND_LABELS[current.kind]}</p>
             </div>
             <button type="button" onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-xl font-bold text-white" aria-label="Close Spotlight">×</button>
           </div>
@@ -136,7 +145,7 @@ export default function SpotlightCarousel({
         <div className="p-5 sm:p-7">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
-              {KIND_LABELS[current.kind]}
+              {current.kind === 'event_promo' ? eventPromotionLabel(current.metadata) : KIND_LABELS[current.kind]}
             </span>
             {total > 1 ? (
               <span className="text-xs font-bold text-slate-400">{index + 1} of {total}</span>
