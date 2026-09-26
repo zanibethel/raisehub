@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { resolveActorCapabilitySummary } from './capability-resolution-service'
 import type {
   ActorCapabilitySummary,
@@ -316,22 +317,24 @@ export function buildSelectableWorkspaces(
   return [...workspacesByKey.values()].sort(compareWorkspaces)
 }
 
-export async function getAuthenticatedWorkspaces(): Promise<AuthenticatedWorkspacesResult> {
-  const capabilityResult = await resolveActorCapabilitySummary()
+export const getAuthenticatedWorkspaces = cache(
+  async (): Promise<AuthenticatedWorkspacesResult> => {
+    const capabilityResult = await resolveActorCapabilitySummary()
 
-  if (!capabilityResult.success) {
+    if (!capabilityResult.success) {
+      return {
+        success: false,
+        reason: capabilityResult.reason,
+        message: capabilityResult.message,
+        workspaces: [],
+      }
+    }
+
     return {
-      success: false,
-      reason: capabilityResult.reason,
-      message: capabilityResult.message,
-      workspaces: [],
+      success: true,
+      workspaces: buildSelectableWorkspaces(
+        capabilityResult.summary
+      ),
     }
   }
-
-  return {
-    success: true,
-    workspaces: buildSelectableWorkspaces(
-      capabilityResult.summary
-    ),
-  }
-}
+)
