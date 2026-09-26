@@ -277,7 +277,7 @@ returns void
 language sql
 security definer
 set search_path = ''
-as $
+as $event_promotion_sync$
   update public.spotlight_campaigns spotlight
   set is_active =
         coalesce(settings.supporter_spotlight_enabled, true)
@@ -295,7 +295,7 @@ as $
   from public.event_promotion_settings settings
   where settings.id = 'default'
     and spotlight.source_type = 'business_event_promotion';
-$;
+$event_promotion_sync$;
 
 revoke all on function public.sync_event_promotion_spotlight_setting()
   from public, anon, authenticated;
