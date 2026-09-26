@@ -12,11 +12,15 @@ export type SpotlightCampaign = {
   cta_url: string | null
   secondary_cta_label: string | null
   secondary_cta_url: string | null
-  kind: 'announcement' | 'upgrade' | 'business_promo' | 'organization_promo' | 'system'
+  kind: 'announcement' | 'upgrade' | 'business_promo' | 'organization_promo' | 'event_promo' | 'system'
   audience_roles: string[]
   environment_scope: 'all' | 'production' | 'demo'
   target_business_id: string | null
   target_organization_id: string | null
+  target_demo_group: string | null
+  source_type: string | null
+  source_id: string | null
+  metadata: Record<string, unknown>
   priority: number
   starts_at: string
   ends_at: string | null
@@ -70,11 +74,13 @@ export async function getEligibleSpotlights({
   experienceRole,
   selectedWorkspace,
   isDemo,
+  demoGroup,
 }: {
   userId: string
   experienceRole: string
   selectedWorkspace: SelectableWorkspace | null
   isDemo: boolean
+  demoGroup?: string | null
 }): Promise<SpotlightCampaign[]> {
   const admin = createAdminClient() as any
   const now = new Date()
@@ -99,6 +105,9 @@ export async function getEligibleSpotlights({
     if (!campaign.audience_roles.includes(experienceRole)) return false
     if (campaign.environment_scope === 'demo' && !isDemo) return false
     if (campaign.environment_scope === 'production' && isDemo) return false
+    if (campaign.target_demo_group && campaign.target_demo_group !== (demoGroup?.trim() || null)) {
+      return false
+    }
     return targetMatches(campaign, selectedWorkspace)
   })
 

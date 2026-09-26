@@ -13,6 +13,7 @@ export type SpotlightHistoryItem = {
   dismissedAt: string | null
   viewCount: number
   endsAt: string | null
+  metadata: Record<string, unknown>
 }
 
 function formatDate(value: string | null) {
@@ -27,9 +28,15 @@ function formatDate(value: string | null) {
 }
 
 function kindLabel(kind: string) {
+  if (kind === 'event_promo') return 'Featured Local Event'
   return kind
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function metadataText(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
 export default function SpotlightHistory({ items }: { items: SpotlightHistoryItem[] }) {
@@ -69,6 +76,30 @@ export default function SpotlightHistory({ items }: { items: SpotlightHistoryIte
 
               <h3 className="mt-3 font-bold text-gray-900">{item.title}</h3>
               {item.body ? <p className="mt-1 text-sm leading-6 text-gray-600">{item.body}</p> : null}
+
+              {item.kind === 'event_promo' ? (
+                <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs leading-5 text-slate-700">
+                  {metadataText(item.metadata, 'business_name') ? (
+                    <p className="font-black text-slate-900">
+                      {metadataText(item.metadata, 'business_name')}
+                    </p>
+                  ) : null}
+                  {metadataText(item.metadata, 'starts_at') ? (
+                    <p className="mt-0.5">
+                      {formatDate(metadataText(item.metadata, 'starts_at'))}
+                    </p>
+                  ) : null}
+                  {[metadataText(item.metadata, 'venue_name'), metadataText(item.metadata, 'address')]
+                    .filter(Boolean)
+                    .join(' · ') ? (
+                    <p className="mt-0.5">
+                      {[metadataText(item.metadata, 'venue_name'), metadataText(item.metadata, 'address')]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
                 {viewedAt ? <span>Last seen {formatDate(viewedAt)}</span> : null}

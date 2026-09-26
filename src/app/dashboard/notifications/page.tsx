@@ -32,7 +32,7 @@ export default async function NotificationsPage() {
       .from('spotlight_interactions')
       .select(
         `id, view_count, first_viewed_at, last_viewed_at, dismissed_at, clicked_at,
-         spotlight_campaigns!inner(id, title, body, kind, cta_label, cta_url, ends_at)`
+         spotlight_campaigns!inner(id, title, body, kind, cta_label, cta_url, ends_at, metadata)`
       )
       .eq('user_id', user.id)
       .gt('view_count', 0)
@@ -80,6 +80,10 @@ export default async function NotificationsPage() {
         dismissedAt: interaction.dismissed_at ?? null,
         viewCount: Number(interaction.view_count ?? 0),
         endsAt: campaign.ends_at ?? null,
+        metadata:
+          campaign.metadata && typeof campaign.metadata === 'object'
+            ? campaign.metadata
+            : {},
       }
     })
     .filter((item): item is SpotlightHistoryItem => Boolean(item))

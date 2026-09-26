@@ -131,6 +131,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       experienceRole,
       selectedWorkspace,
       isDemo: profile?.is_demo === true,
+      demoGroup: profile?.demo_group ?? null,
     })
   } catch (error) {
     console.error('Unable to load spotlights without blocking dashboard:', error)
