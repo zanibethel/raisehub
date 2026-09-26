@@ -76,8 +76,13 @@ export default async function Nav() {
         (profile?.role as LegacyProfileRole | null | undefined) ?? null,
     }).selectedWorkspace
 
-    let logoUrl: string | null = null
-    if (selectedWorkspace?.kind === 'business' && selectedWorkspace.legacyProfileId) {
+    let logoUrl: string | null = selectedWorkspace?.logoUrl ?? null
+    if (
+      !logoUrl &&
+      selectedWorkspace?.kind === 'business' &&
+      selectedWorkspace.source === 'legacy-profile' &&
+      selectedWorkspace.legacyProfileId
+    ) {
       const { data } = await supabase
         .from('profiles')
         .select('logo_url')
