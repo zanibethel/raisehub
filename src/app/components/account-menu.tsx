@@ -194,7 +194,6 @@ export default function AccountMenu({
 
     startWorkspaceTransition(() => {
       router.push(workspace.href)
-      router.refresh()
     })
   }
 
