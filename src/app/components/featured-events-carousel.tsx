@@ -40,7 +40,10 @@ function EventCard({ event }: { event: PublicBusinessEvent }) {
           </span>
           {event.promoted ? (
             <span className="rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-950">
-              Featured
+              {event.promotion_source === 'paid' ||
+              event.promotion_source === 'demo_paid'
+                ? 'Sponsored Local Event'
+                : 'Featured Local Event'}
             </span>
           ) : null}
         </div>
