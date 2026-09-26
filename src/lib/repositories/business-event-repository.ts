@@ -78,14 +78,17 @@ export async function getPublicUpcomingBusinessEvents(
       String(promotion.event_id)
     )
   )
-  const businessById = new Map(
-    (businesses ?? []).map(
-      (business: {
-        id: string
-        name: string
-        logo_url: string | null
-      }) => [business.id, business]
-    )
+  type BusinessLookup = {
+    id: string
+    name: string
+    logo_url: string | null
+  }
+
+  const businessById = new Map<string, BusinessLookup>(
+    ((businesses ?? []) as BusinessLookup[]).map((business) => [
+      business.id,
+      business,
+    ])
   )
 
   return events
