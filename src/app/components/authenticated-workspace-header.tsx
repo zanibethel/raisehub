@@ -141,7 +141,6 @@ export default function AuthenticatedWorkspaceHeader({
     startWorkspaceTransition(() => {
       setDrawerOpen(false)
       router.push(workspace.href)
-      router.refresh()
     })
   }
 
