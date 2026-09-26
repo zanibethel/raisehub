@@ -272,6 +272,36 @@ $$;
 revoke all on function public.create_business_event_promotion_from_reward()
   from public, anon, authenticated;
 
+create or replace function public.sync_event_promotion_spotlight_setting()
+returns void
+language sql
+security definer
+set search_path = ''
+as $
+  update public.spotlight_campaigns spotlight
+  set is_active =
+        coalesce(settings.supporter_spotlight_enabled, true)
+        and spotlight.ends_at is not null
+        and spotlight.ends_at > now()
+        and exists (
+          select 1
+          from public.business_event_promotions promotion
+          join public.business_events event
+            on event.id = promotion.event_id
+          where promotion.spotlight_campaign_id = spotlight.id
+            and event.is_published = true
+        ),
+      updated_at = now()
+  from public.event_promotion_settings settings
+  where settings.id = 'default'
+    and spotlight.source_type = 'business_event_promotion';
+$;
+
+revoke all on function public.sync_event_promotion_spotlight_setting()
+  from public, anon, authenticated;
+grant execute on function public.sync_event_promotion_spotlight_setting()
+  to service_role;
+
 comment on table public.event_promotion_settings is
   'Owner-managed global Event Promotion behavior, Partner Point pricing, and placement controls.';
 comment on table public.event_promotion_price_options is
