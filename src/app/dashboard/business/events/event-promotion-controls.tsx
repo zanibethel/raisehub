@@ -88,7 +88,7 @@ export default function EventPromotionControls({
     [selectedDuration, state]
   )
 
-  async function usePartnerPoints() {
+  async function redeemWithPartnerPoints() {
     if (busy) return
     setBusy(true)
     setMessage('')
@@ -229,7 +229,7 @@ export default function EventPromotionControls({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void usePartnerPoints()}
+                onClick={() => void redeemWithPartnerPoints()}
                 className="mt-2 min-h-10 w-full rounded-xl bg-green-700 px-3 text-xs font-black text-white disabled:opacity-60"
               >
                 {busy
