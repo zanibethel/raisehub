@@ -14,7 +14,29 @@ const KIND_LABELS: Record<SpotlightCampaign['kind'], string> = {
   upgrade: 'Upgrade',
   business_promo: 'Featured Business',
   organization_promo: 'Featured Fundraiser',
+  event_promo: 'Featured Local Event',
   system: 'RaiseHub Update',
+}
+
+function metadataText(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string
+) {
+  const value = metadata?.[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function formatEventDate(value: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 export default function SpotlightCarousel({
@@ -30,6 +52,23 @@ export default function SpotlightCarousel({
   const recorded = useRef(new Set<string>())
 
   const current = items[index] ?? null
+  const eventBusiness =
+    current?.kind === 'event_promo'
+      ? metadataText(current.metadata, 'business_name')
+      : null
+  const eventStartsAt =
+    current?.kind === 'event_promo'
+      ? formatEventDate(metadataText(current.metadata, 'starts_at'))
+      : null
+  const eventVenue =
+    current?.kind === 'event_promo'
+      ? metadataText(current.metadata, 'venue_name')
+      : null
+  const eventAddress =
+    current?.kind === 'event_promo'
+      ? metadataText(current.metadata, 'address')
+      : null
+  const eventLocation = [eventVenue, eventAddress].filter(Boolean).join(' · ')
   const total = items.length
   const canGoBack = index > 0
   const canGoForward = index < total - 1
@@ -106,6 +145,20 @@ export default function SpotlightCarousel({
 
           <h2 className="mt-4 text-2xl font-black leading-tight text-slate-950 sm:text-3xl">{current.title}</h2>
           {current.body ? <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">{current.body}</p> : null}
+
+          {current.kind === 'event_promo' ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              {eventBusiness ? (
+                <p className="text-sm font-black text-slate-950">{eventBusiness}</p>
+              ) : null}
+              {eventStartsAt ? (
+                <p className="mt-1 text-sm font-bold text-amber-800">{eventStartsAt}</p>
+              ) : null}
+              {eventLocation ? (
+                <p className="mt-1 text-xs leading-5 text-slate-600">{eventLocation}</p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {current.cta_label && current.cta_url ? (
