@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const commandCenterSource = readFileSync(
-  new URL('../../../components/dashboards/business/business-command-center.tsx', import.meta.url),
+  new URL('../../../../components/dashboards/business/business-command-center.tsx', import.meta.url),
   'utf8'
 )
 const headerSource = readFileSync(
-  new URL('../../../app/components/authenticated-workspace-header.tsx', import.meta.url),
+  new URL('../../../components/authenticated-workspace-header.tsx', import.meta.url),
   'utf8'
 )
 const builderSource = readFileSync(
