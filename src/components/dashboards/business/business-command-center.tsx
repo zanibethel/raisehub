@@ -100,6 +100,10 @@ function WebsiteIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /><path d="M8 4v5" /><path d="m9 15 2 2 4-4" /></svg>
 }
 
+function EventIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18" /><path d="m9 15 2 2 4-4" /></svg>
+}
+
 function QuickAction({
   href,
   title,
@@ -117,7 +121,7 @@ function QuickAction({
       className="flex min-h-28 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-2 py-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <ActionIcon tone={tone}>{icon}</ActionIcon>
-      <span className="mt-2 text-xs font-black leading-4 text-slate-800 sm:text-sm">{title}</span>
+      <span className="mt-2 w-full break-words px-1 text-[11px] font-black leading-4 text-slate-800 sm:text-sm">{title}</span>
     </Link>
   )
 }
@@ -284,10 +288,11 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
               <h2 className="mt-1 text-xl font-black text-slate-950">Quick Actions</h2>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-6">
             <QuickAction href="/dashboard/offers#create-offer" title="Create Offer" tone="green" icon={<TagIcon />} />
             <QuickAction href="/dashboard/offers" title="Manage Offers" tone="blue" icon={<StoreIcon />} />
             <QuickAction href={websiteBuilderHref} title="Website & App Builder" tone="green" icon={<WebsiteIcon />} />
+            <QuickAction href="/dashboard/business/events" title="Events & Promotions" tone="amber" icon={<EventIcon />} />
             <QuickAction href="/dashboard/reports" title="View Performance" tone="violet" icon={<ChartIcon />} />
             <QuickAction href={shareHref} title="Share Your Deals" tone="amber" icon={<ShareIcon />} />
           </div>
@@ -366,7 +371,7 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
               <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Community impact</p>
               <h2 className="mt-1 text-xl font-black text-slate-950">Impact & Rewards</h2>
             </div>
-            <Link href="/dashboard/rewards" className="text-sm font-black text-blue-700">View details →</Link>
+            <Link href="/dashboard/rewards" prefetch={false} className="text-sm font-black text-blue-700">View details →</Link>
           </div>
 
           <div className="mt-3 grid grid-cols-2 divide-x divide-slate-200 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
