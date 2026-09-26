@@ -55,11 +55,40 @@ function findWorkspaceByKey(
   )
 }
 
+function findWorkspaceForLegacyRole(
+  workspaces: SelectableWorkspace[],
+  legacyRole: LegacyProfileRole | null
+): SelectableWorkspace | null {
+  switch (legacyRole) {
+    case 'customer':
+      return workspaces.find((workspace) => workspace.kind === 'customer') ?? null
+
+    case 'business':
+      return workspaces.find((workspace) => workspace.kind === 'business') ?? null
+
+    case 'organization':
+      return (
+        workspaces.find((workspace) => workspace.kind === 'organization') ??
+        workspaces.find((workspace) => workspace.kind === 'fundraising') ??
+        null
+      )
+
+    case 'owner':
+      return workspaces.find((workspace) => workspace.kind === 'owner') ?? null
+
+    case 'admin':
+    default:
+      return null
+  }
+}
+
 function findDefaultWorkspace(
-  workspaces: SelectableWorkspace[]
+  workspaces: SelectableWorkspace[],
+  legacyRole: LegacyProfileRole | null
 ): SelectableWorkspace | null {
   return (
     workspaces.find((workspace) => workspace.isDefault) ??
+    findWorkspaceForLegacyRole(workspaces, legacyRole) ??
     workspaces[0] ??
     null
   )
@@ -143,7 +172,8 @@ export function resolveWorkspaceSelection(input: {
   }
 
   const fallbackWorkspace = findDefaultWorkspace(
-    input.workspaces
+    input.workspaces,
+    input.legacyRole
   )
 
   if (fallbackWorkspace) {
