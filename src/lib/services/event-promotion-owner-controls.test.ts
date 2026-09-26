@@ -30,14 +30,13 @@ const migrationSource = readFileSync(
 test('Owner dashboard exposes Event Promotion management', () => {
   assert.match(manageSource, /\/dashboard\/owner\/event-promotions/)
   assert.match(ownerPageSource, /Event Promotions/)
-  assert.match(ownerPageSource, /Paid boost pricing/)
+  assert.match(ownerPageSource, /paid boost pricing/)
   assert.match(ownerPageSource, /Partner Point/)
 })
 
 test('launch paid boost prices are owner-managed', () => {
-  assert.match(editorSource, /3-Day Boost/)
-  assert.match(editorSource, /7-Day Boost/)
-  assert.match(editorSource, /14-Day Boost/)
+  assert.match(editorSource, /const durations = \[3, 7, 14\]/)
+  assert.match(editorSource, /\{duration\}-Day Boost/)
   assert.match(migrationSource, /\(3, 299, true, 10\)/)
   assert.match(migrationSource, /\(7, 499, true, 20\)/)
   assert.match(migrationSource, /\(14, 799, true, 30\)/)
