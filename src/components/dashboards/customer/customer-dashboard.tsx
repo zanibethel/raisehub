@@ -70,27 +70,24 @@ export default async function CustomerDashboard({
   if (!user) return null
 
   const admin = createAdminClient()
-
-  try {
-    await (admin as any).rpc('finalize_due_redemptions')
-  } catch (error) {
-    console.error('Unable to finalize due redemptions without blocking customer dashboard:', error)
-  }
+  const finalizeDueRedemptionsPromise = (async () => {
+    try {
+      await (admin as any).rpc('finalize_due_redemptions')
+    } catch (error) {
+      console.error(
+        'Unable to finalize due redemptions without blocking customer dashboard:',
+        error
+      )
+    }
+  })()
 
   const resolvedCustomerProfileId = customerProfileId?.trim() || user.id
-  const passAccessResult = await Promise.allSettled([
-    getCustomerPassAccess(resolvedCustomerProfileId, nowDate),
-  ])
-  const passAccess = passAccessResult[0].status === 'fulfilled'
-    ? passAccessResult[0].value
-    : { activeEntitlement: null, hasActivePass: false }
-  if (passAccessResult[0].status === 'rejected') {
-    console.error('Unable to load pass access without blocking customer dashboard:', passAccessResult[0].reason)
-  }
-  const activeEntitlement = passAccess.activeEntitlement
-  const hasPurchasedPass = passAccess.hasActivePass
 
-  const { data: purchasedPassesData } = await supabase
+  const passAccessPromise = getCustomerPassAccess(
+    resolvedCustomerProfileId,
+    nowDate
+  )
+  const purchasedPassesPromise = supabase
     .from('campaign_purchases')
     .select(`
       id,
@@ -108,44 +105,6 @@ export default async function CustomerDashboard({
     .eq('user_id', resolvedCustomerProfileId)
     .order('created_at', { ascending: false })
 
-  const purchasedPasses = (purchasedPassesData ?? []) as PurchasedPass[]
-  const organizationIds = [
-    ...new Set(
-      purchasedPasses
-        .map((purchase) => purchase.selected_organization_id)
-        .filter((organizationId): organizationId is string => Boolean(organizationId))
-    ),
-  ]
-
-  const { data: organizationProfiles } = organizationIds.length > 0
-    ? await admin
-        .from('profiles')
-        .select('id, business_name, display_name')
-        .in('id', organizationIds)
-    : { data: [] }
-
-  const organizationById = new Map<string, OrganizationLookup>(
-    (organizationProfiles ?? []).map((organization) => [
-      organization.id,
-      {
-        business_name: organization.business_name,
-        display_name: organization.display_name,
-      },
-    ])
-  )
-
-  const activePassPurchase = activeEntitlement?.purchase_id
-    ? purchasedPasses.find((purchase) => purchase.id === activeEntitlement.purchase_id) ?? null
-    : null
-
-  const activePassOrganization = activePassPurchase?.selected_organization_id
-    ? organizationById.get(activePassPurchase.selected_organization_id)
-    : undefined
-
-  const supportedOrganizationName =
-    activePassOrganization?.display_name || activePassOrganization?.business_name || null
-  const supportedCampaignName = activePassPurchase?.campaigns?.name || null
-
   const offersQuery = supabase
     .from('offers')
     .select('*')
@@ -154,27 +113,11 @@ export default async function CustomerDashboard({
     .or(`ends_at.is.null,ends_at.gte.${now}`)
     .order('created_at', { ascending: false })
 
-  const { data: offers } = await applyEnvironmentScope(offersQuery, environment)
-
   const profilesQuery = admin
     .from('profiles')
-    .select('id, business_name, display_name, phone, address, google_maps_url, is_demo, demo_group')
-
-  const { data: profiles } = await applyEnvironmentScope(profilesQuery, environment)
-
-  const profileById = new Map<string, LegacyBusinessProfile>(
-    (profiles ?? []).map((profile) => [
-      profile.id,
-      {
-        name: profile.display_name || profile.business_name || 'Local Business',
-        phone: profile.phone || '',
-        address: profile.address || '',
-        map: profile.google_maps_url || '',
-        is_demo: profile.is_demo,
-        demo_group: profile.demo_group,
-      },
-    ])
-  )
+    .select(
+      'id, business_name, display_name, phone, address, google_maps_url, is_demo, demo_group'
+    )
 
   const canonicalBusinessesQuery = admin
     .from('businesses')
@@ -200,9 +143,81 @@ export default async function CustomerDashboard({
       demo_group
     `)
 
-  const { data: canonicalBusinessesData } = await applyEnvironmentScope(
-    canonicalBusinessesQuery,
-    environment
+  const savedOffersQuery = supabase
+    .from('saved_offers')
+    .select('id, offer_id, is_demo, demo_group')
+    .eq('user_id', resolvedCustomerProfileId)
+
+  const [
+    passAccessResult,
+    purchasedPassesResult,
+    offersResult,
+    profilesResult,
+    canonicalBusinessesResult,
+    savedOffersResult,
+  ] = await Promise.all([
+    Promise.allSettled([passAccessPromise]),
+    purchasedPassesPromise,
+    applyEnvironmentScope(offersQuery, environment),
+    applyEnvironmentScope(profilesQuery, environment),
+    applyEnvironmentScope(canonicalBusinessesQuery, environment),
+    applyEnvironmentScope(savedOffersQuery, environment),
+  ])
+
+  const passAccess =
+    passAccessResult[0].status === 'fulfilled'
+      ? passAccessResult[0].value
+      : { activeEntitlement: null, hasActivePass: false }
+
+  if (passAccessResult[0].status === 'rejected') {
+    console.error(
+      'Unable to load pass access without blocking customer dashboard:',
+      passAccessResult[0].reason
+    )
+  }
+
+  const activeEntitlement = passAccess.activeEntitlement
+  const hasPurchasedPass = passAccess.hasActivePass
+  const purchasedPasses = (purchasedPassesResult.data ?? []) as PurchasedPass[]
+  const offers = offersResult.data
+  const profiles = profilesResult.data
+  const canonicalBusinessesData = canonicalBusinessesResult.data
+  const savedOffers = savedOffersResult.data
+
+  const organizationIds = [
+    ...new Set(
+      purchasedPasses
+        .map((purchase) => purchase.selected_organization_id)
+        .filter(
+          (organizationId): organizationId is string =>
+            Boolean(organizationId)
+        )
+    ),
+  ]
+
+  const organizationProfilesPromise =
+    organizationIds.length > 0
+      ? admin
+          .from('profiles')
+          .select('id, business_name, display_name')
+          .in('id', organizationIds)
+      : Promise.resolve({ data: [] })
+
+  const profileById = new Map<string, LegacyBusinessProfile>(
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      {
+        name:
+          profile.display_name ||
+          profile.business_name ||
+          'Local Business',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        map: profile.google_maps_url || '',
+        is_demo: profile.is_demo,
+        demo_group: profile.demo_group,
+      },
+    ])
   )
 
   const canonicalBusinesses =
@@ -212,20 +227,49 @@ export default async function CustomerDashboard({
 
   for (const business of canonicalBusinesses) {
     if (business.legacy_profile_id) {
-      canonicalBusinessByLegacyProfileId.set(business.legacy_profile_id, business)
+      canonicalBusinessByLegacyProfileId.set(
+        business.legacy_profile_id,
+        business
+      )
     }
   }
-
-  const savedOffersQuery = supabase
-    .from('saved_offers')
-    .select('id, offer_id, is_demo, demo_group')
-    .eq('user_id', resolvedCustomerProfileId)
-
-  const { data: savedOffers } = await applyEnvironmentScope(savedOffersQuery, environment)
 
   const savedOfferIds = new Set(
     (savedOffers ?? []).map((savedOffer) => savedOffer.offer_id)
   )
+
+  const [organizationProfilesResult] = await Promise.all([
+    organizationProfilesPromise,
+    finalizeDueRedemptionsPromise,
+  ])
+  const organizationProfiles = organizationProfilesResult.data
+
+  const organizationById = new Map<string, OrganizationLookup>(
+    (organizationProfiles ?? []).map((organization) => [
+      organization.id,
+      {
+        business_name: organization.business_name,
+        display_name: organization.display_name,
+      },
+    ])
+  )
+
+  const activePassPurchase = activeEntitlement?.purchase_id
+    ? purchasedPasses.find(
+        (purchase) => purchase.id === activeEntitlement.purchase_id
+      ) ?? null
+    : null
+
+  const activePassOrganization = activePassPurchase?.selected_organization_id
+    ? organizationById.get(activePassPurchase.selected_organization_id)
+    : undefined
+
+  const supportedOrganizationName =
+    activePassOrganization?.display_name ||
+    activePassOrganization?.business_name ||
+    null
+  const supportedCampaignName =
+    activePassPurchase?.campaigns?.name || null
 
   const redemptionQuery = (supabase as any)
     .from('redemptions')
