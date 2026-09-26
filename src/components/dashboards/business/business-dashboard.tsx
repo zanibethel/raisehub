@@ -1,7 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPartnerRewardsSummary } from '@/lib/repositories/partner-rewards-repository'
-import { reconcileDemoPartnerRewardsNetwork } from '@/lib/rewards/demo-partner-rewards-reconciliation'
 import { canViewBusiness } from '@/lib/services/capability-resolution-service'
 import { getBusinessPayoutStatus } from '@/lib/stripe/business-connect'
 
@@ -195,17 +194,6 @@ export default async function BusinessDashboard({
   const canonicalBusinessId = lifecycle?.id ?? requestedBusinessId
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
 
-  // Keep optional rewards/payment maintenance from blocking the entire dashboard.
-  // The dedicated Rewards view can do the heavier reconciliation work; the main
-  // dashboard should still render if an auxiliary integration is slow or unavailable.
-  if (view === 'rewards') {
-    try {
-      await reconcileDemoPartnerRewardsNetwork(canonicalBusinessId)
-    } catch (error) {
-      console.error('Unable to reconcile Partner Rewards without blocking dashboard:', error)
-    }
-  }
-
   const offerBusinessIds = [
     canonicalBusinessId,
     legacyProfileId,
@@ -214,7 +202,7 @@ export default async function BusinessDashboard({
 
   const rewardsPromise = getPartnerRewardsSummary(canonicalBusinessId)
   const payoutPromise = getBusinessPayoutStatus(canonicalBusinessId, {
-    refreshStripe: view === 'rewards',
+    refreshStripe: false,
   })
   const verificationPromise = canonicalBusinessId
     ? (supabase as any)

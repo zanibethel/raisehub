@@ -97,6 +97,10 @@ export default function AuthenticatedWorkspaceHeader({
     selectedWorkspaceIsBusiness && selectedWorkspace.workspaceId
       ? `/dashboard/business/website?business=${encodeURIComponent(selectedWorkspace.workspaceId)}`
       : '/dashboard/business/website'
+  const eventsHref =
+    selectedWorkspaceIsBusiness && selectedWorkspace.workspaceId
+      ? `/dashboard/business/events?business=${encodeURIComponent(selectedWorkspace.workspaceId)}`
+      : '/dashboard/business/events'
   const hasBusinessWorkspace = workspaces.some((workspace) => workspace.kind === 'business')
   const hasOrganizationWorkspace = workspaces.some(
     (workspace) => workspace.kind === 'organization' || workspace.kind === 'fundraising'
@@ -204,9 +208,14 @@ export default function AuthenticatedWorkspaceHeader({
                 <span className="min-w-0 truncate">Business signup QR</span> <span className="ml-3 shrink-0" aria-hidden="true">▦</span>
               </Link>
               {selectedWorkspaceIsBusiness ? (
-                <Link href={websiteBuilderHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
-                  <span className="min-w-0 truncate">Website &amp; App Builder</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>
-                </Link>
+                <>
+                  <Link href={websiteBuilderHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                    <span className="min-w-0 truncate">Website &amp; App Builder</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>
+                  </Link>
+                  <Link href={eventsHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                    <span className="min-w-0 truncate">Events &amp; Promotions</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>
+                  </Link>
+                </>
               ) : null}
               {profileHref ? (
                 <Link href={profileHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">

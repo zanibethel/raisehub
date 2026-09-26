@@ -95,7 +95,7 @@ export default function UpgradeActions({
       <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-900">
         <p className="font-bold">Demo billing is simulated.</p>
         <p className="mt-2 leading-6">
-          Demo businesses never create Stripe customers or subscriptions. Switch to a production Business workspace to test real billing.
+          No real charge, Stripe customer, or subscription is created here. Use this demo to review the Growth upgrade flow safely.
         </p>
       </div>
     )

@@ -86,6 +86,13 @@ export async function redeemPartnerRewardAction(
       }
     }
 
+    if (message.includes('publish an upcoming business event')) {
+      return {
+        success: false,
+        error: 'Publish an upcoming event within the next 30 days first, then return here to activate Event Promotion.',
+      }
+    }
+
     return { success: false, error: 'Could not redeem this reward. Please try again.' }
   }
 

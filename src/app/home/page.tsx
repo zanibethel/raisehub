@@ -5,6 +5,7 @@ import Link from 'next/link'
 
 import CampaignProgressCarousel from '../components/campaign-progress-carousel'
 import FeaturedDealsCarousel from '../components/featured-deals-carousel'
+import FeaturedEventsCarousel from '../components/featured-events-carousel'
 import LogoCarousel from '../components/logo-carousel'
 import { getAppMode } from '@/lib/app-mode'
 import { createClient } from '@/lib/supabase/server'
@@ -90,6 +91,7 @@ export default async function PlatformHomePage() {
       <LogoCarousel />
       <CampaignProgressCarousel />
       <FeaturedDealsCarousel />
+      <FeaturedEventsCarousel />
 
       <section className="mx-auto mt-14 max-w-6xl sm:mt-20">
         <div>
