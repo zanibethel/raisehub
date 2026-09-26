@@ -103,6 +103,14 @@ export async function createEventPromotionCheckoutSession(
   )
 }
 
+export async function expireEventPromotionCheckoutSession(sessionId: string) {
+  const cleanSessionId = sessionId.trim()
+  if (!cleanSessionId.startsWith('cs_')) return
+
+  const stripe = getStripeClient()
+  await stripe.checkout.sessions.expire(cleanSessionId)
+}
+
 function paymentIntentId(
   value: Stripe.Checkout.Session['payment_intent']
 ) {
