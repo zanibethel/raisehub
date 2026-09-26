@@ -93,6 +93,10 @@ export default function AuthenticatedWorkspaceHeader({
     (workspace) => workspace.key === selectedWorkspaceKey
   )
   const selectedWorkspaceIsBusiness = selectedWorkspace?.kind === 'business'
+  const websiteBuilderHref =
+    selectedWorkspaceIsBusiness && selectedWorkspace.workspaceId
+      ? `/dashboard/business/website?business=${encodeURIComponent(selectedWorkspace.workspaceId)}`
+      : '/dashboard/business/website'
   const hasBusinessWorkspace = workspaces.some((workspace) => workspace.kind === 'business')
   const hasOrganizationWorkspace = workspaces.some(
     (workspace) => workspace.kind === 'organization' || workspace.kind === 'fundraising'
@@ -200,7 +204,7 @@ export default function AuthenticatedWorkspaceHeader({
                 <span className="min-w-0 truncate">Business signup QR</span> <span className="ml-3 shrink-0" aria-hidden="true">▦</span>
               </Link>
               {selectedWorkspaceIsBusiness ? (
-                <Link href="/dashboard/business/website" onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                <Link href={websiteBuilderHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
                   <span className="min-w-0 truncate">Website &amp; App Builder</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>
                 </Link>
               ) : null}
