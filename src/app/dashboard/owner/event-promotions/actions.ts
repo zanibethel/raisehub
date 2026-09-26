@@ -87,6 +87,13 @@ export async function updateEventPromotionSettingsAction(
   }
 
   const durations = [3, 7, 14]
+  if (!durations.includes(defaultDuration)) {
+    return {
+      success: false,
+      message: 'Choose 3, 7, or 14 days as the default paid promotion.',
+    }
+  }
+
   const options = durations.map((duration, index) => {
     const priceCents = parseMoneyToCents(read(formData, `price_${duration}`))
     return {
@@ -193,24 +200,9 @@ export async function updateEventPromotionSettingsAction(
     }
   }
 
-  const supporterSpotlightEnabled = checked(
-    formData,
-    'supporterSpotlightEnabled'
+  const { error: spotlightError } = await admin.rpc(
+    'sync_event_promotion_spotlight_setting'
   )
-
-  const spotlightUpdate = admin
-    .from('spotlight_campaigns')
-    .update({
-      is_active: supporterSpotlightEnabled,
-      updated_at: now,
-    })
-    .eq('source_type', 'business_event_promotion')
-
-  if (supporterSpotlightEnabled) {
-    spotlightUpdate.gt('ends_at', now)
-  }
-
-  const { error: spotlightError } = await spotlightUpdate
 
   if (spotlightError) {
     return {
