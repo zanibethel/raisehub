@@ -10,6 +10,7 @@ import {
 } from '@/lib/data-environment'
 import {
   createEventPromotionCheckoutSession,
+  expireEventPromotionCheckoutSession,
   getEventPromotionStripeMode,
 } from '@/lib/stripe/event-promotion'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -519,7 +520,17 @@ export async function startPaidEventPromotionAction(input: {
       .eq('id', purchase.purchase_id)
       .eq('status', 'created')
 
-    if (persistError) throw persistError
+    if (persistError) {
+      try {
+        await expireEventPromotionCheckoutSession(session.id)
+      } catch (expireError) {
+        console.error('Could not expire unpersisted Event Promotion Checkout', {
+          sessionId: session.id,
+          expireError,
+        })
+      }
+      throw persistError
+    }
 
     return { status: 'checkout-ready', url: session.url }
   } catch (checkoutError) {
