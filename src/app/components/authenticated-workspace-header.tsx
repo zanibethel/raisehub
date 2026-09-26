@@ -89,6 +89,14 @@ export default function AuthenticatedWorkspaceHeader({
   const [switchingWorkspaceKey, setSwitchingWorkspaceKey] = useState<string | null>(null)
   const [isSwitching, startWorkspaceTransition] = useTransition()
 
+  const selectedWorkspace = workspaces.find(
+    (workspace) => workspace.key === selectedWorkspaceKey
+  )
+  const selectedWorkspaceIsBusiness = selectedWorkspace?.kind === 'business'
+  const websiteBuilderHref =
+    selectedWorkspaceIsBusiness && selectedWorkspace.workspaceId
+      ? `/dashboard/business/website?business=${encodeURIComponent(selectedWorkspace.workspaceId)}`
+      : '/dashboard/business/website'
   const hasBusinessWorkspace = workspaces.some((workspace) => workspace.kind === 'business')
   const hasOrganizationWorkspace = workspaces.some(
     (workspace) => workspace.kind === 'organization' || workspace.kind === 'fundraising'
@@ -195,6 +203,11 @@ export default function AuthenticatedWorkspaceHeader({
               <Link href="/dashboard/business-signup-qr" onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-black text-green-800 hover:bg-green-100">
                 <span className="min-w-0 truncate">Business signup QR</span> <span className="ml-3 shrink-0" aria-hidden="true">▦</span>
               </Link>
+              {selectedWorkspaceIsBusiness ? (
+                <Link href={websiteBuilderHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
+                  <span className="min-w-0 truncate">Website &amp; App Builder</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>
+                </Link>
+              ) : null}
               {profileHref ? (
                 <Link href={profileHref} onClick={() => setDrawerOpen(false)} className="flex min-w-0 items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50">
                   <span className="min-w-0 truncate">Edit profile</span> <span className="ml-3 shrink-0" aria-hidden="true">›</span>

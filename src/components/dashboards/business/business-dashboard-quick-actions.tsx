@@ -45,6 +45,11 @@ export default function BusinessDashboardQuickActions({
       detail: 'Optional: enter a supporter code to confirm immediately.',
     },
     {
+      title: 'Website & App Builder',
+      href: '/dashboard/business/website',
+      detail: 'Build and publish your business website and installable app.',
+    },
+    {
       title: 'Scheduler',
       href: '/dashboard/business/scheduler',
       detail: 'Manage services, availability, and appointment requests.',
@@ -62,7 +67,7 @@ export default function BusinessDashboardQuickActions({
         </h2>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white sm:grid-cols-5 sm:divide-x sm:divide-gray-200">
+      <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200 bg-white sm:grid-cols-6 sm:divide-x sm:divide-gray-200">
         {actions.map((action, index) => (
           <Link
             key={action.title}

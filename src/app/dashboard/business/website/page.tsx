@@ -267,17 +267,42 @@ export default function BusinessWebsiteBuilderPage() {
         return
       }
 
-      const { data: memberships } = await supabase
+      const requestedBusinessId =
+        new URLSearchParams(window.location.search).get('business')?.trim() ||
+        undefined
+
+      let membershipQuery = supabase
         .from('business_memberships')
         .select('business_id,membership_role,status')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .in('membership_role', ['owner', 'manager'])
-        .limit(1)
+
+      if (requestedBusinessId) {
+        membershipQuery = membershipQuery.eq(
+          'business_id',
+          requestedBusinessId
+        )
+      }
+
+      const { data: memberships } = await membershipQuery.limit(1)
 
       let businessId = memberships?.[0]?.business_id as string | undefined
       if (!businessId) {
-        const { data: legacyBusiness } = await supabase.from('businesses').select('id').eq('legacy_profile_id', user.id).maybeSingle()
+        let legacyBusinessQuery = supabase
+          .from('businesses')
+          .select('id')
+          .eq('legacy_profile_id', user.id)
+
+        if (requestedBusinessId) {
+          legacyBusinessQuery = legacyBusinessQuery.eq(
+            'id',
+            requestedBusinessId
+          )
+        }
+
+        const { data: legacyBusiness } =
+          await legacyBusinessQuery.maybeSingle()
         businessId = legacyBusiness?.id
       }
 
