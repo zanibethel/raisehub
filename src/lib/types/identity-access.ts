@@ -147,6 +147,12 @@ export type SelectableWorkspace = {
   name: string
 
   /**
+   * Optional workspace logo already available from the authorized entity.
+   * Keeping it on the workspace avoids an extra navigation-header lookup.
+   */
+  logoUrl?: string | null
+
+  /**
    * Optional secondary explanation shown beneath the workspace name.
    */
   subtitle: string | null
