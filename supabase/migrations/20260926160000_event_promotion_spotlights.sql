@@ -37,6 +37,11 @@ create index if not exists business_event_promotions_spotlight_idx
   on public.business_event_promotions (spotlight_campaign_id)
   where spotlight_campaign_id is not null;
 
+update public.partner_reward_marketplace_items
+set description = 'Feature your next qualifying published business event in RaiseHub Local Events and show it to supporters as a one-time Featured Local Event Spotlight for up to 7 days.',
+    updated_at = now()
+where code = 'event_promotion_7d';
+
 create or replace function public.create_business_event_promotion_from_reward()
 returns trigger
 language plpgsql
