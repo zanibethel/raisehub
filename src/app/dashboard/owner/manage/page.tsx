@@ -39,6 +39,7 @@ const groups = [
     description: 'Manage shared rules without duplicating operational workspaces.',
     items: [
       { label: 'Pricing', href: '/dashboard/owner/pricing', detail: 'Defaults, overrides, scheduled changes, and pricing history.' },
+      { label: 'Event promotions', href: '/dashboard/owner/event-promotions', detail: 'Manage paid boost pricing, Partner Point cost, and Event Promotion exposure.' },
       { label: 'Preview role', href: '/dashboard/owner/preview', detail: 'Test another user experience without changing account ownership.' },
     ],
   },
