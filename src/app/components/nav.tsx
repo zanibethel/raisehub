@@ -2,7 +2,9 @@ import { cookies } from 'next/headers'
 
 import { isDemoMode } from '@/lib/app-mode'
 import { getActiveDataEnvironment, recordMatchesEnvironment } from '@/lib/data-environment'
+import { resolveWorkspaceSelection } from '@/lib/rules/workspace-selection-rules'
 import { getAuthenticatedWorkspaces } from '@/lib/services/authenticated-workspace-service'
+import type { LegacyProfileRole } from '@/lib/types/identity-access'
 import { createClient } from '@/lib/supabase/server'
 import MobileNavEnhancements from './mobile-nav-enhancements'
 import NavClient from './nav-client'
@@ -67,11 +69,12 @@ export default async function Nav() {
     const workspaces = workspaceResult.success ? workspaceResult.workspaces : []
     const savedWorkspaceKey =
       (await cookies()).get(WORKSPACE_PREFERENCE_COOKIE)?.value.trim() || null
-    const selectedWorkspace =
-      workspaces.find((workspace) => workspace.key === savedWorkspaceKey) ??
-      workspaces.find((workspace) => workspace.isDefault) ??
-      workspaces[0] ??
-      null
+    const selectedWorkspace = resolveWorkspaceSelection({
+      requestedWorkspace: savedWorkspaceKey ?? undefined,
+      workspaces,
+      legacyRole:
+        (profile?.role as LegacyProfileRole | null | undefined) ?? null,
+    }).selectedWorkspace
 
     let logoUrl: string | null = null
     if (selectedWorkspace?.kind === 'business' && selectedWorkspace.legacyProfileId) {
