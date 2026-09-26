@@ -75,7 +75,7 @@ export async function POST() {
   try {
     const { data: period, error: periodError } = await admin
       .from('partner_reward_periods')
-      .select('id, starts_at, ends_at')
+      .select('id, starts_at, ends_at, rule_version')
       .eq('status', 'open')
       .maybeSingle()
 
@@ -194,6 +194,34 @@ export async function POST() {
       })
     }
 
+    // Maple is also the end-to-end Event Promotion showcase. Give this demo
+    // business enough demo-only eligible points to publish an event, redeem the
+    // 600-point promotion, and then switch to the Supporter demo to see the
+    // generated Spotlight. Production businesses never receive this seed credit.
+    if (maple?.id) {
+      const { error: eventPromotionCreditError } = await admin
+        .from('partner_point_events')
+        .insert({
+          business_id: maple.id,
+          reward_period_id: period.id,
+          event_type: 'demo_event_promotion_showcase',
+          points: 700,
+          eligibility_status: 'eligible',
+          source_type: 'demo_seed',
+          source_id: maple.id,
+          idempotency_key: `demo:event-promotion-showcase:${period.id}:${maple.id}`,
+          rule_version: period.rule_version,
+          metadata: {
+            demo_only: true,
+            scenario: 'event_promotion_spotlight',
+          },
+          is_demo: true,
+          demo_group: LAKEVIEW_DEMO_GROUP_KEY,
+        })
+
+      if (eventPromotionCreditError) throw eventPromotionCreditError
+    }
+
     const { data: totals, error: totalsError } = await admin
       .from('partner_point_events')
       .select('business_id, points')
@@ -220,6 +248,7 @@ export async function POST() {
         businessName: business.name,
         points: pointsByBusiness.get(business.id) ?? 0,
         profileCompletionTest: business.name === 'Maple Street Coffee Co.',
+        eventPromotionSpotlightTest: business.name === 'Maple Street Coffee Co.',
         marketplaceSpendTest: business.name === 'BrightSide Home Services',
       })),
       reconciliation,
