@@ -195,6 +195,9 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
   })
   const offerPreview = props.offers.slice(0, 6)
   const shareHref = activeOffer ? `/offers/${activeOffer.id}` : '/dashboard/offers'
+  const websiteBuilderHref = props.businessId
+    ? `/dashboard/business/website?business=${encodeURIComponent(props.businessId)}`
+    : '/dashboard/business/website'
 
   const profileComplete = Boolean(
     props.profile?.business_name &&
@@ -284,7 +287,7 @@ export default function BusinessCommandCenter({ rewardsSummary, ...props }: Prop
           <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             <QuickAction href="/dashboard/offers#create-offer" title="Create Offer" tone="green" icon={<TagIcon />} />
             <QuickAction href="/dashboard/offers" title="Manage Offers" tone="blue" icon={<StoreIcon />} />
-            <QuickAction href="/dashboard/business/website" title="Website & App Builder" tone="green" icon={<WebsiteIcon />} />
+            <QuickAction href={websiteBuilderHref} title="Website & App Builder" tone="green" icon={<WebsiteIcon />} />
             <QuickAction href="/dashboard/reports" title="View Performance" tone="violet" icon={<ChartIcon />} />
             <QuickAction href={shareHref} title="Share Your Deals" tone="amber" icon={<ShareIcon />} />
           </div>
