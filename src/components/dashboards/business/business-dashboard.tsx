@@ -123,6 +123,19 @@ export default async function BusinessDashboard({
 
   if (!user) return null
 
+  const finalizeDueRedemptionsPromise = (async () => {
+    const admin = createAdminClient()
+
+    try {
+      await (admin as any).rpc('finalize_due_redemptions')
+    } catch (error) {
+      console.error(
+        'Unable to finalize due redemptions without blocking dashboard:',
+        error
+      )
+    }
+  })()
+
   const requestedBusinessId = businessId?.trim() || null
   const requestedLegacyProfileId = businessLegacyProfileId?.trim() || null
 
@@ -178,13 +191,6 @@ export default async function BusinessDashboard({
     profile = profileFromCanonicalBusiness(canonicalBusiness)
   }
 
-  const admin = createAdminClient()
-  try {
-    await (admin as any).rpc('finalize_due_redemptions')
-  } catch (error) {
-    console.error('Unable to finalize due redemptions without blocking dashboard:', error)
-  }
-
   const lifecycle = canonicalBusiness
   const canonicalBusinessId = lifecycle?.id ?? requestedBusinessId
   const isGrowthPlan = lifecycle?.subscription_tier === 'growth'
@@ -200,84 +206,105 @@ export default async function BusinessDashboard({
     }
   }
 
-  const [rewardsResult, payoutResult] = await Promise.allSettled([
-    getPartnerRewardsSummary(canonicalBusinessId),
-    getBusinessPayoutStatus(canonicalBusinessId, {
-      refreshStripe: view === 'rewards',
-    }),
-  ])
-
-  const rewardsSummary =
-    rewardsResult.status === 'fulfilled'
-      ? rewardsResult.value
-      : await getPartnerRewardsSummary(null)
-  const payoutStatus = payoutResult.status === 'fulfilled' ? payoutResult.value : null
-
-  if (rewardsResult.status === 'rejected') {
-    console.error('Unable to load Partner Rewards without blocking dashboard:', rewardsResult.reason)
-  }
-  if (payoutResult.status === 'rejected') {
-    console.error('Unable to load payout status without blocking dashboard:', payoutResult.reason)
-  }
-
-  const { data: verification } = canonicalBusinessId
-    ? await (supabase as any)
-        .from('business_verifications')
-        .select('status')
-        .eq('business_id', canonicalBusinessId)
-        .maybeSingle()
-    : { data: null }
-
   const offerBusinessIds = [
     canonicalBusinessId,
     legacyProfileId,
     !canonicalBusinessId && !legacyProfileId ? user.id : null,
   ].filter((value): value is string => Boolean(value))
 
-  const { data: offers } = offerBusinessIds.length
-    ? await supabase
+  const rewardsPromise = getPartnerRewardsSummary(canonicalBusinessId)
+  const payoutPromise = getBusinessPayoutStatus(canonicalBusinessId, {
+    refreshStripe: view === 'rewards',
+  })
+  const verificationPromise = canonicalBusinessId
+    ? (supabase as any)
+        .from('business_verifications')
+        .select('status')
+        .eq('business_id', canonicalBusinessId)
+        .maybeSingle()
+    : Promise.resolve({ data: null })
+  const offersPromise = offerBusinessIds.length
+    ? supabase
         .from('offers')
         .select('*')
         .in('business_id', offerBusinessIds)
         .order('created_at', { ascending: false })
-    : { data: [] }
+    : Promise.resolve({ data: [] })
+
+  const [[rewardsResult, payoutResult], verificationResult, offersResult] =
+    await Promise.all([
+      Promise.allSettled([rewardsPromise, payoutPromise]),
+      verificationPromise,
+      offersPromise,
+    ])
+
+  const rewardsSummary =
+    rewardsResult.status === 'fulfilled'
+      ? rewardsResult.value
+      : await getPartnerRewardsSummary(null)
+  const payoutStatus =
+    payoutResult.status === 'fulfilled' ? payoutResult.value : null
+  const verification = verificationResult.data
+  const offers = offersResult.data
+
+  if (rewardsResult.status === 'rejected') {
+    console.error(
+      'Unable to load Partner Rewards without blocking dashboard:',
+      rewardsResult.reason
+    )
+  }
+  if (payoutResult.status === 'rejected') {
+    console.error(
+      'Unable to load payout status without blocking dashboard:',
+      payoutResult.reason
+    )
+  }
 
   const offerIds = (offers ?? []).map((offer) => offer.id)
 
   let viewCount = 0
   let clickCount = 0
+  let redemptionData: RedemptionRow[] = []
 
   if (offerIds.length > 0) {
-    const { count: views } = await supabase
+    const viewsPromise = supabase
       .from('offer_views')
       .select('*', { count: 'exact', head: true })
       .in('offer_id', offerIds)
-
-    const { count: clicks } = await supabase
+    const clicksPromise = supabase
       .from('offer_clicks')
       .select('*', { count: 'exact', head: true })
       .in('offer_id', offerIds)
 
-    viewCount = views ?? 0
-    clickCount = clicks ?? 0
+    // The maintenance RPC started near the top of the request. Waiting here
+    // preserves fresh redemption state without putting it in the initial
+    // authorization/profile critical path.
+    await finalizeDueRedemptionsPromise
+
+    const [viewsResult, clicksResult, redemptionResult] = await Promise.all([
+      viewsPromise,
+      clicksPromise,
+      (supabase as any)
+        .from('redemptions')
+        .select(
+          'id, offer_id, user_id, created_at, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, status, auto_confirm_at, confirmed_at, rejected_at, rejection_reason'
+        )
+        .in('offer_id', offerIds)
+        .in('status', ['pending', 'confirmed', 'rejected'])
+        .order('created_at', { ascending: false }),
+    ])
+
+    viewCount = viewsResult.count ?? 0
+    clickCount = clicksResult.count ?? 0
+    redemptionData = (redemptionResult.data ?? []) as RedemptionRow[]
+  } else {
+    await finalizeDueRedemptionsPromise
   }
 
   const conversionRate =
     viewCount > 0 ? ((clickCount / viewCount) * 100).toFixed(1) : '0'
 
-  const { data: redemptionData } =
-    offerIds.length > 0
-      ? await (supabase as any)
-          .from('redemptions')
-          .select(
-            'id, offer_id, user_id, created_at, offer_title_snapshot, benefit_snapshot, customer_value_snapshot, usage_rule_snapshot, confirmation_method, status, auto_confirm_at, confirmed_at, rejected_at, rejection_reason'
-          )
-          .in('offer_id', offerIds)
-          .in('status', ['pending', 'confirmed', 'rejected'])
-          .order('created_at', { ascending: false })
-      : { data: [] }
-
-  const redemptionActivity = (redemptionData ?? []) as RedemptionRow[]
+  const redemptionActivity = redemptionData
   const confirmedRedemptions = redemptionActivity.filter(
     (redemption) => redemption.status === 'confirmed'
   )
