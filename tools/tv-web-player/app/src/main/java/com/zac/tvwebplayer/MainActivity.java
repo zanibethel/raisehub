@@ -295,6 +295,7 @@ public class MainActivity extends Activity {
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
+                "Update WebPortal",
                 "Exit"
         };
 
@@ -334,6 +335,9 @@ public class MainActivity extends Activity {
                     Toast.makeText(this, "Website data cleared.", Toast.LENGTH_SHORT).show();
                     break;
                 case 5:
+                    openUpdateDownload();
+                    break;
+                case 6:
                     finish();
                     break;
                 default:
@@ -343,6 +347,20 @@ public class MainActivity extends Activity {
 
         dialog.setOnDismissListener(d -> webView.requestFocus());
         dialog.show();
+    }
+
+    private void openUpdateDownload() {
+        try {
+            Intent updateIntent = new Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://raisehub.app/webportal"));
+            startActivity(updateIntent);
+        } catch (Exception ignored) {
+            Toast.makeText(
+                    this,
+                    "Could not open the WebPortal update download.",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private void playCurrentPageVideo() {
