@@ -40,6 +40,7 @@ export default function WebPortalAdvertiseCheckout() {
   const [contactEmail, setContactEmail] = useState('')
   const [adText, setAdText] = useState('')
   const [destinationUrl, setDestinationUrl] = useState('')
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -49,16 +50,17 @@ export default function WebPortalAdvertiseCheckout() {
     setLoading(true)
 
     try {
+      const formData = new FormData()
+      formData.set('planCode', planCode)
+      formData.set('businessName', businessName)
+      formData.set('contactEmail', contactEmail)
+      formData.set('adText', adText)
+      formData.set('destinationUrl', destinationUrl)
+      if (logoFile) formData.set('logo', logoFile)
+
       const response = await fetch('/api/webportal/advertise/checkout', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          planCode,
-          businessName,
-          contactEmail,
-          adText,
-          destinationUrl,
-        }),
+        body: formData,
       })
 
       const data = (await response.json()) as {
@@ -167,6 +169,22 @@ export default function WebPortalAdvertiseCheckout() {
             placeholder="you@business.com"
             className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
+        </div>
+
+        <div>
+          <label htmlFor="webportal-ad-logo" className="mb-2 block text-sm font-black text-slate-800">
+            Business logo <span className="font-bold text-slate-400">(optional)</span>
+          </label>
+          <input
+            id="webportal-ad-logo"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
+            className="block w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:font-black file:text-white"
+          />
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            PNG, JPG, WebP, or GIF up to 5 MB. Your logo will appear on the left side of the TV ad. If omitted, WebPortal uses a clean initials badge.
+          </p>
         </div>
 
         <div>
