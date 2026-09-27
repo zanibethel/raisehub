@@ -140,7 +140,7 @@ export function WorkspaceShell({ children, bottomNavigation = [], identity, topB
   const bottomNavigationVisible = navigationVisible || bottomNavigationPinned
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white pb-24 sm:pb-10">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-slate-50 to-white pb-28 sm:pb-10">
       {topBar ? (
         <div
           className={`sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none ${
@@ -160,44 +160,46 @@ export function WorkspaceShell({ children, bottomNavigation = [], identity, topB
 
       {bottomNavigation.length > 0 ? (
         <div
-          className={`fixed inset-x-0 bottom-0 z-40 transition-transform duration-200 ease-out motion-reduce:transition-none sm:hidden ${
+          className={`pointer-events-none fixed inset-x-0 bottom-0 z-40 transition-transform duration-200 ease-out motion-reduce:transition-none sm:hidden ${
             bottomNavigationVisible ? 'translate-y-0' : 'translate-y-[calc(100%+1rem)]'
           }`}
         >
-          <div className="pointer-events-none mx-auto flex max-w-xl justify-end px-3">
+          <div className="mx-auto flex max-w-xl justify-end px-4">
             <button
               type="button"
               onClick={toggleBottomNavigationPin}
               aria-pressed={bottomNavigationPinned}
-              className="pointer-events-auto mb-1 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 text-xs font-bold text-slate-700 shadow-md backdrop-blur transition hover:bg-slate-50"
+              className="pointer-events-auto mb-1 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/95 px-3 text-xs font-bold text-slate-700 shadow-md backdrop-blur transition hover:bg-slate-50"
             >
               <span aria-hidden="true">{bottomNavigationPinned ? '📌' : '○'}</span>
               {bottomNavigationPinned ? 'Pinned' : 'Pin navigation'}
             </button>
           </div>
 
-          <nav
-            aria-label="Workspace navigation"
-            className="border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.09)] backdrop-blur"
-          >
-            <div className="mx-auto grid max-w-xl grid-flow-col auto-cols-fr">
-              {bottomNavigation.map((item) => {
-                const classes = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition ${item.active ? 'bg-green-50 text-green-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`
-                const content = (
-                  <>
-                    <span className="flex h-5 w-5 items-center justify-center" aria-hidden="true">{item.icon}</span>
-                    <span className="truncate">{item.label}</span>
-                  </>
-                )
+          <div className="mx-auto max-w-xl px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <nav
+              aria-label="Workspace navigation"
+              className="pointer-events-auto overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/95 p-2 shadow-[0_12px_36px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            >
+              <div className="grid grid-flow-col auto-cols-fr">
+                {bottomNavigation.map((item) => {
+                  const classes = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-[1.35rem] px-1 text-[11px] font-semibold transition ${item.active ? 'bg-green-50 text-green-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`
+                  const content = (
+                    <>
+                      <span className="flex h-5 w-5 items-center justify-center" aria-hidden="true">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </>
+                  )
 
-                return item.onSelect ? (
-                  <button key={item.slot} type="button" onClick={item.onSelect} className={classes}>{content}</button>
-                ) : (
-                  <Link key={item.slot} href={item.href ?? '/dashboard'} aria-current={item.active ? 'page' : undefined} className={classes}>{content}</Link>
-                )
-              })}
-            </div>
-          </nav>
+                  return item.onSelect ? (
+                    <button key={item.slot} type="button" onClick={item.onSelect} className={classes}>{content}</button>
+                  ) : (
+                    <Link key={item.slot} href={item.href ?? '/dashboard'} aria-current={item.active ? 'page' : undefined} className={classes}>{content}</Link>
+                  )
+                })}
+              </div>
+            </nav>
+          </div>
         </div>
       ) : null}
     </div>
