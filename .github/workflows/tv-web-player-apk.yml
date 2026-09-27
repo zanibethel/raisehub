@@ -1,4 +1,4 @@
-name: Build TV Web Player APK
+name: Build WebPortal APK
 
 on:
   workflow_dispatch:
@@ -38,13 +38,13 @@ jobs:
         run: gradle :app:assembleDebug --stacktrace
 
       - name: Prepare APK
-        run: cp tools/tv-web-player/app/build/outputs/apk/debug/app-debug.apk TVWebPlayer.apk
+        run: cp tools/tv-web-player/app/build/outputs/apk/debug/app-debug.apk WebPortal.apk
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TVWebPlayer-apk
-          path: TVWebPlayer.apk
+          name: WebPortal-apk
+          path: WebPortal.apk
           if-no-files-found: error
 
       - name: Publish stable download asset
@@ -52,8 +52,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view tv-web-player >/dev/null 2>&1; then
-            gh release upload tv-web-player TVWebPlayer.apk --clobber
+          if gh release view webportal >/dev/null 2>&1; then
+            gh release upload webportal WebPortal.apk --clobber
           else
-            gh release create tv-web-player TVWebPlayer.apk               --target "$GITHUB_SHA"               --title "TV Web Player"               --notes "Fire TV sideload build. Use https://raisehub.app/tvplayer for the permanent download address."
+            gh release create webportal WebPortal.apk               --target "$GITHUB_SHA"               --title "WebPortal"               --notes "Fire TV web browser/player. Use https://raisehub.app/webportal for the permanent download address."
           fi
