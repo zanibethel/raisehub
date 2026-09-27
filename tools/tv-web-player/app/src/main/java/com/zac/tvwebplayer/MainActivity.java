@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -71,6 +72,8 @@ public class MainActivity extends Activity {
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
+    private WebPortalAdBanner adBanner;
+    private int adBannerInsetPx;
 
     private final class WebPortalBridge {
         @JavascriptInterface
@@ -80,9 +83,14 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active) {
-        if (webPlayerMode == active) return;
+        if (webPlayerMode == active) {
+            setAdBannerVisible(!active && customView == null);
+            return;
+        }
 
         webPlayerMode = active;
+        setAdBannerVisible(!active && customView == null);
+
         if (active) {
             installTvNavigation();
         } else if (customView == null) {
@@ -184,6 +192,7 @@ public class MainActivity extends Activity {
                     android.graphics.Bitmap favicon) {
                 webPlayerMode = false;
                 destroyTvNavigation();
+                setAdBannerVisible(true);
                 super.onPageStarted(view, url, favicon);
             }
 
@@ -241,10 +250,48 @@ public class MainActivity extends Activity {
             }
         });
 
-        root.addView(webView, new FrameLayout.LayoutParams(
+        adBannerInsetPx = dp(116);
+
+        FrameLayout.LayoutParams webParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+                ViewGroup.LayoutParams.MATCH_PARENT);
+        webParams.bottomMargin = adBannerInsetPx;
+        root.addView(webView, webParams);
+
+        adBanner = new WebPortalAdBanner(
+                this,
+                this::openBannerDestination);
+        FrameLayout.LayoutParams bannerParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(108));
+        bannerParams.gravity = Gravity.BOTTOM;
+        bannerParams.setMargins(dp(8), 0, dp(8), dp(8));
+        root.addView(adBanner, bannerParams);
+
         webView.requestFocus();
+    }
+
+    private void openBannerDestination(String url) {
+        if (url == null || url.trim().isEmpty()) return;
+        loadUrl(url);
+    }
+
+    private void setAdBannerVisible(boolean visible) {
+        if (adBanner == null || webView == null) return;
+
+        adBanner.setVisibility(visible ? View.VISIBLE : View.GONE);
+
+        ViewGroup.LayoutParams rawParams = webView.getLayoutParams();
+        if (rawParams instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams params =
+                    (FrameLayout.LayoutParams) rawParams;
+            int desiredBottomMargin =
+                    visible ? adBannerInsetPx : 0;
+            if (params.bottomMargin != desiredBottomMargin) {
+                params.bottomMargin = desiredBottomMargin;
+                webView.setLayoutParams(params);
+            }
+        }
     }
 
     private void applyUserAgent() {
@@ -858,6 +905,7 @@ public class MainActivity extends Activity {
 
         customView = view;
         customViewCallback = callback;
+        setAdBannerVisible(false);
         webView.setVisibility(View.GONE);
         root.addView(customView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -871,11 +919,15 @@ public class MainActivity extends Activity {
         if (customView == null) return;
 
         webView.evaluateJavascript(
-                "(function(){if(window.__webPortalTV&&window.__webPortalTV.destroy){window.__webPortalTV.destroy();}})()",
+                "(function(){var v=document.querySelector('video');"
+                        + "if(v&&!v.paused)try{v.pause();}catch(e){}"
+                        + "if(window.__webPortalTV&&window.__webPortalTV.destroy){window.__webPortalTV.destroy();}})()",
                 null);
 
         root.removeView(customView);
         customView = null;
+        webPlayerMode = false;
+        setAdBannerVisible(true);
         webView.setVisibility(View.VISIBLE);
         webView.requestFocus();
 
@@ -909,7 +961,7 @@ public class MainActivity extends Activity {
     private void installPlayerModeMonitor() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalPlayerMonitorVersion===1){"
+                + "if(window.__webPortalPlayerMonitorVersion===2){"
                 + "if(window.__webPortalReportPlayerMode)window.__webPortalReportPlayerMode();return;}"
                 + "var last=null;"
                 + "function visibleVideo(v){if(!v||!v.getBoundingClientRect)return false;"
@@ -922,20 +974,35 @@ public class MainActivity extends Activity {
                 + "var playing=!v.paused&&!v.ended;"
                 + "var started=(v.currentTime||0)>.15;"
                 + "return large&&(playing||started||v.controls);}"
-                + "function detect(){if(document.fullscreenElement)return true;"
-                + "var videos=document.querySelectorAll('video');"
-                + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return true;}"
-                + "return false;}"
-                + "function report(){var active=detect();if(active===last)return;last=active;"
+                + "function activeVideo(){var videos=document.querySelectorAll('video');"
+                + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return videos[i];}"
+                + "return null;}"
+                + "function autoOpen(v){if(!v||document.fullscreenElement)return;"
+                + "var source=v.currentSrc||v.src||'__webportal_video__';"
+                + "if(v.__webPortalAutoOpenedSource===source)return;"
+                + "v.__webPortalAutoOpenedSource=source;"
+                + "var target=v,p=v.parentElement;"
+                + "if(p&&p.getBoundingClientRect){var vr=v.getBoundingClientRect(),pr=p.getBoundingClientRect();"
+                + "if(pr.width<=vr.width*1.3&&pr.height<=vr.height*1.7&&pr.width>=vr.width*.9)target=p;}"
+                + "window.__webPortalAllowFullscreenUntil=Date.now()+2500;"
+                + "try{var request=target.requestFullscreen||target.webkitRequestFullscreen;"
+                + "if(request){var result=request.call(target);if(result&&result.catch)result.catch(function(){});}"
+                + "else if(v.webkitEnterFullscreen){v.webkitEnterFullscreen();}}catch(e){}}"
+                + "function report(){var v=activeVideo();var active=!!document.fullscreenElement||!!v;"
+                + "if(v&&!document.fullscreenElement)autoOpen(v);"
+                + "if(active===last)return;last=active;"
                 + "try{WebPortalBridge.setPlayerMode(active);}catch(e){}}"
                 + "window.__webPortalReportPlayerMode=report;"
-                + "window.__webPortalPlayerMonitorVersion=1;"
-                + "['play','pause','ended','loadedmetadata','loadeddata','fullscreenchange'].forEach(function(name){"
+                + "window.__webPortalPlayerMonitorVersion=2;"
+                + "document.addEventListener('play',function(event){var v=event.target;"
+                + "if(v&&String(v.tagName).toLowerCase()==='video'&&isPlayerVideo(v))autoOpen(v);"
+                + "setTimeout(report,20);},true);"
+                + "['pause','ended','loadedmetadata','loadeddata','fullscreenchange'].forEach(function(name){"
                 + "document.addEventListener(name,function(){setTimeout(report,40);},true);});"
                 + "window.addEventListener('resize',function(){setTimeout(report,40);});"
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalPlayerMonitorTimer);"
                 + "window.__webPortalPlayerMonitorTimer=setTimeout(report,100);});"
-                + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','controls']});"
+                + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','controls','src']});"
                 + "window.__webPortalPlayerMonitorInterval=setInterval(report,500);"
                 + "report();"
                 + "})();";
