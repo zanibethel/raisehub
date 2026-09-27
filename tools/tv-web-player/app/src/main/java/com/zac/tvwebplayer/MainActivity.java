@@ -130,6 +130,7 @@ public class MainActivity extends Activity {
                         ViewGroup.LayoutParams.MATCH_PARENT));
                 hideSystemUi();
                 customView.requestFocus();
+                webView.postDelayed(() -> installTvNavigation(), 120);
             }
 
             @Override
@@ -417,81 +418,116 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalTV&&window.__webPortalTV.version===1){window.__webPortalTV.refresh();return;}"
+                + "if(window.__webPortalTV&&window.__webPortalTV.version===3){window.__webPortalTV.refresh();return;}"
                 + "var STYLE_ID='webportal-tv-focus-style';"
                 + "var FOCUS_CLASS='webportal-tv-focused';"
-                + "var SELECTOR='a[href],button,input:not([type=hidden]),select,textarea,summary,video,audio,[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]';"
+                + "var SELECTOR='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]';"
+                + "var controlsMode=false;"
                 + "function allRoots(root,out){out.push(root);var nodes=root.querySelectorAll?root.querySelectorAll('*'):[];for(var i=0;i<nodes.length;i++){if(nodes[i].shadowRoot)allRoots(nodes[i].shadowRoot,out);}return out;}"
+                + "function visible(el){if(!el||!el.getBoundingClientRect)return false;var st=getComputedStyle(el),r=el.getBoundingClientRect();return !el.disabled&&el.getAttribute('aria-disabled')!=='true'&&el.getAttribute('aria-hidden')!=='true'&&st.display!=='none'&&st.visibility!=='hidden'&&st.pointerEvents!=='none'&&parseFloat(st.opacity||'1')>0&&r.width>=2&&r.height>=2;}"
                 + "function candidates(){"
-                + "var roots=allRoots(document,[]),seen=new Set(),out=[];"
+                + "var base=document.fullscreenElement||document;"
+                + "var roots=allRoots(base,[]),seen=new Set(),out=[];"
                 + "for(var r=0;r<roots.length;r++){"
                 + "var items=roots[r].querySelectorAll?roots[r].querySelectorAll(SELECTOR):[];"
-                + "for(var i=0;i<items.length;i++){var el=items[i];if(seen.has(el))continue;seen.add(el);"
-                + "var st=getComputedStyle(el),rect=el.getBoundingClientRect();"
-                + "if(el.disabled||el.getAttribute('aria-disabled')==='true'||el.getAttribute('aria-hidden')==='true')continue;"
-                + "if(st.display==='none'||st.visibility==='hidden'||parseFloat(st.opacity||'1')===0||rect.width<2||rect.height<2)continue;"
+                + "for(var i=0;i<items.length;i++){var el=items[i];if(seen.has(el)||!visible(el))continue;seen.add(el);"
                 + "if(!el.hasAttribute('tabindex')||parseInt(el.getAttribute('tabindex')||'0',10)<0){el.setAttribute('tabindex','0');el.setAttribute('data-webportal-tab','1');}"
                 + "out.push(el);}"
                 + "var pointer=roots[r].querySelectorAll?roots[r].querySelectorAll('svg,[class*=icon i],[class*=button i],[class*=control i]'):[];"
-                + "for(var p=0;p<pointer.length;p++){var icon=pointer[p],host=icon.closest?icon.closest('button,a,[role=button],[role=link],[onclick],[tabindex]'):null;if(host&&!seen.has(host)){seen.add(host);var hs=getComputedStyle(host),hr=host.getBoundingClientRect();if(hs.display!=='none'&&hs.visibility!=='hidden'&&hr.width>=2&&hr.height>=2){if(!host.hasAttribute('tabindex')||parseInt(host.getAttribute('tabindex')||'0',10)<0)host.setAttribute('tabindex','0');out.push(host);}}}"
+                + "for(var p=0;p<pointer.length;p++){var icon=pointer[p],host=icon.closest?icon.closest('button,a,[role=button],[role=link],[onclick],[tabindex]'):null;if(host&&!seen.has(host)&&visible(host)){seen.add(host);if(!host.hasAttribute('tabindex')||parseInt(host.getAttribute('tabindex')||'0',10)<0)host.setAttribute('tabindex','0');out.push(host);}}"
                 + "}return out;}"
-                + "function clearMark(){var old=document.querySelectorAll('.'+FOCUS_CLASS);for(var i=0;i<old.length;i++)old[i].classList.remove(FOCUS_CLASS);}"
-                + "function mark(el){clearMark();if(!el)return;el.classList.add(FOCUS_CLASS);try{el.focus({preventScroll:true});}catch(e){el.focus();}try{el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});}catch(e2){el.scrollIntoView(false);}}"
+                + "function marked(){var roots=allRoots(document,[]);for(var i=0;i<roots.length;i++){var m=roots[i].querySelector?roots[i].querySelector('.'+FOCUS_CLASS):null;if(m)return m;}return null;}"
+                + "function clearMark(){var roots=allRoots(document,[]);for(var r=0;r<roots.length;r++){var old=roots[r].querySelectorAll?roots[r].querySelectorAll('.'+FOCUS_CLASS):[];for(var i=0;i<old.length;i++)old[i].classList.remove(FOCUS_CLASS);}var a=document.activeElement;if(a&&a.blur)try{a.blur();}catch(e){}}"
+                + "function mark(el){clearMark();if(!el)return;el.classList.add(FOCUS_CLASS);try{el.focus({preventScroll:true});}catch(e){try{el.focus();}catch(e2){}}try{el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});}catch(e3){try{el.scrollIntoView(false);}catch(e4){}}}"
                 + "function refresh(){"
                 + "if(!document.getElementById(STYLE_ID)){var s=document.createElement('style');s.id=STYLE_ID;s.textContent='.'+FOCUS_CLASS+'{outline:4px solid #6EE7F9 !important;outline-offset:3px !important;box-shadow:0 0 0 2px rgba(11,18,32,.85),0 0 14px rgba(110,231,249,.85) !important;}';(document.head||document.documentElement).appendChild(s);}"
                 + "candidates();}"
+                + "function wakeControls(){"
+                + "var targets=[document.fullscreenElement,document.querySelector('video'),document.body,document.documentElement];"
+                + "for(var i=0;i<targets.length;i++){var t=targets[i];if(!t)continue;try{t.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:Math.floor(innerWidth/2),clientY:Math.max(1,innerHeight-40)}));}catch(e){}try{t.dispatchEvent(new Event('mouseover',{bubbles:true}));}catch(e2){}}"
+                + "}"
+                + "function hideControls(){controlsMode=false;clearMark();var t=document.fullscreenElement||document.querySelector('video')||document.body;try{t.dispatchEvent(new Event('mouseleave',{bubbles:true}));}catch(e){}try{t.dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:1,clientY:1}));}catch(e2){}return true;}"
+                + "function pickInitial(){var list=candidates();if(!list.length)return false;var best=null,bestScore=Infinity,cx=innerWidth/2,cy=innerHeight-80;for(var i=0;i<list.length;i++){var r=list[i].getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,score=Math.hypot(x-cx,y-cy);if(score<bestScore){bestScore=score;best=list[i];}}if(best){mark(best);return true;}return false;}"
+                + "function showControls(){controlsMode=true;wakeControls();setTimeout(function(){refresh();pickInitial();wakeControls();},80);return true;}"
                 + "function move(dir){"
-                + "var list=candidates();if(!list.length)return false;"
-                + "var cur=document.activeElement;"
-                + "if(!cur||cur===document.body||cur===document.documentElement||list.indexOf(cur)<0){list.sort(function(a,b){var ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();return (ar.top-br.top)||(ar.left-br.left);});mark(list[0]);return true;}"
-                + "var cr=cur.getBoundingClientRect(),cx=cr.left+cr.width/2,cy=cr.top+cr.height/2,best=null,bestScore=Infinity;"
+                + "wakeControls();var list=candidates();if(!list.length)return false;"
+                + "var cur=marked()||document.activeElement;"
+                + "var cx=innerWidth/2,cy=innerHeight-80;"
+                + "if(cur&&cur!==document.body&&cur!==document.documentElement&&list.indexOf(cur)>=0){var cr=cur.getBoundingClientRect();cx=cr.left+cr.width/2;cy=cr.top+cr.height/2;}"
+                + "var best=null,bestScore=Infinity;"
                 + "for(var i=0;i<list.length;i++){var el=list[i];if(el===cur)continue;var r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,dx=x-cx,dy=y-cy,primary=0,secondary=0;"
-                + "if(dir==='left'){if(dx>=-2)continue;primary=-dx;secondary=Math.abs(dy);}"
-                + "else if(dir==='right'){if(dx<=2)continue;primary=dx;secondary=Math.abs(dy);}"
-                + "else if(dir==='up'){if(dy>=-2)continue;primary=-dy;secondary=Math.abs(dx);}"
-                + "else {if(dy<=2)continue;primary=dy;secondary=Math.abs(dx);}"
-                + "var score=primary+(secondary*.45)+(secondary/Math.max(primary,1))*35;"
-                + "if(score<bestScore){bestScore=score;best=el;}}"
-                + "if(best){mark(best);return true;}return false;}"
-                + "function activate(){var el=document.activeElement;if(!el||el===document.body||el===document.documentElement){var list=candidates();if(list.length){mark(list[0]);return true;}return false;}try{el.click();return true;}catch(e){return false;}}"
+                + "if(dir==='left'){if(dx>=-2)continue;primary=-dx;secondary=Math.abs(dy);}else if(dir==='right'){if(dx<=2)continue;primary=dx;secondary=Math.abs(dy);}else if(dir==='up'){if(dy>=-2)continue;primary=-dy;secondary=Math.abs(dx);}else{if(dy<=2)continue;primary=dy;secondary=Math.abs(dx);}"
+                + "var score=primary+(secondary*.45)+(secondary/Math.max(primary,1))*35;if(score<bestScore){bestScore=score;best=el;}}"
+                + "if(!best){return true;}mark(best);return true;}"
+                + "function video(){return document.querySelector('video');}"
+                + "function togglePlay(){var v=video();if(!v)return false;try{if(v.paused)v.play();else v.pause();return true;}catch(e){return false;}}"
+                + "function seek(seconds){var v=video();if(!v||!isFinite(v.duration))return false;try{v.currentTime=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));return true;}catch(e){return false;}}"
+                + "function activate(){var el=marked();if(!el)return togglePlay();try{el.click();wakeControls();return true;}catch(e){return false;}}"
+                + "function playerKey(key){"
+                + "if(key==='up'||key==='down'){if(!controlsMode)return showControls();return move(key);}"
+                + "if(key==='left'){if(!controlsMode)return seek(-10);return move('left');}"
+                + "if(key==='right'){if(!controlsMode)return seek(10);return move('right');}"
+                + "if(key==='center'){if(!controlsMode)return togglePlay();return activate();}"
+                + "return false;}"
                 + "refresh();"
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalTVTimer);window.__webPortalTVTimer=setTimeout(refresh,120);});"
                 + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','role','tabindex','disabled','aria-hidden','aria-disabled']});"
-                + "window.__webPortalTV={version:1,refresh:refresh,move:move,activate:activate};"
+                + "window.__webPortalTV={version:3,refresh:refresh,move:move,activate:activate,playerKey:playerKey,showControls:showControls,hideControls:hideControls,controlsMode:function(){return controlsMode;}};"
                 + "})();";
         webView.evaluateJavascript(js, null);
     }
 
     private boolean handleTvNavigationKey(int keyCode) {
-        if (customView != null || webView == null) return false;
+        if (webView == null) return false;
 
-        String direction = null;
+        String key;
         switch (keyCode) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
-                direction = "left";
+                key = "left";
                 break;
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                direction = "right";
+                key = "right";
                 break;
             case KeyEvent.KEYCODE_DPAD_UP:
-                direction = "up";
+                key = "up";
                 break;
             case KeyEvent.KEYCODE_DPAD_DOWN:
-                direction = "down";
+                key = "down";
                 break;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
-                webView.evaluateJavascript(
-                        "window.__webPortalTV&&window.__webPortalTV.activate();",
-                        null);
-                return true;
+                key = "center";
+                break;
             default:
                 return false;
         }
 
+        if (customView != null) {
+            webView.evaluateJavascript(
+                    "window.__webPortalTV&&window.__webPortalTV.playerKey('" + key + "');",
+                    null);
+            return true;
+        }
+
+        if ("center".equals(key)) {
+            webView.evaluateJavascript(
+                    "window.__webPortalTV&&window.__webPortalTV.activate();",
+                    null);
+        } else {
+            webView.evaluateJavascript(
+                    "window.__webPortalTV&&window.__webPortalTV.move('" + key + "');",
+                    null);
+        }
+        return true;
+    }
+
+    private boolean clearFullscreenPlayerControls() {
+        if (customView == null || webView == null) return false;
         webView.evaluateJavascript(
-                "window.__webPortalTV&&window.__webPortalTV.move('" + direction + "');",
-                null);
+                "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return true;}return false;})()",
+                value -> {
+                    // The key event is consumed synchronously; this callback only updates visual state.
+                });
         return true;
     }
 
@@ -505,12 +541,40 @@ public class MainActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
     }
 
+    private boolean isDpadNavigationKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                || keyCode == KeyEvent.KEYCODE_DPAD_UP
+                || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                || keyCode == KeyEvent.KEYCODE_ENTER;
+    }
+
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (handleTvNavigationKey(keyCode)) {
-            return true;
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        boolean webHasNavigationFocus = webView != null
+                && (customView != null || webView.hasFocus());
+
+        if (webHasNavigationFocus && isDpadNavigationKey(keyCode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER)
+                        && event.getRepeatCount() > 0) {
+                    return true;
+                }
+                return handleTvNavigationKey(keyCode);
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
         }
 
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             showMenu();
             return true;
@@ -518,7 +582,13 @@ public class MainActivity extends Activity {
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (customView != null) {
-                exitCustomView();
+                webView.evaluateJavascript(
+                        "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return 'hidden';}return 'exit';})()",
+                        value -> {
+                            if ("\"exit\"".equals(value)) {
+                                runOnUiThread(this::exitCustomView);
+                            }
+                        });
                 return true;
             }
 
