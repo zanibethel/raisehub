@@ -2,11 +2,19 @@ package com.zac.tvwebplayer;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -39,6 +47,10 @@ public class MainActivity extends Activity {
     private static final String PREF_HOME = "home_url";
     private static final String PREF_MOBILE = "mobile_mode";
     private static final String PREF_SAVED_SITES = "saved_sites";
+    private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
+    private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
+    private static final String WEBPORTAL_APK_URL =
+            "https://github.com/zanibethel/raisehub/releases/download/webportal/WebPortal.apk";
     private static final int MAX_SAVED_SITES = 12;
 
     private FrameLayout root;
@@ -47,6 +59,22 @@ public class MainActivity extends Activity {
     private WebChromeClient.CustomViewCallback customViewCallback;
     private String defaultUserAgent;
     private String currentPageUrl;
+    private long pendingUpdateDownloadId = -1L;
+    private boolean updateReceiverRegistered;
+
+    private final BroadcastReceiver updateDownloadReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(intent.getAction())) return;
+
+            long downloadId = intent.getLongExtra(
+                    DownloadManager.EXTRA_DOWNLOAD_ID,
+                    -1L);
+            if (downloadId != pendingUpdateDownloadId) return;
+
+            installDownloadedUpdate(downloadId);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +82,10 @@ public class MainActivity extends Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         hideSystemUi();
+
+        pendingUpdateDownloadId =
+                prefs().getLong(PREF_PENDING_UPDATE_DOWNLOAD, -1L);
+        registerUpdateReceiver();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -431,15 +463,204 @@ public class MainActivity extends Activity {
     }
 
     private void openUpdateDownload() {
-        try {
-            Intent updateIntent = new Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse("https://raisehub.app/webportal"));
-            startActivity(updateIntent);
-        } catch (Exception ignored) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !getPackageManager().canRequestPackageInstalls()) {
+            prefs().edit()
+                    .putBoolean(PREF_UPDATE_PERMISSION_PENDING, true)
+                    .apply();
+
             Toast.makeText(
                     this,
-                    "Could not open the WebPortal update download.",
+                    "Enable Allow from this source for WebPortal, then return here.",
+                    Toast.LENGTH_LONG).show();
+
+            try {
+                Intent settingsIntent = new Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName()));
+                startActivity(settingsIntent);
+            } catch (Exception error) {
+                prefs().edit()
+                        .putBoolean(PREF_UPDATE_PERMISSION_PENDING, false)
+                        .apply();
+                Toast.makeText(
+                        this,
+                        "Could not open the install permission screen.",
+                        Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        beginUpdateDownload();
+    }
+
+    private void registerUpdateReceiver() {
+        if (updateReceiverRegistered) return;
+
+        IntentFilter filter = new IntentFilter(
+                DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                    updateDownloadReceiver,
+                    filter,
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(updateDownloadReceiver, filter);
+        }
+        updateReceiverRegistered = true;
+    }
+
+    private int getDownloadStatus(long downloadId) {
+        if (downloadId <= 0) return -1;
+
+        DownloadManager manager =
+                (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (manager == null) return -1;
+
+        DownloadManager.Query query = new DownloadManager.Query()
+                .setFilterById(downloadId);
+
+        try (Cursor cursor = manager.query(query)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int statusColumn = cursor.getColumnIndex(
+                        DownloadManager.COLUMN_STATUS);
+                if (statusColumn >= 0) return cursor.getInt(statusColumn);
+            }
+        } catch (Exception ignored) {
+        }
+
+        return -1;
+    }
+
+    private void beginUpdateDownload() {
+        if (pendingUpdateDownloadId > 0) {
+            int status = getDownloadStatus(pendingUpdateDownloadId);
+
+            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                installDownloadedUpdate(pendingUpdateDownloadId);
+                return;
+            }
+
+            if (status == DownloadManager.STATUS_PENDING
+                    || status == DownloadManager.STATUS_RUNNING
+                    || status == DownloadManager.STATUS_PAUSED) {
+                Toast.makeText(
+                        this,
+                        "WebPortal update is already downloading.",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            pendingUpdateDownloadId = -1L;
+            prefs().edit().remove(PREF_PENDING_UPDATE_DOWNLOAD).apply();
+        }
+
+        DownloadManager manager =
+                (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (manager == null) {
+            Toast.makeText(
+                    this,
+                    "Fire TV download service is unavailable.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            String fileName =
+                    "WebPortal-update-" + System.currentTimeMillis() + ".apk";
+
+            DownloadManager.Request request =
+                    new DownloadManager.Request(Uri.parse(WEBPORTAL_APK_URL))
+                            .setTitle("WebPortal update")
+                            .setDescription("Downloading the latest signed WebPortal release")
+                            .setMimeType("application/vnd.android.package-archive")
+                            .setNotificationVisibility(
+                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setAllowedOverMetered(true)
+                            .setAllowedOverRoaming(true)
+                            .setDestinationInExternalFilesDir(
+                                    this,
+                                    Environment.DIRECTORY_DOWNLOADS,
+                                    fileName);
+
+            pendingUpdateDownloadId = manager.enqueue(request);
+            prefs().edit()
+                    .putLong(
+                            PREF_PENDING_UPDATE_DOWNLOAD,
+                            pendingUpdateDownloadId)
+                    .apply();
+
+            Toast.makeText(
+                    this,
+                    "Downloading WebPortal update…",
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception error) {
+            Toast.makeText(
+                    this,
+                    "Could not start the WebPortal update download.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void installDownloadedUpdate(long downloadId) {
+        if (downloadId <= 0) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !getPackageManager().canRequestPackageInstalls()) {
+            prefs().edit()
+                    .putBoolean(PREF_UPDATE_PERMISSION_PENDING, true)
+                    .apply();
+            openUpdateDownload();
+            return;
+        }
+
+        DownloadManager manager =
+                (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (manager == null) return;
+
+        int status = getDownloadStatus(downloadId);
+        if (status != DownloadManager.STATUS_SUCCESSFUL) {
+            if (status == DownloadManager.STATUS_FAILED) {
+                pendingUpdateDownloadId = -1L;
+                prefs().edit().remove(PREF_PENDING_UPDATE_DOWNLOAD).apply();
+                Toast.makeText(
+                        this,
+                        "WebPortal update download failed. Try again.",
+                        Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        Uri apkUri = manager.getUriForDownloadedFile(downloadId);
+        if (apkUri == null) {
+            Toast.makeText(
+                    this,
+                    "The downloaded update could not be opened.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            Intent installIntent = new Intent(Intent.ACTION_VIEW);
+            installIntent.setDataAndType(
+                    apkUri,
+                    "application/vnd.android.package-archive");
+            installIntent.addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            pendingUpdateDownloadId = -1L;
+            prefs().edit()
+                    .remove(PREF_PENDING_UPDATE_DOWNLOAD)
+                    .remove(PREF_UPDATE_PERMISSION_PENDING)
+                    .apply();
+
+            startActivity(installIntent);
+        } catch (Exception error) {
+            Toast.makeText(
+                    this,
+                    "Could not open the Fire TV installer.",
                     Toast.LENGTH_LONG).show();
         }
     }
@@ -750,6 +971,25 @@ public class MainActivity extends Activity {
         super.onResume();
         if (webView != null) webView.onResume();
         hideSystemUi();
+
+        boolean waitingForInstallPermission =
+                prefs().getBoolean(PREF_UPDATE_PERMISSION_PENDING, false);
+
+        if (waitingForInstallPermission
+                && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                || getPackageManager().canRequestPackageInstalls())) {
+            prefs().edit()
+                    .putBoolean(PREF_UPDATE_PERMISSION_PENDING, false)
+                    .apply();
+            beginUpdateDownload();
+            return;
+        }
+
+        if (pendingUpdateDownloadId > 0
+                && getDownloadStatus(pendingUpdateDownloadId)
+                == DownloadManager.STATUS_SUCCESSFUL) {
+            installDownloadedUpdate(pendingUpdateDownloadId);
+        }
     }
 
     @Override
@@ -760,6 +1000,14 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (updateReceiverRegistered) {
+            try {
+                unregisterReceiver(updateDownloadReceiver);
+            } catch (Exception ignored) {
+            }
+            updateReceiverRegistered = false;
+        }
+
         if (webView != null) {
             webView.loadUrl("about:blank");
             webView.stopLoading();
