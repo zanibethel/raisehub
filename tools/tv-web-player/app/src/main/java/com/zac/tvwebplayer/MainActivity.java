@@ -263,8 +263,8 @@ public class MainActivity extends Activity {
                 this,
                 this::openBannerDestination);
         FrameLayout.LayoutParams bannerParams = new FrameLayout.LayoutParams(
-                dp(380),
-                dp(82));
+                dp(342),
+                dp(74));
         bannerParams.gravity = Gravity.BOTTOM | Gravity.END;
         bannerParams.setMargins(0, 0, dp(10), dp(10));
         root.addView(adBanner, bannerParams);
