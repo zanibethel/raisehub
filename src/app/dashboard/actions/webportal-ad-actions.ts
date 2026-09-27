@@ -252,6 +252,7 @@ export async function deactivateWebPortalAd(
     const ownerId = await requireOwner()
     const id = getOrderId(formData)
     const reason = getReviewNote(formData, true)
+    if (!reason) throw new Error('A deactivation reason is required.')
     const order = await fetchOrder(id)
 
     if (order.status !== 'active') {
