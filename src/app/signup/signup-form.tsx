@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import GoogleOAuthButton from '@/components/auth/google-oauth-button'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -176,7 +177,19 @@ export default function SignupForm({ campaigns = [] }: SignupFormProps) {
           </div>
         ) : null}
 
-        <form onSubmit={handleSignup} className="mt-8 space-y-4">
+        <div className="mt-8">
+          <GoogleOAuthButton destination={destination} disabled={loading} />
+        </div>
+
+        <div className="my-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-gray-200" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Or sign up with email
+          </span>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        <form onSubmit={handleSignup} className="space-y-4">
           <div>
             <label htmlFor="signup-email" className="mb-2 block text-sm font-medium text-gray-700">Email</label>
             <input id="signup-email" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />

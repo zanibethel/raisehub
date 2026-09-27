@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import GoogleOAuthButton from '@/components/auth/google-oauth-button'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -194,9 +195,24 @@ export default function OrganizationSignupPage() {
               </div>
             </div>
 
+            <div className="mt-6">
+              <GoogleOAuthButton
+                destination="/workspace/new/organization"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                Or sign up with email
+              </span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
             <form
               onSubmit={handleSignup}
-              className="mt-6 space-y-4"
+              className="space-y-4"
             >
               <div>
                 <label
