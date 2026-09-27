@@ -297,7 +297,7 @@ public class MainActivity extends Activity {
                 actions));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("TV Web Player")
+                .setTitle("WebPortal")
                 .setView(list)
                 .setNegativeButton("Close", null)
                 .create();
