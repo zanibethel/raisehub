@@ -35,6 +35,10 @@ function SupportIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><path d="M4 5h16v11H8l-4 4z" /><path d="M8 9h8M8 13h5" /></svg>
 }
 
+function WebPortalIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6"><circle cx="12" cy="12" r="8" /><path d="M12 4c2.4 2.2 3.8 4.9 3.8 8S14.4 17.8 12 20M12 4C9.6 6.2 8.2 8.9 8.2 12S9.6 17.8 12 20M4 12h16" /></svg>
+}
+
 function QuickAction({
   href,
   title,
@@ -111,6 +115,7 @@ export default async function OwnerCommandCenter({
     pendingVerificationsResult,
     campaignReviewsResult,
     supportResult,
+    webPortalAdsResult,
     health,
   ] = await Promise.all([
     admin
@@ -133,6 +138,10 @@ export default async function OwnerCommandCenter({
       .from('support_requests')
       .select('id', { count: 'exact', head: true })
       .in('status', ['open', 'in_progress']),
+    admin
+      .from('webportal_ad_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'paid_pending_review'),
     getOwnerOperationalHealth(),
   ])
 
@@ -144,13 +153,18 @@ export default async function OwnerCommandCenter({
   ).length
   const campaignReviewCount = Number(campaignReviewsResult.count ?? 0)
   const supportCount = Number(supportResult.count ?? 0)
+  const webPortalAdReviewCount = Number(webPortalAdsResult.count ?? 0)
   const healthCount =
     health.failedWebhooks24h +
     health.staleProcessingWebhooks +
     health.failedCheckouts24h +
     health.failedPayouts24h
   const totalAttention =
-    pendingVerificationCount + campaignReviewCount + supportCount + healthCount
+    pendingVerificationCount +
+    campaignReviewCount +
+    supportCount +
+    webPortalAdReviewCount +
+    healthCount
 
   const metrics = {
     businesses: platformMetrics?.businessCount ?? 0,
@@ -205,11 +219,12 @@ export default async function OwnerCommandCenter({
         <section>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Operate RaiseHub</p>
           <h2 className="mt-1 text-xl font-black text-slate-950">Quick Actions</h2>
-          <div className="mt-3 grid grid-cols-4 gap-2.5">
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
             <QuickAction href="/dashboard/owner/support" title="Find Account" tone="blue" icon={<SearchIcon />} />
             <QuickAction href="/dashboard/owner/campaign-reviews" title="Campaign Reviews" tone="violet" icon={<ReviewIcon />} />
             <QuickAction href="/dashboard/owner/business-verifications" title="Verify Business" tone="green" icon={<VerifyIcon />} />
             <QuickAction href="/dashboard/owner/support/requests" title="Support Queue" tone="amber" icon={<SupportIcon />} />
+            <QuickAction href="/dashboard/owner/webportal" title="WebPortal Ads" tone="blue" icon={<WebPortalIcon />} />
           </div>
         </section>
 
@@ -247,6 +262,13 @@ export default async function OwnerCommandCenter({
               description={supportCount > 0 ? 'Open or in-progress support requests need follow-up.' : 'No open support requests.'}
               count={supportCount}
               tone={supportCount > 0 ? 'blue' : 'green'}
+            />
+            <AttentionRow
+              href="/dashboard/owner/webportal"
+              title="WebPortal ad reviews"
+              description={webPortalAdReviewCount > 0 ? 'Paid WebPortal ads are waiting for Owner approval.' : 'No paid WebPortal ads are waiting for review.'}
+              count={webPortalAdReviewCount}
+              tone={webPortalAdReviewCount > 0 ? 'amber' : 'green'}
             />
             <AttentionRow
               href="/dashboard/owner/health"
