@@ -175,8 +175,11 @@ async function handleAdCheckout(admin: any, event: Stripe.Event) {
 
   if (error) throw error
 
-  if (isWebPortalAdPlanCode(order.plan_code)) {
-    const plan = WEBPORTAL_AD_PLANS[order.plan_code]
+  const planCode =
+    typeof order.plan_code === 'string' ? order.plan_code : ''
+
+  if (isWebPortalAdPlanCode(planCode)) {
+    const plan = WEBPORTAL_AD_PLANS[planCode]
     const emailInput = {
       orderId: order.id,
       businessName: order.business_name,
