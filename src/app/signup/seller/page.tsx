@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import GoogleOAuthButton from '@/components/auth/google-oauth-button'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -102,7 +103,19 @@ export default function SellerSignupPage() {
             <h2 className="mt-2 text-2xl font-bold">Create a Seller Account</h2>
             <p className="mt-3 text-sm leading-6 text-gray-600">After confirming your email, RaiseHub will create your reusable seller profile and guide you to the correct organization roster.</p>
 
-            <form onSubmit={handleSignup} className="mt-6 space-y-4">
+            <div className="mt-6">
+              <GoogleOAuthButton destination={destination} disabled={loading} />
+            </div>
+
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                Or sign up with email
+              </span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <form onSubmit={handleSignup} className="space-y-4">
               <div>
                 <label htmlFor="seller-name" className="mb-2 block text-sm font-medium text-gray-700">Display name</label>
                 <input id="seller-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" required />
