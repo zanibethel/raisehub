@@ -78,8 +78,8 @@ public class WebPortalAdBanner extends LinearLayout {
 
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
-        int pad = dp(10);
-        setPadding(dp(18), pad, dp(18), pad);
+        int pad = dp(7);
+        setPadding(dp(9), pad, dp(10), pad);
         setFocusable(true);
         setFocusableInTouchMode(false);
         setClickable(true);
@@ -87,8 +87,8 @@ public class WebPortalAdBanner extends LinearLayout {
 
         qrView = new ImageView(context);
         qrView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        LayoutParams qrParams = new LayoutParams(dp(88), dp(88));
-        qrParams.setMarginEnd(dp(14));
+        LayoutParams qrParams = new LayoutParams(dp(64), dp(64));
+        qrParams.setMarginEnd(dp(9));
         addView(qrView, qrParams);
 
         LinearLayout copy = new LinearLayout(context);
@@ -97,18 +97,18 @@ public class WebPortalAdBanner extends LinearLayout {
 
         eyebrowView = new TextView(context);
         eyebrowView.setTextColor(Color.rgb(110, 231, 249));
-        eyebrowView.setTextSize(11f);
+        eyebrowView.setTextSize(9f);
         eyebrowView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         titleView = new TextView(context);
         titleView.setTextColor(Color.WHITE);
-        titleView.setTextSize(18f);
+        titleView.setTextSize(14f);
         titleView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         titleView.setMaxLines(1);
 
         messageView = new TextView(context);
         messageView.setTextColor(Color.rgb(226, 232, 240));
-        messageView.setTextSize(14f);
+        messageView.setTextSize(11f);
         messageView.setMaxLines(2);
 
         copy.addView(eyebrowView, new LayoutParams(
@@ -158,7 +158,7 @@ public class WebPortalAdBanner extends LinearLayout {
                 focused
                         ? Color.rgb(110, 231, 249)
                         : Color.rgb(51, 65, 85));
-        background.setCornerRadius(dp(12));
+        background.setCornerRadius(dp(10));
         return background;
     }
 
