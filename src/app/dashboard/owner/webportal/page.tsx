@@ -16,6 +16,7 @@ type WebPortalAdOrder = {
   contact_email: string
   ad_text: string
   destination_url: string
+  logo_url: string | null
   plan_code: string
   amount_cents: number
   duration_days: number
@@ -97,7 +98,7 @@ export default async function WebPortalOwnerAdminPage() {
     admin
       .from('webportal_ad_orders')
       .select(
-        'id, business_name, contact_email, ad_text, destination_url, plan_code, amount_cents, duration_days, recurring, status, purchased_at, approved_at, activated_at, ends_at, subscription_status, review_note, rejected_at, deactivated_at, created_at'
+        'id, business_name, contact_email, ad_text, destination_url, logo_url, plan_code, amount_cents, duration_days, recurring, status, purchased_at, approved_at, activated_at, ends_at, subscription_status, review_note, rejected_at, deactivated_at, created_at'
       )
       .order('created_at', { ascending: false })
       .limit(100),
@@ -253,8 +254,24 @@ export default async function WebPortalOwnerAdminPage() {
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">
                           TV banner preview
                         </p>
-                        <p className="mt-2 text-lg font-black">{order.ad_text}</p>
-                        <p className="mt-2 break-all text-xs text-slate-300">
+                        <div className="mt-3 flex items-center gap-3">
+                          {order.logo_url ? (
+                            <img
+                              src={order.logo_url}
+                              alt={`${order.business_name} logo`}
+                              className="h-14 w-14 shrink-0 rounded-xl border border-white/15 bg-white object-contain p-1"
+                            />
+                          ) : (
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-cyan-400/40 bg-cyan-400/10 text-lg font-black text-cyan-200">
+                              {order.business_name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-white">{order.business_name}</p>
+                            <p className="mt-1 text-lg font-black">{order.ad_text}</p>
+                          </div>
+                        </div>
+                        <p className="mt-3 break-all text-xs text-slate-300">
                           QR → {order.destination_url}
                         </p>
                       </div>
@@ -307,7 +324,14 @@ export default async function WebPortalOwnerAdminPage() {
                   key={order.id}
                   className="rounded-3xl border border-emerald-200 bg-white p-5 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {order.logo_url ? (
+                      <img
+                        src={order.logo_url}
+                        alt={`${order.business_name} logo`}
+                        className="h-10 w-10 rounded-lg border border-slate-200 bg-white object-contain p-1"
+                      />
+                    ) : null}
                     <h3 className="text-lg font-black text-slate-950">{order.business_name}</h3>
                     <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-800">
                       Active
