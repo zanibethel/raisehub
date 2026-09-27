@@ -520,8 +520,7 @@ public class MainActivity extends Activity {
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
-                "Update WebPortal",
-                "Exit"
+                "Update WebPortal"
         };
 
         TextView versionStatus = new TextView(this);
@@ -573,9 +572,6 @@ public class MainActivity extends Activity {
                     break;
                 case 5:
                     openUpdateDownload();
-                    break;
-                case 6:
-                    finish();
                     break;
                 default:
                     break;
@@ -2085,6 +2081,70 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
 
+    private String getSavedHomeUrl() {
+        return normalizeUrl(prefs().getString(PREF_HOME, ""));
+    }
+
+    private String normalizedHost(Uri uri) {
+        String host = uri == null ? null : uri.getHost();
+        if (host == null) return "";
+        host = host.toLowerCase(Locale.US);
+        return host.startsWith("www.") ? host.substring(4) : host;
+    }
+
+    private String normalizedPath(Uri uri) {
+        if (uri == null) return "/";
+        String path = uri.getPath();
+        if (path == null || path.trim().isEmpty()) return "/";
+        while (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
+    }
+
+    private boolean isAtSavedHome() {
+        String home = getSavedHomeUrl();
+        String current = currentPageUrl;
+
+        if ((current == null || current.trim().isEmpty()) && webView != null) {
+            current = webView.getUrl();
+        }
+
+        if (home == null || home.trim().isEmpty()
+                || current == null || current.trim().isEmpty()) {
+            return false;
+        }
+
+        try {
+            Uri homeUri = Uri.parse(home);
+            Uri currentUri = Uri.parse(current);
+
+            return normalizedHost(homeUri).equals(normalizedHost(currentUri))
+                    && normalizedPath(homeUri).equals(normalizedPath(currentUri));
+        } catch (Exception ignored) {
+            return home.equalsIgnoreCase(current);
+        }
+    }
+
+    private void navigateBackOrHome() {
+        if (webView == null) return;
+
+        if (isAtSavedHome()) {
+            webView.requestFocus();
+            return;
+        }
+
+        if (webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+
+        String home = getSavedHomeUrl();
+        if (home != null && !home.trim().isEmpty()) {
+            loadUrl(home);
+        }
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
@@ -2108,17 +2168,15 @@ public class MainActivity extends Activity {
                 webView.evaluateJavascript(
                         "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return true;}return false;})()",
                         value -> {
-                            if (!"true".equals(value) && webView.canGoBack()) {
-                                runOnUiThread(webView::goBack);
+                            if (!"true".equals(value)) {
+                                runOnUiThread(this::navigateBackOrHome);
                             }
                         });
                 return true;
             }
 
-            if (webView.canGoBack()) {
-                webView.goBack();
-                return true;
-            }
+            navigateBackOrHome();
+            return true;
         }
 
         return super.onKeyDown(keyCode, event);
