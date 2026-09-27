@@ -409,6 +409,29 @@ public class MainActivity extends Activity {
         input.requestFocus();
     }
 
+    private String installedVersionName() {
+        try {
+            android.content.pm.PackageInfo info =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            return info.versionName == null ? "unknown" : info.versionName;
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private long installedVersionCode() {
+        try {
+            android.content.pm.PackageInfo info =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return info.getLongVersionCode();
+            }
+            return info.versionCode;
+        } catch (Exception ignored) {
+            return -1L;
+        }
+    }
+
     private void showMenu() {
         String[] actions = {
                 "Home",
@@ -425,7 +448,7 @@ public class MainActivity extends Activity {
         versionStatus.setPadding(statusPad, dp(6), statusPad, dp(12));
         versionStatus.setTextSize(14f);
         versionStatus.setText(
-                "Installed: WebPortal " + BuildConfig.VERSION_NAME
+                "Installed: WebPortal " + installedVersionName()
                         + " · Checking for updates…");
 
         ListView list = new ListView(this);
@@ -505,17 +528,17 @@ public class MainActivity extends Activity {
                     JSONObject payload = new JSONObject(body.toString());
                     int latestCode = payload.optInt(
                             "versionCode",
-                            BuildConfig.VERSION_CODE);
+                            installedVersionCode());
                     String latestName = payload.optString(
                             "versionName",
-                            BuildConfig.VERSION_NAME);
+                            installedVersionName());
 
                     String status;
-                    if (latestCode > BuildConfig.VERSION_CODE) {
-                        status = "Installed: WebPortal " + BuildConfig.VERSION_NAME
+                    if (latestCode > installedVersionCode()) {
+                        status = "Installed: WebPortal " + installedVersionName()
                                 + " · Update available: " + latestName;
                     } else {
-                        status = "Installed: WebPortal " + BuildConfig.VERSION_NAME
+                        status = "Installed: WebPortal " + installedVersionName()
                                 + " · Up to date";
                     }
 
@@ -524,7 +547,7 @@ public class MainActivity extends Activity {
             } catch (Exception error) {
                 runOnUiThread(() ->
                         versionStatus.setText(
-                                "Installed: WebPortal " + BuildConfig.VERSION_NAME
+                                "Installed: WebPortal " + installedVersionName()
                                         + " · Update status unavailable"));
             } finally {
                 if (connection != null) connection.disconnect();
