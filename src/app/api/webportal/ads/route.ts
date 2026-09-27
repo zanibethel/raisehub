@@ -11,6 +11,7 @@ type WebPortalAdItem = {
   title: string
   message: string
   destinationUrl: string
+  logoUrl?: string | null
 }
 
 const HOUSE_ADS: WebPortalAdItem[] = [
@@ -44,7 +45,7 @@ export async function GET() {
 
   const { data, error } = await admin
     .from('webportal_ad_orders')
-    .select('id, business_name, ad_text, destination_url, ends_at, activated_at')
+    .select('id, business_name, ad_text, destination_url, logo_url, ends_at, activated_at')
     .eq('status', 'active')
     .order('activated_at', { ascending: true })
     .limit(50)
@@ -65,6 +66,10 @@ export async function GET() {
       title: String(row.business_name ?? 'Sponsored'),
       message: String(row.ad_text ?? ''),
       destinationUrl: String(row.destination_url ?? ''),
+      logoUrl:
+        typeof row.logo_url === 'string' && /^https?:\/\//i.test(row.logo_url)
+          ? row.logo_url
+          : null,
     }))
     .filter((item: WebPortalAdItem) => item.message && /^https?:\/\//i.test(item.destinationUrl))
 
