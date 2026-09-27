@@ -33,12 +33,42 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build debug APK
+      - name: Verify signing secrets
+        env:
+          WEBPORTAL_KEYSTORE_BASE64: ${{ secrets.WEBPORTAL_KEYSTORE_BASE64 }}
+          WEBPORTAL_KEYSTORE_PASSWORD: ${{ secrets.WEBPORTAL_KEYSTORE_PASSWORD }}
+          WEBPORTAL_KEY_ALIAS: ${{ secrets.WEBPORTAL_KEY_ALIAS }}
+          WEBPORTAL_KEY_PASSWORD: ${{ secrets.WEBPORTAL_KEY_PASSWORD }}
+        run: |
+          test -n "$WEBPORTAL_KEYSTORE_BASE64"
+          test -n "$WEBPORTAL_KEYSTORE_PASSWORD"
+          test -n "$WEBPORTAL_KEY_ALIAS"
+          test -n "$WEBPORTAL_KEY_PASSWORD"
+
+      - name: Restore permanent signing key
+        env:
+          WEBPORTAL_KEYSTORE_BASE64: ${{ secrets.WEBPORTAL_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$WEBPORTAL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/webportal-release.jks"
+          test -s "$RUNNER_TEMP/webportal-release.jks"
+
+      - name: Build permanently signed release APK
         working-directory: tools/tv-web-player
-        run: gradle :app:assembleDebug --stacktrace
+        env:
+          WEBPORTAL_KEYSTORE_PATH: ${{ runner.temp }}/webportal-release.jks
+          WEBPORTAL_KEYSTORE_PASSWORD: ${{ secrets.WEBPORTAL_KEYSTORE_PASSWORD }}
+          WEBPORTAL_KEY_ALIAS: ${{ secrets.WEBPORTAL_KEY_ALIAS }}
+          WEBPORTAL_KEY_PASSWORD: ${{ secrets.WEBPORTAL_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --stacktrace
 
       - name: Prepare APK
-        run: cp tools/tv-web-player/app/build/outputs/apk/debug/app-debug.apk WebPortal.apk
+        run: cp tools/tv-web-player/app/build/outputs/apk/release/app-release.apk WebPortal.apk
+
+      - name: Verify APK signature
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs WebPortal.apk
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
