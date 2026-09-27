@@ -122,15 +122,21 @@ public class MainActivity extends Activity {
                     callback.onCustomViewHidden();
                     return;
                 }
-                customView = view;
-                customViewCallback = callback;
-                webView.setVisibility(View.GONE);
-                root.addView(customView, new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
-                hideSystemUi();
-                customView.requestFocus();
-                webView.postDelayed(() -> installTvNavigation(), 120);
+
+                webView.evaluateJavascript(
+                        "(function(){var until=window.__webPortalAllowFullscreenUntil||0;"
+                                + "var allowed=Date.now()<=until;"
+                                + "window.__webPortalAllowFullscreenUntil=0;"
+                                + "return allowed;})()",
+                        value -> {
+                            if ("true".equals(value)) {
+                                showCustomView(view, callback);
+                            } else {
+                                callback.onCustomViewHidden();
+                                webView.setVisibility(View.VISIBLE);
+                                webView.requestFocus();
+                            }
+                        });
             }
 
             @Override
@@ -398,6 +404,23 @@ public class MainActivity extends Activity {
         startActivity(intent);
     }
 
+    private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
+        if (customView != null) {
+            callback.onCustomViewHidden();
+            return;
+        }
+
+        customView = view;
+        customViewCallback = callback;
+        webView.setVisibility(View.GONE);
+        root.addView(customView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        hideSystemUi();
+        customView.requestFocus();
+        webView.postDelayed(() -> installTvNavigation(), 120);
+    }
+
     private void exitCustomView() {
         if (customView == null) return;
 
@@ -418,7 +441,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalTV&&window.__webPortalTV.version===3){window.__webPortalTV.refresh();return;}"
+                + "if(window.__webPortalTV&&window.__webPortalTV.version===4){window.__webPortalTV.refresh();return;}"
                 + "var STYLE_ID='webportal-tv-focus-style';"
                 + "var FOCUS_CLASS='webportal-tv-focused';"
                 + "var SELECTOR='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]';"
@@ -462,7 +485,8 @@ public class MainActivity extends Activity {
                 + "function video(){return document.querySelector('video');}"
                 + "function togglePlay(){var v=video();if(!v)return false;try{if(v.paused)v.play();else v.pause();return true;}catch(e){return false;}}"
                 + "function seek(seconds){var v=video();if(!v||!isFinite(v.duration))return false;try{v.currentTime=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));return true;}catch(e){return false;}}"
-                + "function activate(){var el=marked();if(!el)return togglePlay();try{el.click();wakeControls();return true;}catch(e){return false;}}"
+                + "function looksFullscreen(el){if(!el)return false;var r=el.getBoundingClientRect();var text=((el.getAttribute('aria-label')||'')+' '+(el.getAttribute('title')||'')+' '+(el.getAttribute('data-tooltip')||'')+' '+(el.id||'')+' '+(el.className&&typeof el.className==='string'?el.className:'')+' '+(el.textContent||'')).toLowerCase();if(/full.?screen|enter.?full|expand|maximi[sz]e/.test(text))return true;return r.width>1&&r.width<140&&r.height>1&&r.height<140&&(r.left+r.width/2)>innerWidth*.78&&(r.top+r.height/2)>innerHeight*.68;}"
+                + "function activate(){var el=marked();if(!el)return togglePlay();try{window.__webPortalAllowFullscreenUntil=looksFullscreen(el)?Date.now()+2000:0;el.click();wakeControls();return true;}catch(e){window.__webPortalAllowFullscreenUntil=0;return false;}}"
                 + "function playerKey(key){"
                 + "if(key==='up'||key==='down'){if(!controlsMode)return showControls();return move(key);}"
                 + "if(key==='left'){if(!controlsMode)return seek(-10);return move('left');}"
@@ -472,7 +496,7 @@ public class MainActivity extends Activity {
                 + "refresh();"
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalTVTimer);window.__webPortalTVTimer=setTimeout(refresh,120);});"
                 + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','role','tabindex','disabled','aria-hidden','aria-disabled']});"
-                + "window.__webPortalTV={version:3,refresh:refresh,move:move,activate:activate,playerKey:playerKey,showControls:showControls,hideControls:hideControls,controlsMode:function(){return controlsMode;}};"
+                + "window.__webPortalTV={version:4,refresh:refresh,move:move,activate:activate,playerKey:playerKey,showControls:showControls,hideControls:hideControls,controlsMode:function(){return controlsMode;}};"
                 + "})();";
         webView.evaluateJavascript(js, null);
     }
