@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import GoogleOAuthButton from '@/components/auth/google-oauth-button'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
@@ -105,6 +106,10 @@ export default function BusinessSignupPage() {
   const businessDemoUrl = referralToken
     ? `${BUSINESS_DEMO_URL}&ref=${encodeURIComponent(referralToken)}`
     : BUSINESS_DEMO_URL
+
+  const googleDestination = referralToken
+    ? `/workspace/new/business?ref=${encodeURIComponent(referralToken)}`
+    : '/workspace/new/business'
 
   async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -264,7 +269,22 @@ export default function BusinessSignupPage() {
               Create and manage up to 3 active offers with no required subscription. Upgrade only when you want additional offers or advanced features. After email confirmation, we will guide you through the complete business setup process.
             </p>
 
-            <form onSubmit={handleSignup} className="mt-6 space-y-4">
+            <div className="mt-6">
+              <GoogleOAuthButton
+                destination={googleDestination}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                Or sign up with email
+              </span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <form onSubmit={handleSignup} className="space-y-4">
               <div>
                 <label htmlFor="business-signup-email" className="mb-2 block text-sm font-medium text-gray-700">Business email</label>
                 <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100" required />
