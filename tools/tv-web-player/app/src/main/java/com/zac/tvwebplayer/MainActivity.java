@@ -526,7 +526,7 @@ public class MainActivity extends Activity {
                     }
 
                     JSONObject payload = new JSONObject(body.toString());
-                    int latestCode = payload.optInt(
+                    long latestCode = payload.optLong(
                             "versionCode",
                             installedVersionCode());
                     String latestName = payload.optString(
