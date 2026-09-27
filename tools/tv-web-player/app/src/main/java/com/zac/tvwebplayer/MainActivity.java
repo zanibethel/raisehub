@@ -22,6 +22,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JsResult;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -69,6 +70,25 @@ public class MainActivity extends Activity {
     private String currentPageUrl;
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
+    private volatile boolean webPlayerMode;
+
+    private final class WebPortalBridge {
+        @JavascriptInterface
+        public void setPlayerMode(boolean active) {
+            runOnUiThread(() -> setWebPlayerMode(active));
+        }
+    }
+
+    private void setWebPlayerMode(boolean active) {
+        if (webPlayerMode == active) return;
+
+        webPlayerMode = active;
+        if (active) {
+            installTvNavigation();
+        } else if (customView == null) {
+            destroyTvNavigation();
+        }
+    }
 
     private final BroadcastReceiver updateDownloadReceiver = new BroadcastReceiver() {
         @Override
@@ -122,6 +142,8 @@ public class MainActivity extends Activity {
         webView.setFocusableInTouchMode(true);
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
+        webView.addJavascriptInterface(new WebPortalBridge(), "WebPortalBridge");
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -156,10 +178,21 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPageStarted(
+                    WebView view,
+                    String url,
+                    android.graphics.Bitmap favicon) {
+                webPlayerMode = false;
+                destroyTvNavigation();
+                super.onPageStarted(view, url, favicon);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
                 installFullscreenIntentGuard();
+                installPlayerModeMonitor();
             }
         });
 
@@ -873,6 +906,49 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(js, null);
     }
 
+    private void installPlayerModeMonitor() {
+        String js =
+                "(function(){"
+                + "if(window.__webPortalPlayerMonitorVersion===1){"
+                + "if(window.__webPortalReportPlayerMode)window.__webPortalReportPlayerMode();return;}"
+                + "var last=null;"
+                + "function visibleVideo(v){if(!v||!v.getBoundingClientRect)return false;"
+                + "var r=v.getBoundingClientRect(),s=getComputedStyle(v);"
+                + "return s.display!=='none'&&s.visibility!=='hidden'&&parseFloat(s.opacity||'1')>0"
+                + "&&r.width>10&&r.height>10&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;}"
+                + "function isPlayerVideo(v){if(!visibleVideo(v))return false;"
+                + "var r=v.getBoundingClientRect();"
+                + "var large=r.width>=innerWidth*.5&&r.height>=innerHeight*.28;"
+                + "var playing=!v.paused&&!v.ended;"
+                + "var started=(v.currentTime||0)>.15;"
+                + "return large&&(playing||started||v.controls);}"
+                + "function detect(){if(document.fullscreenElement)return true;"
+                + "var videos=document.querySelectorAll('video');"
+                + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return true;}"
+                + "return false;}"
+                + "function report(){var active=detect();if(active===last)return;last=active;"
+                + "try{WebPortalBridge.setPlayerMode(active);}catch(e){}}"
+                + "window.__webPortalReportPlayerMode=report;"
+                + "window.__webPortalPlayerMonitorVersion=1;"
+                + "['play','pause','ended','loadedmetadata','loadeddata','fullscreenchange'].forEach(function(name){"
+                + "document.addEventListener(name,function(){setTimeout(report,40);},true);});"
+                + "window.addEventListener('resize',function(){setTimeout(report,40);});"
+                + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalPlayerMonitorTimer);"
+                + "window.__webPortalPlayerMonitorTimer=setTimeout(report,100);});"
+                + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','controls']});"
+                + "window.__webPortalPlayerMonitorInterval=setInterval(report,500);"
+                + "report();"
+                + "})();";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void destroyTvNavigation() {
+        if (webView == null) return;
+        webView.evaluateJavascript(
+                "(function(){if(window.__webPortalTV&&window.__webPortalTV.destroy){window.__webPortalTV.destroy();}})()",
+                null);
+    }
+
     private void installTvNavigation() {
         String js =
                 "(function(){"
@@ -965,7 +1041,11 @@ public class MainActivity extends Activity {
                 return false;
         }
 
-        if (customView == null) return false;
+        if (customView == null && !webPlayerMode) return false;
+
+        if (webPlayerMode && customView == null) {
+            installTvNavigation();
+        }
 
         webView.evaluateJavascript(
                 "window.__webPortalTV&&window.__webPortalTV.playerKey('" + key + "');",
@@ -1005,10 +1085,10 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
-        boolean customPlayerHasNavigationFocus =
-                webView != null && customView != null;
+        boolean playerHasNavigationFocus =
+                webView != null && (customView != null || webPlayerMode);
 
-        if (customPlayerHasNavigationFocus && isDpadNavigationKey(keyCode)) {
+        if (playerHasNavigationFocus && isDpadNavigationKey(keyCode)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                         || keyCode == KeyEvent.KEYCODE_ENTER)
@@ -1039,6 +1119,17 @@ public class MainActivity extends Activity {
                         value -> {
                             if ("\"exit\"".equals(value)) {
                                 runOnUiThread(this::exitCustomView);
+                            }
+                        });
+                return true;
+            }
+
+            if (webPlayerMode) {
+                webView.evaluateJavascript(
+                        "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return true;}return false;})()",
+                        value -> {
+                            if (!"true".equals(value) && webView.canGoBack()) {
+                                runOnUiThread(webView::goBack);
                             }
                         });
                 return true;
