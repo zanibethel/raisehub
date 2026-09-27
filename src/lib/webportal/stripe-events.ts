@@ -2,8 +2,16 @@ import type Stripe from 'stripe'
 
 import {
   WEBPORTAL_AD_FLOW,
+  WEBPORTAL_AD_PLANS,
   WEBPORTAL_SUPPORT_FLOW,
+  isWebPortalAdPlanCode,
 } from '@/lib/webportal/commerce'
+import {
+  sendWebPortalAdCanceled,
+  sendWebPortalAdInternalAlert,
+  sendWebPortalAdPendingReview,
+  sendWebPortalSupportThankYou,
+} from '@/lib/webportal/email'
 
 function expandableId(value: string | { id: string } | null | undefined) {
   if (typeof value === 'string') return value
@@ -66,6 +74,22 @@ async function handleSupportCheckout(admin: any, event: Stripe.Event) {
     )
 
   if (error) throw error
+
+  const contactEmail =
+    session.customer_details?.email ?? session.customer_email ?? null
+
+  if (contactEmail) {
+    const emailResult = await sendWebPortalSupportThankYou({
+      email: contactEmail,
+      amountCents,
+      stripeEventId: event.id,
+    })
+
+    if (emailResult.status === 'failed') {
+      console.error('WebPortal support email failed', emailResult.error)
+    }
+  }
+
   return true
 }
 
@@ -84,6 +108,18 @@ async function handleAdCheckout(admin: any, event: Stripe.Event) {
 
   const orderId = orderIdFromMetadata(session.metadata)
   if (!orderId) throw new Error('WebPortal ad order metadata is missing')
+
+  const { data: order, error: orderError } = await admin
+    .from('webportal_ad_orders')
+    .select(
+      'id, business_name, contact_email, ad_text, destination_url, plan_code, amount_cents, duration_days, recurring'
+    )
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError || !order) {
+    throw new Error('WebPortal ad order could not be matched')
+  }
 
   const now = new Date().toISOString()
 
@@ -138,6 +174,37 @@ async function handleAdCheckout(admin: any, event: Stripe.Event) {
     .in('status', ['checkout_open', 'checkout_failed'])
 
   if (error) throw error
+
+  const planCode =
+    typeof order.plan_code === 'string' ? order.plan_code : ''
+
+  if (isWebPortalAdPlanCode(planCode)) {
+    const plan = WEBPORTAL_AD_PLANS[planCode]
+    const emailInput = {
+      orderId: order.id,
+      businessName: order.business_name,
+      contactEmail: order.contact_email,
+      planLabel: plan.label,
+      amountCents: order.amount_cents,
+      durationDays: order.duration_days,
+      recurring: order.recurring,
+      adText: order.ad_text,
+      destinationUrl: order.destination_url,
+      stripeEventId: event.id,
+    }
+
+    const emailResults = await Promise.all([
+      sendWebPortalAdPendingReview(emailInput),
+      sendWebPortalAdInternalAlert(emailInput),
+    ])
+
+    for (const emailResult of emailResults) {
+      if (emailResult.status === 'failed') {
+        console.error('WebPortal advertising email failed', emailResult.error)
+      }
+    }
+  }
+
   return true
 }
 
@@ -155,6 +222,16 @@ async function handleAdSubscription(admin: any, event: Stripe.Event) {
 
   const orderId = orderIdFromMetadata(subscription.metadata)
   if (!orderId) throw new Error('WebPortal ad subscription order metadata is missing')
+
+  const { data: order, error: orderError } = await admin
+    .from('webportal_ad_orders')
+    .select('id, business_name, contact_email')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError || !order) {
+    throw new Error('WebPortal ad subscription order could not be matched')
+  }
 
   const now = new Date().toISOString()
   const customerId = expandableId(subscription.customer)
@@ -176,6 +253,20 @@ async function handleAdSubscription(admin: any, event: Stripe.Event) {
     .eq('id', orderId)
 
   if (error) throw error
+
+  if (event.type === 'customer.subscription.deleted') {
+    const emailResult = await sendWebPortalAdCanceled({
+      orderId: order.id,
+      businessName: order.business_name,
+      contactEmail: order.contact_email,
+      stripeEventId: event.id,
+    })
+
+    if (emailResult.status === 'failed') {
+      console.error('WebPortal cancellation email failed', emailResult.error)
+    }
+  }
+
   return true
 }
 
