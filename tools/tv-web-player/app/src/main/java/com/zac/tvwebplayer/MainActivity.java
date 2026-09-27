@@ -26,14 +26,19 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "tv_web_player";
     private static final String PREF_HOME = "home_url";
     private static final String PREF_MOBILE = "mobile_mode";
+    private static final String PREF_SAVED_SITES = "saved_sites";
+    private static final int MAX_SAVED_SITES = 12;
 
     private FrameLayout root;
     private WebView webView;
@@ -59,7 +64,9 @@ public class MainActivity extends Activity {
         if (home == null || home.trim().isEmpty()) {
             showWebsiteSetup(true);
         } else {
-            loadUrl(normalizeUrl(home));
+            String normalizedHome = normalizeUrl(home);
+            rememberSite(normalizedHome);
+            loadUrl(normalizedHome);
         }
     }
 
@@ -228,6 +235,38 @@ public class MainActivity extends Activity {
         webView.requestFocus();
     }
 
+    private List<String> getSavedSites() {
+        String stored = prefs().getString(PREF_SAVED_SITES, "");
+        List<String> sites = new ArrayList<>();
+        if (stored == null || stored.isEmpty()) return sites;
+
+        String[] values = stored.split("\n");
+        for (String value : values) {
+            String site = value.trim();
+            if (!site.isEmpty() && !sites.contains(site)) {
+                sites.add(site);
+            }
+        }
+        return sites;
+    }
+
+    private void rememberSite(String url) {
+        String normalized = normalizeUrl(url);
+        if (normalized.isEmpty()) return;
+
+        List<String> sites = getSavedSites();
+        sites.remove(normalized);
+        sites.add(0, normalized);
+
+        if (sites.size() > MAX_SAVED_SITES) {
+            sites = new ArrayList<>(sites.subList(0, MAX_SAVED_SITES));
+        }
+
+        prefs().edit()
+                .putString(PREF_SAVED_SITES, String.join("\n", sites))
+                .apply();
+    }
+
     private void showWebsiteSetup(boolean firstRun) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -240,6 +279,46 @@ public class MainActivity extends Activity {
         input.setHint("example.com");
         input.setText(prefs().getString(PREF_HOME, ""));
         input.setSelectAllOnFocus(true);
+
+        List<String> saved = getSavedSites();
+        if (!saved.isEmpty()) {
+            List<String> choices = new ArrayList<>();
+            choices.add("Saved websites...");
+            choices.addAll(saved);
+
+            Spinner savedSites = new Spinner(this);
+            ArrayAdapter<String> savedAdapter = new ArrayAdapter<>(
+                    this,
+                    android.R.layout.simple_spinner_item,
+                    choices);
+            savedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            savedSites.setAdapter(savedAdapter);
+            savedSites.setPrompt("Saved websites");
+            savedSites.setFocusable(true);
+
+            savedSites.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(
+                        android.widget.AdapterView<?> parent,
+                        View view,
+                        int position,
+                        long id) {
+                    if (position > 0) {
+                        input.setText(choices.get(position));
+                        input.setSelection(input.getText().length());
+                    }
+                }
+
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                }
+            });
+
+            box.addView(savedSites, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
         box.addView(input, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -273,6 +352,7 @@ public class MainActivity extends Activity {
                             .putString(PREF_HOME, value)
                             .putBoolean(PREF_MOBILE, mobile.isChecked())
                             .apply();
+                    rememberSite(value);
 
                     applyUserAgent();
                     dialog.dismiss();
