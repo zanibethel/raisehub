@@ -5,6 +5,7 @@ import { handleBusinessBillingEvent } from '@/lib/stripe/business-billing'
 import { isPendingAsyncCheckoutCompletion } from '@/lib/stripe/checkout-event-state'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyStripeWebhook } from '@/lib/stripe/server'
+import { handleWebPortalStripeEvent } from '@/lib/webportal/stripe-events'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -392,6 +393,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (await handleWebPortalStripeEvent(admin, event)) {
+      await markWebhookEvent(admin, event.id, 'processed')
+      return NextResponse.json({ received: true, webPortal: true })
+    }
+
     if (await handleBusinessBillingEvent(admin, event)) {
       await markWebhookEvent(admin, event.id, 'processed')
       return NextResponse.json({ received: true, businessBilling: true })
