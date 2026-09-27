@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/tvplayer",
+      "destination": "https://github.com/zanibethel/raisehub/releases/download/tv-web-player/TVWebPlayer.apk",
+      "permanent": false
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/business-notifications",
