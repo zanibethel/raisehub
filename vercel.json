@@ -5,6 +5,11 @@
       "source": "/tvplayer",
       "destination": "https://github.com/zanibethel/raisehub/releases/download/tv-web-player/TVWebPlayer.apk",
       "permanent": false
+    },
+    {
+      "source": "/webportal",
+      "destination": "https://github.com/zanibethel/raisehub/releases/download/webportal/WebPortal.apk",
+      "permanent": false
     }
   ],
   "crons": [
