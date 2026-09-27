@@ -119,13 +119,36 @@ export async function sendWebPortalAdRejected(input: {
   businessName: string
   contactEmail: string
   reason?: string | null
+  paymentResolution?: string | null
   idempotencyKey: string
 }) {
   return sendNotificationEmail({
     to: input.contactEmail,
     title: 'Update on your WebPortal ad submission',
     message:
-      `Your WebPortal ad for ${input.businessName} was not approved in its current form.${input.reason ? `\n\nReason: ${input.reason}` : ''}\n\nReply to this email if you need help correcting the submission or resolving the payment.`,
+      `Your WebPortal ad for ${input.businessName} was not approved in its current form.${input.reason ? `\n\nReason: ${input.reason}` : ''}${input.paymentResolution ? `\n\nPayment update: ${input.paymentResolution}` : ''}\n\nReply to this email if you need help correcting the submission or resolving the payment.`,
+    actionUrl: '/webportal/advertise',
+    actionLabel: 'WebPortal Advertising',
+    idempotencyKey: input.idempotencyKey,
+    fromName: 'WebPortal',
+    replyTo: 'support@raisehub.app',
+    category: 'webportal-advertising',
+  })
+}
+
+export async function sendWebPortalAdDeactivated(input: {
+  orderId: string
+  businessName: string
+  contactEmail: string
+  reason: string
+  recurringCanceled: boolean
+  idempotencyKey: string
+}) {
+  return sendNotificationEmail({
+    to: input.contactEmail,
+    title: 'Your WebPortal ad was deactivated',
+    message:
+      `Your WebPortal ad for ${input.businessName} has been removed from rotation.\n\nReason: ${input.reason}${input.recurringCanceled ? '\n\nRecurring billing was also canceled, so there will be no future monthly renewals.' : ''}`,
     actionUrl: '/webportal/advertise',
     actionLabel: 'WebPortal Advertising',
     idempotencyKey: input.idempotencyKey,
