@@ -1,6 +1,7 @@
 package com.zac.tvwebplayer;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
@@ -30,6 +31,7 @@ public class PlayerActivity extends Activity {
     private PlayerView playerView;
     private String mediaUrl;
     private long resumePosition;
+    private boolean returningToBrowser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -137,6 +139,18 @@ public class PlayerActivity extends Activity {
         playerView.showController();
     }
 
+    private void returnToBrowser() {
+        if (returningToBrowser) return;
+        returningToBrowser = true;
+
+        Intent browserIntent = new Intent(this, MainActivity.class);
+        browserIntent.addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(browserIntent);
+        finish();
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
@@ -171,12 +185,17 @@ public class PlayerActivity extends Activity {
                 return true;
 
             case KeyEvent.KEYCODE_BACK:
-                finish();
+                returnToBrowser();
                 return true;
 
             default:
                 return super.onKeyDown(keyCode, event);
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        returnToBrowser();
     }
 
     @Override
