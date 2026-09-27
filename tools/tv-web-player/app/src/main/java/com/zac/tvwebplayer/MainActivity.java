@@ -20,7 +20,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.JsResult;
 import android.webkit.PermissionRequest;
@@ -36,8 +35,15 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -51,6 +57,8 @@ public class MainActivity extends Activity {
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
             "https://github.com/zanibethel/raisehub/releases/download/webportal/WebPortal.apk";
+    private static final String WEBPORTAL_VERSION_URL =
+            "https://raisehub.app/webportal-version.json";
     private static final int MAX_SAVED_SITES = 12;
 
     private FrameLayout root;
@@ -151,7 +159,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
-                installTvNavigation();
+                installFullscreenIntentGuard();
             }
         });
 
@@ -401,6 +409,29 @@ public class MainActivity extends Activity {
         input.requestFocus();
     }
 
+    private String installedVersionName() {
+        try {
+            android.content.pm.PackageInfo info =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            return info.versionName == null ? "unknown" : info.versionName;
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private long installedVersionCode() {
+        try {
+            android.content.pm.PackageInfo info =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return info.getLongVersionCode();
+            }
+            return info.versionCode;
+        } catch (Exception ignored) {
+            return -1L;
+        }
+    }
+
     private void showMenu() {
         String[] actions = {
                 "Home",
@@ -412,7 +443,16 @@ public class MainActivity extends Activity {
                 "Exit"
         };
 
+        TextView versionStatus = new TextView(this);
+        int statusPad = dp(16);
+        versionStatus.setPadding(statusPad, dp(6), statusPad, dp(12));
+        versionStatus.setTextSize(14f);
+        versionStatus.setText(
+                "Installed: WebPortal " + installedVersionName()
+                        + " · Checking for updates…");
+
         ListView list = new ListView(this);
+        list.addHeaderView(versionStatus, null, false);
         list.setAdapter(new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_list_item_1,
@@ -425,9 +465,12 @@ public class MainActivity extends Activity {
                 .create();
 
         list.setOnItemClickListener((parent, view, position, id) -> {
+            int actionPosition = position - list.getHeaderViewsCount();
+            if (actionPosition < 0) return;
+
             dialog.dismiss();
 
-            switch (position) {
+            switch (actionPosition) {
                 case 0:
                     loadUrl(prefs().getString(PREF_HOME, ""));
                     break;
@@ -460,6 +503,56 @@ public class MainActivity extends Activity {
 
         dialog.setOnDismissListener(d -> webView.requestFocus());
         dialog.show();
+        checkForUpdates(versionStatus);
+    }
+
+    private void checkForUpdates(TextView versionStatus) {
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL(WEBPORTAL_VERSION_URL);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setUseCaches(false);
+
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(connection.getInputStream()))) {
+                    StringBuilder body = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        body.append(line);
+                    }
+
+                    JSONObject payload = new JSONObject(body.toString());
+                    long latestCode = payload.optLong(
+                            "versionCode",
+                            installedVersionCode());
+                    String latestName = payload.optString(
+                            "versionName",
+                            installedVersionName());
+
+                    String status;
+                    if (latestCode > installedVersionCode()) {
+                        status = "Installed: WebPortal " + installedVersionName()
+                                + " · Update available: " + latestName;
+                    } else {
+                        status = "Installed: WebPortal " + installedVersionName()
+                                + " · Up to date";
+                    }
+
+                    runOnUiThread(() -> versionStatus.setText(status));
+                }
+            } catch (Exception error) {
+                runOnUiThread(() ->
+                        versionStatus.setText(
+                                "Installed: WebPortal " + installedVersionName()
+                                        + " · Update status unavailable"));
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }).start();
     }
 
     private void openUpdateDownload() {
@@ -744,6 +837,10 @@ public class MainActivity extends Activity {
     private void exitCustomView() {
         if (customView == null) return;
 
+        webView.evaluateJavascript(
+                "(function(){if(window.__webPortalTV&&window.__webPortalTV.destroy){window.__webPortalTV.destroy();}})()",
+                null);
+
         root.removeView(customView);
         customView = null;
         webView.setVisibility(View.VISIBLE);
@@ -758,10 +855,28 @@ public class MainActivity extends Activity {
     }
 
 
+    private void installFullscreenIntentGuard() {
+        String js =
+                "(function(){"
+                + "if(window.__webPortalFullscreenGuardInstalled)return;"
+                + "function looksFullscreen(el){if(!el||!el.getBoundingClientRect)return false;"
+                + "var r=el.getBoundingClientRect();"
+                + "var text=((el.getAttribute('aria-label')||'')+' '+(el.getAttribute('title')||'')+' '+(el.getAttribute('data-tooltip')||'')+' '+(el.id||'')+' '+(el.className&&typeof el.className==='string'?el.className:'')+' '+(el.textContent||'')).toLowerCase();"
+                + "if(/full.?screen|enter.?full|expand|maximi[sz]e/.test(text))return true;"
+                + "return r.width>1&&r.width<140&&r.height>1&&r.height<140&&(r.left+r.width/2)>innerWidth*.78&&(r.top+r.height/2)>innerHeight*.68;}"
+                + "document.addEventListener('click',function(event){"
+                + "var el=event.target&&event.target.closest?event.target.closest('button,a,[role=button],[onclick],[tabindex]'):event.target;"
+                + "window.__webPortalAllowFullscreenUntil=looksFullscreen(el)?Date.now()+2000:0;"
+                + "},true);"
+                + "window.__webPortalFullscreenGuardInstalled=true;"
+                + "})();";
+        webView.evaluateJavascript(js, null);
+    }
+
     private void installTvNavigation() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalTV&&window.__webPortalTV.version===5){window.__webPortalTV.refresh();return;}"
+                + "if(window.__webPortalTV&&window.__webPortalTV.version===6){window.__webPortalTV.refresh();return;}"
                 + "var STYLE_ID='webportal-tv-focus-style';"
                 + "var FOCUS_CLASS='webportal-tv-focused';"
                 + "var SELECTOR='a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]';"
@@ -774,10 +889,10 @@ public class MainActivity extends Activity {
                 + "for(var r=0;r<roots.length;r++){"
                 + "var items=roots[r].querySelectorAll?roots[r].querySelectorAll(SELECTOR):[];"
                 + "for(var i=0;i<items.length;i++){var el=items[i];if(seen.has(el)||!visible(el))continue;seen.add(el);"
-                + "if(!el.hasAttribute('tabindex')||parseInt(el.getAttribute('tabindex')||'0',10)<0){el.setAttribute('tabindex','0');el.setAttribute('data-webportal-tab','1');}"
+                + "var originalTab=el.getAttribute('tabindex');if(originalTab===null||parseInt(originalTab||'0',10)<0){el.setAttribute('data-webportal-tab-original',originalTab===null?'__missing__':originalTab);el.setAttribute('tabindex','0');}"
                 + "out.push(el);}"
                 + "var pointer=roots[r].querySelectorAll?roots[r].querySelectorAll('svg,[class*=icon i],[class*=button i],[class*=control i]'):[];"
-                + "for(var p=0;p<pointer.length;p++){var icon=pointer[p],host=icon.closest?icon.closest('button,a,[role=button],[role=link],[onclick],[tabindex]'):null;if(host&&!seen.has(host)&&visible(host)){seen.add(host);if(!host.hasAttribute('tabindex')||parseInt(host.getAttribute('tabindex')||'0',10)<0)host.setAttribute('tabindex','0');out.push(host);}}"
+                + "for(var p=0;p<pointer.length;p++){var icon=pointer[p],host=icon.closest?icon.closest('button,a,[role=button],[role=link],[onclick],[tabindex]'):null;if(host&&!seen.has(host)&&visible(host)){seen.add(host);var hostTab=host.getAttribute('tabindex');if(hostTab===null||parseInt(hostTab||'0',10)<0){host.setAttribute('data-webportal-tab-original',hostTab===null?'__missing__':hostTab);host.setAttribute('tabindex','0');}out.push(host);}}"
                 + "}return out;}"
                 + "function marked(){var roots=allRoots(document,[]);for(var i=0;i<roots.length;i++){var m=roots[i].querySelector?roots[i].querySelector('.'+FOCUS_CLASS):null;if(m)return m;}return null;}"
                 + "function editable(el){if(!el)return false;var tag=(el.tagName||'').toLowerCase();if(tag==='textarea'||el.isContentEditable)return true;if(tag!=='input')return false;var type=(el.getAttribute('type')||'text').toLowerCase();return !/^(button|submit|reset|checkbox|radio|range|file|color|hidden|image)$/.test(type);}"
@@ -819,7 +934,8 @@ public class MainActivity extends Activity {
                 + "refresh();"
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalTVTimer);window.__webPortalTVTimer=setTimeout(refresh,120);});"
                 + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','role','tabindex','disabled','aria-hidden','aria-disabled']});"
-                + "window.__webPortalTV={version:5,refresh:refresh,move:move,activate:activate,playerKey:playerKey,showControls:showControls,hideControls:hideControls,controlsMode:function(){return controlsMode;}};"
+                + "function destroy(){try{observer.disconnect();}catch(e){}clearTimeout(window.__webPortalTVTimer);clearMark();var roots=allRoots(document,[]);for(var r=0;r<roots.length;r++){var changed=roots[r].querySelectorAll?roots[r].querySelectorAll('[data-webportal-tab-original]'):[];for(var i=0;i<changed.length;i++){var el=changed[i],original=el.getAttribute('data-webportal-tab-original');if(original==='__missing__')el.removeAttribute('tabindex');else el.setAttribute('tabindex',original);el.removeAttribute('data-webportal-tab-original');}}var style=document.getElementById(STYLE_ID);if(style&&style.parentNode)style.parentNode.removeChild(style);delete window.__webPortalTV;}"
+                + "window.__webPortalTV={version:6,refresh:refresh,move:move,activate:activate,playerKey:playerKey,showControls:showControls,hideControls:hideControls,controlsMode:function(){return controlsMode;},destroy:destroy};"
                 + "})();";
         webView.evaluateJavascript(js, null);
     }
@@ -849,41 +965,12 @@ public class MainActivity extends Activity {
                 return false;
         }
 
-        if (customView != null) {
-            webView.evaluateJavascript(
-                    "window.__webPortalTV&&window.__webPortalTV.playerKey('" + key + "');",
-                    null);
-            return true;
-        }
+        if (customView == null) return false;
 
-        if ("center".equals(key)) {
-            webView.evaluateJavascript(
-                    "(function(){return window.__webPortalTV?window.__webPortalTV.activate():'none';})()",
-                    value -> {
-                        if ("\"editable\"".equals(value)) {
-                            runOnUiThread(this::showSoftKeyboard);
-                        }
-                    });
-        } else {
-            webView.evaluateJavascript(
-                    "window.__webPortalTV&&window.__webPortalTV.move('" + key + "');",
-                    null);
-        }
+        webView.evaluateJavascript(
+                "window.__webPortalTV&&window.__webPortalTV.playerKey('" + key + "');",
+                null);
         return true;
-    }
-
-    private void showSoftKeyboard() {
-        if (webView == null) return;
-        webView.requestFocus();
-        InputMethodManager inputMethodManager =
-                (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (inputMethodManager != null) {
-            webView.postDelayed(
-                    () -> inputMethodManager.showSoftInput(
-                            webView,
-                            InputMethodManager.SHOW_IMPLICIT),
-                    100);
-        }
     }
 
     private boolean clearFullscreenPlayerControls() {
@@ -918,10 +1005,10 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
-        boolean webHasNavigationFocus = webView != null
-                && (customView != null || webView.hasFocus());
+        boolean customPlayerHasNavigationFocus =
+                webView != null && customView != null;
 
-        if (webHasNavigationFocus && isDpadNavigationKey(keyCode)) {
+        if (customPlayerHasNavigationFocus && isDpadNavigationKey(keyCode)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                         || keyCode == KeyEvent.KEYCODE_ENTER)
