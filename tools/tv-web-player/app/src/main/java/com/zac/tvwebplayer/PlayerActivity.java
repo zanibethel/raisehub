@@ -49,8 +49,9 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(true);
-        playerView.setControllerAutoShow(true);
+        playerView.setControllerAutoShow(false);
         playerView.setControllerHideOnTouch(false);
+        playerView.setControllerShowTimeoutMs(3500);
         setContentView(playerView);
     }
 
@@ -100,6 +101,7 @@ public class PlayerActivity extends Activity {
         }
 
         player.play();
+        playerView.showController();
     }
 
     private void releasePlayer() {
@@ -119,8 +121,6 @@ public class PlayerActivity extends Activity {
         } else {
             player.play();
         }
-
-        playerView.showController();
     }
 
     private void seekBy(long milliseconds) {
@@ -137,6 +137,38 @@ public class PlayerActivity extends Activity {
 
         player.seekTo(target);
         playerView.showController();
+    }
+
+    private boolean hidePlayerMenuIfVisible() {
+        if (playerView == null) return false;
+        if (!playerView.isControllerFullyVisible()) return false;
+
+        playerView.hideController();
+        return true;
+    }
+
+    private boolean isMediaPlaybackKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
+                || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE;
+    }
+
+    private void handleMediaPlaybackKey(int keyCode) {
+        if (player == null) return;
+
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+                player.play();
+                break;
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                player.pause();
+                break;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                togglePlayPause();
+                break;
+            default:
+                break;
+        }
     }
 
     private void returnToBrowser() {
@@ -156,17 +188,8 @@ public class PlayerActivity extends Activity {
         switch (keyCode) {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
             case KeyEvent.KEYCODE_SPACE:
                 togglePlayPause();
-                return true;
-
-            case KeyEvent.KEYCODE_MEDIA_PLAY:
-                if (player != null) player.play();
-                return true;
-
-            case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                if (player != null) player.pause();
                 return true;
 
             case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -185,7 +208,9 @@ public class PlayerActivity extends Activity {
                 return true;
 
             case KeyEvent.KEYCODE_BACK:
-                returnToBrowser();
+                if (!hidePlayerMenuIfVisible()) {
+                    returnToBrowser();
+                }
                 return true;
 
             default:
@@ -194,8 +219,29 @@ public class PlayerActivity extends Activity {
     }
 
     @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+
+        if (isMediaPlaybackKey(keyCode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    handleMediaPlaybackKey(keyCode);
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
     public void onBackPressed() {
-        returnToBrowser();
+        if (!hidePlayerMenuIfVisible()) {
+            returnToBrowser();
+        }
     }
 
     @Override
