@@ -16,6 +16,7 @@ type WebPortalAdOrder = {
   contact_email: string
   ad_text: string
   destination_url: string
+  logo_url: string | null
   plan_code: string
   amount_cents: number
   duration_days: number
@@ -97,7 +98,7 @@ export default async function WebPortalOwnerAdminPage() {
     admin
       .from('webportal_ad_orders')
       .select(
-        'id, business_name, contact_email, ad_text, destination_url, plan_code, amount_cents, duration_days, recurring, status, purchased_at, approved_at, activated_at, ends_at, subscription_status, review_note, rejected_at, deactivated_at, created_at'
+        'id, business_name, contact_email, ad_text, destination_url, logo_url, plan_code, amount_cents, duration_days, recurring, status, purchased_at, approved_at, activated_at, ends_at, subscription_status, review_note, rejected_at, deactivated_at, created_at'
       )
       .order('created_at', { ascending: false })
       .limit(100),
@@ -253,8 +254,35 @@ export default async function WebPortalOwnerAdminPage() {
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">
                           TV banner preview
                         </p>
-                        <p className="mt-2 text-lg font-black">{order.ad_text}</p>
-                        <p className="mt-2 break-all text-xs text-slate-300">
+                        <div className="mt-3 flex items-center gap-3">
+                          <div
+                            className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-900 bg-cover bg-center text-sm font-black text-cyan-200"
+                            style={
+                              order.logo_url
+                                ? { backgroundImage: `url("${order.logo_url.replaceAll('"', '%22')}")` }
+                                : undefined
+                            }
+                            aria-label={
+                              order.logo_url
+                                ? `${order.business_name} logo`
+                                : `${order.business_name} initials`
+                            }
+                          >
+                            {order.logo_url
+                              ? null
+                              : order.business_name
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part[0]?.toUpperCase() ?? '')
+                                  .join('')}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-black">{order.business_name}</p>
+                            <p className="mt-1 text-sm font-bold text-slate-100">{order.ad_text}</p>
+                          </div>
+                        </div>
+                        <p className="mt-3 break-all text-xs text-slate-300">
                           QR → {order.destination_url}
                         </p>
                       </div>
@@ -319,8 +347,29 @@ export default async function WebPortalOwnerAdminPage() {
                     ) : null}
                   </div>
 
-                  <p className="mt-3 text-sm font-bold text-slate-900">{order.ad_text}</p>
-                  <p className="mt-1 break-all text-xs text-slate-500">{order.destination_url}</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-950 bg-cover bg-center text-xs font-black text-cyan-200"
+                      style={
+                        order.logo_url
+                          ? { backgroundImage: `url("${order.logo_url.replaceAll('"', '%22')}")` }
+                          : undefined
+                      }
+                    >
+                      {order.logo_url
+                        ? null
+                        : order.business_name
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((part) => part[0]?.toUpperCase() ?? '')
+                            .join('')}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{order.ad_text}</p>
+                      <p className="mt-1 break-all text-xs text-slate-500">{order.destination_url}</p>
+                    </div>
+                  </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                     <div className="rounded-xl bg-slate-50 p-3">
