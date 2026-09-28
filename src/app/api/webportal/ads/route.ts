@@ -11,6 +11,9 @@ type WebPortalAdItem = {
   title: string
   message: string
   destinationUrl: string
+  logoUrl?: string | null
+  logoMode?: 'webportal' | 'initials'
+  logoText?: string
 }
 
 const HOUSE_ADS: WebPortalAdItem[] = [
@@ -20,6 +23,8 @@ const HOUSE_ADS: WebPortalAdItem[] = [
     title: 'Small business owner?',
     message: 'Join RaiseHub and offer exclusive rewards to local supporters.',
     destinationUrl: 'https://raisehub.app/business',
+    logoMode: 'initials',
+    logoText: 'RH',
   },
   {
     id: 'house-support-webportal',
@@ -27,6 +32,7 @@ const HOUSE_ADS: WebPortalAdItem[] = [
     title: 'Support WebPortal',
     message: 'Enjoying WebPortal? Help keep development and releases moving.',
     destinationUrl: 'https://raisehub.app/webportal/support',
+    logoMode: 'webportal',
   },
   {
     id: 'house-advertise-webportal',
@@ -34,6 +40,7 @@ const HOUSE_ADS: WebPortalAdItem[] = [
     title: 'Advertise on WebPortal',
     message: 'Put your business in this TV rotation with a scannable QR code.',
     destinationUrl: 'https://raisehub.app/webportal/advertise',
+    logoMode: 'webportal',
   },
 ]
 
@@ -44,7 +51,7 @@ export async function GET() {
 
   const { data, error } = await admin
     .from('webportal_ad_orders')
-    .select('id, business_name, ad_text, destination_url, ends_at, activated_at')
+    .select('id, business_name, ad_text, destination_url, logo_url, ends_at, activated_at')
     .eq('status', 'active')
     .order('activated_at', { ascending: true })
     .limit(50)
@@ -65,6 +72,16 @@ export async function GET() {
       title: String(row.business_name ?? 'Sponsored'),
       message: String(row.ad_text ?? ''),
       destinationUrl: String(row.destination_url ?? ''),
+      logoUrl: row.logo_url ? String(row.logo_url) : null,
+      logoMode: row.logo_url ? undefined : ('initials' as const),
+      logoText: row.logo_url
+        ? undefined
+        : String(row.business_name ?? 'Sponsored')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? '')
+            .join(''),
     }))
     .filter((item: WebPortalAdItem) => item.message && /^https?:\/\//i.test(item.destinationUrl))
 
