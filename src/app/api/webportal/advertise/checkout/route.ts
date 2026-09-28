@@ -14,6 +14,13 @@ import {
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const MAX_LOGO_BYTES = 5 * 1024 * 1024
+const LOGO_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+}
+
 function returnUrl(request: Request, status: 'success' | 'canceled') {
   const origin = new URL(request.url).origin
   return new URL(`/webportal/advertise?checkout=${status}`, origin).toString()
@@ -26,12 +33,47 @@ export async function POST(request: Request) {
     contactEmail?: unknown
     adText?: unknown
     destinationUrl?: unknown
-  }
+  } = {}
+  let logoFile: File | null = null
 
   try {
-    body = await request.json()
+    const contentType = request.headers.get('content-type') ?? ''
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      body = {
+        planCode: formData.get('planCode'),
+        businessName: formData.get('businessName'),
+        contactEmail: formData.get('contactEmail'),
+        adText: formData.get('adText'),
+        destinationUrl: formData.get('destinationUrl'),
+      }
+
+      const logo = formData.get('logo')
+      if (logo instanceof File && logo.size > 0) {
+        logoFile = logo
+      }
+    } else {
+      body = await request.json()
+    }
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+
+  if (logoFile) {
+    if (!LOGO_EXTENSIONS[logoFile.type]) {
+      return NextResponse.json(
+        { error: 'Business logo must be a PNG, JPG, or WebP image.' },
+        { status: 400 }
+      )
+    }
+
+    if (logoFile.size > MAX_LOGO_BYTES) {
+      return NextResponse.json(
+        { error: 'Business logo must be 5 MB or smaller.' },
+        { status: 400 }
+      )
+    }
   }
 
   if (!isWebPortalAdPlanCode(body.planCode)) {
@@ -101,6 +143,52 @@ export async function POST(request: Request) {
       { error: 'The ad order could not be created. Please try again.' },
       { status: 500 }
     )
+  }
+
+  if (logoFile) {
+    try {
+      const extension = LOGO_EXTENSIONS[logoFile.type]
+      const logoPath = `webportal-ads/${order.id}-${Date.now()}.${extension}`
+      const bytes = await logoFile.arrayBuffer()
+
+      const { error: uploadError } = await admin.storage
+        .from('logos')
+        .upload(logoPath, bytes, {
+          contentType: logoFile.type,
+          upsert: false,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: publicUrlData } = admin.storage
+        .from('logos')
+        .getPublicUrl(logoPath)
+
+      const { error: logoUpdateError } = await admin
+        .from('webportal_ad_orders')
+        .update({
+          logo_url: publicUrlData.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id)
+
+      if (logoUpdateError) throw logoUpdateError
+    } catch (error) {
+      console.error('WebPortal advertiser logo upload failed', error)
+
+      await admin
+        .from('webportal_ad_orders')
+        .update({
+          status: 'checkout_failed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id)
+
+      return NextResponse.json(
+        { error: 'The business logo could not be saved. Please try again.' },
+        { status: 500 }
+      )
+    }
   }
 
   try {
