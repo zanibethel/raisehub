@@ -282,7 +282,7 @@ public class MainActivity extends Activity {
                 this,
                 this::openBannerDestination);
         FrameLayout.LayoutParams bannerParams = new FrameLayout.LayoutParams(
-                dp(342),
+                dp(210),
                 dp(74));
         bannerParams.gravity = Gravity.BOTTOM | Gravity.END;
         bannerParams.setMargins(0, 0, dp(10), dp(10));
@@ -406,6 +406,25 @@ public class MainActivity extends Activity {
         prefs().edit()
                 .putString(PREF_SAVED_SITES, String.join("\n", sites))
                 .apply();
+    }
+
+    private void removeSavedSite(String url) {
+        String normalized = normalizeUrl(url);
+        if (normalized.isEmpty()) return;
+
+        List<String> sites = getSavedSites();
+        if (!sites.remove(normalized)) return;
+
+        SharedPreferences.Editor editor = prefs().edit()
+                .putString(PREF_SAVED_SITES, String.join("\n", sites))
+                .remove(PREF_SITE_MOBILE_PREFIX + normalized);
+
+        String currentHome = normalizeUrl(prefs().getString(PREF_HOME, ""));
+        if (normalized.equals(currentHome)) {
+            editor.remove(PREF_HOME);
+        }
+
+        editor.apply();
     }
 
     private android.graphics.drawable.GradientDrawable roundedBackground(
@@ -605,6 +624,20 @@ public class MainActivity extends Activity {
         List<String> choices = new ArrayList<>();
         int newSiteIndex = -1;
 
+        android.widget.Button removeSaved = new android.widget.Button(this);
+        removeSaved.setText("Remove");
+        removeSaved.setAllCaps(false);
+        removeSaved.setTextSize(15);
+        removeSaved.setTextColor(Color.parseColor("#FFD9E2"));
+        removeSaved.setMinHeight(dp(54));
+        removeSaved.setStateListAnimator(null);
+        removeSaved.setBackground(focusBackground(
+                Color.parseColor("#35151D"),
+                Color.parseColor("#5B2031"),
+                Color.parseColor("#7A3045"),
+                Color.parseColor("#FF6B8A"),
+                10));
+
         EditText manualInput = new EditText(this);
         manualInput.setSingleLine(true);
         manualInput.setHint("example.com");
@@ -697,7 +730,11 @@ public class MainActivity extends Activity {
                                 View view,
                                 int position,
                                 long id) {
-                            if (position == finalNewSiteIndex) {
+                            boolean enteringNew = position == finalNewSiteIndex;
+                            removeSaved.setEnabled(!enteringNew);
+                            removeSaved.setAlpha(enteringNew ? 0.45f : 1f);
+
+                            if (enteringNew) {
                                 manualInput.setVisibility(View.VISIBLE);
                                 manualInput.setText("");
                                 manualInput.requestFocus();
@@ -715,9 +752,25 @@ public class MainActivity extends Activity {
                         }
                     });
 
-            panel.addView(savedSites, new LinearLayout.LayoutParams(
+            LinearLayout savedRow = new LinearLayout(this);
+            savedRow.setOrientation(LinearLayout.HORIZONTAL);
+            savedRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            LinearLayout.LayoutParams savedSpinnerParams = new LinearLayout.LayoutParams(
+                    0,
+                    dp(56),
+                    1f);
+            savedSpinnerParams.setMargins(0, 0, dp(10), 0);
+            savedRow.addView(savedSites, savedSpinnerParams);
+            savedRow.addView(removeSaved, new LinearLayout.LayoutParams(
+                    dp(132),
+                    dp(56)));
+
+            panel.addView(savedRow, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     dp(56)));
+            removeSaved.setEnabled(true);
+            removeSaved.setAlpha(1f);
             manualInput.setVisibility(View.GONE);
         } else {
             manualInput.setText(currentHome);
@@ -810,6 +863,35 @@ public class MainActivity extends Activity {
 
         final Spinner finalSavedSites = savedSites;
         final int finalNewSiteIndex = newSiteIndex;
+
+        removeSaved.setOnClickListener(v -> {
+            if (finalSavedSites == null) return;
+
+            int position = finalSavedSites.getSelectedItemPosition();
+            if (position < 0
+                    || position == finalNewSiteIndex
+                    || position >= choices.size()) {
+                return;
+            }
+
+            String selected = choices.get(position);
+            new AlertDialog.Builder(this)
+                    .setTitle("Remove saved website?")
+                    .setMessage(selected
+                            + "\n\nThis removes it from WebPortal's saved-site list.")
+                    .setNegativeButton("Keep", null)
+                    .setPositiveButton("Remove", (confirmDialog, which) -> {
+                        removeSavedSite(selected);
+                        Toast.makeText(
+                                this,
+                                "Removed from saved websites.",
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        root.post(() -> showWebsiteSetup(false));
+                    })
+                    .show();
+        });
+
         primary.setOnClickListener(v -> {
             String rawValue;
             if (finalSavedSites != null
