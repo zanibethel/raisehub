@@ -2822,11 +2822,47 @@ public class MainActivity extends Activity {
     return false;
   }
 
+  function timeText(value){
+    var total=Math.max(0,Math.floor(Number(value)||0));
+    var h=Math.floor(total/3600);
+    var m=Math.floor((total%3600)/60);
+    var s=total%60;
+    return h>0
+      ?h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')
+      :m+':'+String(s).padStart(2,'0');
+  }
+
+  function showSeekPreview(seconds,target,duration){
+    var id='webportal-seek-preview';
+    var box=document.getElementById(id);
+    if(!box){
+      box=document.createElement('div');
+      box.id=id;
+      box.style.cssText='position:fixed;left:50%;bottom:12%;transform:translateX(-50%);'
+        +'z-index:2147483647;padding:9px 16px;border-radius:10px;'
+        +'background:rgba(4,12,24,.90);border:1px solid #31B8FF;color:#fff;'
+        +'font:700 16px sans-serif;line-height:1.2;pointer-events:none;'
+        +'box-shadow:0 0 16px rgba(49,184,255,.45);';
+      (document.body||document.documentElement).appendChild(box);
+    }
+
+    var label=seconds<0?'Rewind':'Forward';
+    var total=isFinite(duration)&&duration>0?' / '+timeText(duration):'';
+    box.textContent=label+' '+Math.abs(seconds)+'s   '+timeText(target)+total;
+    box.style.display='block';
+    clearTimeout(window.__webPortalSeekPreviewTimer);
+    window.__webPortalSeekPreviewTimer=setTimeout(function(){
+      if(box)box.style.display='none';
+    },1100);
+  }
+
   function seek(seconds){
     var v=video();
     if(!v||!isFinite(v.duration))return false;
     try{
-      v.currentTime=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));
+      var target=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));
+      v.currentTime=target;
+      showSeekPreview(seconds,target,v.duration);
       return true;
     }catch(e){return false;}
   }
