@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
     private static final String PREF_HOME = "home_url";
     private static final String PREF_MOBILE = "mobile_mode";
     private static final String PREF_SAVED_SITES = "saved_sites";
+    private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -406,105 +407,458 @@ public class MainActivity extends Activity {
                 .apply();
     }
 
-    private void showWebsiteSetup(boolean firstRun) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-
-        int pad = dp(24);
-        box.setPadding(pad, pad / 2, pad, 0);
-
-        EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setHint("example.com");
-        input.setText(prefs().getString(PREF_HOME, ""));
-        input.setSelectAllOnFocus(true);
-
-        List<String> saved = getSavedSites();
-        if (!saved.isEmpty()) {
-            List<String> choices = new ArrayList<>();
-            choices.add("Saved websites...");
-            choices.addAll(saved);
-
-            Spinner savedSites = new Spinner(this);
-            ArrayAdapter<String> savedAdapter = new ArrayAdapter<>(
-                    this,
-                    android.R.layout.simple_spinner_item,
-                    choices);
-            savedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            savedSites.setAdapter(savedAdapter);
-            savedSites.setPrompt("Saved websites");
-            savedSites.setFocusable(true);
-
-            savedSites.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(
-                        android.widget.AdapterView<?> parent,
-                        View view,
-                        int position,
-                        long id) {
-                    if (position > 0) {
-                        input.setText(choices.get(position));
-                        input.setSelection(input.getText().length());
-                    }
-                }
-
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {
-                }
-            });
-
-            box.addView(savedSites, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
+    private android.graphics.drawable.GradientDrawable roundedBackground(
+            int fillColor,
+            int strokeColor,
+            int strokeWidthDp,
+            int radiusDp) {
+        android.graphics.drawable.GradientDrawable background =
+                new android.graphics.drawable.GradientDrawable();
+        background.setColor(fillColor);
+        background.setCornerRadius(dp(radiusDp));
+        if (strokeWidthDp > 0) {
+            background.setStroke(dp(strokeWidthDp), strokeColor);
         }
+        return background;
+    }
 
-        box.addView(input, new LinearLayout.LayoutParams(
+    private android.graphics.drawable.StateListDrawable focusBackground(
+            int normalFill,
+            int focusedFill,
+            int normalStroke,
+            int focusedStroke,
+            int radiusDp) {
+        android.graphics.drawable.StateListDrawable states =
+                new android.graphics.drawable.StateListDrawable();
+
+        android.graphics.drawable.GradientDrawable focused =
+                roundedBackground(focusedFill, focusedStroke, 2, radiusDp);
+        android.graphics.drawable.GradientDrawable normal =
+                roundedBackground(normalFill, normalStroke, 1, radiusDp);
+
+        states.addState(new int[] { android.R.attr.state_pressed }, focused);
+        states.addState(new int[] { android.R.attr.state_focused }, focused);
+        states.addState(new int[] { android.R.attr.state_selected }, focused);
+        states.addState(new int[] { android.R.attr.state_activated }, focused);
+        states.addState(android.util.StateSet.WILD_CARD, normal);
+        return states;
+    }
+
+    private boolean mobileModeForSite(String url) {
+        String normalized = normalizeUrl(url);
+        boolean fallback = prefs().getBoolean(PREF_MOBILE, true);
+        if (normalized.isEmpty()) return fallback;
+        return prefs().getBoolean(PREF_SITE_MOBILE_PREFIX + normalized, fallback);
+    }
+
+    private void rememberMobileModeForSite(String url, boolean enabled) {
+        String normalized = normalizeUrl(url);
+        if (normalized.isEmpty()) return;
+        prefs().edit()
+                .putBoolean(PREF_SITE_MOBILE_PREFIX + normalized, enabled)
+                .apply();
+    }
+
+    private void styleSetupSpinnerText(TextView view, boolean dropdown) {
+        view.setTextColor(Color.WHITE);
+        view.setTextSize(dropdown ? 18 : 20);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setSingleLine(true);
+        view.setPadding(dp(18), 0, dp(18), 0);
+        view.setMinHeight(dp(58));
+        if (dropdown) {
+            view.setBackground(focusBackground(
+                    Color.parseColor("#10233D"),
+                    Color.parseColor("#174D78"),
+                    Color.parseColor("#294A70"),
+                    Color.parseColor("#42C2FF"),
+                    10));
+        }
+    }
+
+    private void showWebsiteSetup(boolean firstRun) {
+        final int white = Color.WHITE;
+        final int muted = Color.parseColor("#D9E6F5");
+        final int electricBlue = Color.parseColor("#31B8FF");
+        final int deepBlue = Color.parseColor("#06152B");
+
+        FrameLayout screen = new FrameLayout(this);
+        android.graphics.drawable.GradientDrawable screenBackground =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                        new int[] {
+                                Color.parseColor("#020814"),
+                                Color.parseColor("#063A7C"),
+                                Color.parseColor("#071427")
+                        });
+        screen.setBackground(screenBackground);
+
+        View blueArt = new View(this) {
+            private final android.graphics.Paint paint =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final android.graphics.Path path = new android.graphics.Path();
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                float width = getWidth();
+                float height = getHeight();
+
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+                paint.setStrokeWidth(Math.max(dp(24), width * 0.035f));
+                paint.setColor(Color.argb(52, 48, 153, 255));
+
+                android.graphics.RectF sweep = new android.graphics.RectF(
+                        -width * 0.20f,
+                        height * 0.20f,
+                        width * 1.12f,
+                        height * 1.18f);
+                canvas.drawArc(sweep, 160f, 198f, false, paint);
+
+                paint.setStrokeWidth(Math.max(dp(18), width * 0.026f));
+                paint.setColor(Color.argb(42, 70, 167, 255));
+                path.reset();
+                path.moveTo(width * 0.72f, height * 0.17f);
+                path.lineTo(width * 0.88f, height * 0.31f);
+                path.lineTo(width * 0.78f, height * 0.43f);
+                canvas.drawPath(path, paint);
+
+                paint.setStrokeWidth(dp(2));
+                paint.setColor(Color.argb(115, 68, 190, 255));
+                canvas.drawLine(
+                        width * 0.26f,
+                        height * 0.285f,
+                        width * 0.73f,
+                        height * 0.285f,
+                        paint);
+            }
+        };
+        screen.addView(blueArt, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LinearLayout stack = new LinearLayout(this);
+        stack.setOrientation(LinearLayout.VERTICAL);
+        stack.setGravity(Gravity.CENTER_HORIZONTAL);
+        int outerPad = dp(24);
+        stack.setPadding(outerPad, outerPad, outerPad, outerPad);
+
+        TextView title = new TextView(this);
+        title.setText(firstRun ? "Choose website" : "Website settings");
+        title.setTextColor(white);
+        title.setTextSize(34);
+        title.setGravity(Gravity.CENTER);
+        title.setShadowLayer(dp(10), 0, 0, Color.argb(150, 44, 181, 255));
+        stack.addView(title, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        TextView subtitle = new TextView(this);
+        subtitle.setText(
+                "Enter the website this Fire TV app should open. Press\n"
+                        + "the remote Menu button later to change it.");
+        subtitle.setTextColor(muted);
+        subtitle.setTextSize(18);
+        subtitle.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        subtitleParams.setMargins(0, dp(10), 0, dp(20));
+        stack.addView(subtitle, subtitleParams);
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(30), dp(26), dp(30), dp(24));
+        panel.setBackground(roundedBackground(
+                Color.argb(222, 6, 22, 43),
+                Color.parseColor("#365D89"),
+                1,
+                18));
+        panel.setElevation(dp(12));
+
+        List<String> saved = getSavedSites();
+        String currentHome = normalizeUrl(prefs().getString(PREF_HOME, ""));
+
+        Spinner savedSites = null;
+        List<String> choices = new ArrayList<>();
+        int newSiteIndex = -1;
+
+        EditText manualInput = new EditText(this);
+        manualInput.setSingleLine(true);
+        manualInput.setHint("example.com");
+        manualInput.setHintTextColor(Color.parseColor("#86A1BE"));
+        manualInput.setTextColor(white);
+        manualInput.setTextSize(20);
+        manualInput.setPadding(dp(18), 0, dp(18), 0);
+        manualInput.setMinHeight(dp(58));
+        manualInput.setSelectAllOnFocus(true);
+        manualInput.setBackground(focusBackground(
+                Color.parseColor("#0C1B31"),
+                Color.parseColor("#102A48"),
+                Color.parseColor("#2F6DA6"),
+                electricBlue,
+                10));
+
         CheckBox mobile = new CheckBox(this);
         mobile.setText("Mobile compatibility mode");
-        mobile.setChecked(prefs().getBoolean(PREF_MOBILE, true));
-        box.addView(mobile);
+        mobile.setTextColor(white);
+        mobile.setTextSize(18);
+        mobile.setPadding(0, dp(8), 0, dp(8));
+        mobile.setChecked(mobileModeForSite(currentHome));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            mobile.setButtonTintList(new android.content.res.ColorStateList(
+                    new int[][] {
+                            new int[] { android.R.attr.state_checked },
+                            new int[] { -android.R.attr.state_checked }
+                    },
+                    new int[] {
+                            electricBlue,
+                            Color.parseColor("#91A8C0")
+                    }));
+        }
+
+        if (!saved.isEmpty()) {
+            choices.addAll(saved);
+            choices.add("Enter a new website…");
+            newSiteIndex = choices.size() - 1;
+
+            savedSites = new Spinner(this);
+            savedSites.setFocusable(true);
+            savedSites.setClickable(true);
+            savedSites.setPrompt("Saved websites");
+            savedSites.setMinimumHeight(dp(58));
+            savedSites.setBackground(focusBackground(
+                    Color.parseColor("#0C1B31"),
+                    Color.parseColor("#102A48"),
+                    Color.parseColor("#2F6DA6"),
+                    electricBlue,
+                    10));
+
+            final List<String> spinnerChoices = choices;
+            ArrayAdapter<String> savedAdapter = new ArrayAdapter<String>(
+                    this,
+                    android.R.layout.simple_spinner_item,
+                    spinnerChoices) {
+                @Override
+                public View getView(int position, View convertView, ViewGroup parent) {
+                    TextView view = (TextView) super.getView(position, convertView, parent);
+                    styleSetupSpinnerText(view, false);
+                    String value = spinnerChoices.get(position);
+                    view.setText(value + "   ▾");
+                    return view;
+                }
+
+                @Override
+                public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                    TextView view =
+                            (TextView) super.getDropDownView(position, convertView, parent);
+                    styleSetupSpinnerText(view, true);
+                    view.setText(spinnerChoices.get(position));
+                    return view;
+                }
+            };
+            savedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            savedSites.setAdapter(savedAdapter);
+
+            int initialIndex = saved.indexOf(currentHome);
+            if (initialIndex < 0) initialIndex = 0;
+            savedSites.setSelection(initialIndex, false);
+            mobile.setChecked(mobileModeForSite(saved.get(initialIndex)));
+
+            final int finalNewSiteIndex = newSiteIndex;
+            final Spinner finalSavedSites = savedSites;
+            savedSites.setOnItemSelectedListener(
+                    new android.widget.AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(
+                                android.widget.AdapterView<?> parent,
+                                View view,
+                                int position,
+                                long id) {
+                            if (position == finalNewSiteIndex) {
+                                manualInput.setVisibility(View.VISIBLE);
+                                manualInput.setText("");
+                                manualInput.requestFocus();
+                            } else {
+                                manualInput.setVisibility(View.GONE);
+                                String selected = spinnerChoices.get(position);
+                                mobile.setChecked(mobileModeForSite(selected));
+                                finalSavedSites.requestFocus();
+                            }
+                        }
+
+                        @Override
+                        public void onNothingSelected(
+                                android.widget.AdapterView<?> parent) {
+                        }
+                    });
+
+            panel.addView(savedSites, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(60)));
+            manualInput.setVisibility(View.GONE);
+        } else {
+            manualInput.setText(currentHome);
+            manualInput.setVisibility(View.VISIBLE);
+        }
+
+        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(60));
+        if (!saved.isEmpty()) {
+            inputParams.setMargins(0, dp(10), 0, 0);
+        }
+        panel.addView(manualInput, inputParams);
+
+        LinearLayout.LayoutParams mobileParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        mobileParams.setMargins(0, dp(10), 0, dp(8));
+        panel.addView(mobile, mobileParams);
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        buttons.setGravity(Gravity.CENTER);
+
+        android.widget.Button primary = new android.widget.Button(this);
+        primary.setText("Save & Open");
+        primary.setAllCaps(false);
+        primary.setTextSize(18);
+        primary.setTextColor(Color.parseColor("#02101E"));
+        primary.setMinHeight(dp(58));
+        primary.setStateListAnimator(null);
+        primary.setBackground(focusBackground(
+                Color.parseColor("#27A8ED"),
+                Color.parseColor("#57C9FF"),
+                Color.parseColor("#8AD9FF"),
+                Color.WHITE,
+                10));
+
+        android.widget.Button secondary = new android.widget.Button(this);
+        secondary.setText(firstRun ? "Exit" : "Cancel");
+        secondary.setAllCaps(false);
+        secondary.setTextSize(18);
+        secondary.setTextColor(white);
+        secondary.setMinHeight(dp(58));
+        secondary.setStateListAnimator(null);
+        secondary.setBackground(focusBackground(
+                Color.parseColor("#28384F"),
+                Color.parseColor("#385A78"),
+                Color.parseColor("#586D87"),
+                electricBlue,
+                10));
+
+        LinearLayout.LayoutParams primaryParams = new LinearLayout.LayoutParams(
+                0,
+                dp(60),
+                1f);
+        primaryParams.setMargins(0, 0, dp(8), 0);
+        buttons.addView(primary, primaryParams);
+
+        LinearLayout.LayoutParams secondaryParams = new LinearLayout.LayoutParams(
+                0,
+                dp(60),
+                1f);
+        secondaryParams.setMargins(dp(8), 0, 0, 0);
+        buttons.addView(secondary, secondaryParams);
+
+        LinearLayout.LayoutParams buttonsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        buttonsParams.setMargins(0, dp(8), 0, 0);
+        panel.addView(buttons, buttonsParams);
+
+        int displayWidth = getResources().getDisplayMetrics().widthPixels;
+        int panelWidth = Math.min(dp(820), Math.round(displayWidth * 0.76f));
+        LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(
+                panelWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        stack.addView(panel, panelParams);
+
+        FrameLayout.LayoutParams stackParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        stackParams.gravity = Gravity.CENTER;
+        screen.addView(stack, stackParams);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(firstRun ? "Choose website" : "Website settings")
-                .setMessage("Enter the website this Fire TV app should open. Press the remote Menu button later to change it.")
-                .setView(box)
-                .setPositiveButton("Save & Open", null)
-                .setNegativeButton(firstRun ? "Exit" : "Cancel", (d, which) -> {
-                    if (firstRun) finish();
-                })
+                .setView(screen)
                 .create();
+        dialog.setCancelable(!firstRun);
+        dialog.setCanceledOnTouchOutside(false);
 
-        dialog.setOnShowListener(d ->
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-                    String value = normalizeUrl(input.getText().toString());
-                    Uri uri = Uri.parse(value);
+        final Spinner finalSavedSites = savedSites;
+        final int finalNewSiteIndex = newSiteIndex;
+        primary.setOnClickListener(v -> {
+            String rawValue;
+            if (finalSavedSites != null
+                    && finalSavedSites.getSelectedItemPosition() != finalNewSiteIndex) {
+                rawValue = choices.get(finalSavedSites.getSelectedItemPosition());
+            } else {
+                rawValue = manualInput.getText().toString();
+            }
 
-                    if (value.isEmpty() || uri.getHost() == null) {
-                        input.setError("Enter a valid website, such as example.com");
-                        return;
-                    }
+            String value = normalizeUrl(rawValue);
+            Uri uri = Uri.parse(value);
 
-                    prefs().edit()
-                            .putString(PREF_HOME, value)
-                            .putBoolean(PREF_MOBILE, mobile.isChecked())
-                            .apply();
-                    rememberSite(value);
+            if (value.isEmpty() || uri.getHost() == null) {
+                manualInput.setVisibility(View.VISIBLE);
+                manualInput.setError("Enter a valid website, such as example.com");
+                manualInput.requestFocus();
+                return;
+            }
 
-                    applyUserAgent();
-                    dialog.dismiss();
-                    loadUrl(value);
-                }));
+            prefs().edit()
+                    .putString(PREF_HOME, value)
+                    .putBoolean(PREF_MOBILE, mobile.isChecked())
+                    .apply();
+            rememberMobileModeForSite(value, mobile.isChecked());
+            rememberSite(value);
+
+            applyUserAgent();
+            dialog.dismiss();
+            loadUrl(value);
+        });
+
+        secondary.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (firstRun) finish();
+        });
 
         dialog.setOnDismissListener(d -> {
             hideSystemUi();
             if (webView != null) webView.requestFocus();
         });
 
+        dialog.setOnShowListener(d -> {
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawable(
+                        new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+                window.setDimAmount(0f);
+                window.setLayout(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT);
+            }
+
+            if (finalSavedSites != null) {
+                finalSavedSites.requestFocus();
+            } else {
+                manualInput.requestFocus();
+            }
+        });
+
         dialog.show();
-        input.requestFocus();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            window.setDimAmount(0f);
+            window.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT);
+        }
     }
 
     private String installedVersionName() {
