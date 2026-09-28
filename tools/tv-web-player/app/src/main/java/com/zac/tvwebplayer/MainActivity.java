@@ -1311,7 +1311,7 @@ public class MainActivity extends Activity {
     private void installPageCardNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalPageCards&&window.__webPortalPageCards.version===1){
+  if(window.__webPortalPageCards&&window.__webPortalPageCards.version===2){
     window.__webPortalPageCards.refresh();
     return;
   }
@@ -1374,9 +1374,24 @@ public class MainActivity extends Activity {
     if(r.width<110||r.height<78)return false;
     if(r.width>innerWidth*.78||r.height>innerHeight*.78)return false;
 
-    var images=el.querySelectorAll?el.querySelectorAll('img,picture,svg'):[]);
-    if(images.length===0)return false;
-    if(images.length>5)return false;
+    var images=el.querySelectorAll?el.querySelectorAll('img,picture,svg,canvas'):[];
+    if(images.length>7)return false;
+
+    // Many streaming home pages paint poster art with CSS background-image
+    // instead of an <img>. Treat those tiles as visual cards too.
+    var hasVisual=images.length>0;
+    if(!hasVisual){
+      var ownBackground=(getComputedStyle(el).backgroundImage||'').toLowerCase();
+      hasVisual=ownBackground&&ownBackground!=='none';
+    }
+    if(!hasVisual&&el.querySelectorAll){
+      var descendants=el.querySelectorAll('*');
+      var limit=Math.min(descendants.length,40);
+      for(var vi=0;vi<limit;vi++){
+        var bg=(getComputedStyle(descendants[vi]).backgroundImage||'').toLowerCase();
+        if(bg&&bg!=='none'){hasVisual=true;break;}
+      }
+    }
 
     var text=(el.textContent||'').replace(/\s+/g,' ').trim();
     var hint=((el.className&&typeof el.className==='string'?el.className:'')+' '
@@ -1385,9 +1400,15 @@ public class MainActivity extends Activity {
       +(el.getAttribute('data-type')||'')).toLowerCase();
     var named=/card|tile|poster|movie|show|media|content|result|item/.test(hint);
     var pointer=getComputedStyle(el).cursor==='pointer';
-    var actions=el.querySelectorAll?el.querySelectorAll('a[href],button,[role=button],[onclick]').length:0;
+    var selfAction=el.matches&&el.matches('a[href],button,[role=button],[role=link],[onclick]');
+    var actions=el.querySelectorAll?el.querySelectorAll('a[href],button,[role=button],[role=link],[onclick]').length:0;
 
-    return named||pointer||(actions>0&&text.length>=2);
+    // Require either visual poster art or a strongly card-like/clickable element.
+    // This avoids promoting generic layout containers while catching CSS-backed
+    // home-page tiles whose poster is not a real image element.
+    return (hasVisual&&(named||pointer||selfAction||actions>0))
+      ||(selfAction&&text.length>=2&&r.width>=150&&r.height>=90)
+      ||(named&&actions>0&&text.length>=2);
   }
 
   function collectCards(){
@@ -1578,7 +1599,11 @@ public class MainActivity extends Activity {
     if(!document.getElementById(STYLE_ID)){
       var style=document.createElement('style');
       style.id=STYLE_ID;
-      style.textContent='.'+FOCUS_CLASS+'{outline:4px solid #6EE7F9 !important;outline-offset:3px !important;box-shadow:0 0 0 2px rgba(11,18,32,.85),0 0 14px rgba(110,231,249,.82) !important;}';
+      style.textContent='.'+FOCUS_CLASS+','
+        +'['+CARD_ATTR+']:focus,['+CARD_ATTR+']:focus-within'
+        +'{outline:4px solid #6EE7F9 !important;outline-offset:3px !important;'
+        +'box-shadow:0 0 0 2px rgba(11,18,32,.85),0 0 18px rgba(110,231,249,.92) !important;'
+        +'border-radius:6px !important;}';
       (document.head||document.documentElement).appendChild(style);
     }
     cards();
@@ -1661,7 +1686,7 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalPageCards={
-    version:1,
+    version:2,
     refresh:refresh,
     destroy:destroy
   };
