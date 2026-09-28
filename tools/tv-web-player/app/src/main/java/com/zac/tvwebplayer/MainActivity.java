@@ -76,6 +76,11 @@ public class MainActivity extends Activity {
     private volatile boolean webPlayerMode;
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
+    private View cursorView;
+    private boolean cursorMode;
+    private boolean cursorHover;
+    private float cursorX;
+    private float cursorY;
 
     private final class WebPortalBridge {
         @JavascriptInterface
@@ -85,6 +90,9 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active) {
+        if (active && cursorMode) {
+            setCursorMode(false);
+        }
         if (webPlayerMode == active) {
             setAdBannerVisible(!active && customView == null);
             return;
@@ -207,7 +215,9 @@ public class MainActivity extends Activity {
                 installPopupGuard();
                 installFullscreenIntentGuard();
                 installPlayerModeMonitor();
-                installPageCardNavigation();
+                if (!cursorMode) {
+                    installPageCardNavigation();
+                }
             }
         });
 
@@ -282,13 +292,289 @@ public class MainActivity extends Activity {
                 this,
                 this::openBannerDestination);
         FrameLayout.LayoutParams bannerParams = new FrameLayout.LayoutParams(
-                dp(342),
+                dp(210),
                 dp(74));
         bannerParams.gravity = Gravity.BOTTOM | Gravity.END;
         bannerParams.setMargins(0, 0, dp(10), dp(10));
         root.addView(adBanner, bannerParams);
 
+        setupCursorOverlay();
         webView.requestFocus();
+    }
+
+    private void setupCursorOverlay() {
+        cursorView = new View(this) {
+            private final android.graphics.Paint ring =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            {
+                setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                ring.setStyle(android.graphics.Paint.Style.STROKE);
+                ring.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+            }
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                float cx = getWidth() / 2f;
+                float cy = getHeight() / 2f;
+                float radius = Math.min(getWidth(), getHeight()) * 0.31f;
+
+                ring.setStrokeWidth(dp(cursorHover ? 2 : 1));
+                ring.setColor(
+                        cursorHover
+                                ? Color.rgb(110, 231, 249)
+                                : Color.rgb(49, 184, 255));
+                ring.setShadowLayer(
+                        dp(cursorHover ? 9 : 4),
+                        0,
+                        0,
+                        cursorHover
+                                ? Color.rgb(110, 231, 249)
+                                : Color.rgb(49, 184, 255));
+
+                // Ring only: the center stays transparent so the target beneath
+                // the cursor remains visible.
+                canvas.drawCircle(cx, cy, radius, ring);
+            }
+        };
+        cursorView.setVisibility(View.GONE);
+        cursorView.setFocusable(false);
+        cursorView.setClickable(false);
+
+        int size = dp(26);
+        FrameLayout.LayoutParams params =
+                new FrameLayout.LayoutParams(size, size);
+        params.gravity = Gravity.TOP | Gravity.START;
+        root.addView(cursorView, params);
+    }
+
+    private void setCursorMode(boolean enabled) {
+        if (cursorView == null || webView == null) return;
+
+        if (enabled && (customView != null || webPlayerMode)) {
+            Toast.makeText(
+                    this,
+                    "Cursor mode is available on normal web pages.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        cursorMode = enabled;
+        if (!enabled) {
+            cursorView.setVisibility(View.GONE);
+            installPageCardNavigation();
+            webView.requestFocus();
+            Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (cursorX <= 0f || cursorY <= 0f) {
+            cursorX = root.getWidth() > 0 ? root.getWidth() * 0.5f : dp(320);
+            cursorY = root.getHeight() > 0 ? root.getHeight() * 0.5f : dp(180);
+        }
+
+        destroyPageCardNavigation();
+        webView.evaluateJavascript(
+                "(function(){try{if(document.activeElement)document.activeElement.blur();}catch(e){}})()",
+                null);
+        positionCursor();
+        cursorView.setVisibility(View.VISIBLE);
+        cursorView.bringToFront();
+        updateCursorHoverState();
+        Toast.makeText(
+                this,
+                "Cursor mode on · D-pad moves · Select clicks · Back exits",
+                Toast.LENGTH_LONG).show();
+    }
+
+    private void positionCursor() {
+        if (cursorView == null || root == null) return;
+        int size = cursorView.getLayoutParams() == null
+                ? dp(32)
+                : cursorView.getLayoutParams().width;
+        float half = size / 2f;
+        float maxX = Math.max(half, root.getWidth() - half);
+        float maxY = Math.max(half, root.getHeight() - half);
+        cursorX = Math.max(half, Math.min(maxX, cursorX));
+        cursorY = Math.max(half, Math.min(maxY, cursorY));
+        cursorView.setX(cursorX - half);
+        cursorView.setY(cursorY - half);
+    }
+
+    private void updateCursorHoverState() {
+        if (!cursorMode || cursorView == null || webView == null || root == null
+                || webView.getWidth() <= 0 || webView.getHeight() <= 0) {
+            return;
+        }
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float localX = cursorX - (webLocation[0] - rootLocation[0]);
+        float localY = cursorY - (webLocation[1] - rootLocation[1]);
+
+        if (localX < 0 || localY < 0
+                || localX > webView.getWidth()
+                || localY > webView.getHeight()) {
+            cursorHover = false;
+            cursorView.invalidate();
+            return;
+        }
+
+        String js = "(function(){"
+                + "var x=(" + localX + "/Math.max(" + webView.getWidth() + ",1))*innerWidth;"
+                + "var y=(" + localY + "/Math.max(" + webView.getHeight() + ",1))*innerHeight;"
+                + "var n=document.elementFromPoint(x,y);"
+                + "while(n&&n!==document.body&&n!==document.documentElement){"
+                + "if(n.matches&&n.matches('a[href],button,input,select,textarea,summary,"
+                + "[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]')"
+                + "&&n.getAttribute('tabindex')!=='-1')return true;"
+                + "try{if(getComputedStyle(n).cursor==='pointer')return true;}catch(e){}"
+                + "n=n.parentElement;}"
+                + "return false;})()";
+
+        webView.evaluateJavascript(js, value -> {
+            boolean nextHover = "true".equals(value);
+            if (cursorHover != nextHover) {
+                cursorHover = nextHover;
+                cursorView.invalidate();
+            }
+        });
+    }
+
+    private void pulseCursorClick() {
+        if (cursorView == null) return;
+
+        cursorView.animate().cancel();
+        cursorView.setScaleX(1f);
+        cursorView.setScaleY(1f);
+        cursorView.animate()
+                .scaleX(0.72f)
+                .scaleY(0.72f)
+                .setDuration(65)
+                .withEndAction(() ->
+                        cursorView.animate()
+                                .scaleX(1.12f)
+                                .scaleY(1.12f)
+                                .setDuration(80)
+                                .withEndAction(() ->
+                                        cursorView.animate()
+                                                .scaleX(1f)
+                                                .scaleY(1f)
+                                                .setDuration(70)
+                                                .start())
+                                .start())
+                .start();
+    }
+
+    private void scrollAtCursor(int direction) {
+        if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float localX = cursorX - (webLocation[0] - rootLocation[0]);
+        float localY = cursorY - (webLocation[1] - rootLocation[1]);
+        int width = webView.getWidth();
+        int height = webView.getHeight();
+        int amount = Math.max(dp(180), Math.round(height * 0.45f)) * direction;
+
+        String js = "(function(){"
+                + "var vw=" + width + ",vh=" + height + ";"
+                + "var x=(" + localX + "/Math.max(vw,1))*innerWidth;"
+                + "var y=(" + localY + "/Math.max(vh,1))*innerHeight;"
+                + "var n=document.elementFromPoint(x,y);"
+                + "while(n&&n!==document.body&&n!==document.documentElement){"
+                + "var s=getComputedStyle(n);"
+                + "if((s.overflowY==='auto'||s.overflowY==='scroll')"
+                + "&&n.scrollHeight>n.clientHeight+4){"
+                + "n.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
+                + "n=n.parentElement;}"
+                + "window.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});"
+                + "return true;})()";
+        webView.evaluateJavascript(js, null);
+        webView.postDelayed(this::updateCursorHoverState, 140);
+    }
+
+    private void moveCursor(int keyCode, int repeatCount) {
+        if (!cursorMode || cursorView == null || root == null) return;
+
+        float step = dp(repeatCount >= 6 ? 48 : repeatCount >= 2 ? 36 : 28);
+        float edge = dp(26);
+
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                cursorX -= step;
+                break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                cursorX += step;
+                break;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                if (cursorY <= edge + step) {
+                    cursorY = edge;
+                    scrollAtCursor(-1);
+                } else {
+                    cursorY -= step;
+                }
+                break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
+                    cursorY = root.getHeight() - edge;
+                    scrollAtCursor(1);
+                } else {
+                    cursorY += step;
+                }
+                break;
+            default:
+                return;
+        }
+
+        positionCursor();
+        updateCursorHoverState();
+    }
+
+    private void clickCursor() {
+        if (!cursorMode || webView == null || root == null) return;
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float x = cursorX - (webLocation[0] - rootLocation[0]);
+        float y = cursorY - (webLocation[1] - rootLocation[1]);
+        if (x < 0 || y < 0 || x > webView.getWidth() || y > webView.getHeight()) return;
+
+        pulseCursorClick();
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down = android.view.MotionEvent.obtain(
+                now,
+                now,
+                android.view.MotionEvent.ACTION_DOWN,
+                x,
+                y,
+                0);
+        android.view.MotionEvent up = android.view.MotionEvent.obtain(
+                now,
+                now + 45,
+                android.view.MotionEvent.ACTION_UP,
+                x,
+                y,
+                0);
+        try {
+            webView.dispatchTouchEvent(down);
+            webView.dispatchTouchEvent(up);
+            webView.postDelayed(this::updateCursorHoverState, 120);
+        } finally {
+            down.recycle();
+            up.recycle();
+        }
     }
 
     private void openBannerDestination(String url) {
@@ -406,6 +692,25 @@ public class MainActivity extends Activity {
         prefs().edit()
                 .putString(PREF_SAVED_SITES, String.join("\n", sites))
                 .apply();
+    }
+
+    private void removeSavedSite(String url) {
+        String normalized = normalizeUrl(url);
+        if (normalized.isEmpty()) return;
+
+        List<String> sites = getSavedSites();
+        if (!sites.remove(normalized)) return;
+
+        SharedPreferences.Editor editor = prefs().edit()
+                .putString(PREF_SAVED_SITES, String.join("\n", sites))
+                .remove(PREF_SITE_MOBILE_PREFIX + normalized);
+
+        String currentHome = normalizeUrl(prefs().getString(PREF_HOME, ""));
+        if (normalized.equals(currentHome)) {
+            editor.remove(PREF_HOME);
+        }
+
+        editor.apply();
     }
 
     private android.graphics.drawable.GradientDrawable roundedBackground(
@@ -605,6 +910,20 @@ public class MainActivity extends Activity {
         List<String> choices = new ArrayList<>();
         int newSiteIndex = -1;
 
+        android.widget.Button removeSaved = new android.widget.Button(this);
+        removeSaved.setText("Remove");
+        removeSaved.setAllCaps(false);
+        removeSaved.setTextSize(15);
+        removeSaved.setTextColor(Color.parseColor("#FFD9E2"));
+        removeSaved.setMinHeight(dp(54));
+        removeSaved.setStateListAnimator(null);
+        removeSaved.setBackground(focusBackground(
+                Color.parseColor("#35151D"),
+                Color.parseColor("#5B2031"),
+                Color.parseColor("#7A3045"),
+                Color.parseColor("#FF6B8A"),
+                10));
+
         EditText manualInput = new EditText(this);
         manualInput.setSingleLine(true);
         manualInput.setHint("example.com");
@@ -697,7 +1016,11 @@ public class MainActivity extends Activity {
                                 View view,
                                 int position,
                                 long id) {
-                            if (position == finalNewSiteIndex) {
+                            boolean enteringNew = position == finalNewSiteIndex;
+                            removeSaved.setEnabled(!enteringNew);
+                            removeSaved.setAlpha(enteringNew ? 0.45f : 1f);
+
+                            if (enteringNew) {
                                 manualInput.setVisibility(View.VISIBLE);
                                 manualInput.setText("");
                                 manualInput.requestFocus();
@@ -715,9 +1038,25 @@ public class MainActivity extends Activity {
                         }
                     });
 
-            panel.addView(savedSites, new LinearLayout.LayoutParams(
+            LinearLayout savedRow = new LinearLayout(this);
+            savedRow.setOrientation(LinearLayout.HORIZONTAL);
+            savedRow.setGravity(Gravity.CENTER_VERTICAL);
+
+            LinearLayout.LayoutParams savedSpinnerParams = new LinearLayout.LayoutParams(
+                    0,
+                    dp(56),
+                    1f);
+            savedSpinnerParams.setMargins(0, 0, dp(10), 0);
+            savedRow.addView(savedSites, savedSpinnerParams);
+            savedRow.addView(removeSaved, new LinearLayout.LayoutParams(
+                    dp(132),
+                    dp(56)));
+
+            panel.addView(savedRow, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     dp(56)));
+            removeSaved.setEnabled(true);
+            removeSaved.setAlpha(1f);
             manualInput.setVisibility(View.GONE);
         } else {
             manualInput.setText(currentHome);
@@ -810,6 +1149,35 @@ public class MainActivity extends Activity {
 
         final Spinner finalSavedSites = savedSites;
         final int finalNewSiteIndex = newSiteIndex;
+
+        removeSaved.setOnClickListener(v -> {
+            if (finalSavedSites == null) return;
+
+            int position = finalSavedSites.getSelectedItemPosition();
+            if (position < 0
+                    || position == finalNewSiteIndex
+                    || position >= choices.size()) {
+                return;
+            }
+
+            String selected = choices.get(position);
+            new AlertDialog.Builder(this)
+                    .setTitle("Remove saved website?")
+                    .setMessage(selected
+                            + "\n\nThis removes it from WebPortal's saved-site list.")
+                    .setNegativeButton("Keep", null)
+                    .setPositiveButton("Remove", (confirmDialog, which) -> {
+                        removeSavedSite(selected);
+                        Toast.makeText(
+                                this,
+                                "Removed from saved websites.",
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        root.post(() -> showWebsiteSetup(false));
+                    })
+                    .show();
+        });
+
         primary.setOnClickListener(v -> {
             String rawValue;
             if (finalSavedSites != null
@@ -915,6 +1283,7 @@ public class MainActivity extends Activity {
         String[] actions = {
                 "Home",
                 "Reload",
+                cursorMode ? "Cursor mode: On" : "Cursor mode: Off",
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
@@ -956,19 +1325,22 @@ public class MainActivity extends Activity {
                     webView.reload();
                     break;
                 case 2:
-                    playCurrentPageVideo();
+                    setCursorMode(!cursorMode);
                     break;
                 case 3:
-                    showWebsiteSetup(false);
+                    playCurrentPageVideo();
                     break;
                 case 4:
+                    showWebsiteSetup(false);
+                    break;
+                case 5:
                     CookieManager.getInstance().removeAllCookies(null);
                     CookieManager.getInstance().flush();
                     webView.clearCache(true);
                     webView.clearHistory();
                     Toast.makeText(this, "Website data cleared.", Toast.LENGTH_SHORT).show();
                     break;
-                case 5:
+                case 6:
                     openUpdateDownload();
                     break;
                 default:
@@ -1293,6 +1665,9 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
+        if (cursorMode) {
+            setCursorMode(false);
+        }
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -2551,6 +2926,25 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+
+        if (cursorMode && customView == null && !webPlayerMode
+                && isDpadNavigationKey(keyCode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    if (event.getRepeatCount() == 0) {
+                        clickCursor();
+                    }
+                } else {
+                    moveCursor(keyCode, event.getRepeatCount());
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
         boolean playerHasNavigationFocus =
                 webView != null && (customView != null || webPlayerMode);
 
@@ -2643,6 +3037,11 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (cursorMode) {
+                setCursorMode(false);
+                return true;
+            }
+
             if (customView != null) {
                 webView.evaluateJavascript(
                         "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return 'hidden';}return 'exit';})()",

@@ -87,26 +87,26 @@ public class WebPortalAdBanner extends LinearLayout {
 
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
-        setPadding(dp(7), dp(6), dp(7), dp(6));
+        setPadding(dp(5), dp(5), dp(5), dp(5));
         setFocusable(true);
         setFocusableInTouchMode(false);
         setClickable(true);
         setBackground(makeBackground(false));
 
         FrameLayout brandFrame = new FrameLayout(context);
-        LayoutParams brandParams = new LayoutParams(dp(48), dp(48));
-        brandParams.setMarginEnd(dp(8));
+        LayoutParams brandParams = new LayoutParams(dp(38), dp(38));
+        brandParams.setMarginEnd(dp(6));
 
         brandFallbackView = new TextView(context);
         brandFallbackView.setGravity(Gravity.CENTER);
         brandFallbackView.setTextColor(Color.WHITE);
-        brandFallbackView.setTextSize(15f);
+        brandFallbackView.setTextSize(12f);
         brandFallbackView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         brandFallbackView.setBackground(makeBrandFallbackBackground());
 
         brandLogoView = new ImageView(context);
         brandLogoView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        brandLogoView.setPadding(dp(3), dp(3), dp(3), dp(3));
+        brandLogoView.setPadding(dp(2), dp(2), dp(2), dp(2));
 
         brandFrame.addView(
                 brandFallbackView,
@@ -126,19 +126,19 @@ public class WebPortalAdBanner extends LinearLayout {
 
         eyebrowView = new TextView(context);
         eyebrowView.setTextColor(Color.rgb(103, 232, 249));
-        eyebrowView.setTextSize(8f);
+        eyebrowView.setTextSize(7f);
         eyebrowView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         eyebrowView.setMaxLines(1);
 
         titleView = new TextView(context);
         titleView.setTextColor(Color.WHITE);
-        titleView.setTextSize(13f);
+        titleView.setTextSize(11f);
         titleView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         titleView.setMaxLines(1);
 
         messageView = new TextView(context);
         messageView.setTextColor(Color.rgb(226, 232, 240));
-        messageView.setTextSize(10f);
+        messageView.setTextSize(8.5f);
         messageView.setMaxLines(2);
 
         copy.addView(
@@ -161,14 +161,14 @@ public class WebPortalAdBanner extends LinearLayout {
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 1f);
-        copyParams.setMarginEnd(dp(8));
+        copyParams.setMarginEnd(dp(5));
         addView(copy, copyParams);
 
         qrView = new ImageView(context);
         qrView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         qrView.setBackgroundColor(Color.WHITE);
         qrView.setPadding(dp(2), dp(2), dp(2), dp(2));
-        addView(qrView, new LayoutParams(dp(54), dp(54)));
+        addView(qrView, new LayoutParams(dp(44), dp(44)));
 
         setOnFocusChangeListener((view, hasFocus) -> {
             pausedForFocus = hasFocus;
@@ -232,26 +232,7 @@ public class WebPortalAdBanner extends LinearLayout {
         return background;
     }
 
-    private boolean isSupportHouse(AdItem item) {
-        return item != null && item.id.startsWith("house-support-webportal");
-    }
-
     private void applyCurrentBackground(boolean focused) {
-        AdItem item = currentItem();
-        if (isSupportHouse(item)) {
-            Bitmap bitmap = BitmapFactory.decodeResource(
-                    getResources(),
-                    R.drawable.webportal_support_banner);
-            android.graphics.drawable.BitmapDrawable background =
-                    new android.graphics.drawable.BitmapDrawable(
-                            getResources(),
-                            bitmap);
-            background.setGravity(Gravity.FILL);
-            setBackground(background);
-            setAlpha(focused ? 1f : 0.94f);
-            return;
-        }
-
         setAlpha(1f);
         setBackground(makeBackground(focused));
     }
@@ -278,34 +259,22 @@ public class WebPortalAdBanner extends LinearLayout {
             return;
         }
 
-        boolean supportHouse = isSupportHouse(item);
-        if (supportHouse) {
-            // Use the selected full-card artwork. Keep a runtime-generated QR on top
-            // so the visible code always points to the real support destination.
-            getChildAt(0).setVisibility(View.GONE);
-            getChildAt(1).setVisibility(View.GONE);
-            qrView.setVisibility(View.VISIBLE);
-            setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-            setPadding(dp(6), dp(6), dp(10), dp(6));
-            qrView.setImageBitmap(makeQr(item.destinationUrl));
-        } else {
-            getChildAt(0).setVisibility(View.VISIBLE);
-            getChildAt(1).setVisibility(View.VISIBLE);
-            qrView.setVisibility(View.VISIBLE);
-            setGravity(Gravity.CENTER_VERTICAL);
-            setPadding(dp(7), dp(6), dp(7), dp(6));
+        getChildAt(0).setVisibility(View.VISIBLE);
+        getChildAt(1).setVisibility(View.VISIBLE);
+        qrView.setVisibility(View.VISIBLE);
+        setGravity(Gravity.CENTER_VERTICAL);
+        setPadding(dp(5), dp(5), dp(5), dp(5));
 
-            eyebrowView.setText(
-                    item.paid
-                            ? "SPONSORED"
-                            : item.id.startsWith("house-raisehub")
-                                    ? "RAISEHUB"
-                                    : "WEBPORTAL");
-            titleView.setText(item.title);
-            messageView.setText(item.message);
-            qrView.setImageBitmap(makeQr(item.destinationUrl));
-            renderBrand(item);
-        }
+        eyebrowView.setText(
+                item.paid
+                        ? "SPONSORED"
+                        : item.id.startsWith("house-raisehub")
+                                ? "RAISEHUB"
+                                : "WEBPORTAL");
+        titleView.setText(item.title);
+        messageView.setText(item.message);
+        qrView.setImageBitmap(makeQr(item.destinationUrl));
+        renderBrand(item);
 
         applyCurrentBackground(hasFocus());
         setContentDescription(
