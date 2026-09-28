@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private static final String PREF_MOBILE = "mobile_mode";
     private static final String PREF_SAVED_SITES = "saved_sites";
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
+    private static final String PREF_CURSOR_MODE = "cursor_mode";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -78,6 +79,7 @@ public class MainActivity extends Activity {
     private int adBannerInsetPx;
     private View cursorView;
     private boolean cursorMode;
+    private boolean cursorPreferenceEnabled;
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
@@ -90,9 +92,6 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active) {
-        if (active && cursorMode) {
-            setCursorMode(false);
-        }
         if (webPlayerMode == active) {
             setAdBannerVisible(!active && customView == null);
             return;
@@ -102,9 +101,15 @@ public class MainActivity extends Activity {
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
+            applyCursorMode(false, false);
             installTvNavigation();
         } else if (customView == null) {
             destroyTvNavigation();
+            if (cursorPreferenceEnabled) {
+                applyCursorMode(true, false);
+            } else {
+                installPageCardNavigation();
+            }
         }
     }
 
@@ -131,6 +136,7 @@ public class MainActivity extends Activity {
 
         pendingUpdateDownloadId =
                 prefs().getLong(PREF_PENDING_UPDATE_DOWNLOAD, -1L);
+        cursorPreferenceEnabled = prefs().getBoolean(PREF_CURSOR_MODE, true);
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
@@ -202,6 +208,8 @@ public class MainActivity extends Activity {
                     String url,
                     android.graphics.Bitmap favicon) {
                 webPlayerMode = false;
+                cursorMode = false;
+                if (cursorView != null) cursorView.setVisibility(View.GONE);
                 destroyTvNavigation();
                 destroyPageCardNavigation();
                 setAdBannerVisible(true);
@@ -215,7 +223,9 @@ public class MainActivity extends Activity {
                 installPopupGuard();
                 installFullscreenIntentGuard();
                 installPlayerModeMonitor();
-                if (!cursorMode) {
+                if (cursorPreferenceEnabled) {
+                    applyCursorMode(true, false);
+                } else {
                     installPageCardNavigation();
                 }
             }
@@ -350,22 +360,37 @@ public class MainActivity extends Activity {
     }
 
     private void setCursorMode(boolean enabled) {
-        if (cursorView == null || webView == null) return;
+        cursorPreferenceEnabled = enabled;
+        prefs().edit().putBoolean(PREF_CURSOR_MODE, enabled).apply();
 
         if (enabled && (customView != null || webPlayerMode)) {
             Toast.makeText(
                     this,
-                    "Cursor mode is available on normal web pages.",
+                    "Cursor will return when the video player closes.",
                     Toast.LENGTH_SHORT).show();
             return;
         }
 
-        cursorMode = enabled;
-        if (!enabled) {
+        applyCursorMode(enabled, true);
+    }
+
+    private void applyCursorMode(boolean enabled, boolean announce) {
+        if (cursorView == null || webView == null) return;
+
+        cursorMode = enabled && customView == null && !webPlayerMode;
+        if (!cursorMode) {
             cursorView.setVisibility(View.GONE);
-            installPageCardNavigation();
+            cursorHover = false;
+            cursorView.invalidate();
+
+            if (customView == null && !webPlayerMode && !cursorPreferenceEnabled) {
+                installPageCardNavigation();
+            }
             webView.requestFocus();
-            Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+
+            if (announce) {
+                Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
@@ -382,10 +407,13 @@ public class MainActivity extends Activity {
         cursorView.setVisibility(View.VISIBLE);
         cursorView.bringToFront();
         updateCursorHoverState();
-        Toast.makeText(
-                this,
-                "Cursor mode on · D-pad moves · Select clicks · Back exits",
-                Toast.LENGTH_LONG).show();
+
+        if (announce) {
+            Toast.makeText(
+                    this,
+                    "Cursor mode on · D-pad moves · Select clicks",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private void positionCursor() {
@@ -1283,7 +1311,7 @@ public class MainActivity extends Activity {
         String[] actions = {
                 "Home",
                 "Reload",
-                cursorMode ? "Cursor mode: On" : "Cursor mode: Off",
+                cursorPreferenceEnabled ? "Cursor mode: On" : "Cursor mode: Off",
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
@@ -1325,7 +1353,7 @@ public class MainActivity extends Activity {
                     webView.reload();
                     break;
                 case 2:
-                    setCursorMode(!cursorMode);
+                    setCursorMode(!cursorPreferenceEnabled);
                     break;
                 case 3:
                     playCurrentPageVideo();
@@ -1666,7 +1694,7 @@ public class MainActivity extends Activity {
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
         if (cursorMode) {
-            setCursorMode(false);
+            applyCursorMode(false, false);
         }
         if (customView != null) {
             callback.onCustomViewHidden();
@@ -1699,7 +1727,11 @@ public class MainActivity extends Activity {
         webPlayerMode = false;
         setAdBannerVisible(true);
         webView.setVisibility(View.VISIBLE);
-        webView.requestFocus();
+        if (cursorPreferenceEnabled) {
+            applyCursorMode(true, false);
+        } else {
+            webView.requestFocus();
+        }
 
         if (customViewCallback != null) {
             customViewCallback.onCustomViewHidden();
@@ -3037,11 +3069,6 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (cursorMode) {
-                setCursorMode(false);
-                return true;
-            }
-
             if (customView != null) {
                 webView.evaluateJavascript(
                         "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return 'hidden';}return 'exit';})()",
