@@ -34,6 +34,7 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
@@ -538,6 +539,16 @@ public class MainActivity extends Activity {
         screen.addView(blueArt, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
+
+        ImageView brandWatermark = new ImageView(this);
+        brandWatermark.setImageResource(R.drawable.app_icon_neon);
+        brandWatermark.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        brandWatermark.setAlpha(0.11f);
+        FrameLayout.LayoutParams watermarkParams =
+                new FrameLayout.LayoutParams(dp(220), dp(220));
+        watermarkParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        watermarkParams.setMargins(0, 0, dp(36), 0);
+        screen.addView(brandWatermark, watermarkParams);
 
         int displayWidth = getResources().getDisplayMetrics().widthPixels;
         int displayHeight = getResources().getDisplayMetrics().heightPixels;
