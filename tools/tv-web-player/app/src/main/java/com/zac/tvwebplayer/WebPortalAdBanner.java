@@ -172,7 +172,7 @@ public class WebPortalAdBanner extends LinearLayout {
 
         setOnFocusChangeListener((view, hasFocus) -> {
             pausedForFocus = hasFocus;
-            setBackground(makeBackground(hasFocus));
+            applyCurrentBackground(hasFocus);
             if (hasFocus) {
                 mainHandler.removeCallbacks(rotationRunnable);
             } else {
@@ -232,6 +232,30 @@ public class WebPortalAdBanner extends LinearLayout {
         return background;
     }
 
+    private boolean isSupportHouse(AdItem item) {
+        return item != null && item.id.startsWith("house-support-webportal");
+    }
+
+    private void applyCurrentBackground(boolean focused) {
+        AdItem item = currentItem();
+        if (isSupportHouse(item)) {
+            Bitmap bitmap = BitmapFactory.decodeResource(
+                    getResources(),
+                    R.drawable.webportal_support_banner);
+            android.graphics.drawable.BitmapDrawable background =
+                    new android.graphics.drawable.BitmapDrawable(
+                            getResources(),
+                            bitmap);
+            background.setGravity(Gravity.FILL);
+            setBackground(background);
+            setAlpha(focused ? 1f : 0.94f);
+            return;
+        }
+
+        setAlpha(1f);
+        setBackground(makeBackground(focused));
+    }
+
     private void scheduleRotation() {
         mainHandler.removeCallbacks(rotationRunnable);
         if (!pausedForFocus) {
@@ -254,17 +278,36 @@ public class WebPortalAdBanner extends LinearLayout {
             return;
         }
 
-        eyebrowView.setText(
-                item.paid
-                        ? "SPONSORED"
-                        : item.id.startsWith("house-raisehub")
-                                ? "RAISEHUB"
-                                : "WEBPORTAL");
-        titleView.setText(item.title);
-        messageView.setText(item.message);
-        qrView.setImageBitmap(makeQr(item.destinationUrl));
-        renderBrand(item);
+        boolean supportHouse = isSupportHouse(item);
+        if (supportHouse) {
+            // Use the selected full-card artwork. Keep a runtime-generated QR on top
+            // so the visible code always points to the real support destination.
+            getChildAt(0).setVisibility(View.GONE);
+            getChildAt(1).setVisibility(View.GONE);
+            qrView.setVisibility(View.VISIBLE);
+            setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+            setPadding(dp(6), dp(6), dp(10), dp(6));
+            qrView.setImageBitmap(makeQr(item.destinationUrl));
+        } else {
+            getChildAt(0).setVisibility(View.VISIBLE);
+            getChildAt(1).setVisibility(View.VISIBLE);
+            qrView.setVisibility(View.VISIBLE);
+            setGravity(Gravity.CENTER_VERTICAL);
+            setPadding(dp(7), dp(6), dp(7), dp(6));
 
+            eyebrowView.setText(
+                    item.paid
+                            ? "SPONSORED"
+                            : item.id.startsWith("house-raisehub")
+                                    ? "RAISEHUB"
+                                    : "WEBPORTAL");
+            titleView.setText(item.title);
+            messageView.setText(item.message);
+            qrView.setImageBitmap(makeQr(item.destinationUrl));
+            renderBrand(item);
+        }
+
+        applyCurrentBackground(hasFocus());
         setContentDescription(
                 item.title
                         + ". "
@@ -285,7 +328,7 @@ public class WebPortalAdBanner extends LinearLayout {
             }
 
             brandFallbackView.setVisibility(View.GONE);
-            brandLogoView.setImageResource(R.drawable.app_icon);
+            brandLogoView.setImageResource(R.drawable.app_icon_neon);
             brandLogoView.setVisibility(View.VISIBLE);
             return;
         }
