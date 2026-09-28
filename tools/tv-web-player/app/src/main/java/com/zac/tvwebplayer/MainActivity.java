@@ -317,7 +317,7 @@ public class MainActivity extends Activity {
                 fill.setShadowLayer(dp(5), 0, 0, Color.rgb(49, 184, 255));
 
                 stroke.setStyle(android.graphics.Paint.Style.STROKE);
-                stroke.setStrokeWidth(dp(1.5f));
+                stroke.setStrokeWidth(dp(2));
                 stroke.setStrokeJoin(android.graphics.Paint.Join.ROUND);
                 stroke.setColor(Color.rgb(49, 184, 255));
             }
