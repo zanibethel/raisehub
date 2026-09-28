@@ -2,13 +2,22 @@ package com.zac.tvwebplayer;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.WebSettings;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.media3.common.C;
@@ -29,6 +38,12 @@ public class PlayerActivity extends Activity {
 
     private ExoPlayer player;
     private PlayerView playerView;
+    private FrameLayout playerRoot;
+    private TextView seekPreview;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable hideSeekPreview = () -> {
+        if (seekPreview != null) seekPreview.setVisibility(View.GONE);
+    };
     private String mediaUrl;
     private long resumePosition;
     private boolean returningToBrowser;
@@ -47,12 +62,41 @@ public class PlayerActivity extends Activity {
             return;
         }
 
+        playerRoot = new FrameLayout(this);
+
         playerView = new PlayerView(this);
         playerView.setUseController(true);
         playerView.setControllerAutoShow(false);
         playerView.setControllerHideOnTouch(false);
         playerView.setControllerShowTimeoutMs(3500);
-        setContentView(playerView);
+        playerRoot.addView(
+                playerView,
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+        seekPreview = new TextView(this);
+        seekPreview.setTextColor(Color.WHITE);
+        seekPreview.setTextSize(16f);
+        seekPreview.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        seekPreview.setGravity(Gravity.CENTER);
+        seekPreview.setPadding(dp(16), dp(8), dp(16), dp(8));
+        seekPreview.setVisibility(View.GONE);
+
+        GradientDrawable seekBackground = new GradientDrawable();
+        seekBackground.setColor(Color.argb(220, 4, 12, 24));
+        seekBackground.setStroke(dp(1), Color.rgb(49, 184, 255));
+        seekBackground.setCornerRadius(dp(10));
+        seekPreview.setBackground(seekBackground);
+
+        FrameLayout.LayoutParams seekParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        seekParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        seekParams.setMargins(0, 0, 0, dp(70));
+        playerRoot.addView(seekPreview, seekParams);
+
+        setContentView(playerRoot);
     }
 
     private void initializePlayer() {
@@ -136,7 +180,52 @@ public class PlayerActivity extends Activity {
         }
 
         player.seekTo(target);
-        playerView.showController();
+        showSeekPreview(milliseconds, target, duration);
+    }
+
+    private void showSeekPreview(long delta, long target, long duration) {
+        if (seekPreview == null) return;
+
+        String action = delta < 0 ? "Rewind" : "Forward";
+        String durationText =
+                duration == C.TIME_UNSET || duration <= 0
+                        ? ""
+                        : " / " + formatTime(duration);
+
+        seekPreview.setText(
+                action
+                        + " "
+                        + Math.max(1, Math.abs(delta) / 1000)
+                        + "s   "
+                        + formatTime(target)
+                        + durationText);
+        seekPreview.setVisibility(View.VISIBLE);
+        seekPreview.bringToFront();
+
+        uiHandler.removeCallbacks(hideSeekPreview);
+        uiHandler.postDelayed(hideSeekPreview, 1100);
+    }
+
+    private String formatTime(long milliseconds) {
+        long totalSeconds = Math.max(0, milliseconds) / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+
+        if (hours > 0) {
+            return String.format(
+                    java.util.Locale.US,
+                    "%d:%02d:%02d",
+                    hours,
+                    minutes,
+                    seconds);
+        }
+
+        return String.format(
+                java.util.Locale.US,
+                "%d:%02d",
+                minutes,
+                seconds);
     }
 
     private boolean hidePlayerMenuIfVisible() {
@@ -252,6 +341,8 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onStop() {
+        uiHandler.removeCallbacks(hideSeekPreview);
+        if (seekPreview != null) seekPreview.setVisibility(View.GONE);
         releasePlayer();
         super.onStop();
     }
@@ -260,6 +351,10 @@ public class PlayerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         hideSystemUi();
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void hideSystemUi() {
