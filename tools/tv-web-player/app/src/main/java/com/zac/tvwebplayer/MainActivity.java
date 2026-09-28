@@ -462,10 +462,13 @@ public class MainActivity extends Activity {
     private void styleSetupSpinnerText(TextView view, boolean dropdown) {
         view.setTextColor(Color.WHITE);
         view.setTextSize(dropdown ? 18 : 20);
-        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         view.setSingleLine(true);
-        view.setPadding(dp(18), 0, dp(18), 0);
-        view.setMinHeight(dp(58));
+        view.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        view.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        view.setTextDirection(View.TEXT_DIRECTION_LTR);
+        view.setPadding(dp(16), 0, dp(16), 0);
+        view.setMinHeight(dp(56));
         if (dropdown) {
             view.setBackground(focusBackground(
                     Color.parseColor("#10233D"),
@@ -480,8 +483,6 @@ public class MainActivity extends Activity {
         final int white = Color.WHITE;
         final int muted = Color.parseColor("#D9E6F5");
         final int electricBlue = Color.parseColor("#31B8FF");
-        final int deepBlue = Color.parseColor("#06152B");
-
         FrameLayout screen = new FrameLayout(this);
         android.graphics.drawable.GradientDrawable screenBackground =
                 new android.graphics.drawable.GradientDrawable(
@@ -538,16 +539,23 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
+        int displayWidth = getResources().getDisplayMetrics().widthPixels;
+        int displayHeight = getResources().getDisplayMetrics().heightPixels;
+        int safeHorizontal = Math.max(dp(32), Math.round(displayWidth * 0.045f));
+        int panelWidth = Math.min(
+                displayWidth - (safeHorizontal * 2),
+                Math.round(displayWidth * 0.68f));
+
         LinearLayout stack = new LinearLayout(this);
         stack.setOrientation(LinearLayout.VERTICAL);
         stack.setGravity(Gravity.CENTER_HORIZONTAL);
-        int outerPad = dp(24);
-        stack.setPadding(outerPad, outerPad, outerPad, outerPad);
+        int outerPad = Math.max(dp(18), Math.round(displayHeight * 0.025f));
+        stack.setPadding(safeHorizontal, outerPad, safeHorizontal, outerPad);
 
         TextView title = new TextView(this);
         title.setText(firstRun ? "Choose website" : "Website settings");
         title.setTextColor(white);
-        title.setTextSize(34);
+        title.setTextSize(30);
         title.setGravity(Gravity.CENTER);
         title.setShadowLayer(dp(10), 0, 0, Color.argb(150, 44, 181, 255));
         stack.addView(title, new LinearLayout.LayoutParams(
@@ -556,20 +564,22 @@ public class MainActivity extends Activity {
 
         TextView subtitle = new TextView(this);
         subtitle.setText(
-                "Enter the website this Fire TV app should open. Press\n"
-                        + "the remote Menu button later to change it.");
+                "Enter the website this Fire TV app should open. "
+                        + "Press the remote Menu button later to change it.");
         subtitle.setTextColor(muted);
-        subtitle.setTextSize(18);
+        subtitle.setTextSize(16);
         subtitle.setGravity(Gravity.CENTER);
+        subtitle.setMaxLines(2);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                panelWidth,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        subtitleParams.setMargins(0, dp(10), 0, dp(20));
+        subtitleParams.setMargins(0, dp(8), 0, dp(16));
         stack.addView(subtitle, subtitleParams);
 
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(30), dp(26), dp(30), dp(24));
+        panel.setPadding(dp(24), dp(20), dp(24), dp(20));
         panel.setBackground(roundedBackground(
                 Color.argb(222, 6, 22, 43),
                 Color.parseColor("#365D89"),
@@ -589,9 +599,9 @@ public class MainActivity extends Activity {
         manualInput.setHint("example.com");
         manualInput.setHintTextColor(Color.parseColor("#86A1BE"));
         manualInput.setTextColor(white);
-        manualInput.setTextSize(20);
+        manualInput.setTextSize(18);
         manualInput.setPadding(dp(18), 0, dp(18), 0);
-        manualInput.setMinHeight(dp(58));
+        manualInput.setMinHeight(dp(54));
         manualInput.setSelectAllOnFocus(true);
         manualInput.setBackground(focusBackground(
                 Color.parseColor("#0C1B31"),
@@ -603,7 +613,7 @@ public class MainActivity extends Activity {
         CheckBox mobile = new CheckBox(this);
         mobile.setText("Mobile compatibility mode");
         mobile.setTextColor(white);
-        mobile.setTextSize(18);
+        mobile.setTextSize(17);
         mobile.setPadding(0, dp(8), 0, dp(8));
         mobile.setChecked(mobileModeForSite(currentHome));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -627,7 +637,7 @@ public class MainActivity extends Activity {
             savedSites.setFocusable(true);
             savedSites.setClickable(true);
             savedSites.setPrompt("Saved websites");
-            savedSites.setMinimumHeight(dp(58));
+            savedSites.setMinimumHeight(dp(54));
             savedSites.setBackground(focusBackground(
                     Color.parseColor("#0C1B31"),
                     Color.parseColor("#102A48"),
@@ -696,7 +706,7 @@ public class MainActivity extends Activity {
 
             panel.addView(savedSites, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    dp(60)));
+                    dp(56)));
             manualInput.setVisibility(View.GONE);
         } else {
             manualInput.setText(currentHome);
@@ -705,7 +715,7 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(60));
+                dp(56));
         if (!saved.isEmpty()) {
             inputParams.setMargins(0, dp(10), 0, 0);
         }
@@ -724,9 +734,9 @@ public class MainActivity extends Activity {
         android.widget.Button primary = new android.widget.Button(this);
         primary.setText("Save & Open");
         primary.setAllCaps(false);
-        primary.setTextSize(18);
+        primary.setTextSize(17);
         primary.setTextColor(Color.parseColor("#02101E"));
-        primary.setMinHeight(dp(58));
+        primary.setMinHeight(dp(54));
         primary.setStateListAnimator(null);
         primary.setBackground(focusBackground(
                 Color.parseColor("#27A8ED"),
@@ -738,9 +748,9 @@ public class MainActivity extends Activity {
         android.widget.Button secondary = new android.widget.Button(this);
         secondary.setText(firstRun ? "Exit" : "Cancel");
         secondary.setAllCaps(false);
-        secondary.setTextSize(18);
+        secondary.setTextSize(17);
         secondary.setTextColor(white);
-        secondary.setMinHeight(dp(58));
+        secondary.setMinHeight(dp(54));
         secondary.setStateListAnimator(null);
         secondary.setBackground(focusBackground(
                 Color.parseColor("#28384F"),
@@ -751,14 +761,14 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams primaryParams = new LinearLayout.LayoutParams(
                 0,
-                dp(60),
+                dp(56),
                 1f);
         primaryParams.setMargins(0, 0, dp(8), 0);
         buttons.addView(primary, primaryParams);
 
         LinearLayout.LayoutParams secondaryParams = new LinearLayout.LayoutParams(
                 0,
-                dp(60),
+                dp(56),
                 1f);
         secondaryParams.setMargins(dp(8), 0, 0, 0);
         buttons.addView(secondary, secondaryParams);
@@ -769,8 +779,6 @@ public class MainActivity extends Activity {
         buttonsParams.setMargins(0, dp(8), 0, 0);
         panel.addView(buttons, buttonsParams);
 
-        int displayWidth = getResources().getDisplayMetrics().widthPixels;
-        int panelWidth = Math.min(dp(820), Math.round(displayWidth * 0.76f));
         LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(
                 panelWidth,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -782,9 +790,10 @@ public class MainActivity extends Activity {
         stackParams.gravity = Gravity.CENTER;
         screen.addView(stack, stackParams);
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(screen)
-                .create();
+        android.app.Dialog dialog = new android.app.Dialog(
+                this,
+                android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        dialog.setContentView(screen);
         dialog.setCancelable(!firstRun);
         dialog.setCanceledOnTouchOutside(false);
 
@@ -840,6 +849,13 @@ public class MainActivity extends Activity {
                 window.setLayout(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT);
+                window.getDecorView().setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
             }
 
             if (finalSavedSites != null) {
