@@ -163,6 +163,7 @@ public class MainActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
 
         defaultUserAgent = settings.getUserAgentString();
@@ -201,6 +202,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
+                installPopupGuard();
                 installFullscreenIntentGuard();
                 installPlayerModeMonitor();
                 installPageCardNavigation();
@@ -234,6 +236,21 @@ public class MainActivity extends Activity {
             @Override
             public void onHideCustomView() {
                 exitCustomView();
+            }
+
+            @Override
+            public boolean onCreateWindow(
+                    WebView view,
+                    boolean isDialog,
+                    boolean isUserGesture,
+                    android.os.Message resultMsg) {
+                // WebPortal is intentionally single-tab. Reject popup/popunder windows.
+                return false;
+            }
+
+            @Override
+            public void onCloseWindow(WebView window) {
+                // Secondary windows are never created.
             }
 
             @Override
@@ -1306,6 +1323,73 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(
                 "(function(){if(window.__webPortalPageCards&&window.__webPortalPageCards.destroy){window.__webPortalPageCards.destroy();}})()",
                 null);
+    }
+
+    private void installPopupGuard() {
+        String js = """
+(function(){
+  if(window.__webPortalPopupGuardVersion===1)return;
+  window.__webPortalPopupGuardVersion=1;
+
+  function blockWindowOpen(){
+    try{
+      Object.defineProperty(window,'open',{
+        configurable:true,
+        writable:false,
+        value:function(){return null;}
+      });
+    }catch(e){
+      try{window.open=function(){return null;};}catch(e2){}
+    }
+  }
+
+  function sanitize(root){
+    if(!root||!root.querySelectorAll)return;
+    var targets=root.querySelectorAll('a[target],form[target],area[target]');
+    for(var i=0;i<targets.length;i++){
+      var target=(targets[i].getAttribute('target')||'').toLowerCase();
+      if(target==='_blank'||target==='_new'||target==='new'){
+        targets[i].removeAttribute('target');
+        targets[i].setAttribute('data-webportal-popup-guard','same-tab');
+      }
+    }
+  }
+
+  blockWindowOpen();
+  sanitize(document);
+
+  document.addEventListener('click',function(event){
+    var node=event.target;
+    var target=node&&node.closest?node.closest('a[target],area[target]'):null;
+    if(!target)return;
+    var value=(target.getAttribute('target')||'').toLowerCase();
+    if(value==='_blank'||value==='_new'||value==='new'){
+      target.removeAttribute('target');
+    }
+  },true);
+
+  var observer=new MutationObserver(function(records){
+    for(var i=0;i<records.length;i++){
+      var record=records[i];
+      for(var j=0;j<record.addedNodes.length;j++){
+        var node=record.addedNodes[j];
+        if(node&&node.nodeType===1){
+          sanitize(node);
+          if(node.matches&&node.matches('a[target],form[target],area[target]')){
+            var value=(node.getAttribute('target')||'').toLowerCase();
+            if(value==='_blank'||value==='_new'||value==='new'){
+              node.removeAttribute('target');
+            }
+          }
+        }
+      }
+    }
+    blockWindowOpen();
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+})();
+""";
+        webView.evaluateJavascript(js, null);
     }
 
     private void installFullscreenIntentGuard() {
