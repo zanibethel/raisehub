@@ -430,8 +430,8 @@ public class MainActivity extends Activity {
                 + "var n=document.elementFromPoint(x,y);"
                 + "while(n&&n!==document.body&&n!==document.documentElement){"
                 + "if(n.matches&&n.matches('a[href],button,input,select,textarea,summary,"
-                + "[role=button],[role=link],[role=menuitem],[role=tab],[onclick],"
-                + "[tabindex]:not([tabindex=\\\"-1\\"])'))return true;"
+                + "[role=button],[role=link],[role=menuitem],[role=tab],[onclick],[tabindex]')"
+                + "&&n.getAttribute('tabindex')!=='-1')return true;"
                 + "try{if(getComputedStyle(n).cursor==='pointer')return true;}catch(e){}"
                 + "n=n.parentElement;}"
                 + "return false;})()";
