@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -15,6 +16,14 @@ export default function WebPortalSupportPage() {
         </Link>
 
         <section className="mt-4 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 p-5 shadow-2xl sm:p-8">
+          <Image
+            src="/webportal/brand/support-banner.jpg"
+            alt="Support WebPortal"
+            width={342}
+            height={74}
+            priority
+            className="mx-auto mb-5 h-auto w-full max-w-[342px] rounded-xl"
+          />
           <div className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/15 via-blue-500/10 to-transparent p-5">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">
               Support WebPortal
