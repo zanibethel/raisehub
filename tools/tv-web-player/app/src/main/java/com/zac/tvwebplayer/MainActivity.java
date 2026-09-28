@@ -78,6 +78,7 @@ public class MainActivity extends Activity {
     private int adBannerInsetPx;
     private View cursorView;
     private boolean cursorMode;
+    private boolean cursorHover;
     private float cursorX;
     private float cursorY;
 
@@ -303,47 +304,45 @@ public class MainActivity extends Activity {
 
     private void setupCursorOverlay() {
         cursorView = new View(this) {
-            private final android.graphics.Paint fill =
+            private final android.graphics.Paint ring =
                     new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            private final android.graphics.Paint stroke =
-                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-            private final android.graphics.Path pointer =
-                    new android.graphics.Path();
 
             {
                 setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-                fill.setStyle(android.graphics.Paint.Style.FILL);
-                fill.setColor(Color.WHITE);
-                fill.setShadowLayer(dp(5), 0, 0, Color.rgb(49, 184, 255));
-
-                stroke.setStyle(android.graphics.Paint.Style.STROKE);
-                stroke.setStrokeWidth(dp(2));
-                stroke.setStrokeJoin(android.graphics.Paint.Join.ROUND);
-                stroke.setColor(Color.rgb(49, 184, 255));
+                ring.setStyle(android.graphics.Paint.Style.STROKE);
+                ring.setStrokeCap(android.graphics.Paint.Cap.ROUND);
             }
 
             @Override
             protected void onDraw(android.graphics.Canvas canvas) {
                 super.onDraw(canvas);
-                float s = getWidth() / 32f;
-                pointer.reset();
-                pointer.moveTo(5f * s, 3f * s);
-                pointer.lineTo(5f * s, 26f * s);
-                pointer.lineTo(11f * s, 20f * s);
-                pointer.lineTo(16f * s, 29f * s);
-                pointer.lineTo(21f * s, 26f * s);
-                pointer.lineTo(15f * s, 18f * s);
-                pointer.lineTo(24f * s, 17f * s);
-                pointer.close();
-                canvas.drawPath(pointer, fill);
-                canvas.drawPath(pointer, stroke);
+                float cx = getWidth() / 2f;
+                float cy = getHeight() / 2f;
+                float radius = Math.min(getWidth(), getHeight()) * 0.31f;
+
+                ring.setStrokeWidth(dp(cursorHover ? 2 : 1));
+                ring.setColor(
+                        cursorHover
+                                ? Color.rgb(110, 231, 249)
+                                : Color.rgb(49, 184, 255));
+                ring.setShadowLayer(
+                        dp(cursorHover ? 9 : 4),
+                        0,
+                        0,
+                        cursorHover
+                                ? Color.rgb(110, 231, 249)
+                                : Color.rgb(49, 184, 255));
+
+                // Ring only: the center stays transparent so the target beneath
+                // the cursor remains visible.
+                canvas.drawCircle(cx, cy, radius, ring);
             }
         };
         cursorView.setVisibility(View.GONE);
         cursorView.setFocusable(false);
         cursorView.setClickable(false);
 
-        int size = dp(32);
+        int size = dp(26);
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(size, size);
         params.gravity = Gravity.TOP | Gravity.START;
@@ -382,6 +381,7 @@ public class MainActivity extends Activity {
         positionCursor();
         cursorView.setVisibility(View.VISIBLE);
         cursorView.bringToFront();
+        updateCursorHoverState();
         Toast.makeText(
                 this,
                 "Cursor mode on · D-pad moves · Select clicks · Back exits",
@@ -400,6 +400,74 @@ public class MainActivity extends Activity {
         cursorY = Math.max(half, Math.min(maxY, cursorY));
         cursorView.setX(cursorX - half);
         cursorView.setY(cursorY - half);
+    }
+
+    private void updateCursorHoverState() {
+        if (!cursorMode || cursorView == null || webView == null || root == null
+                || webView.getWidth() <= 0 || webView.getHeight() <= 0) {
+            return;
+        }
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float localX = cursorX - (webLocation[0] - rootLocation[0]);
+        float localY = cursorY - (webLocation[1] - rootLocation[1]);
+
+        if (localX < 0 || localY < 0
+                || localX > webView.getWidth()
+                || localY > webView.getHeight()) {
+            cursorHover = false;
+            cursorView.invalidate();
+            return;
+        }
+
+        String js = "(function(){"
+                + "var x=(" + localX + "/Math.max(" + webView.getWidth() + ",1))*innerWidth;"
+                + "var y=(" + localY + "/Math.max(" + webView.getHeight() + ",1))*innerHeight;"
+                + "var n=document.elementFromPoint(x,y);"
+                + "while(n&&n!==document.body&&n!==document.documentElement){"
+                + "if(n.matches&&n.matches('a[href],button,input,select,textarea,summary,"
+                + "[role=button],[role=link],[role=menuitem],[role=tab],[onclick],"
+                + "[tabindex]:not([tabindex=\\\"-1\\"])'))return true;"
+                + "try{if(getComputedStyle(n).cursor==='pointer')return true;}catch(e){}"
+                + "n=n.parentElement;}"
+                + "return false;})()";
+
+        webView.evaluateJavascript(js, value -> {
+            boolean nextHover = "true".equals(value);
+            if (cursorHover != nextHover) {
+                cursorHover = nextHover;
+                cursorView.invalidate();
+            }
+        });
+    }
+
+    private void pulseCursorClick() {
+        if (cursorView == null) return;
+
+        cursorView.animate().cancel();
+        cursorView.setScaleX(1f);
+        cursorView.setScaleY(1f);
+        cursorView.animate()
+                .scaleX(0.72f)
+                .scaleY(0.72f)
+                .setDuration(65)
+                .withEndAction(() ->
+                        cursorView.animate()
+                                .scaleX(1.12f)
+                                .scaleY(1.12f)
+                                .setDuration(80)
+                                .withEndAction(() ->
+                                        cursorView.animate()
+                                                .scaleX(1f)
+                                                .scaleY(1f)
+                                                .setDuration(70)
+                                                .start())
+                                .start())
+                .start();
     }
 
     private void scrollAtCursor(int direction) {
@@ -430,6 +498,7 @@ public class MainActivity extends Activity {
                 + "window.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});"
                 + "return true;})()";
         webView.evaluateJavascript(js, null);
+        webView.postDelayed(this::updateCursorHoverState, 140);
     }
 
     private void moveCursor(int keyCode, int repeatCount) {
@@ -466,6 +535,7 @@ public class MainActivity extends Activity {
         }
 
         positionCursor();
+        updateCursorHoverState();
     }
 
     private void clickCursor() {
@@ -479,6 +549,8 @@ public class MainActivity extends Activity {
         float x = cursorX - (webLocation[0] - rootLocation[0]);
         float y = cursorY - (webLocation[1] - rootLocation[1]);
         if (x < 0 || y < 0 || x > webView.getWidth() || y > webView.getHeight()) return;
+
+        pulseCursorClick();
 
         long now = android.os.SystemClock.uptimeMillis();
         android.view.MotionEvent down = android.view.MotionEvent.obtain(
@@ -498,6 +570,7 @@ public class MainActivity extends Activity {
         try {
             webView.dispatchTouchEvent(down);
             webView.dispatchTouchEvent(up);
+            webView.postDelayed(this::updateCursorHoverState, 120);
         } finally {
             down.recycle();
             up.recycle();
