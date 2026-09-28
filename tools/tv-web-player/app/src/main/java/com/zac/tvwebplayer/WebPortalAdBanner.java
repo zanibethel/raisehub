@@ -254,7 +254,12 @@ public class WebPortalAdBanner extends LinearLayout {
             return;
         }
 
-        eyebrowView.setText(item.paid ? "SPONSORED" : "WEBPORTAL");
+        eyebrowView.setText(
+                item.paid
+                        ? "SPONSORED"
+                        : item.id.startsWith("house-raisehub")
+                                ? "RAISEHUB"
+                                : "WEBPORTAL");
         titleView.setText(item.title);
         messageView.setText(item.message);
         qrView.setImageBitmap(makeQr(item.destinationUrl));
@@ -274,6 +279,11 @@ public class WebPortalAdBanner extends LinearLayout {
         brandFallbackView.setText(initials(item.title));
 
         if (!item.paid) {
+            if (item.id.startsWith("house-raisehub")) {
+                brandFallbackView.setText("RH");
+                return;
+            }
+
             brandFallbackView.setVisibility(View.GONE);
             brandLogoView.setImageResource(R.drawable.app_icon);
             brandLogoView.setVisibility(View.VISIBLE);
