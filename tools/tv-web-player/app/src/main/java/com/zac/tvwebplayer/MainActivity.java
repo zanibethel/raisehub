@@ -76,6 +76,10 @@ public class MainActivity extends Activity {
     private volatile boolean webPlayerMode;
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
+    private View cursorView;
+    private boolean cursorMode;
+    private float cursorX;
+    private float cursorY;
 
     private final class WebPortalBridge {
         @JavascriptInterface
@@ -85,6 +89,9 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active) {
+        if (active && cursorMode) {
+            setCursorMode(false);
+        }
         if (webPlayerMode == active) {
             setAdBannerVisible(!active && customView == null);
             return;
@@ -207,7 +214,9 @@ public class MainActivity extends Activity {
                 installPopupGuard();
                 installFullscreenIntentGuard();
                 installPlayerModeMonitor();
-                installPageCardNavigation();
+                if (!cursorMode) {
+                    installPageCardNavigation();
+                }
             }
         });
 
@@ -288,7 +297,211 @@ public class MainActivity extends Activity {
         bannerParams.setMargins(0, 0, dp(10), dp(10));
         root.addView(adBanner, bannerParams);
 
+        setupCursorOverlay();
         webView.requestFocus();
+    }
+
+    private void setupCursorOverlay() {
+        cursorView = new View(this) {
+            private final android.graphics.Paint fill =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final android.graphics.Paint stroke =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private final android.graphics.Path pointer =
+                    new android.graphics.Path();
+
+            {
+                setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                fill.setStyle(android.graphics.Paint.Style.FILL);
+                fill.setColor(Color.WHITE);
+                fill.setShadowLayer(dp(5), 0, 0, Color.rgb(49, 184, 255));
+
+                stroke.setStyle(android.graphics.Paint.Style.STROKE);
+                stroke.setStrokeWidth(dp(1.5f));
+                stroke.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+                stroke.setColor(Color.rgb(49, 184, 255));
+            }
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                float s = getWidth() / 32f;
+                pointer.reset();
+                pointer.moveTo(5f * s, 3f * s);
+                pointer.lineTo(5f * s, 26f * s);
+                pointer.lineTo(11f * s, 20f * s);
+                pointer.lineTo(16f * s, 29f * s);
+                pointer.lineTo(21f * s, 26f * s);
+                pointer.lineTo(15f * s, 18f * s);
+                pointer.lineTo(24f * s, 17f * s);
+                pointer.close();
+                canvas.drawPath(pointer, fill);
+                canvas.drawPath(pointer, stroke);
+            }
+        };
+        cursorView.setVisibility(View.GONE);
+        cursorView.setFocusable(false);
+        cursorView.setClickable(false);
+
+        int size = dp(32);
+        FrameLayout.LayoutParams params =
+                new FrameLayout.LayoutParams(size, size);
+        params.gravity = Gravity.TOP | Gravity.START;
+        root.addView(cursorView, params);
+    }
+
+    private void setCursorMode(boolean enabled) {
+        if (cursorView == null || webView == null) return;
+
+        if (enabled && (customView != null || webPlayerMode)) {
+            Toast.makeText(
+                    this,
+                    "Cursor mode is available on normal web pages.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        cursorMode = enabled;
+        if (!enabled) {
+            cursorView.setVisibility(View.GONE);
+            installPageCardNavigation();
+            webView.requestFocus();
+            Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (cursorX <= 0f || cursorY <= 0f) {
+            cursorX = root.getWidth() > 0 ? root.getWidth() * 0.5f : dp(320);
+            cursorY = root.getHeight() > 0 ? root.getHeight() * 0.5f : dp(180);
+        }
+
+        destroyPageCardNavigation();
+        webView.evaluateJavascript(
+                "(function(){try{if(document.activeElement)document.activeElement.blur();}catch(e){}})()",
+                null);
+        positionCursor();
+        cursorView.setVisibility(View.VISIBLE);
+        cursorView.bringToFront();
+        Toast.makeText(
+                this,
+                "Cursor mode on · D-pad moves · Select clicks · Back exits",
+                Toast.LENGTH_LONG).show();
+    }
+
+    private void positionCursor() {
+        if (cursorView == null || root == null) return;
+        int size = cursorView.getLayoutParams() == null
+                ? dp(32)
+                : cursorView.getLayoutParams().width;
+        float half = size / 2f;
+        float maxX = Math.max(half, root.getWidth() - half);
+        float maxY = Math.max(half, root.getHeight() - half);
+        cursorX = Math.max(half, Math.min(maxX, cursorX));
+        cursorY = Math.max(half, Math.min(maxY, cursorY));
+        cursorView.setX(cursorX - half);
+        cursorView.setY(cursorY - half);
+    }
+
+    private void scrollAtCursor(int direction) {
+        if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float localX = cursorX - (webLocation[0] - rootLocation[0]);
+        float localY = cursorY - (webLocation[1] - rootLocation[1]);
+        int width = webView.getWidth();
+        int height = webView.getHeight();
+        int amount = Math.max(dp(180), Math.round(height * 0.45f)) * direction;
+
+        String js = "(function(){"
+                + "var vw=" + width + ",vh=" + height + ";"
+                + "var x=(" + localX + "/Math.max(vw,1))*innerWidth;"
+                + "var y=(" + localY + "/Math.max(vh,1))*innerHeight;"
+                + "var n=document.elementFromPoint(x,y);"
+                + "while(n&&n!==document.body&&n!==document.documentElement){"
+                + "var s=getComputedStyle(n);"
+                + "if((s.overflowY==='auto'||s.overflowY==='scroll')"
+                + "&&n.scrollHeight>n.clientHeight+4){"
+                + "n.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
+                + "n=n.parentElement;}"
+                + "window.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});"
+                + "return true;})()";
+        webView.evaluateJavascript(js, null);
+    }
+
+    private void moveCursor(int keyCode, int repeatCount) {
+        if (!cursorMode || cursorView == null || root == null) return;
+
+        float step = dp(repeatCount >= 6 ? 48 : repeatCount >= 2 ? 36 : 28);
+        float edge = dp(26);
+
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                cursorX -= step;
+                break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                cursorX += step;
+                break;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                if (cursorY <= edge + step) {
+                    cursorY = edge;
+                    scrollAtCursor(-1);
+                } else {
+                    cursorY -= step;
+                }
+                break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
+                    cursorY = root.getHeight() - edge;
+                    scrollAtCursor(1);
+                } else {
+                    cursorY += step;
+                }
+                break;
+            default:
+                return;
+        }
+
+        positionCursor();
+    }
+
+    private void clickCursor() {
+        if (!cursorMode || webView == null || root == null) return;
+
+        int[] webLocation = new int[2];
+        int[] rootLocation = new int[2];
+        webView.getLocationOnScreen(webLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float x = cursorX - (webLocation[0] - rootLocation[0]);
+        float y = cursorY - (webLocation[1] - rootLocation[1]);
+        if (x < 0 || y < 0 || x > webView.getWidth() || y > webView.getHeight()) return;
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down = android.view.MotionEvent.obtain(
+                now,
+                now,
+                android.view.MotionEvent.ACTION_DOWN,
+                x,
+                y,
+                0);
+        android.view.MotionEvent up = android.view.MotionEvent.obtain(
+                now,
+                now + 45,
+                android.view.MotionEvent.ACTION_UP,
+                x,
+                y,
+                0);
+        try {
+            webView.dispatchTouchEvent(down);
+            webView.dispatchTouchEvent(up);
+        } finally {
+            down.recycle();
+            up.recycle();
+        }
     }
 
     private void openBannerDestination(String url) {
@@ -997,6 +1210,7 @@ public class MainActivity extends Activity {
         String[] actions = {
                 "Home",
                 "Reload",
+                cursorMode ? "Cursor mode: On" : "Cursor mode: Off",
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
@@ -1038,19 +1252,22 @@ public class MainActivity extends Activity {
                     webView.reload();
                     break;
                 case 2:
-                    playCurrentPageVideo();
+                    setCursorMode(!cursorMode);
                     break;
                 case 3:
-                    showWebsiteSetup(false);
+                    playCurrentPageVideo();
                     break;
                 case 4:
+                    showWebsiteSetup(false);
+                    break;
+                case 5:
                     CookieManager.getInstance().removeAllCookies(null);
                     CookieManager.getInstance().flush();
                     webView.clearCache(true);
                     webView.clearHistory();
                     Toast.makeText(this, "Website data cleared.", Toast.LENGTH_SHORT).show();
                     break;
-                case 5:
+                case 6:
                     openUpdateDownload();
                     break;
                 default:
@@ -1375,6 +1592,9 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
+        if (cursorMode) {
+            setCursorMode(false);
+        }
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -2633,6 +2853,25 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+
+        if (cursorMode && customView == null && !webPlayerMode
+                && isDpadNavigationKey(keyCode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
+                        || keyCode == KeyEvent.KEYCODE_ENTER) {
+                    if (event.getRepeatCount() == 0) {
+                        clickCursor();
+                    }
+                } else {
+                    moveCursor(keyCode, event.getRepeatCount());
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
         boolean playerHasNavigationFocus =
                 webView != null && (customView != null || webPlayerMode);
 
@@ -2725,6 +2964,11 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (cursorMode) {
+                setCursorMode(false);
+                return true;
+            }
+
             if (customView != null) {
                 webView.evaluateJavascript(
                         "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return 'hidden';}return 'exit';})()",
