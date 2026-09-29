@@ -83,6 +83,7 @@ public class MainActivity extends Activity {
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
+    private long lastCursorScrollAt;
 
     private final class WebPortalBridge {
         @JavascriptInterface
@@ -501,6 +502,10 @@ public class MainActivity extends Activity {
     private void scrollAtCursor(int direction) {
         if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
 
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastCursorScrollAt < 160L) return;
+        lastCursorScrollAt = now;
+
         int[] webLocation = new int[2];
         int[] rootLocation = new int[2];
         webView.getLocationOnScreen(webLocation);
@@ -510,7 +515,7 @@ public class MainActivity extends Activity {
         float localY = cursorY - (webLocation[1] - rootLocation[1]);
         int width = webView.getWidth();
         int height = webView.getHeight();
-        int amount = Math.max(dp(180), Math.round(height * 0.45f)) * direction;
+        int amount = Math.max(dp(56), Math.round(height * 0.14f)) * direction;
 
         String js = "(function(){"
                 + "var vw=" + width + ",vh=" + height + ";"
