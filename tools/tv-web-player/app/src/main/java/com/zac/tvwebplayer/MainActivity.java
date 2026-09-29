@@ -2695,27 +2695,99 @@ public class MainActivity extends Activity {
     return true;
   }
 
-  function closePlayerMenu(){
-    var cards=episodeCards();
-    var close=closeControl(cards);
-    if(close){
-      try{close.click();}catch(e){}
-      controlsMode=false;
-      clearMark();
-      return true;
+  function overlayCloseControl(){
+    var roots=allRoots(document,[]);
+    var best=null,bestScore=-Infinity;
+
+    function overlayLike(el){
+      var node=el,depth=0;
+      while(node&&node!==document.body&&node!==document.documentElement&&depth<8){
+        var hint=((node.getAttribute&&node.getAttribute('role'))||'')+' '
+          +((node.id)||'')+' '
+          +(typeof node.className==='string'?node.className:'');
+        hint=hint.toLowerCase();
+
+        try{
+          var st=getComputedStyle(node),r=node.getBoundingClientRect();
+          var large=r.width>=innerWidth*.42&&r.height>=innerHeight*.24;
+          if(/dialog|modal|overlay|drawer|sheet|menu|settings|subtitle|caption/.test(hint))return true;
+          if(large&&(st.position==='fixed'||st.position==='absolute'))return true;
+        }catch(e){}
+
+        node=node.parentElement;
+        depth++;
+      }
+      return false;
     }
 
-    if(controlsMode||cards.length>=2){
-      hideControls();
+    for(var r=0;r<roots.length;r++){
+      var controls=roots[r].querySelectorAll
+        ?roots[r].querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]')
+        :[];
+
+      for(var i=0;i<controls.length;i++){
+        var el=controls[i];
+        if(!visible(el)||!overlayLike(el))continue;
+
+        var text=((el.textContent||'')+' '
+          +(el.getAttribute('aria-label')||'')+' '
+          +(el.getAttribute('title')||'')).replace(/\s+/g,' ').trim().toLowerCase();
+
+        if(!/^(close|back|cancel|done|dismiss|exit|×|✕|x)$/.test(text))continue;
+
+        var rect=el.getBoundingClientRect();
+        var score=0;
+        if(text==='close')score+=40;
+        if(text==='back')score+=30;
+        if(text==='done'||text==='cancel')score+=20;
+        score+=(rect.top/Math.max(innerHeight,1))*10;
+        score+=Math.min(rect.width/Math.max(innerWidth,1),1)*8;
+
+        if(score>bestScore){
+          best=el;
+          bestScore=score;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function dispatchEscape(){
+    var targets=[document.activeElement,document.fullscreenElement,document.body,document];
+    for(var i=0;i<targets.length;i++){
+      var target=targets[i];
+      if(!target||!target.dispatchEvent)continue;
       try{
-        var target=document.activeElement||document;
         target.dispatchEvent(new KeyboardEvent('keydown',{
           key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
         }));
         target.dispatchEvent(new KeyboardEvent('keyup',{
           key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
         }));
-      }catch(e2){}
+      }catch(e){}
+    }
+  }
+
+  function closePlayerMenu(){
+    var cards=episodeCards();
+    var close=overlayCloseControl()||closeControl(cards);
+
+    if(close){
+      try{close.click();}catch(e){}
+      clearMark();
+      controlsMode=true;
+      setTimeout(function(){refresh();wakeControls();},80);
+      return true;
+    }
+
+    if(controlsMode||cards.length>=2){
+      dispatchEscape();
+      clearMark();
+      setTimeout(function(){
+        refresh();
+        wakeControls();
+      },80);
       return true;
     }
 
