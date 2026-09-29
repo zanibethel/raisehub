@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   }
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
 
-  const supabase = createAdminClient()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()\n  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()\n  if (!supabaseUrl || !serviceRoleKey) {\n    return NextResponse.json({ error: 'Storage recovery credentials are not configured.' }, { status: 503 })\n  }\n  const supabase = createClient(supabaseUrl, serviceRoleKey, {\n    auth: { persistSession: false, autoRefreshToken: false },\n  })
   let copied = 0
   let skipped = 0
   const failures: Array<{ bucket: string; path: string; error: string }> = []
