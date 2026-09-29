@@ -58,6 +58,7 @@ public class MainActivity extends Activity {
     private static final String PREF_SAVED_SITES = "saved_sites";
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
     private static final String PREF_CURSOR_MODE = "cursor_mode";
+    private static final String PREF_CURSOR_PRIMARY_MIGRATED = "cursor_primary_migrated_1_9_7";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -163,7 +164,15 @@ public class MainActivity extends Activity {
 
         pendingUpdateDownloadId =
                 prefs().getLong(PREF_PENDING_UPDATE_DOWNLOAD, -1L);
-        cursorPreferenceEnabled = prefs().getBoolean(PREF_CURSOR_MODE, true);
+
+        SharedPreferences preferences = prefs();
+        if (!preferences.getBoolean(PREF_CURSOR_PRIMARY_MIGRATED, false)) {
+            preferences.edit()
+                    .putBoolean(PREF_CURSOR_MODE, true)
+                    .putBoolean(PREF_CURSOR_PRIMARY_MIGRATED, true)
+                    .apply();
+        }
+        cursorPreferenceEnabled = preferences.getBoolean(PREF_CURSOR_MODE, true);
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
@@ -363,7 +372,7 @@ public class MainActivity extends Activity {
                 float cy = getHeight() / 2f;
                 float radius = Math.min(getWidth(), getHeight()) * 0.31f;
 
-                ring.setStrokeWidth(dp(cursorHover ? 2 : 1));
+                ring.setStrokeWidth(dp(cursorHover ? 3 : 2));
                 ring.setColor(
                         cursorHover
                                 ? Color.rgb(110, 231, 249)
@@ -385,7 +394,7 @@ public class MainActivity extends Activity {
         cursorView.setFocusable(false);
         cursorView.setClickable(false);
 
-        int size = dp(26);
+        int size = dp(30);
         FrameLayout.LayoutParams params =
                 new FrameLayout.LayoutParams(size, size);
         params.gravity = Gravity.TOP | Gravity.START;
@@ -2894,6 +2903,43 @@ public class MainActivity extends Activity {
     return best;
   }
 
+  function episodeMenuToggle(cards){
+    if(!cards||cards.length<2)return null;
+
+    var roots=allRoots(document,[]);
+    var best=null,bestScore=-Infinity;
+    for(var r=0;r<roots.length;r++){
+      var controls=roots[r].querySelectorAll
+        ?roots[r].querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]')
+        :[];
+
+      for(var i=0;i<controls.length;i++){
+        var el=controls[i];
+        if(!visible(el)||cardFor(el,cards))continue;
+
+        var text=((el.textContent||'')+' '
+          +(el.getAttribute('aria-label')||'')+' '
+          +(el.getAttribute('title')||'')).replace(/\s+/g,' ').trim().toLowerCase();
+
+        if(!/(^|\b)(episodes?|playlist|chapters?|queue|season|episode list)(\b|$)/.test(text))continue;
+
+        var rect=el.getBoundingClientRect();
+        var score=20;
+        if(/episodes?/.test(text))score+=30;
+        if(/playlist|chapters?/.test(text))score+=15;
+        if(rect.bottom>innerHeight*.55)score+=8;
+        if(rect.right>innerWidth*.55)score+=6;
+
+        if(score>bestScore){
+          best=el;
+          bestScore=score;
+        }
+      }
+    }
+
+    return best;
+  }
+
   function dispatchEscape(){
     var targets=[document.activeElement,document.fullscreenElement,document.body,document];
     for(var i=0;i<targets.length;i++){
@@ -2920,6 +2966,17 @@ public class MainActivity extends Activity {
       controlsMode=true;
       setTimeout(function(){refresh();wakeControls();},80);
       return true;
+    }
+
+    if(cards.length>=2){
+      var toggle=episodeMenuToggle(cards);
+      if(toggle){
+        try{toggle.click();}catch(e2){}
+        clearMark();
+        controlsMode=true;
+        setTimeout(function(){refresh();wakeControls();},80);
+        return true;
+      }
     }
 
     if(controlsMode||cards.length>=2){
@@ -3242,11 +3299,25 @@ public class MainActivity extends Activity {
         webView.dispatchKeyEvent(up);
     }
 
+    private boolean dispatchBackToCustomView() {
+        if (customView == null) return false;
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.KeyEvent down =
+                new android.view.KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0);
+        android.view.KeyEvent up =
+                new android.view.KeyEvent(now, now + 25, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0);
+
+        boolean handledDown = customView.dispatchKeyEvent(down);
+        boolean handledUp = customView.dispatchKeyEvent(up);
+        return handledDown || handledUp;
+    }
+
     private boolean handleEmbeddedPlayerBack() {
         long now = android.os.SystemClock.uptimeMillis();
 
         // One Back closes the player's own menu/overlay. A quick second Back
-        // leaves the embedded player if the site does not expose a close state.
+        // still provides a reliable escape hatch if the player ignores it.
         if (lastEmbeddedBackAt > 0 && now - lastEmbeddedBackAt < 900L) {
             lastEmbeddedBackAt = 0L;
             navigateBackOrHome();
@@ -3254,7 +3325,38 @@ public class MainActivity extends Activity {
         }
 
         lastEmbeddedBackAt = now;
-        sendEscapeToEmbeddedPlayer();
+
+        String closeScript =
+                "(function(){"
+                        + "function vis(e){if(!e||!e.getBoundingClientRect)return false;"
+                        + "var r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+                        + "return s.display!=='none'&&s.visibility!=='hidden'&&r.width>1&&r.height>1;}"
+                        + "function closeIn(doc){"
+                        + "var q=doc.querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]');"
+                        + "for(var i=0;i<q.length;i++){var e=q[i];if(!vis(e))continue;"
+                        + "var t=((e.textContent||'')+' '+(e.getAttribute('aria-label')||'')+' '+"
+                        + "(e.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                        + "if(/^(close|back|cancel|done|dismiss|exit|×|✕|x)$/.test(t)){e.click();return true;}}"
+                        + "var rows=doc.querySelectorAll('[class*=episode i],[class*=chapter i],[class*=playlist i],li,article');"
+                        + "var visibleRows=0;for(var j=0;j<rows.length;j++){if(vis(rows[j]))visibleRows++;}"
+                        + "if(visibleRows>=2){for(var k=0;k<q.length;k++){var b=q[k];if(!vis(b))continue;"
+                        + "var bt=((b.textContent||'')+' '+(b.getAttribute('aria-label')||'')+' '+"
+                        + "(b.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                        + "if(/(^|\\b)(episodes?|playlist|chapters?|queue|season|episode list)(\\b|$)/.test(bt)){b.click();return true;}}}"
+                        + "return false;}"
+                        + "try{if(closeIn(document))return true;}catch(e){}"
+                        + "var fs=document.querySelectorAll('iframe');"
+                        + "for(var n=0;n<fs.length;n++){try{var d=fs[n].contentDocument;"
+                        + "if(d&&closeIn(d))return true;}catch(e2){}}"
+                        + "return false;})()";
+
+        webView.evaluateJavascript(
+                closeScript,
+                value -> {
+                    if (!"true".equals(value)) {
+                        runOnUiThread(this::sendEscapeToEmbeddedPlayer);
+                    }
+                });
         return true;
     }
 
@@ -3512,7 +3614,11 @@ public class MainActivity extends Activity {
                                 + "return 'exit';})()",
                         value -> {
                             if ("\"exit\"".equals(value)) {
-                                runOnUiThread(this::exitCustomView);
+                                runOnUiThread(() -> {
+                                    if (!dispatchBackToCustomView()) {
+                                        exitCustomView();
+                                    }
+                                });
                             }
                         });
                 return true;
