@@ -37,12 +37,16 @@ public class PlayerActivity extends Activity {
     public static final String EXTRA_USER_AGENT = "user_agent";
 
     private ExoPlayer player;
+    private ExoPlayer previewPlayer;
+    private DefaultDataSource.Factory dataSourceFactory;
     private PlayerView playerView;
+    private PlayerView seekPreviewPlayerView;
     private FrameLayout playerRoot;
-    private TextView seekPreview;
+    private FrameLayout seekPreviewCard;
+    private TextView seekPreviewLabel;
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideSeekPreview = () -> {
-        if (seekPreview != null) seekPreview.setVisibility(View.GONE);
+        if (seekPreviewCard != null) seekPreviewCard.setVisibility(View.GONE);
     };
     private String mediaUrl;
     private long resumePosition;
@@ -75,26 +79,47 @@ public class PlayerActivity extends Activity {
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT));
 
-        seekPreview = new TextView(this);
-        seekPreview.setTextColor(Color.WHITE);
-        seekPreview.setTextSize(16f);
-        seekPreview.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        seekPreview.setGravity(Gravity.CENTER);
-        seekPreview.setPadding(dp(16), dp(8), dp(16), dp(8));
-        seekPreview.setVisibility(View.GONE);
+        seekPreviewCard = new FrameLayout(this);
+        seekPreviewCard.setVisibility(View.GONE);
 
         GradientDrawable seekBackground = new GradientDrawable();
-        seekBackground.setColor(Color.argb(220, 4, 12, 24));
-        seekBackground.setStroke(dp(1), Color.rgb(49, 184, 255));
+        seekBackground.setColor(Color.rgb(4, 12, 24));
+        seekBackground.setStroke(dp(2), Color.rgb(49, 184, 255));
         seekBackground.setCornerRadius(dp(10));
-        seekPreview.setBackground(seekBackground);
+        seekPreviewCard.setBackground(seekBackground);
+        seekPreviewCard.setPadding(dp(3), dp(3), dp(3), dp(3));
+
+        seekPreviewPlayerView = new PlayerView(this);
+        seekPreviewPlayerView.setUseController(false);
+        seekPreviewPlayerView.setControllerAutoShow(false);
+        seekPreviewPlayerView.setKeepContentOnPlayerReset(true);
+        seekPreviewPlayerView.setBackgroundColor(Color.BLACK);
+        seekPreviewCard.addView(
+                seekPreviewPlayerView,
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+        seekPreviewLabel = new TextView(this);
+        seekPreviewLabel.setTextColor(Color.WHITE);
+        seekPreviewLabel.setTextSize(13f);
+        seekPreviewLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        seekPreviewLabel.setGravity(Gravity.CENTER);
+        seekPreviewLabel.setPadding(dp(8), dp(4), dp(8), dp(4));
+        seekPreviewLabel.setBackgroundColor(Color.argb(205, 4, 12, 24));
+
+        FrameLayout.LayoutParams labelParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        labelParams.gravity = Gravity.BOTTOM;
+        seekPreviewCard.addView(seekPreviewLabel, labelParams);
 
         FrameLayout.LayoutParams seekParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
+                dp(230),
+                dp(136));
         seekParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        seekParams.setMargins(0, 0, 0, dp(70));
-        playerRoot.addView(seekPreview, seekParams);
+        seekParams.setMargins(0, 0, 0, dp(72));
+        playerRoot.addView(seekPreviewCard, seekParams);
 
         setContentView(playerRoot);
     }
@@ -129,11 +154,10 @@ public class PlayerActivity extends Activity {
                 .setAllowCrossProtocolRedirects(true)
                 .setDefaultRequestProperties(headers);
 
-        DefaultDataSource.Factory dataSource =
-                new DefaultDataSource.Factory(this, http);
+        dataSourceFactory = new DefaultDataSource.Factory(this, http);
 
         player = new ExoPlayer.Builder(this)
-                .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSource))
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))
                 .build();
 
         playerView.setPlayer(player);
@@ -149,11 +173,36 @@ public class PlayerActivity extends Activity {
     }
 
     private void releasePlayer() {
+        if (previewPlayer != null) {
+            previewPlayer.release();
+            previewPlayer = null;
+        }
+        if (seekPreviewPlayerView != null) {
+            seekPreviewPlayerView.setPlayer(null);
+        }
+
         if (player != null) {
             resumePosition = player.getCurrentPosition();
             player.release();
             player = null;
             playerView.setPlayer(null);
+        }
+        dataSourceFactory = null;
+    }
+
+    private void ensurePreviewPlayer() {
+        if (previewPlayer != null || dataSourceFactory == null) return;
+
+        previewPlayer = new ExoPlayer.Builder(this)
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))
+                .build();
+        previewPlayer.setVolume(0f);
+        previewPlayer.setPlayWhenReady(false);
+        previewPlayer.setMediaItem(MediaItem.fromUri(mediaUrl));
+        previewPlayer.prepare();
+
+        if (seekPreviewPlayerView != null) {
+            seekPreviewPlayerView.setPlayer(previewPlayer);
         }
     }
 
@@ -184,7 +233,13 @@ public class PlayerActivity extends Activity {
     }
 
     private void showSeekPreview(long delta, long target, long duration) {
-        if (seekPreview == null) return;
+        if (seekPreviewCard == null || seekPreviewLabel == null) return;
+
+        ensurePreviewPlayer();
+        if (previewPlayer != null) {
+            previewPlayer.seekTo(target);
+            previewPlayer.pause();
+        }
 
         String action = delta < 0 ? "Rewind" : "Forward";
         String durationText =
@@ -192,18 +247,18 @@ public class PlayerActivity extends Activity {
                         ? ""
                         : " / " + formatTime(duration);
 
-        seekPreview.setText(
+        seekPreviewLabel.setText(
                 action
                         + " "
                         + Math.max(1, Math.abs(delta) / 1000)
                         + "s   "
                         + formatTime(target)
                         + durationText);
-        seekPreview.setVisibility(View.VISIBLE);
-        seekPreview.bringToFront();
+        seekPreviewCard.setVisibility(View.VISIBLE);
+        seekPreviewCard.bringToFront();
 
         uiHandler.removeCallbacks(hideSeekPreview);
-        uiHandler.postDelayed(hideSeekPreview, 1100);
+        uiHandler.postDelayed(hideSeekPreview, 1200);
     }
 
     private String formatTime(long milliseconds) {
@@ -342,7 +397,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onStop() {
         uiHandler.removeCallbacks(hideSeekPreview);
-        if (seekPreview != null) seekPreview.setVisibility(View.GONE);
+        if (seekPreviewCard != null) seekPreviewCard.setVisibility(View.GONE);
         releasePlayer();
         super.onStop();
     }
