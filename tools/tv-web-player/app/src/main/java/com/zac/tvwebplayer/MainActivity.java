@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private static final String PREF_MOBILE = "mobile_mode";
     private static final String PREF_SAVED_SITES = "saved_sites";
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
+    private static final String PREF_CURSOR_MODE = "cursor_mode";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -78,6 +79,7 @@ public class MainActivity extends Activity {
     private int adBannerInsetPx;
     private View cursorView;
     private boolean cursorMode;
+    private boolean cursorPreferenceEnabled;
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
@@ -90,9 +92,6 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active) {
-        if (active && cursorMode) {
-            setCursorMode(false);
-        }
         if (webPlayerMode == active) {
             setAdBannerVisible(!active && customView == null);
             return;
@@ -102,9 +101,15 @@ public class MainActivity extends Activity {
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
+            applyCursorMode(false, false);
             installTvNavigation();
         } else if (customView == null) {
             destroyTvNavigation();
+            if (cursorPreferenceEnabled) {
+                applyCursorMode(true, false);
+            } else {
+                installPageCardNavigation();
+            }
         }
     }
 
@@ -131,6 +136,7 @@ public class MainActivity extends Activity {
 
         pendingUpdateDownloadId =
                 prefs().getLong(PREF_PENDING_UPDATE_DOWNLOAD, -1L);
+        cursorPreferenceEnabled = prefs().getBoolean(PREF_CURSOR_MODE, true);
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
@@ -202,6 +208,8 @@ public class MainActivity extends Activity {
                     String url,
                     android.graphics.Bitmap favicon) {
                 webPlayerMode = false;
+                cursorMode = false;
+                if (cursorView != null) cursorView.setVisibility(View.GONE);
                 destroyTvNavigation();
                 destroyPageCardNavigation();
                 setAdBannerVisible(true);
@@ -215,7 +223,9 @@ public class MainActivity extends Activity {
                 installPopupGuard();
                 installFullscreenIntentGuard();
                 installPlayerModeMonitor();
-                if (!cursorMode) {
+                if (cursorPreferenceEnabled) {
+                    applyCursorMode(true, false);
+                } else {
                     installPageCardNavigation();
                 }
             }
@@ -350,22 +360,37 @@ public class MainActivity extends Activity {
     }
 
     private void setCursorMode(boolean enabled) {
-        if (cursorView == null || webView == null) return;
+        cursorPreferenceEnabled = enabled;
+        prefs().edit().putBoolean(PREF_CURSOR_MODE, enabled).apply();
 
         if (enabled && (customView != null || webPlayerMode)) {
             Toast.makeText(
                     this,
-                    "Cursor mode is available on normal web pages.",
+                    "Cursor will return when the video player closes.",
                     Toast.LENGTH_SHORT).show();
             return;
         }
 
-        cursorMode = enabled;
-        if (!enabled) {
+        applyCursorMode(enabled, true);
+    }
+
+    private void applyCursorMode(boolean enabled, boolean announce) {
+        if (cursorView == null || webView == null) return;
+
+        cursorMode = enabled && customView == null && !webPlayerMode;
+        if (!cursorMode) {
             cursorView.setVisibility(View.GONE);
-            installPageCardNavigation();
+            cursorHover = false;
+            cursorView.invalidate();
+
+            if (customView == null && !webPlayerMode && !cursorPreferenceEnabled) {
+                installPageCardNavigation();
+            }
             webView.requestFocus();
-            Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+
+            if (announce) {
+                Toast.makeText(this, "Cursor mode off.", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
@@ -382,10 +407,13 @@ public class MainActivity extends Activity {
         cursorView.setVisibility(View.VISIBLE);
         cursorView.bringToFront();
         updateCursorHoverState();
-        Toast.makeText(
-                this,
-                "Cursor mode on · D-pad moves · Select clicks · Back exits",
-                Toast.LENGTH_LONG).show();
+
+        if (announce) {
+            Toast.makeText(
+                    this,
+                    "Cursor mode on · D-pad moves · Select clicks",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private void positionCursor() {
@@ -1283,7 +1311,7 @@ public class MainActivity extends Activity {
         String[] actions = {
                 "Home",
                 "Reload",
-                cursorMode ? "Cursor mode: On" : "Cursor mode: Off",
+                cursorPreferenceEnabled ? "Cursor mode: On" : "Cursor mode: Off",
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
@@ -1325,7 +1353,7 @@ public class MainActivity extends Activity {
                     webView.reload();
                     break;
                 case 2:
-                    setCursorMode(!cursorMode);
+                    setCursorMode(!cursorPreferenceEnabled);
                     break;
                 case 3:
                     playCurrentPageVideo();
@@ -1666,7 +1694,7 @@ public class MainActivity extends Activity {
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
         if (cursorMode) {
-            setCursorMode(false);
+            applyCursorMode(false, false);
         }
         if (customView != null) {
             callback.onCustomViewHidden();
@@ -1699,7 +1727,11 @@ public class MainActivity extends Activity {
         webPlayerMode = false;
         setAdBannerVisible(true);
         webView.setVisibility(View.VISIBLE);
-        webView.requestFocus();
+        if (cursorPreferenceEnabled) {
+            applyCursorMode(true, false);
+        } else {
+            webView.requestFocus();
+        }
 
         if (customViewCallback != null) {
             customViewCallback.onCustomViewHidden();
@@ -2194,21 +2226,29 @@ public class MainActivity extends Activity {
     private void installPlayerModeMonitor() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalPlayerMonitorVersion===2){"
+                + "if(window.__webPortalPlayerMonitorVersion===3){"
                 + "if(window.__webPortalReportPlayerMode)window.__webPortalReportPlayerMode();return;}"
                 + "var last=null;"
-                + "function visibleVideo(v){if(!v||!v.getBoundingClientRect)return false;"
-                + "var r=v.getBoundingClientRect(),s=getComputedStyle(v);"
+                + "function visible(el){if(!el||!el.getBoundingClientRect)return false;"
+                + "var r=el.getBoundingClientRect(),s=getComputedStyle(el);"
                 + "return s.display!=='none'&&s.visibility!=='hidden'&&parseFloat(s.opacity||'1')>0"
                 + "&&r.width>10&&r.height>10&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;}"
-                + "function isPlayerVideo(v){if(!visibleVideo(v))return false;"
+                + "function isPlayerVideo(v){if(!visible(v))return false;"
                 + "var r=v.getBoundingClientRect();"
-                + "var large=r.width>=innerWidth*.5&&r.height>=innerHeight*.28;"
+                + "var large=r.width>=innerWidth*.42&&r.height>=innerHeight*.22;"
                 + "var playing=!v.paused&&!v.ended;"
                 + "var started=(v.currentTime||0)>.15;"
-                + "return large&&(playing||started||v.controls);}"
+                + "return playing||(large&&(started||v.controls));}"
                 + "function activeVideo(){var videos=document.querySelectorAll('video');"
                 + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return videos[i];}"
+                + "return null;}"
+                + "function activePlayerFrame(){var frames=document.querySelectorAll('iframe');"
+                + "for(var i=0;i<frames.length;i++){var f=frames[i];if(!visible(f))continue;"
+                + "var r=f.getBoundingClientRect();"
+                + "if(r.width<innerWidth*.48||r.height<innerHeight*.24)continue;"
+                + "var hint=((f.src||'')+' '+(f.title||'')+' '+(f.id||'')+' '+"
+                + "(typeof f.className==='string'?f.className:'')+' '+(f.getAttribute('allow')||'')).toLowerCase();"
+                + "if(/video|player|stream|watch|embed|media|fullscreen/.test(hint))return f;}"
                 + "return null;}"
                 + "function autoOpen(v){if(!v||document.fullscreenElement)return;"
                 + "var source=v.currentSrc||v.src||'__webportal_video__';"
@@ -2221,22 +2261,25 @@ public class MainActivity extends Activity {
                 + "try{var request=target.requestFullscreen||target.webkitRequestFullscreen;"
                 + "if(request){var result=request.call(target);if(result&&result.catch)result.catch(function(){});}"
                 + "else if(v.webkitEnterFullscreen){v.webkitEnterFullscreen();}}catch(e){}}"
-                + "function report(){var v=activeVideo();var active=!!document.fullscreenElement||!!v;"
+                + "function report(){var v=activeVideo();var frame=activePlayerFrame();"
+                + "var active=!!document.fullscreenElement||!!v||!!frame;"
                 + "if(v&&!document.fullscreenElement)autoOpen(v);"
                 + "if(active===last)return;last=active;"
                 + "try{WebPortalBridge.setPlayerMode(active);}catch(e){}}"
                 + "window.__webPortalReportPlayerMode=report;"
-                + "window.__webPortalPlayerMonitorVersion=2;"
+                + "window.__webPortalPlayerMonitorVersion=3;"
                 + "document.addEventListener('play',function(event){var v=event.target;"
                 + "if(v&&String(v.tagName).toLowerCase()==='video'&&isPlayerVideo(v))autoOpen(v);"
                 + "setTimeout(report,20);},true);"
-                + "['pause','ended','loadedmetadata','loadeddata','fullscreenchange'].forEach(function(name){"
+                + "['pause','ended','loadedmetadata','loadeddata','durationchange','fullscreenchange'].forEach(function(name){"
                 + "document.addEventListener(name,function(){setTimeout(report,40);},true);});"
                 + "window.addEventListener('resize',function(){setTimeout(report,40);});"
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalPlayerMonitorTimer);"
                 + "window.__webPortalPlayerMonitorTimer=setTimeout(report,100);});"
-                + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','controls','src']});"
-                + "window.__webPortalPlayerMonitorInterval=setInterval(report,500);"
+                + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,"
+                + "attributeFilter:['style','class','controls','src','allow','title']});"
+                + "clearInterval(window.__webPortalPlayerMonitorInterval);"
+                + "window.__webPortalPlayerMonitorInterval=setInterval(report,350);"
                 + "report();"
                 + "})();";
         webView.evaluateJavascript(js, null);
@@ -2252,7 +2295,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalTV&&window.__webPortalTV.version===7){
+  if(window.__webPortalTV&&window.__webPortalTV.version===8){
     window.__webPortalTV.refresh();
     return;
   }
@@ -2652,6 +2695,33 @@ public class MainActivity extends Activity {
     return true;
   }
 
+  function closePlayerMenu(){
+    var cards=episodeCards();
+    var close=closeControl(cards);
+    if(close){
+      try{close.click();}catch(e){}
+      controlsMode=false;
+      clearMark();
+      return true;
+    }
+
+    if(controlsMode||cards.length>=2){
+      hideControls();
+      try{
+        var target=document.activeElement||document;
+        target.dispatchEvent(new KeyboardEvent('keydown',{
+          key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
+        }));
+        target.dispatchEvent(new KeyboardEvent('keyup',{
+          key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
+        }));
+      }catch(e2){}
+      return true;
+    }
+
+    return false;
+  }
+
   function pickInitial(){
     var cards=episodeCards();
     if(cards.length>=2){
@@ -2738,11 +2808,61 @@ public class MainActivity extends Activity {
     try{if(v.paused)v.play();else v.pause();return true;}catch(e){return false;}
   }
 
+  function mediaKey(action){
+    var v=video();
+    if(!v)return false;
+    try{
+      if(action==='play'){v.play();return true;}
+      if(action==='pause'){v.pause();return true;}
+      if(action==='toggle'){
+        if(v.paused)v.play();else v.pause();
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  function timeText(value){
+    var total=Math.max(0,Math.floor(Number(value)||0));
+    var h=Math.floor(total/3600);
+    var m=Math.floor((total%3600)/60);
+    var s=total%60;
+    return h>0
+      ?h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')
+      :m+':'+String(s).padStart(2,'0');
+  }
+
+  function showSeekPreview(seconds,target,duration){
+    var id='webportal-seek-preview';
+    var box=document.getElementById(id);
+    if(!box){
+      box=document.createElement('div');
+      box.id=id;
+      box.style.cssText='position:fixed;left:50%;bottom:12%;transform:translateX(-50%);'
+        +'z-index:2147483647;padding:9px 16px;border-radius:10px;'
+        +'background:rgba(4,12,24,.90);border:1px solid #31B8FF;color:#fff;'
+        +'font:700 16px sans-serif;line-height:1.2;pointer-events:none;'
+        +'box-shadow:0 0 16px rgba(49,184,255,.45);';
+      (document.body||document.documentElement).appendChild(box);
+    }
+
+    var label=seconds<0?'Rewind':'Forward';
+    var total=isFinite(duration)&&duration>0?' / '+timeText(duration):'';
+    box.textContent=label+' '+Math.abs(seconds)+'s   '+timeText(target)+total;
+    box.style.display='block';
+    clearTimeout(window.__webPortalSeekPreviewTimer);
+    window.__webPortalSeekPreviewTimer=setTimeout(function(){
+      if(box)box.style.display='none';
+    },1100);
+  }
+
   function seek(seconds){
     var v=video();
     if(!v||!isFinite(v.duration))return false;
     try{
-      v.currentTime=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));
+      var target=Math.max(0,Math.min(v.duration||Number.MAX_SAFE_INTEGER,v.currentTime+seconds));
+      v.currentTime=target;
+      showSeekPreview(seconds,target,v.duration);
       return true;
     }catch(e){return false;}
   }
@@ -2842,13 +2962,15 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalTV={
-    version:7,
+    version:8,
     refresh:refresh,
     move:move,
     activate:activate,
     playerKey:playerKey,
+    mediaKey:mediaKey,
     showControls:showControls,
     hideControls:hideControls,
+    closePlayerMenu:closePlayerMenu,
     controlsMode:function(){return controlsMode;},
     destroy:destroy
   };
@@ -2894,13 +3016,39 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private boolean clearFullscreenPlayerControls() {
-        if (customView == null || webView == null) return false;
+    private boolean isMediaPlaybackKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
+                || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE;
+    }
+
+    private boolean handleMediaPlaybackKey(int keyCode) {
+        if (webView == null || (customView == null && !webPlayerMode)) return false;
+
+        String action;
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+                action = "play";
+                break;
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                action = "pause";
+                break;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                action = "toggle";
+                break;
+            default:
+                return false;
+        }
+
+        if (webPlayerMode && customView == null) {
+            installTvNavigation();
+        }
+
         webView.evaluateJavascript(
-                "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return true;}return false;})()",
-                value -> {
-                    // The key event is consumed synchronously; this callback only updates visual state.
-                });
+                "window.__webPortalTV&&window.__webPortalTV.mediaKey('"
+                        + action
+                        + "');",
+                null);
         return true;
     }
 
@@ -2926,6 +3074,20 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+
+        if (isMediaPlaybackKey(keyCode)
+                && webView != null
+                && (customView != null || webPlayerMode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    handleMediaPlaybackKey(keyCode);
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
 
         if (cursorMode && customView == null && !webPlayerMode
                 && isDpadNavigationKey(keyCode)) {
@@ -3037,14 +3199,12 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (cursorMode) {
-                setCursorMode(false);
-                return true;
-            }
-
             if (customView != null) {
                 webView.evaluateJavascript(
-                        "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return 'hidden';}return 'exit';})()",
+                        "(function(){"
+                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                                + "&&window.__webPortalTV.closePlayerMenu())return 'closed';"
+                                + "return 'exit';})()",
                         value -> {
                             if ("\"exit\"".equals(value)) {
                                 runOnUiThread(this::exitCustomView);
@@ -3055,7 +3215,10 @@ public class MainActivity extends Activity {
 
             if (webPlayerMode) {
                 webView.evaluateJavascript(
-                        "(function(){if(window.__webPortalTV&&window.__webPortalTV.controlsMode&&window.__webPortalTV.controlsMode()){window.__webPortalTV.hideControls();return true;}return false;})()",
+                        "(function(){"
+                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                                + "&&window.__webPortalTV.closePlayerMenu())return true;"
+                                + "return false;})()",
                         value -> {
                             if (!"true".equals(value)) {
                                 runOnUiThread(this::navigateBackOrHome);
