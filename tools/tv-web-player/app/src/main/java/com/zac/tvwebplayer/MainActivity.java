@@ -119,7 +119,7 @@ public class MainActivity extends Activity {
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
-            suspendCursorForPlayer();
+            activateCursorForPlayer();
 
             if (embeddedPlayerMode) {
                 // Cross-origin embedded players need the real WebView/iframe to receive
@@ -396,12 +396,22 @@ public class MainActivity extends Activity {
         cursorPreferenceEnabled = enabled;
         prefs().edit().putBoolean(PREF_CURSOR_MODE, enabled).apply();
 
-        if (enabled && (customView != null || webPlayerMode)) {
-            Toast.makeText(
-                    this,
-                    "Cursor stays passive over video and auto-hides.",
-                    Toast.LENGTH_SHORT).show();
-            showCursorTemporarily();
+        if (customView != null || webPlayerMode) {
+            if (enabled) {
+                activateCursorForPlayer();
+                Toast.makeText(
+                        this,
+                        "Cursor mode on · use D-pad to point and Select to click",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                cursorMode = false;
+                if (cursorView != null) {
+                    cursorView.removeCallbacks(cursorAutoHideRunnable);
+                    cursorView.animate().cancel();
+                    cursorView.setAlpha(1f);
+                    cursorView.setVisibility(View.GONE);
+                }
+            }
             return;
         }
 
@@ -463,14 +473,19 @@ public class MainActivity extends Activity {
         cursorView.postDelayed(cursorAutoHideRunnable, CURSOR_AUTO_HIDE_MS);
     }
 
-    private void suspendCursorForPlayer() {
-        cursorMode = false;
+    private void activateCursorForPlayer() {
+        cursorMode = cursorPreferenceEnabled;
         cursorHover = false;
+
         if (cursorView != null) {
             cursorView.invalidate();
         }
 
-        if (cursorPreferenceEnabled) {
+        if (cursorMode) {
+            if (cursorX <= 0f || cursorY <= 0f) {
+                cursorX = root.getWidth() > 0 ? root.getWidth() * 0.5f : dp(320);
+                cursorY = root.getHeight() > 0 ? root.getHeight() * 0.5f : dp(180);
+            }
             positionCursor();
             showCursorTemporarily();
         } else if (cursorView != null) {
@@ -532,6 +547,14 @@ public class MainActivity extends Activity {
     private void updateCursorHoverState() {
         if (!cursorMode || cursorView == null || webView == null || root == null
                 || webView.getWidth() <= 0 || webView.getHeight() <= 0) {
+            return;
+        }
+
+        if (customView != null || embeddedPlayerMode) {
+            if (cursorHover) {
+                cursorHover = false;
+                cursorView.invalidate();
+            }
             return;
         }
 
@@ -648,7 +671,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_UP:
                 if (cursorY <= edge + step) {
                     cursorY = edge;
-                    scrollAtCursor(-1);
+                    if (customView == null && !webPlayerMode) {
+                        scrollAtCursor(-1);
+                    }
                 } else {
                     cursorY -= step;
                 }
@@ -656,7 +681,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
                     cursorY = root.getHeight() - edge;
-                    scrollAtCursor(1);
+                    if (customView == null && !webPlayerMode) {
+                        scrollAtCursor(1);
+                    }
                 } else {
                     cursorY += step;
                 }
@@ -673,14 +700,15 @@ public class MainActivity extends Activity {
 
         showCursorTemporarily();
 
-        int[] webLocation = new int[2];
+        View touchTarget = customView != null ? customView : webView;
+        int[] targetLocation = new int[2];
         int[] rootLocation = new int[2];
-        webView.getLocationOnScreen(webLocation);
+        touchTarget.getLocationOnScreen(targetLocation);
         root.getLocationOnScreen(rootLocation);
 
-        float x = cursorX - (webLocation[0] - rootLocation[0]);
-        float y = cursorY - (webLocation[1] - rootLocation[1]);
-        if (x < 0 || y < 0 || x > webView.getWidth() || y > webView.getHeight()) return;
+        float x = cursorX - (targetLocation[0] - rootLocation[0]);
+        float y = cursorY - (targetLocation[1] - rootLocation[1]);
+        if (x < 0 || y < 0 || x > touchTarget.getWidth() || y > touchTarget.getHeight()) return;
 
         pulseCursorClick();
 
@@ -700,8 +728,8 @@ public class MainActivity extends Activity {
                 y,
                 0);
         try {
-            webView.dispatchTouchEvent(down);
-            webView.dispatchTouchEvent(up);
+            touchTarget.dispatchTouchEvent(down);
+            touchTarget.dispatchTouchEvent(up);
             webView.postDelayed(this::updateCursorHoverState, 120);
         } finally {
             down.recycle();
@@ -1809,7 +1837,7 @@ public class MainActivity extends Activity {
         root.addView(customView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
-        suspendCursorForPlayer();
+        activateCursorForPlayer();
         hideSystemUi();
         customView.requestFocus();
         webView.postDelayed(() -> installTvNavigation(), 120);
@@ -2408,7 +2436,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalTV&&window.__webPortalTV.version===8){
+  if(window.__webPortalTV&&window.__webPortalTV.version===9){
     window.__webPortalTV.refresh();
     return;
   }
@@ -3147,12 +3175,13 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalTV={
-    version:8,
+    version:9,
     refresh:refresh,
     move:move,
     activate:activate,
     playerKey:playerKey,
     mediaKey:mediaKey,
+    mediaSeek:function(seconds){return seek(seconds);},
     showControls:showControls,
     hideControls:hideControls,
     closePlayerMenu:closePlayerMenu,
@@ -3235,6 +3264,32 @@ public class MainActivity extends Activity {
                 || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE;
     }
 
+    private boolean isMediaSeekKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                || keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD;
+    }
+
+    private boolean handleMediaSeekKey(int keyCode) {
+        if (webView == null || (customView == null && !webPlayerMode)) return false;
+
+        int seconds =
+                keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                        ? -10
+                        : 10;
+
+        if (embeddedPlayerMode && customView == null) {
+            return false;
+        }
+
+        installTvNavigation();
+        webView.evaluateJavascript(
+                "window.__webPortalTV&&window.__webPortalTV.mediaSeek("
+                        + seconds
+                        + ");",
+                null);
+        return true;
+    }
+
     private boolean handleMediaPlaybackKey(int keyCode) {
         if (webView == null || (customView == null && !webPlayerMode)) return false;
 
@@ -3298,11 +3353,27 @@ public class MainActivity extends Activity {
                 }
             }
 
-            if (isDpadNavigationKey(keyCode) || isMediaPlaybackKey(keyCode)
-                    || keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
-                    || keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
-                // Let Chromium route the key to the focused iframe/player.
+            if (isMediaPlaybackKey(keyCode) || isMediaSeekKey(keyCode)) {
+                // Let Chromium route dedicated playback keys to the focused iframe/player.
                 return super.dispatchKeyEvent(event);
+            }
+
+            if (!cursorMode && isDpadNavigationKey(keyCode)) {
+                // Cursor disabled: fall back to the embedded player's native remote navigation.
+                return super.dispatchKeyEvent(event);
+            }
+        }
+
+        if (isMediaSeekKey(keyCode)
+                && webView != null
+                && (customView != null || webPlayerMode)
+                && !embeddedPlayerMode) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                handleMediaSeekKey(keyCode);
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
             }
         }
 
@@ -3320,8 +3391,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (cursorMode && customView == null && !webPlayerMode
-                && isDpadNavigationKey(keyCode)) {
+        if (cursorMode && isDpadNavigationKey(keyCode)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                         || keyCode == KeyEvent.KEYCODE_ENTER) {
