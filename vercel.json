@@ -20,6 +20,14 @@
     {
       "path": "/api/cron/partner-rewards-report",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/operations-alerts",
+      "schedule": "23 * * * *"
+    },
+    {
+      "path": "/api/cron/storage-recovery",
+      "schedule": "41 6 * * *"
     }
   ]
 }
