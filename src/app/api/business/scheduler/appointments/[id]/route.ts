@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { syncAppointmentToGoogleCalendar } from '@/lib/calendar/google-calendar'
 import { sendNotificationEmail } from '@/lib/notifications/email'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -64,7 +65,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { data: appointment, error: appointmentError } = await admin
     .from('business_appointments')
     .select(
-      'id,business_id,service_name_snapshot,customer_name,customer_email,appointment_date,start_time,end_time,status'
+      'id,business_id,service_name_snapshot,customer_name,customer_email,customer_phone,customer_note,appointment_date,start_time,end_time,status'
     )
     .eq('id', id)
     .maybeSingle()
@@ -144,6 +145,19 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (status === 'confirmed' || status === 'cancelled') {
+    const calendarResult = await syncAppointmentToGoogleCalendar({
+      appointment,
+      businessName: business?.name || 'RaiseHub business',
+      action: status,
+    })
+    if (calendarResult.status === 'failed') {
+      console.error('Appointment updated but Google Calendar sync needs attention', {
+        appointmentId: appointment.id,
+        status,
+        error: calendarResult.error,
+      })
+    }
+
     const businessName = business?.name || 'the business'
     const summary = `${appointment.service_name_snapshot} on ${appointment.appointment_date} at ${displayTime(appointment.start_time)}`
     const title = status === 'confirmed' ? 'Appointment confirmed' : 'Appointment cancelled'
