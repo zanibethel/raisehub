@@ -106,7 +106,7 @@ public class WebPortalAdBanner extends LinearLayout {
 
         brandLogoView = new ImageView(context);
         brandLogoView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        brandLogoView.setPadding(dp(2), dp(2), dp(2), dp(2));
+        brandLogoView.setPadding(dp(6), dp(6), dp(6), dp(6));
 
         brandFrame.addView(
                 brandFallbackView,

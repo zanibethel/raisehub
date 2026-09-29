@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     private static final String WEBPORTAL_VERSION_URL =
             "https://raisehub.app/webportal-version.json";
     private static final int MAX_SAVED_SITES = 12;
+    private static final long CURSOR_AUTO_HIDE_MS = 3000L;
 
     private FrameLayout root;
     private WebView webView;
@@ -75,6 +76,8 @@ public class MainActivity extends Activity {
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
+    private volatile boolean embeddedPlayerMode;
+    private long lastEmbeddedBackAt;
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
     private View cursorView;
@@ -83,27 +86,51 @@ public class MainActivity extends Activity {
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
+    private long lastCursorScrollAt;
+    private final Runnable cursorAutoHideRunnable = () -> {
+        if (cursorView == null) return;
+        cursorView.animate().cancel();
+        cursorView.animate()
+                .alpha(0f)
+                .setDuration(180)
+                .withEndAction(() -> {
+                    if (cursorView != null && cursorView.getAlpha() == 0f) {
+                        cursorView.setVisibility(View.GONE);
+                    }
+                })
+                .start();
+    };
 
     private final class WebPortalBridge {
         @JavascriptInterface
         public void setPlayerMode(boolean active) {
-            runOnUiThread(() -> setWebPlayerMode(active));
+            runOnUiThread(() -> setWebPlayerMode(active, false));
+        }
+
+        @JavascriptInterface
+        public void setPlayerState(boolean active, boolean embedded) {
+            runOnUiThread(() -> setWebPlayerMode(active, embedded));
         }
     }
 
-    private void setWebPlayerMode(boolean active) {
-        if (webPlayerMode == active) {
-            setAdBannerVisible(!active && customView == null);
-            return;
-        }
-
+    private void setWebPlayerMode(boolean active, boolean embedded) {
         webPlayerMode = active;
+        embeddedPlayerMode = active && embedded;
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
-            applyCursorMode(false, false);
-            installTvNavigation();
+            activateCursorForPlayer();
+
+            if (embeddedPlayerMode) {
+                // Cross-origin embedded players need the real WebView/iframe to receive
+                // remote key events. Do not consume D-pad input with our top-page JS.
+                destroyTvNavigation();
+                webView.requestFocus();
+            } else {
+                installTvNavigation();
+            }
         } else if (customView == null) {
+            embeddedPlayerMode = false;
             destroyTvNavigation();
             if (cursorPreferenceEnabled) {
                 applyCursorMode(true, false);
@@ -208,8 +235,14 @@ public class MainActivity extends Activity {
                     String url,
                     android.graphics.Bitmap favicon) {
                 webPlayerMode = false;
+                embeddedPlayerMode = false;
                 cursorMode = false;
-                if (cursorView != null) cursorView.setVisibility(View.GONE);
+                if (cursorView != null) {
+                    cursorView.removeCallbacks(cursorAutoHideRunnable);
+                    cursorView.animate().cancel();
+                    cursorView.setAlpha(1f);
+                    cursorView.setVisibility(View.GONE);
+                }
                 destroyTvNavigation();
                 destroyPageCardNavigation();
                 setAdBannerVisible(true);
@@ -363,11 +396,22 @@ public class MainActivity extends Activity {
         cursorPreferenceEnabled = enabled;
         prefs().edit().putBoolean(PREF_CURSOR_MODE, enabled).apply();
 
-        if (enabled && (customView != null || webPlayerMode)) {
-            Toast.makeText(
-                    this,
-                    "Cursor will return when the video player closes.",
-                    Toast.LENGTH_SHORT).show();
+        if (customView != null || webPlayerMode) {
+            if (enabled) {
+                activateCursorForPlayer();
+                Toast.makeText(
+                        this,
+                        "Cursor mode on · use D-pad to point and Select to click",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                cursorMode = false;
+                if (cursorView != null) {
+                    cursorView.removeCallbacks(cursorAutoHideRunnable);
+                    cursorView.animate().cancel();
+                    cursorView.setAlpha(1f);
+                    cursorView.setVisibility(View.GONE);
+                }
+            }
             return;
         }
 
@@ -379,6 +423,9 @@ public class MainActivity extends Activity {
 
         cursorMode = enabled && customView == null && !webPlayerMode;
         if (!cursorMode) {
+            cursorView.removeCallbacks(cursorAutoHideRunnable);
+            cursorView.animate().cancel();
+            cursorView.setAlpha(1f);
             cursorView.setVisibility(View.GONE);
             cursorHover = false;
             cursorView.invalidate();
@@ -404,8 +451,7 @@ public class MainActivity extends Activity {
                 "(function(){try{if(document.activeElement)document.activeElement.blur();}catch(e){}})()",
                 null);
         positionCursor();
-        cursorView.setVisibility(View.VISIBLE);
-        cursorView.bringToFront();
+        showCursorTemporarily();
         updateCursorHoverState();
 
         if (announce) {
@@ -413,6 +459,44 @@ public class MainActivity extends Activity {
                     this,
                     "Cursor mode on · D-pad moves · Select clicks",
                     Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showCursorTemporarily() {
+        if (cursorView == null || !cursorPreferenceEnabled) return;
+
+        cursorView.removeCallbacks(cursorAutoHideRunnable);
+        cursorView.animate().cancel();
+        cursorView.setAlpha(1f);
+        cursorView.setVisibility(View.VISIBLE);
+        cursorView.bringToFront();
+        cursorView.postDelayed(cursorAutoHideRunnable, CURSOR_AUTO_HIDE_MS);
+    }
+
+    private void activateCursorForPlayer() {
+        cursorMode = cursorPreferenceEnabled;
+        cursorHover = false;
+
+        if (cursorView != null) {
+            cursorView.invalidate();
+        }
+
+        if (cursorMode) {
+            if (cursorX <= 0f || cursorY <= 0f) {
+                cursorX = root.getWidth() > 0 ? root.getWidth() * 0.5f : dp(320);
+                cursorY = root.getHeight() > 0 ? root.getHeight() * 0.5f : dp(180);
+            }
+            positionCursor();
+            showCursorTemporarily();
+        } else if (cursorView != null) {
+            cursorView.removeCallbacks(cursorAutoHideRunnable);
+            cursorView.animate().cancel();
+            cursorView.setVisibility(View.GONE);
+            cursorView.setAlpha(1f);
+        }
+
+        if (webView != null) {
+            webView.requestFocus();
         }
     }
 
@@ -430,9 +514,47 @@ public class MainActivity extends Activity {
         cursorView.setY(cursorY - half);
     }
 
+    private void animateCursorToPosition(int repeatCount) {
+        if (cursorView == null || root == null) return;
+
+        showCursorTemporarily();
+
+        int size = cursorView.getLayoutParams() == null
+                ? dp(32)
+                : cursorView.getLayoutParams().width;
+        float half = size / 2f;
+        float maxX = Math.max(half, root.getWidth() - half);
+        float maxY = Math.max(half, root.getHeight() - half);
+
+        cursorX = Math.max(half, Math.min(maxX, cursorX));
+        cursorY = Math.max(half, Math.min(maxY, cursorY));
+
+        long duration = repeatCount > 0 ? 55L : 80L;
+        cursorView.animate()
+                .cancel();
+        cursorView.animate()
+                .x(cursorX - half)
+                .y(cursorY - half)
+                .setDuration(duration)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.35f))
+                .start();
+
+        webView.postDelayed(
+                this::updateCursorHoverState,
+                Math.min(90L, duration + 15L));
+    }
+
     private void updateCursorHoverState() {
         if (!cursorMode || cursorView == null || webView == null || root == null
                 || webView.getWidth() <= 0 || webView.getHeight() <= 0) {
+            return;
+        }
+
+        if (customView != null || embeddedPlayerMode) {
+            if (cursorHover) {
+                cursorHover = false;
+                cursorView.invalidate();
+            }
             return;
         }
 
@@ -501,6 +623,10 @@ public class MainActivity extends Activity {
     private void scrollAtCursor(int direction) {
         if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
 
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastCursorScrollAt < 160L) return;
+        lastCursorScrollAt = now;
+
         int[] webLocation = new int[2];
         int[] rootLocation = new int[2];
         webView.getLocationOnScreen(webLocation);
@@ -510,7 +636,7 @@ public class MainActivity extends Activity {
         float localY = cursorY - (webLocation[1] - rootLocation[1]);
         int width = webView.getWidth();
         int height = webView.getHeight();
-        int amount = Math.max(dp(180), Math.round(height * 0.45f)) * direction;
+        int amount = Math.max(dp(56), Math.round(height * 0.14f)) * direction;
 
         String js = "(function(){"
                 + "var vw=" + width + ",vh=" + height + ";"
@@ -532,7 +658,7 @@ public class MainActivity extends Activity {
     private void moveCursor(int keyCode, int repeatCount) {
         if (!cursorMode || cursorView == null || root == null) return;
 
-        float step = dp(repeatCount >= 6 ? 48 : repeatCount >= 2 ? 36 : 28);
+        float step = dp(repeatCount >= 6 ? 38 : repeatCount >= 2 ? 30 : 24);
         float edge = dp(26);
 
         switch (keyCode) {
@@ -545,7 +671,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_UP:
                 if (cursorY <= edge + step) {
                     cursorY = edge;
-                    scrollAtCursor(-1);
+                    if (customView == null && !webPlayerMode) {
+                        scrollAtCursor(-1);
+                    }
                 } else {
                     cursorY -= step;
                 }
@@ -553,7 +681,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
                     cursorY = root.getHeight() - edge;
-                    scrollAtCursor(1);
+                    if (customView == null && !webPlayerMode) {
+                        scrollAtCursor(1);
+                    }
                 } else {
                     cursorY += step;
                 }
@@ -562,21 +692,23 @@ public class MainActivity extends Activity {
                 return;
         }
 
-        positionCursor();
-        updateCursorHoverState();
+        animateCursorToPosition(repeatCount);
     }
 
     private void clickCursor() {
         if (!cursorMode || webView == null || root == null) return;
 
-        int[] webLocation = new int[2];
+        showCursorTemporarily();
+
+        View touchTarget = customView != null ? customView : webView;
+        int[] targetLocation = new int[2];
         int[] rootLocation = new int[2];
-        webView.getLocationOnScreen(webLocation);
+        touchTarget.getLocationOnScreen(targetLocation);
         root.getLocationOnScreen(rootLocation);
 
-        float x = cursorX - (webLocation[0] - rootLocation[0]);
-        float y = cursorY - (webLocation[1] - rootLocation[1]);
-        if (x < 0 || y < 0 || x > webView.getWidth() || y > webView.getHeight()) return;
+        float x = cursorX - (targetLocation[0] - rootLocation[0]);
+        float y = cursorY - (targetLocation[1] - rootLocation[1]);
+        if (x < 0 || y < 0 || x > touchTarget.getWidth() || y > touchTarget.getHeight()) return;
 
         pulseCursorClick();
 
@@ -596,8 +728,8 @@ public class MainActivity extends Activity {
                 y,
                 0);
         try {
-            webView.dispatchTouchEvent(down);
-            webView.dispatchTouchEvent(up);
+            touchTarget.dispatchTouchEvent(down);
+            touchTarget.dispatchTouchEvent(up);
             webView.postDelayed(this::updateCursorHoverState, 120);
         } finally {
             down.recycle();
@@ -1693,9 +1825,6 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
-        if (cursorMode) {
-            applyCursorMode(false, false);
-        }
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -1708,6 +1837,7 @@ public class MainActivity extends Activity {
         root.addView(customView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
+        activateCursorForPlayer();
         hideSystemUi();
         customView.requestFocus();
         webView.postDelayed(() -> installTvNavigation(), 120);
@@ -1725,6 +1855,7 @@ public class MainActivity extends Activity {
         root.removeView(customView);
         customView = null;
         webPlayerMode = false;
+        embeddedPlayerMode = false;
         setAdBannerVisible(true);
         webView.setVisibility(View.VISIBLE);
         if (cursorPreferenceEnabled) {
@@ -2226,9 +2357,9 @@ public class MainActivity extends Activity {
     private void installPlayerModeMonitor() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalPlayerMonitorVersion===3){"
+                + "if(window.__webPortalPlayerMonitorVersion===4){"
                 + "if(window.__webPortalReportPlayerMode)window.__webPortalReportPlayerMode();return;}"
-                + "var last=null;"
+                + "var last='';"
                 + "function visible(el){if(!el||!el.getBoundingClientRect)return false;"
                 + "var r=el.getBoundingClientRect(),s=getComputedStyle(el);"
                 + "return s.display!=='none'&&s.visibility!=='hidden'&&parseFloat(s.opacity||'1')>0"
@@ -2242,13 +2373,17 @@ public class MainActivity extends Activity {
                 + "function activeVideo(){var videos=document.querySelectorAll('video');"
                 + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return videos[i];}"
                 + "return null;}"
-                + "function activePlayerFrame(){var frames=document.querySelectorAll('iframe');"
+                + "function activePlayerFrame(){var frames=document.querySelectorAll('iframe,embed,object');"
                 + "for(var i=0;i<frames.length;i++){var f=frames[i];if(!visible(f))continue;"
                 + "var r=f.getBoundingClientRect();"
-                + "if(r.width<innerWidth*.48||r.height<innerHeight*.24)continue;"
-                + "var hint=((f.src||'')+' '+(f.title||'')+' '+(f.id||'')+' '+"
+                + "var large=r.width>=innerWidth*.52&&r.height>=innerHeight*.25;"
+                + "var dominant=r.width>=innerWidth*.64&&r.height>=innerHeight*.34;"
+                + "if(!large)continue;"
+                + "var hint=((f.src||f.data||'')+' '+(f.title||'')+' '+(f.id||'')+' '+"
                 + "(typeof f.className==='string'?f.className:'')+' '+(f.getAttribute('allow')||'')).toLowerCase();"
-                + "if(/video|player|stream|watch|embed|media|fullscreen/.test(hint))return f;}"
+                + "var likely=/video|player|stream|watch|embed|media|fullscreen/.test(hint);"
+                + "var focused=document.activeElement===f;"
+                + "if(likely||focused||dominant)return f;}"
                 + "return null;}"
                 + "function autoOpen(v){if(!v||document.fullscreenElement)return;"
                 + "var source=v.currentSrc||v.src||'__webportal_video__';"
@@ -2263,11 +2398,17 @@ public class MainActivity extends Activity {
                 + "else if(v.webkitEnterFullscreen){v.webkitEnterFullscreen();}}catch(e){}}"
                 + "function report(){var v=activeVideo();var frame=activePlayerFrame();"
                 + "var active=!!document.fullscreenElement||!!v||!!frame;"
+                + "var embedded=!!frame&&!v;"
                 + "if(v&&!document.fullscreenElement)autoOpen(v);"
-                + "if(active===last)return;last=active;"
-                + "try{WebPortalBridge.setPlayerMode(active);}catch(e){}}"
+                + "if(embedded&&frame&&document.activeElement!==frame){"
+                + "try{if(!frame.hasAttribute('tabindex'))frame.setAttribute('tabindex','0');"
+                + "frame.focus({preventScroll:true});}catch(e){try{frame.focus();}catch(e2){}}}"
+                + "var state=(active?'1':'0')+':' +(embedded?'1':'0');"
+                + "if(state===last)return;last=state;"
+                + "try{WebPortalBridge.setPlayerState(active,embedded);}catch(e){"
+                + "try{WebPortalBridge.setPlayerMode(active);}catch(e2){}}}"
                 + "window.__webPortalReportPlayerMode=report;"
-                + "window.__webPortalPlayerMonitorVersion=3;"
+                + "window.__webPortalPlayerMonitorVersion=4;"
                 + "document.addEventListener('play',function(event){var v=event.target;"
                 + "if(v&&String(v.tagName).toLowerCase()==='video'&&isPlayerVideo(v))autoOpen(v);"
                 + "setTimeout(report,20);},true);"
@@ -2277,9 +2418,9 @@ public class MainActivity extends Activity {
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalPlayerMonitorTimer);"
                 + "window.__webPortalPlayerMonitorTimer=setTimeout(report,100);});"
                 + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,"
-                + "attributeFilter:['style','class','controls','src','allow','title']});"
+                + "attributeFilter:['style','class','controls','src','allow','title','data']});"
                 + "clearInterval(window.__webPortalPlayerMonitorInterval);"
-                + "window.__webPortalPlayerMonitorInterval=setInterval(report,350);"
+                + "window.__webPortalPlayerMonitorInterval=setInterval(report,250);"
                 + "report();"
                 + "})();";
         webView.evaluateJavascript(js, null);
@@ -2295,7 +2436,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalTV&&window.__webPortalTV.version===8){
+  if(window.__webPortalTV&&window.__webPortalTV.version===9){
     window.__webPortalTV.refresh();
     return;
   }
@@ -2695,27 +2836,99 @@ public class MainActivity extends Activity {
     return true;
   }
 
-  function closePlayerMenu(){
-    var cards=episodeCards();
-    var close=closeControl(cards);
-    if(close){
-      try{close.click();}catch(e){}
-      controlsMode=false;
-      clearMark();
-      return true;
+  function overlayCloseControl(){
+    var roots=allRoots(document,[]);
+    var best=null,bestScore=-Infinity;
+
+    function overlayLike(el){
+      var node=el,depth=0;
+      while(node&&node!==document.body&&node!==document.documentElement&&depth<8){
+        var hint=((node.getAttribute&&node.getAttribute('role'))||'')+' '
+          +((node.id)||'')+' '
+          +(typeof node.className==='string'?node.className:'');
+        hint=hint.toLowerCase();
+
+        try{
+          var st=getComputedStyle(node),r=node.getBoundingClientRect();
+          var large=r.width>=innerWidth*.42&&r.height>=innerHeight*.24;
+          if(/dialog|modal|overlay|drawer|sheet|menu|settings|subtitle|caption/.test(hint))return true;
+          if(large&&(st.position==='fixed'||st.position==='absolute'))return true;
+        }catch(e){}
+
+        node=node.parentElement;
+        depth++;
+      }
+      return false;
     }
 
-    if(controlsMode||cards.length>=2){
-      hideControls();
+    for(var r=0;r<roots.length;r++){
+      var controls=roots[r].querySelectorAll
+        ?roots[r].querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]')
+        :[];
+
+      for(var i=0;i<controls.length;i++){
+        var el=controls[i];
+        if(!visible(el)||!overlayLike(el))continue;
+
+        var text=((el.textContent||'')+' '
+          +(el.getAttribute('aria-label')||'')+' '
+          +(el.getAttribute('title')||'')).replace(/\s+/g,' ').trim().toLowerCase();
+
+        if(!/^(close|back|cancel|done|dismiss|exit|×|✕|x)$/.test(text))continue;
+
+        var rect=el.getBoundingClientRect();
+        var score=0;
+        if(text==='close')score+=40;
+        if(text==='back')score+=30;
+        if(text==='done'||text==='cancel')score+=20;
+        score+=(rect.top/Math.max(innerHeight,1))*10;
+        score+=Math.min(rect.width/Math.max(innerWidth,1),1)*8;
+
+        if(score>bestScore){
+          best=el;
+          bestScore=score;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  function dispatchEscape(){
+    var targets=[document.activeElement,document.fullscreenElement,document.body,document];
+    for(var i=0;i<targets.length;i++){
+      var target=targets[i];
+      if(!target||!target.dispatchEvent)continue;
       try{
-        var target=document.activeElement||document;
         target.dispatchEvent(new KeyboardEvent('keydown',{
           key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
         }));
         target.dispatchEvent(new KeyboardEvent('keyup',{
           key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true
         }));
-      }catch(e2){}
+      }catch(e){}
+    }
+  }
+
+  function closePlayerMenu(){
+    var cards=episodeCards();
+    var close=overlayCloseControl()||closeControl(cards);
+
+    if(close){
+      try{close.click();}catch(e){}
+      clearMark();
+      controlsMode=true;
+      setTimeout(function(){refresh();wakeControls();},80);
+      return true;
+    }
+
+    if(controlsMode||cards.length>=2){
+      dispatchEscape();
+      clearMark();
+      setTimeout(function(){
+        refresh();
+        wakeControls();
+      },80);
       return true;
     }
 
@@ -2962,12 +3175,13 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalTV={
-    version:8,
+    version:9,
     refresh:refresh,
     move:move,
     activate:activate,
     playerKey:playerKey,
     mediaKey:mediaKey,
+    mediaSeek:function(seconds){return seek(seconds);},
     showControls:showControls,
     hideControls:hideControls,
     closePlayerMenu:closePlayerMenu,
@@ -3016,10 +3230,64 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private void sendEscapeToEmbeddedPlayer() {
+        if (webView == null) return;
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.KeyEvent down =
+                new android.view.KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE, 0);
+        android.view.KeyEvent up =
+                new android.view.KeyEvent(now, now + 25, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE, 0);
+        webView.dispatchKeyEvent(down);
+        webView.dispatchKeyEvent(up);
+    }
+
+    private boolean handleEmbeddedPlayerBack() {
+        long now = android.os.SystemClock.uptimeMillis();
+
+        // One Back closes the player's own menu/overlay. A quick second Back
+        // leaves the embedded player if the site does not expose a close state.
+        if (lastEmbeddedBackAt > 0 && now - lastEmbeddedBackAt < 900L) {
+            lastEmbeddedBackAt = 0L;
+            navigateBackOrHome();
+            return true;
+        }
+
+        lastEmbeddedBackAt = now;
+        sendEscapeToEmbeddedPlayer();
+        return true;
+    }
+
     private boolean isMediaPlaybackKey(int keyCode) {
         return keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
                 || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
                 || keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE;
+    }
+
+    private boolean isMediaSeekKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                || keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD;
+    }
+
+    private boolean handleMediaSeekKey(int keyCode) {
+        if (webView == null || (customView == null && !webPlayerMode)) return false;
+
+        int seconds =
+                keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                        ? -10
+                        : 10;
+
+        if (embeddedPlayerMode && customView == null) {
+            return false;
+        }
+
+        installTvNavigation();
+        webView.evaluateJavascript(
+                "window.__webPortalTV&&window.__webPortalTV.mediaSeek("
+                        + seconds
+                        + ");",
+                null);
+        return true;
     }
 
     private boolean handleMediaPlaybackKey(int keyCode) {
@@ -3075,6 +3343,40 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
 
+        if (embeddedPlayerMode && customView == null) {
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    return handleEmbeddedPlayerBack();
+                }
+                if (event.getAction() == KeyEvent.ACTION_UP) {
+                    return true;
+                }
+            }
+
+            if (isMediaPlaybackKey(keyCode) || isMediaSeekKey(keyCode)) {
+                // Let Chromium route dedicated playback keys to the focused iframe/player.
+                return super.dispatchKeyEvent(event);
+            }
+
+            if (!cursorMode && isDpadNavigationKey(keyCode)) {
+                // Cursor disabled: fall back to the embedded player's native remote navigation.
+                return super.dispatchKeyEvent(event);
+            }
+        }
+
+        if (isMediaSeekKey(keyCode)
+                && webView != null
+                && (customView != null || webPlayerMode)
+                && !embeddedPlayerMode) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                handleMediaSeekKey(keyCode);
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
         if (isMediaPlaybackKey(keyCode)
                 && webView != null
                 && (customView != null || webPlayerMode)) {
@@ -3089,8 +3391,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (cursorMode && customView == null && !webPlayerMode
-                && isDpadNavigationKey(keyCode)) {
+        if (cursorMode && isDpadNavigationKey(keyCode)) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                         || keyCode == KeyEvent.KEYCODE_ENTER) {
@@ -3199,6 +3500,10 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (embeddedPlayerMode && customView == null) {
+                return handleEmbeddedPlayerBack();
+            }
+
             if (customView != null) {
                 webView.evaluateJavascript(
                         "(function(){"
