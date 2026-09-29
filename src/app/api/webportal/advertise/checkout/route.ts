@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 
 import { NextResponse } from 'next/server'
 
+import { buildPublicRateLimitSubject } from '@/lib/security/request-identity'
+import { consumeRateLimit } from '@/lib/security/rate-limit'
 import { getStripeClient } from '@/lib/stripe/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
@@ -27,6 +29,42 @@ const LOGO_EXTENSIONS: Record<string, string> = {
 function returnUrl(request: Request, status: 'success' | 'canceled') {
   const origin = new URL(request.url).origin
   return new URL(`/webportal/advertise?checkout=${status}`, origin).toString()
+}
+
+function hasExpectedImageSignature(type: string, bytes: Uint8Array) {
+  if (type === 'image/png') {
+    return (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    )
+  }
+
+  if (type === 'image/jpeg') {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  }
+
+  if (type === 'image/webp') {
+    return (
+      bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' &&
+      String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+    )
+  }
+
+  if (type === 'image/gif') {
+    if (bytes.length < 6) return false
+    const header = String.fromCharCode(...bytes.slice(0, 6))
+    return header === 'GIF87a' || header === 'GIF89a'
+  }
+
+  return false
 }
 
 export async function POST(request: Request) {
@@ -58,24 +96,15 @@ export async function POST(request: Request) {
     logoValue instanceof File && logoValue.size > 0 ? logoValue : null
 
   if (!businessName) {
-    return NextResponse.json(
-      { error: 'Enter your business name.' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Enter your business name.' }, { status: 400 })
   }
 
   if (!contactEmail || !looksLikeEmail(contactEmail)) {
-    return NextResponse.json(
-      { error: 'Enter a valid contact email.' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Enter a valid contact email.' }, { status: 400 })
   }
 
   if (!adText) {
-    return NextResponse.json(
-      { error: 'Enter a short ad message.' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Enter a short ad message.' }, { status: 400 })
   }
 
   if (!destinationUrl) {
@@ -93,9 +122,36 @@ export async function POST(request: Request) {
   }
 
   if (logoFile && logoFile.size > MAX_LOGO_BYTES) {
+    return NextResponse.json({ error: 'Logo must be 5 MB or smaller.' }, { status: 400 })
+  }
+
+  try {
+    const decision = await consumeRateLimit({
+      scope: 'webportal:advertise:checkout',
+      subject: buildPublicRateLimitSubject({
+        request,
+        discriminator: contactEmail,
+      }),
+      limit: 5,
+      windowSeconds: 30 * 60,
+    })
+
+    if (!decision.allowed) {
+      return NextResponse.json(
+        { error: 'Too many advertising checkout attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.max(decision.retryAfterSeconds, 1)),
+          },
+        }
+      )
+    }
+  } catch (error) {
+    console.error('Unable to confirm WebPortal advertising rate limit', error)
     return NextResponse.json(
-      { error: 'Logo must be 5 MB or smaller.' },
-      { status: 400 }
+      { error: 'Advertising checkout is temporarily unavailable. Please try again later.' },
+      { status: 503 }
     )
   }
 
@@ -104,11 +160,20 @@ export async function POST(request: Request) {
   let logoStoragePath: string | null = null
 
   if (logoFile) {
+    const arrayBuffer = await logoFile.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
+
+    if (!hasExpectedImageSignature(logoFile.type, bytes)) {
+      return NextResponse.json(
+        { error: 'The uploaded logo does not match its declared image type.' },
+        { status: 400 }
+      )
+    }
+
     logoStoragePath = `webportal-ads/${randomUUID()}.${LOGO_EXTENSIONS[logoFile.type]}`
-    const bytes = await logoFile.arrayBuffer()
     const { error: logoUploadError } = await admin.storage
       .from('logos')
-      .upload(logoStoragePath, bytes, {
+      .upload(logoStoragePath, arrayBuffer, {
         contentType: logoFile.type,
         upsert: false,
       })
@@ -165,6 +230,9 @@ export async function POST(request: Request) {
       raisehub_flow: WEBPORTAL_AD_FLOW,
       webportal_ad_order_id: String(order.id),
       webportal_ad_plan_code: plan.code,
+      webportal_ad_amount_cents: String(plan.amountCents),
+      webportal_ad_currency: 'usd',
+      webportal_ad_mode: plan.recurring ? 'subscription' : 'payment',
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -235,6 +303,10 @@ export async function POST(request: Request) {
       })
       .eq('id', order.id)
       .eq('status', 'checkout_open')
+
+    if (logoStoragePath) {
+      await admin.storage.from('logos').remove([logoStoragePath])
+    }
 
     return NextResponse.json(
       { error: 'Secure checkout could not be started. Please try again.' },

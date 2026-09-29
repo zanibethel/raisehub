@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { buildPublicRateLimitSubject } from '@/lib/security/request-identity'
+import { consumeRateLimit } from '@/lib/security/rate-limit'
 import {
   WEBPORTAL_SUPPORT_FLOW,
   cleanWebPortalText,
@@ -43,6 +45,36 @@ export async function POST(request: Request) {
   }
 
   try {
+    const decision = await consumeRateLimit({
+      scope: 'webportal:support:checkout',
+      subject: buildPublicRateLimitSubject({
+        request,
+        discriminator: email || 'anonymous',
+      }),
+      limit: 8,
+      windowSeconds: 15 * 60,
+    })
+
+    if (!decision.allowed) {
+      return NextResponse.json(
+        { error: 'Too many checkout attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.max(decision.retryAfterSeconds, 1)),
+          },
+        }
+      )
+    }
+  } catch (error) {
+    console.error('Unable to confirm WebPortal support rate limit', error)
+    return NextResponse.json(
+      { error: 'Secure checkout is temporarily unavailable. Please try again later.' },
+      { status: 503 }
+    )
+  }
+
+  try {
     const stripe = getStripeClient()
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -52,6 +84,7 @@ export async function POST(request: Request) {
       metadata: {
         raisehub_flow: WEBPORTAL_SUPPORT_FLOW,
         webportal_support_amount_cents: String(amountCents),
+        webportal_support_currency: 'usd',
       },
       payment_intent_data: {
         metadata: {
