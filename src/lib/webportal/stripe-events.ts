@@ -51,8 +51,22 @@ async function handleSupportCheckout(admin: any, event: Stripe.Event) {
   }
 
   const amountCents = Number(session.amount_total ?? 0)
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('WebPortal support amount is invalid')
+  const expectedAmountCents = Number(
+    session.metadata?.webportal_support_amount_cents ?? 0
+  )
+  const expectedCurrency =
+    session.metadata?.webportal_support_currency?.trim().toLowerCase() ?? ''
+
+  if (
+    session.mode !== 'payment' ||
+    !Number.isInteger(amountCents) ||
+    amountCents <= 0 ||
+    !Number.isInteger(expectedAmountCents) ||
+    expectedAmountCents !== amountCents ||
+    session.currency?.toLowerCase() !== 'usd' ||
+    expectedCurrency !== 'usd'
+  ) {
+    throw new Error('WebPortal support Checkout Session failed integrity validation')
   }
 
   const now = new Date().toISOString()
@@ -65,7 +79,7 @@ async function handleSupportCheckout(admin: any, event: Stripe.Event) {
         contact_email:
           session.customer_details?.email ?? session.customer_email ?? null,
         amount_cents: amountCents,
-        currency: session.currency ?? 'usd',
+        currency: 'usd',
         payment_status: session.payment_status,
         paid_at: now,
         updated_at: now,
@@ -112,13 +126,45 @@ async function handleAdCheckout(admin: any, event: Stripe.Event) {
   const { data: order, error: orderError } = await admin
     .from('webportal_ad_orders')
     .select(
-      'id, business_name, contact_email, ad_text, destination_url, plan_code, amount_cents, duration_days, recurring'
+      'id, business_name, contact_email, ad_text, destination_url, plan_code, amount_cents, duration_days, recurring, stripe_checkout_session_id'
     )
     .eq('id', orderId)
     .maybeSingle()
 
   if (orderError || !order) {
     throw new Error('WebPortal ad order could not be matched')
+  }
+
+  if (order.stripe_checkout_session_id !== session.id) {
+    throw new Error('WebPortal ad Checkout Session does not match the stored order')
+  }
+
+  const planCode = typeof order.plan_code === 'string' ? order.plan_code : ''
+  if (!isWebPortalAdPlanCode(planCode)) {
+    throw new Error('WebPortal ad order has an invalid stored plan')
+  }
+
+  const plan = WEBPORTAL_AD_PLANS[planCode]
+  const expectedMode = plan.recurring ? 'subscription' : 'payment'
+  const metadataAmount = Number(session.metadata?.webportal_ad_amount_cents ?? 0)
+  const metadataCurrency =
+    session.metadata?.webportal_ad_currency?.trim().toLowerCase() ?? ''
+  const metadataMode = session.metadata?.webportal_ad_mode?.trim() ?? ''
+
+  if (
+    Number(order.amount_cents) !== plan.amountCents ||
+    Boolean(order.recurring) !== plan.recurring ||
+    Number(order.duration_days) !== plan.durationDays ||
+    session.mode !== expectedMode ||
+    session.currency?.toLowerCase() !== 'usd' ||
+    Number(session.amount_total ?? 0) !== plan.amountCents ||
+    metadataAmount !== plan.amountCents ||
+    metadataCurrency !== 'usd' ||
+    metadataMode !== expectedMode ||
+    session.metadata?.webportal_ad_plan_code !== planCode ||
+    session.client_reference_id !== String(order.id)
+  ) {
+    throw new Error('WebPortal ad Checkout Session failed integrity validation')
   }
 
   const now = new Date().toISOString()
@@ -175,33 +221,27 @@ async function handleAdCheckout(admin: any, event: Stripe.Event) {
 
   if (error) throw error
 
-  const planCode =
-    typeof order.plan_code === 'string' ? order.plan_code : ''
+  const emailInput = {
+    orderId: order.id,
+    businessName: order.business_name,
+    contactEmail: order.contact_email,
+    planLabel: plan.label,
+    amountCents: order.amount_cents,
+    durationDays: order.duration_days,
+    recurring: order.recurring,
+    adText: order.ad_text,
+    destinationUrl: order.destination_url,
+    stripeEventId: event.id,
+  }
 
-  if (isWebPortalAdPlanCode(planCode)) {
-    const plan = WEBPORTAL_AD_PLANS[planCode]
-    const emailInput = {
-      orderId: order.id,
-      businessName: order.business_name,
-      contactEmail: order.contact_email,
-      planLabel: plan.label,
-      amountCents: order.amount_cents,
-      durationDays: order.duration_days,
-      recurring: order.recurring,
-      adText: order.ad_text,
-      destinationUrl: order.destination_url,
-      stripeEventId: event.id,
-    }
+  const emailResults = await Promise.all([
+    sendWebPortalAdPendingReview(emailInput),
+    sendWebPortalAdInternalAlert(emailInput),
+  ])
 
-    const emailResults = await Promise.all([
-      sendWebPortalAdPendingReview(emailInput),
-      sendWebPortalAdInternalAlert(emailInput),
-    ])
-
-    for (const emailResult of emailResults) {
-      if (emailResult.status === 'failed') {
-        console.error('WebPortal advertising email failed', emailResult.error)
-      }
+  for (const emailResult of emailResults) {
+    if (emailResult.status === 'failed') {
+      console.error('WebPortal advertising email failed', emailResult.error)
     }
   }
 
@@ -225,12 +265,30 @@ async function handleAdSubscription(admin: any, event: Stripe.Event) {
 
   const { data: order, error: orderError } = await admin
     .from('webportal_ad_orders')
-    .select('id, business_name, contact_email')
+    .select('id, business_name, contact_email, plan_code, amount_cents, recurring')
     .eq('id', orderId)
     .maybeSingle()
 
   if (orderError || !order) {
     throw new Error('WebPortal ad subscription order could not be matched')
+  }
+
+  const planCode = typeof order.plan_code === 'string' ? order.plan_code : ''
+  if (!isWebPortalAdPlanCode(planCode)) {
+    throw new Error('WebPortal ad subscription has an invalid stored plan')
+  }
+
+  const plan = WEBPORTAL_AD_PLANS[planCode]
+  if (
+    !plan.recurring ||
+    Boolean(order.recurring) !== true ||
+    Number(order.amount_cents) !== plan.amountCents ||
+    subscription.metadata?.webportal_ad_plan_code !== planCode ||
+    Number(subscription.metadata?.webportal_ad_amount_cents ?? 0) !== plan.amountCents ||
+    subscription.metadata?.webportal_ad_currency !== 'usd' ||
+    subscription.metadata?.webportal_ad_mode !== 'subscription'
+  ) {
+    throw new Error('WebPortal ad subscription failed integrity validation')
   }
 
   const now = new Date().toISOString()
