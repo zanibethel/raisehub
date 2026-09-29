@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     private static final String WEBPORTAL_VERSION_URL =
             "https://raisehub.app/webportal-version.json";
     private static final int MAX_SAVED_SITES = 12;
+    private static final long CURSOR_AUTO_HIDE_MS = 3000L;
 
     private FrameLayout root;
     private WebView webView;
@@ -86,6 +87,19 @@ public class MainActivity extends Activity {
     private float cursorX;
     private float cursorY;
     private long lastCursorScrollAt;
+    private final Runnable cursorAutoHideRunnable = () -> {
+        if (cursorView == null) return;
+        cursorView.animate().cancel();
+        cursorView.animate()
+                .alpha(0f)
+                .setDuration(180)
+                .withEndAction(() -> {
+                    if (cursorView != null && cursorView.getAlpha() == 0f) {
+                        cursorView.setVisibility(View.GONE);
+                    }
+                })
+                .start();
+    };
 
     private final class WebPortalBridge {
         @JavascriptInterface
@@ -105,7 +119,7 @@ public class MainActivity extends Activity {
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
-            applyCursorMode(false, false);
+            suspendCursorForPlayer();
 
             if (embeddedPlayerMode) {
                 // Cross-origin embedded players need the real WebView/iframe to receive
@@ -223,7 +237,12 @@ public class MainActivity extends Activity {
                 webPlayerMode = false;
                 embeddedPlayerMode = false;
                 cursorMode = false;
-                if (cursorView != null) cursorView.setVisibility(View.GONE);
+                if (cursorView != null) {
+                    cursorView.removeCallbacks(cursorAutoHideRunnable);
+                    cursorView.animate().cancel();
+                    cursorView.setAlpha(1f);
+                    cursorView.setVisibility(View.GONE);
+                }
                 destroyTvNavigation();
                 destroyPageCardNavigation();
                 setAdBannerVisible(true);
@@ -380,8 +399,9 @@ public class MainActivity extends Activity {
         if (enabled && (customView != null || webPlayerMode)) {
             Toast.makeText(
                     this,
-                    "Cursor will return when the video player closes.",
+                    "Cursor stays passive over video and auto-hides.",
                     Toast.LENGTH_SHORT).show();
+            showCursorTemporarily();
             return;
         }
 
@@ -393,6 +413,9 @@ public class MainActivity extends Activity {
 
         cursorMode = enabled && customView == null && !webPlayerMode;
         if (!cursorMode) {
+            cursorView.removeCallbacks(cursorAutoHideRunnable);
+            cursorView.animate().cancel();
+            cursorView.setAlpha(1f);
             cursorView.setVisibility(View.GONE);
             cursorHover = false;
             cursorView.invalidate();
@@ -418,8 +441,7 @@ public class MainActivity extends Activity {
                 "(function(){try{if(document.activeElement)document.activeElement.blur();}catch(e){}})()",
                 null);
         positionCursor();
-        cursorView.setVisibility(View.VISIBLE);
-        cursorView.bringToFront();
+        showCursorTemporarily();
         updateCursorHoverState();
 
         if (announce) {
@@ -427,6 +449,39 @@ public class MainActivity extends Activity {
                     this,
                     "Cursor mode on · D-pad moves · Select clicks",
                     Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showCursorTemporarily() {
+        if (cursorView == null || !cursorPreferenceEnabled) return;
+
+        cursorView.removeCallbacks(cursorAutoHideRunnable);
+        cursorView.animate().cancel();
+        cursorView.setAlpha(1f);
+        cursorView.setVisibility(View.VISIBLE);
+        cursorView.bringToFront();
+        cursorView.postDelayed(cursorAutoHideRunnable, CURSOR_AUTO_HIDE_MS);
+    }
+
+    private void suspendCursorForPlayer() {
+        cursorMode = false;
+        cursorHover = false;
+        if (cursorView != null) {
+            cursorView.invalidate();
+        }
+
+        if (cursorPreferenceEnabled) {
+            positionCursor();
+            showCursorTemporarily();
+        } else if (cursorView != null) {
+            cursorView.removeCallbacks(cursorAutoHideRunnable);
+            cursorView.animate().cancel();
+            cursorView.setVisibility(View.GONE);
+            cursorView.setAlpha(1f);
+        }
+
+        if (webView != null) {
+            webView.requestFocus();
         }
     }
 
@@ -446,6 +501,8 @@ public class MainActivity extends Activity {
 
     private void animateCursorToPosition(int repeatCount) {
         if (cursorView == null || root == null) return;
+
+        showCursorTemporarily();
 
         int size = cursorView.getLayoutParams() == null
                 ? dp(32)
@@ -613,6 +670,8 @@ public class MainActivity extends Activity {
 
     private void clickCursor() {
         if (!cursorMode || webView == null || root == null) return;
+
+        showCursorTemporarily();
 
         int[] webLocation = new int[2];
         int[] rootLocation = new int[2];
@@ -1738,9 +1797,6 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
-        if (cursorMode) {
-            applyCursorMode(false, false);
-        }
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -1753,6 +1809,7 @@ public class MainActivity extends Activity {
         root.addView(customView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
+        suspendCursorForPlayer();
         hideSystemUi();
         customView.requestFocus();
         webView.postDelayed(() -> installTvNavigation(), 120);
