@@ -37,11 +37,7 @@ export async function GET(request: Request) {
   if (error) throw error
   if (!data?.length) return NextResponse.json({ ok: true, failedEvents: 0, alerted: false })
 
-  const alertEmail = process.env.RAISEHUB_ALERT_EMAIL?.trim()
-  if (!alertEmail) {
-    console.error('Stripe webhook failures detected but RAISEHUB_ALERT_EMAIL is not configured', data)
-    return NextResponse.json({ ok: false, failedEvents: data.length, alerted: false }, { status: 500 })
-  }
+  const alertEmail = process.env.RAISEHUB_ALERT_EMAIL?.trim() || 'alerts@raisehub.app'
 
   const eventIds = data.map((row) => row.stripe_event_id).sort()
   const result = await sendNotificationEmail({
