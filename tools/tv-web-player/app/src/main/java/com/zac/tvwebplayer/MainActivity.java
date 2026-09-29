@@ -444,6 +444,34 @@ public class MainActivity extends Activity {
         cursorView.setY(cursorY - half);
     }
 
+    private void animateCursorToPosition(int repeatCount) {
+        if (cursorView == null || root == null) return;
+
+        int size = cursorView.getLayoutParams() == null
+                ? dp(32)
+                : cursorView.getLayoutParams().width;
+        float half = size / 2f;
+        float maxX = Math.max(half, root.getWidth() - half);
+        float maxY = Math.max(half, root.getHeight() - half);
+
+        cursorX = Math.max(half, Math.min(maxX, cursorX));
+        cursorY = Math.max(half, Math.min(maxY, cursorY));
+
+        long duration = repeatCount > 0 ? 55L : 80L;
+        cursorView.animate()
+                .cancel();
+        cursorView.animate()
+                .x(cursorX - half)
+                .y(cursorY - half)
+                .setDuration(duration)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.35f))
+                .start();
+
+        webView.postDelayed(
+                this::updateCursorHoverState,
+                Math.min(90L, duration + 15L));
+    }
+
     private void updateCursorHoverState() {
         if (!cursorMode || cursorView == null || webView == null || root == null
                 || webView.getWidth() <= 0 || webView.getHeight() <= 0) {
@@ -550,7 +578,7 @@ public class MainActivity extends Activity {
     private void moveCursor(int keyCode, int repeatCount) {
         if (!cursorMode || cursorView == null || root == null) return;
 
-        float step = dp(repeatCount >= 6 ? 48 : repeatCount >= 2 ? 36 : 28);
+        float step = dp(repeatCount >= 6 ? 38 : repeatCount >= 2 ? 30 : 24);
         float edge = dp(26);
 
         switch (keyCode) {
@@ -580,8 +608,7 @@ public class MainActivity extends Activity {
                 return;
         }
 
-        positionCursor();
-        updateCursorHoverState();
+        animateCursorToPosition(repeatCount);
     }
 
     private void clickCursor() {
