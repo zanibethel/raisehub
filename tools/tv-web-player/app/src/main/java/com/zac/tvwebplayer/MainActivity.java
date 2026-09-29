@@ -75,6 +75,8 @@ public class MainActivity extends Activity {
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
+    private volatile boolean embeddedPlayerMode;
+    private long lastEmbeddedBackAt;
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
     private View cursorView;
@@ -88,23 +90,33 @@ public class MainActivity extends Activity {
     private final class WebPortalBridge {
         @JavascriptInterface
         public void setPlayerMode(boolean active) {
-            runOnUiThread(() -> setWebPlayerMode(active));
+            runOnUiThread(() -> setWebPlayerMode(active, false));
+        }
+
+        @JavascriptInterface
+        public void setPlayerState(boolean active, boolean embedded) {
+            runOnUiThread(() -> setWebPlayerMode(active, embedded));
         }
     }
 
-    private void setWebPlayerMode(boolean active) {
-        if (webPlayerMode == active) {
-            setAdBannerVisible(!active && customView == null);
-            return;
-        }
-
+    private void setWebPlayerMode(boolean active, boolean embedded) {
         webPlayerMode = active;
+        embeddedPlayerMode = active && embedded;
         setAdBannerVisible(!active && customView == null);
 
         if (active) {
             applyCursorMode(false, false);
-            installTvNavigation();
+
+            if (embeddedPlayerMode) {
+                // Cross-origin embedded players need the real WebView/iframe to receive
+                // remote key events. Do not consume D-pad input with our top-page JS.
+                destroyTvNavigation();
+                webView.requestFocus();
+            } else {
+                installTvNavigation();
+            }
         } else if (customView == null) {
+            embeddedPlayerMode = false;
             destroyTvNavigation();
             if (cursorPreferenceEnabled) {
                 applyCursorMode(true, false);
@@ -209,6 +221,7 @@ public class MainActivity extends Activity {
                     String url,
                     android.graphics.Bitmap favicon) {
                 webPlayerMode = false;
+                embeddedPlayerMode = false;
                 cursorMode = false;
                 if (cursorView != null) cursorView.setVisibility(View.GONE);
                 destroyTvNavigation();
@@ -1730,6 +1743,7 @@ public class MainActivity extends Activity {
         root.removeView(customView);
         customView = null;
         webPlayerMode = false;
+        embeddedPlayerMode = false;
         setAdBannerVisible(true);
         webView.setVisibility(View.VISIBLE);
         if (cursorPreferenceEnabled) {
@@ -2231,9 +2245,9 @@ public class MainActivity extends Activity {
     private void installPlayerModeMonitor() {
         String js =
                 "(function(){"
-                + "if(window.__webPortalPlayerMonitorVersion===3){"
+                + "if(window.__webPortalPlayerMonitorVersion===4){"
                 + "if(window.__webPortalReportPlayerMode)window.__webPortalReportPlayerMode();return;}"
-                + "var last=null;"
+                + "var last='';"
                 + "function visible(el){if(!el||!el.getBoundingClientRect)return false;"
                 + "var r=el.getBoundingClientRect(),s=getComputedStyle(el);"
                 + "return s.display!=='none'&&s.visibility!=='hidden'&&parseFloat(s.opacity||'1')>0"
@@ -2247,13 +2261,17 @@ public class MainActivity extends Activity {
                 + "function activeVideo(){var videos=document.querySelectorAll('video');"
                 + "for(var i=0;i<videos.length;i++){if(isPlayerVideo(videos[i]))return videos[i];}"
                 + "return null;}"
-                + "function activePlayerFrame(){var frames=document.querySelectorAll('iframe');"
+                + "function activePlayerFrame(){var frames=document.querySelectorAll('iframe,embed,object');"
                 + "for(var i=0;i<frames.length;i++){var f=frames[i];if(!visible(f))continue;"
                 + "var r=f.getBoundingClientRect();"
-                + "if(r.width<innerWidth*.48||r.height<innerHeight*.24)continue;"
-                + "var hint=((f.src||'')+' '+(f.title||'')+' '+(f.id||'')+' '+"
+                + "var large=r.width>=innerWidth*.52&&r.height>=innerHeight*.25;"
+                + "var dominant=r.width>=innerWidth*.64&&r.height>=innerHeight*.34;"
+                + "if(!large)continue;"
+                + "var hint=((f.src||f.data||'')+' '+(f.title||'')+' '+(f.id||'')+' '+"
                 + "(typeof f.className==='string'?f.className:'')+' '+(f.getAttribute('allow')||'')).toLowerCase();"
-                + "if(/video|player|stream|watch|embed|media|fullscreen/.test(hint))return f;}"
+                + "var likely=/video|player|stream|watch|embed|media|fullscreen/.test(hint);"
+                + "var focused=document.activeElement===f;"
+                + "if(likely||focused||dominant)return f;}"
                 + "return null;}"
                 + "function autoOpen(v){if(!v||document.fullscreenElement)return;"
                 + "var source=v.currentSrc||v.src||'__webportal_video__';"
@@ -2268,11 +2286,17 @@ public class MainActivity extends Activity {
                 + "else if(v.webkitEnterFullscreen){v.webkitEnterFullscreen();}}catch(e){}}"
                 + "function report(){var v=activeVideo();var frame=activePlayerFrame();"
                 + "var active=!!document.fullscreenElement||!!v||!!frame;"
+                + "var embedded=!!frame&&!v;"
                 + "if(v&&!document.fullscreenElement)autoOpen(v);"
-                + "if(active===last)return;last=active;"
-                + "try{WebPortalBridge.setPlayerMode(active);}catch(e){}}"
+                + "if(embedded&&frame&&document.activeElement!==frame){"
+                + "try{if(!frame.hasAttribute('tabindex'))frame.setAttribute('tabindex','0');"
+                + "frame.focus({preventScroll:true});}catch(e){try{frame.focus();}catch(e2){}}}"
+                + "var state=(active?'1':'0')+':' +(embedded?'1':'0');"
+                + "if(state===last)return;last=state;"
+                + "try{WebPortalBridge.setPlayerState(active,embedded);}catch(e){"
+                + "try{WebPortalBridge.setPlayerMode(active);}catch(e2){}}}"
                 + "window.__webPortalReportPlayerMode=report;"
-                + "window.__webPortalPlayerMonitorVersion=3;"
+                + "window.__webPortalPlayerMonitorVersion=4;"
                 + "document.addEventListener('play',function(event){var v=event.target;"
                 + "if(v&&String(v.tagName).toLowerCase()==='video'&&isPlayerVideo(v))autoOpen(v);"
                 + "setTimeout(report,20);},true);"
@@ -2282,9 +2306,9 @@ public class MainActivity extends Activity {
                 + "var observer=new MutationObserver(function(){clearTimeout(window.__webPortalPlayerMonitorTimer);"
                 + "window.__webPortalPlayerMonitorTimer=setTimeout(report,100);});"
                 + "observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,"
-                + "attributeFilter:['style','class','controls','src','allow','title']});"
+                + "attributeFilter:['style','class','controls','src','allow','title','data']});"
                 + "clearInterval(window.__webPortalPlayerMonitorInterval);"
-                + "window.__webPortalPlayerMonitorInterval=setInterval(report,350);"
+                + "window.__webPortalPlayerMonitorInterval=setInterval(report,250);"
                 + "report();"
                 + "})();";
         webView.evaluateJavascript(js, null);
@@ -3093,6 +3117,34 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private void sendEscapeToEmbeddedPlayer() {
+        if (webView == null) return;
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.KeyEvent down =
+                new android.view.KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE, 0);
+        android.view.KeyEvent up =
+                new android.view.KeyEvent(now, now + 25, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE, 0);
+        webView.dispatchKeyEvent(down);
+        webView.dispatchKeyEvent(up);
+    }
+
+    private boolean handleEmbeddedPlayerBack() {
+        long now = android.os.SystemClock.uptimeMillis();
+
+        // One Back closes the player's own menu/overlay. A quick second Back
+        // leaves the embedded player if the site does not expose a close state.
+        if (lastEmbeddedBackAt > 0 && now - lastEmbeddedBackAt < 900L) {
+            lastEmbeddedBackAt = 0L;
+            navigateBackOrHome();
+            return true;
+        }
+
+        lastEmbeddedBackAt = now;
+        sendEscapeToEmbeddedPlayer();
+        return true;
+    }
+
     private boolean isMediaPlaybackKey(int keyCode) {
         return keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
                 || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
@@ -3151,6 +3203,24 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+
+        if (embeddedPlayerMode && customView == null) {
+            if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    return handleEmbeddedPlayerBack();
+                }
+                if (event.getAction() == KeyEvent.ACTION_UP) {
+                    return true;
+                }
+            }
+
+            if (isDpadNavigationKey(keyCode) || isMediaPlaybackKey(keyCode)
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_REWIND
+                    || keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
+                // Let Chromium route the key to the focused iframe/player.
+                return super.dispatchKeyEvent(event);
+            }
+        }
 
         if (isMediaPlaybackKey(keyCode)
                 && webView != null
@@ -3276,6 +3346,10 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (embeddedPlayerMode && customView == null) {
+                return handleEmbeddedPlayerBack();
+            }
+
             if (customView != null) {
                 webView.evaluateJavascript(
                         "(function(){"
