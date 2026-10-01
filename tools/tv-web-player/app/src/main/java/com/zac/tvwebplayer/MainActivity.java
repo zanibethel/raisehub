@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
             "https://raisehub.app/webportal-version.json";
     private static final int MAX_SAVED_SITES = 12;
     private static final long CURSOR_AUTO_HIDE_MS = 3000L;
+    private static final long PLAYER_EXIT_CONFIRM_MS = 2200L;
 
     private FrameLayout root;
     private WebView webView;
@@ -82,12 +83,31 @@ public class MainActivity extends Activity {
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
     private View cursorView;
+    private TextView playerExitHintView;
+    private long playerExitConfirmUntil;
     private boolean cursorMode;
     private boolean cursorPreferenceEnabled;
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
     private long lastCursorScrollAt;
+    private final Runnable playerExitHintHideRunnable = () -> {
+        playerExitConfirmUntil = 0L;
+        if (playerExitHintView != null) {
+            playerExitHintView.animate().cancel();
+            playerExitHintView.animate()
+                    .alpha(0f)
+                    .setDuration(140)
+                    .withEndAction(() -> {
+                        if (playerExitHintView != null) {
+                            playerExitHintView.setVisibility(View.GONE);
+                            playerExitHintView.setAlpha(1f);
+                        }
+                    })
+                    .start();
+        }
+    };
+
     private final Runnable cursorAutoHideRunnable = () -> {
         if (cursorView == null) return;
         cursorView.animate().cancel();
@@ -115,6 +135,7 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active, boolean embedded) {
+        clearPlayerExitConfirmation();
         webPlayerMode = active;
         embeddedPlayerMode = active && embedded;
         setAdBannerVisible(!active && customView == null);
@@ -351,7 +372,35 @@ public class MainActivity extends Activity {
         root.addView(adBanner, bannerParams);
 
         setupCursorOverlay();
+        setupPlayerExitHint();
         webView.requestFocus();
+    }
+
+    private void setupPlayerExitHint() {
+        playerExitHintView = new TextView(this);
+        playerExitHintView.setText("Press Back again to exit player");
+        playerExitHintView.setTextColor(Color.WHITE);
+        playerExitHintView.setTextSize(14f);
+        playerExitHintView.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        playerExitHintView.setGravity(Gravity.CENTER);
+        playerExitHintView.setPadding(dp(14), dp(8), dp(14), dp(8));
+        playerExitHintView.setFocusable(false);
+        playerExitHintView.setClickable(false);
+
+        android.graphics.drawable.GradientDrawable background =
+                new android.graphics.drawable.GradientDrawable();
+        background.setColor(Color.argb(230, 4, 12, 24));
+        background.setStroke(dp(1), Color.rgb(49, 184, 255));
+        background.setCornerRadius(dp(10));
+        playerExitHintView.setBackground(background);
+        playerExitHintView.setVisibility(View.GONE);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        params.setMargins(dp(16), dp(16), dp(16), dp(34));
+        root.addView(playerExitHintView, params);
     }
 
     private void setupCursorOverlay() {
@@ -1892,6 +1941,7 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
+        clearPlayerExitConfirmation();
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -1911,6 +1961,7 @@ public class MainActivity extends Activity {
     }
 
     private void exitCustomView() {
+        clearPlayerExitConfirmation();
         if (customView == null) return;
 
         webView.evaluateJavascript(
@@ -3601,38 +3652,108 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
 
-    private boolean handleWebPortalBack() {
-        if (embeddedPlayerMode && customView == null) {
-            return handleEmbeddedPlayerBack();
+    private boolean playerExitConfirmationArmed() {
+        return playerExitConfirmUntil > android.os.SystemClock.uptimeMillis();
+    }
+
+    private void clearPlayerExitConfirmation() {
+        playerExitConfirmUntil = 0L;
+        if (playerExitHintView == null) return;
+
+        playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        playerExitHintView.animate().cancel();
+        playerExitHintView.setVisibility(View.GONE);
+        playerExitHintView.setAlpha(1f);
+    }
+
+    private void armPlayerExitConfirmation() {
+        if (playerExitHintView == null) return;
+
+        playerExitConfirmUntil =
+                android.os.SystemClock.uptimeMillis() + PLAYER_EXIT_CONFIRM_MS;
+        playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        playerExitHintView.animate().cancel();
+        playerExitHintView.setAlpha(1f);
+        playerExitHintView.setVisibility(View.VISIBLE);
+        playerExitHintView.bringToFront();
+        if (cursorView != null && cursorView.getVisibility() == View.VISIBLE) {
+            cursorView.bringToFront();
         }
+        playerExitHintView.postDelayed(
+                playerExitHintHideRunnable,
+                PLAYER_EXIT_CONFIRM_MS);
+    }
+
+    private void returnPlayerToHome() {
+        clearPlayerExitConfirmation();
 
         if (customView != null) {
-            webView.evaluateJavascript(
+            exitCustomView();
+        }
+
+        String home = getSavedHomeUrl();
+        if (home != null && !home.trim().isEmpty()) {
+            loadUrl(home);
+        } else {
+            navigateBackOrHome();
+        }
+    }
+
+    private boolean handleWebPortalBack() {
+        if (customView == null && !webPlayerMode) {
+            clearPlayerExitConfirmation();
+            navigateBackOrHome();
+            return true;
+        }
+
+        if (playerExitConfirmationArmed()) {
+            returnPlayerToHome();
+            return true;
+        }
+
+        if (embeddedPlayerMode && customView == null) {
+            String closeScript =
                     "(function(){"
-                            + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
-                            + "&&window.__webPortalTV.closePlayerMenu())return 'closed';"
-                            + "return 'player';})()",
+                            + "function vis(e){if(!e||!e.getBoundingClientRect)return false;"
+                            + "var r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+                            + "return s.display!=='none'&&s.visibility!=='hidden'&&r.width>1&&r.height>1;}"
+                            + "function closeIn(doc){"
+                            + "var q=doc.querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]');"
+                            + "for(var i=0;i<q.length;i++){var e=q[i];if(!vis(e))continue;"
+                            + "var t=((e.textContent||'')+' '+(e.getAttribute('aria-label')||'')+' '+"
+                            + "(e.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                            + "if(/^(close|back|cancel|done|dismiss|exit|×|✕|x)$/.test(t)){e.click();return true;}}"
+                            + "var rows=doc.querySelectorAll('[class*=episode i],[class*=chapter i],[class*=playlist i],li,article');"
+                            + "var visibleRows=0;for(var j=0;j<rows.length;j++){if(vis(rows[j]))visibleRows++;}"
+                            + "if(visibleRows>=2){for(var k=0;k<q.length;k++){var b=q[k];if(!vis(b))continue;"
+                            + "var bt=((b.textContent||'')+' '+(b.getAttribute('aria-label')||'')+' '+"
+                            + "(b.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                            + "if(/(^|\\b)(episodes?|playlist|chapters?|queue|season|episode list)(\\b|$)/.test(bt)){b.click();return true;}}}"
+                            + "return false;}"
+                            + "try{if(closeIn(document))return true;}catch(e){}"
+                            + "var fs=document.querySelectorAll('iframe');"
+                            + "for(var n=0;n<fs.length;n++){try{var d=fs[n].contentDocument;"
+                            + "if(d&&closeIn(d))return true;}catch(e2){}}"
+                            + "return false;})()";
+
+            webView.evaluateJavascript(
+                    closeScript,
                     value -> runOnUiThread(() -> {
-                        if ("\"closed\"".equals(value)) {
+                        if ("true".equals(value)) {
+                            clearPlayerExitConfirmation();
                             if (cursorPreferenceEnabled) {
                                 activateCursorForPlayer();
                             }
-                            return;
-                        }
-
-                        // The fullscreen player surface gets first chance to close
-                        // its own Episodes/settings overlay. Only leave fullscreen
-                        // if the player does not consume Back.
-                        if (!dispatchBackToCustomView()) {
-                            exitCustomView();
-                        } else if (cursorPreferenceEnabled) {
-                            activateCursorForPlayer();
+                        } else {
+                            // Do not send a raw Back/Escape here: it could exit
+                            // fullscreen before the user confirms.
+                            armPlayerExitConfirmation();
                         }
                     }));
             return true;
         }
 
-        if (webPlayerMode) {
+        if (customView != null) {
             webView.evaluateJavascript(
                     "(function(){"
                             + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
@@ -3640,17 +3761,34 @@ public class MainActivity extends Activity {
                             + "return false;})()",
                     value -> runOnUiThread(() -> {
                         if ("true".equals(value)) {
+                            clearPlayerExitConfirmation();
                             if (cursorPreferenceEnabled) {
                                 activateCursorForPlayer();
                             }
                         } else {
-                            navigateBackOrHome();
+                            // First Back never exits fullscreen. It only arms the
+                            // short confirmation window while playback continues.
+                            armPlayerExitConfirmation();
                         }
                     }));
             return true;
         }
 
-        navigateBackOrHome();
+        webView.evaluateJavascript(
+                "(function(){"
+                        + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                        + "&&window.__webPortalTV.closePlayerMenu())return true;"
+                        + "return false;})()",
+                value -> runOnUiThread(() -> {
+                    if ("true".equals(value)) {
+                        clearPlayerExitConfirmation();
+                        if (cursorPreferenceEnabled) {
+                            activateCursorForPlayer();
+                        }
+                    } else {
+                        armPlayerExitConfirmation();
+                    }
+                }));
         return true;
     }
 
@@ -3766,6 +3904,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (playerExitHintView != null) {
+            playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        }
         if (updateReceiverRegistered) {
             try {
                 unregisterReceiver(updateDownloadReceiver);
