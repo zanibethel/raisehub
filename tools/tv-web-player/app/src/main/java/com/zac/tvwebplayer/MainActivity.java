@@ -3503,6 +3503,19 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
 
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                && (customView != null || webPlayerMode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    return handleWebPortalBack();
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
         if (embeddedPlayerMode && customView == null) {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
@@ -3588,6 +3601,59 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
 
+    private boolean handleWebPortalBack() {
+        if (embeddedPlayerMode && customView == null) {
+            return handleEmbeddedPlayerBack();
+        }
+
+        if (customView != null) {
+            webView.evaluateJavascript(
+                    "(function(){"
+                            + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                            + "&&window.__webPortalTV.closePlayerMenu())return 'closed';"
+                            + "return 'player';})()",
+                    value -> runOnUiThread(() -> {
+                        if ("\"closed\"".equals(value)) {
+                            if (cursorPreferenceEnabled) {
+                                activateCursorForPlayer();
+                            }
+                            return;
+                        }
+
+                        // The fullscreen player surface gets first chance to close
+                        // its own Episodes/settings overlay. Only leave fullscreen
+                        // if the player does not consume Back.
+                        if (!dispatchBackToCustomView()) {
+                            exitCustomView();
+                        } else if (cursorPreferenceEnabled) {
+                            activateCursorForPlayer();
+                        }
+                    }));
+            return true;
+        }
+
+        if (webPlayerMode) {
+            webView.evaluateJavascript(
+                    "(function(){"
+                            + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                            + "&&window.__webPortalTV.closePlayerMenu())return true;"
+                            + "return false;})()",
+                    value -> runOnUiThread(() -> {
+                        if ("true".equals(value)) {
+                            if (cursorPreferenceEnabled) {
+                                activateCursorForPlayer();
+                            }
+                        } else {
+                            navigateBackOrHome();
+                        }
+                    }));
+            return true;
+        }
+
+        navigateBackOrHome();
+        return true;
+    }
+
     private String getSavedHomeUrl() {
         return normalizeUrl(prefs().getString(PREF_HOME, ""));
     }
@@ -3660,44 +3726,7 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (embeddedPlayerMode && customView == null) {
-                return handleEmbeddedPlayerBack();
-            }
-
-            if (customView != null) {
-                webView.evaluateJavascript(
-                        "(function(){"
-                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
-                                + "&&window.__webPortalTV.closePlayerMenu())return 'closed';"
-                                + "return 'exit';})()",
-                        value -> {
-                            if ("\"exit\"".equals(value)) {
-                                runOnUiThread(() -> {
-                                    if (!dispatchBackToCustomView()) {
-                                        exitCustomView();
-                                    }
-                                });
-                            }
-                        });
-                return true;
-            }
-
-            if (webPlayerMode) {
-                webView.evaluateJavascript(
-                        "(function(){"
-                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
-                                + "&&window.__webPortalTV.closePlayerMenu())return true;"
-                                + "return false;})()",
-                        value -> {
-                            if (!"true".equals(value)) {
-                                runOnUiThread(this::navigateBackOrHome);
-                            }
-                        });
-                return true;
-            }
-
-            navigateBackOrHome();
-            return true;
+            return handleWebPortalBack();
         }
 
         return super.onKeyDown(keyCode, event);
