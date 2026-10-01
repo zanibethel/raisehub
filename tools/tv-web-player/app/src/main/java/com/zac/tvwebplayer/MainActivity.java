@@ -629,12 +629,56 @@ public class MainActivity extends Activity {
                 .start();
     }
 
+    private void swipeScrollAtCursor(int direction) {
+        View target = customView != null ? customView : webView;
+        if (target == null || root == null || target.getWidth() <= 0 || target.getHeight() <= 0) return;
+
+        int[] targetLocation = new int[2];
+        int[] rootLocation = new int[2];
+        target.getLocationOnScreen(targetLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float x = cursorX - (targetLocation[0] - rootLocation[0]);
+        float y = cursorY - (targetLocation[1] - rootLocation[1]);
+        x = Math.max(dp(8), Math.min(target.getWidth() - dp(8), x));
+        y = Math.max(dp(18), Math.min(target.getHeight() - dp(18), y));
+
+        float distance = Math.max(dp(90), target.getHeight() * 0.28f);
+        float endY = direction > 0
+                ? Math.max(dp(18), y - distance)
+                : Math.min(target.getHeight() - dp(18), y + distance);
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down = android.view.MotionEvent.obtain(
+                now, now, android.view.MotionEvent.ACTION_DOWN, x, y, 0);
+        android.view.MotionEvent move = android.view.MotionEvent.obtain(
+                now, now + 55, android.view.MotionEvent.ACTION_MOVE, x, endY, 0);
+        android.view.MotionEvent up = android.view.MotionEvent.obtain(
+                now, now + 110, android.view.MotionEvent.ACTION_UP, x, endY, 0);
+
+        try {
+            target.dispatchTouchEvent(down);
+            target.dispatchTouchEvent(move);
+            target.dispatchTouchEvent(up);
+        } finally {
+            down.recycle();
+            move.recycle();
+            up.recycle();
+        }
+    }
+
     private void scrollAtCursor(int direction) {
         if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
 
         long now = android.os.SystemClock.uptimeMillis();
         if (now - lastCursorScrollAt < 160L) return;
         lastCursorScrollAt = now;
+
+        // Fullscreen custom player views are outside the page DOM, so use a touch swipe.
+        if (customView != null) {
+            swipeScrollAtCursor(direction);
+            return;
+        }
 
         int[] webLocation = new int[2];
         int[] rootLocation = new int[2];
@@ -646,6 +690,7 @@ public class MainActivity extends Activity {
         int width = webView.getWidth();
         int height = webView.getHeight();
         int amount = Math.max(dp(56), Math.round(height * 0.14f)) * direction;
+        boolean playerOnly = webPlayerMode;
 
         String js = "(function(){"
                 + "var vw=" + width + ",vh=" + height + ";"
@@ -653,14 +698,31 @@ public class MainActivity extends Activity {
                 + "var y=(" + localY + "/Math.max(vh,1))*innerHeight;"
                 + "var n=document.elementFromPoint(x,y);"
                 + "while(n&&n!==document.body&&n!==document.documentElement){"
-                + "var s=getComputedStyle(n);"
-                + "if((s.overflowY==='auto'||s.overflowY==='scroll')"
-                + "&&n.scrollHeight>n.clientHeight+4){"
+                + "if(n.scrollHeight>n.clientHeight+4){"
                 + "n.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
                 + "n=n.parentElement;}"
+                + "if(" + (playerOnly ? "true" : "false") + "){"
+                + "var all=document.querySelectorAll('div,section,aside,ul,ol,nav,[role=list],[role=menu]');"
+                + "var best=null,bestScore=Infinity;"
+                + "for(var i=0;i<all.length;i++){var e=all[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+                + "if(s.display==='none'||s.visibility==='hidden'||r.width<40||r.height<80)continue;"
+                + "if(e.scrollHeight<=e.clientHeight+8)continue;"
+                + "if(x<r.left||x>r.right)continue;"
+                + "var dy=y<r.top?r.top-y:y>r.bottom?y-r.bottom:0;"
+                + "var score=dy+(r.width*r.height)/(Math.max(innerWidth*innerHeight,1))*30;"
+                + "if(score<bestScore){bestScore=score;best=e;}}"
+                + "if(best){best.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
+                + "return false;}"
                 + "window.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});"
                 + "return true;})()";
-        webView.evaluateJavascript(js, null);
+
+        webView.evaluateJavascript(
+                js,
+                value -> {
+                    if (playerOnly && !"true".equals(value)) {
+                        runOnUiThread(() -> swipeScrollAtCursor(direction));
+                    }
+                });
         webView.postDelayed(this::updateCursorHoverState, 140);
     }
 
@@ -680,9 +742,7 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_UP:
                 if (cursorY <= edge + step) {
                     cursorY = edge;
-                    if (customView == null && !webPlayerMode) {
-                        scrollAtCursor(-1);
-                    }
+                    scrollAtCursor(-1);
                 } else {
                     cursorY -= step;
                 }
@@ -690,9 +750,7 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
                     cursorY = root.getHeight() - edge;
-                    if (customView == null && !webPlayerMode) {
-                        scrollAtCursor(1);
-                    }
+                    scrollAtCursor(1);
                 } else {
                     cursorY += step;
                 }
@@ -2445,7 +2503,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalTV&&window.__webPortalTV.version===9){
+  if(window.__webPortalTV&&window.__webPortalTV.version===10){
     window.__webPortalTV.refresh();
     return;
   }
@@ -3232,7 +3290,7 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalTV={
-    version:9,
+    version:10,
     refresh:refresh,
     move:move,
     activate:activate,
