@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
             "https://raisehub.app/webportal-version.json";
     private static final int MAX_SAVED_SITES = 12;
     private static final long CURSOR_AUTO_HIDE_MS = 3000L;
+    private static final long PLAYER_EXIT_CONFIRM_MS = 2200L;
 
     private FrameLayout root;
     private WebView webView;
@@ -82,12 +83,31 @@ public class MainActivity extends Activity {
     private WebPortalAdBanner adBanner;
     private int adBannerInsetPx;
     private View cursorView;
+    private TextView playerExitHintView;
+    private long playerExitConfirmUntil;
     private boolean cursorMode;
     private boolean cursorPreferenceEnabled;
     private boolean cursorHover;
     private float cursorX;
     private float cursorY;
     private long lastCursorScrollAt;
+    private final Runnable playerExitHintHideRunnable = () -> {
+        playerExitConfirmUntil = 0L;
+        if (playerExitHintView != null) {
+            playerExitHintView.animate().cancel();
+            playerExitHintView.animate()
+                    .alpha(0f)
+                    .setDuration(140)
+                    .withEndAction(() -> {
+                        if (playerExitHintView != null) {
+                            playerExitHintView.setVisibility(View.GONE);
+                            playerExitHintView.setAlpha(1f);
+                        }
+                    })
+                    .start();
+        }
+    };
+
     private final Runnable cursorAutoHideRunnable = () -> {
         if (cursorView == null) return;
         cursorView.animate().cancel();
@@ -115,6 +135,7 @@ public class MainActivity extends Activity {
     }
 
     private void setWebPlayerMode(boolean active, boolean embedded) {
+        clearPlayerExitConfirmation();
         webPlayerMode = active;
         embeddedPlayerMode = active && embedded;
         setAdBannerVisible(!active && customView == null);
@@ -351,7 +372,35 @@ public class MainActivity extends Activity {
         root.addView(adBanner, bannerParams);
 
         setupCursorOverlay();
+        setupPlayerExitHint();
         webView.requestFocus();
+    }
+
+    private void setupPlayerExitHint() {
+        playerExitHintView = new TextView(this);
+        playerExitHintView.setText("Press Back again to exit player");
+        playerExitHintView.setTextColor(Color.WHITE);
+        playerExitHintView.setTextSize(14f);
+        playerExitHintView.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        playerExitHintView.setGravity(Gravity.CENTER);
+        playerExitHintView.setPadding(dp(14), dp(8), dp(14), dp(8));
+        playerExitHintView.setFocusable(false);
+        playerExitHintView.setClickable(false);
+
+        android.graphics.drawable.GradientDrawable background =
+                new android.graphics.drawable.GradientDrawable();
+        background.setColor(Color.argb(230, 4, 12, 24));
+        background.setStroke(dp(1), Color.rgb(49, 184, 255));
+        background.setCornerRadius(dp(10));
+        playerExitHintView.setBackground(background);
+        playerExitHintView.setVisibility(View.GONE);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        params.setMargins(dp(16), dp(16), dp(16), dp(34));
+        root.addView(playerExitHintView, params);
     }
 
     private void setupCursorOverlay() {
@@ -629,12 +678,56 @@ public class MainActivity extends Activity {
                 .start();
     }
 
+    private void swipeScrollAtCursor(int direction) {
+        View target = customView != null ? customView : webView;
+        if (target == null || root == null || target.getWidth() <= 0 || target.getHeight() <= 0) return;
+
+        int[] targetLocation = new int[2];
+        int[] rootLocation = new int[2];
+        target.getLocationOnScreen(targetLocation);
+        root.getLocationOnScreen(rootLocation);
+
+        float x = cursorX - (targetLocation[0] - rootLocation[0]);
+        float y = cursorY - (targetLocation[1] - rootLocation[1]);
+        x = Math.max(dp(8), Math.min(target.getWidth() - dp(8), x));
+        y = Math.max(dp(18), Math.min(target.getHeight() - dp(18), y));
+
+        float distance = Math.max(dp(90), target.getHeight() * 0.28f);
+        float endY = direction > 0
+                ? Math.max(dp(18), y - distance)
+                : Math.min(target.getHeight() - dp(18), y + distance);
+
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down = android.view.MotionEvent.obtain(
+                now, now, android.view.MotionEvent.ACTION_DOWN, x, y, 0);
+        android.view.MotionEvent move = android.view.MotionEvent.obtain(
+                now, now + 55, android.view.MotionEvent.ACTION_MOVE, x, endY, 0);
+        android.view.MotionEvent up = android.view.MotionEvent.obtain(
+                now, now + 110, android.view.MotionEvent.ACTION_UP, x, endY, 0);
+
+        try {
+            target.dispatchTouchEvent(down);
+            target.dispatchTouchEvent(move);
+            target.dispatchTouchEvent(up);
+        } finally {
+            down.recycle();
+            move.recycle();
+            up.recycle();
+        }
+    }
+
     private void scrollAtCursor(int direction) {
         if (webView == null || webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
 
         long now = android.os.SystemClock.uptimeMillis();
         if (now - lastCursorScrollAt < 160L) return;
         lastCursorScrollAt = now;
+
+        // Fullscreen custom player views are outside the page DOM, so use a touch swipe.
+        if (customView != null) {
+            swipeScrollAtCursor(direction);
+            return;
+        }
 
         int[] webLocation = new int[2];
         int[] rootLocation = new int[2];
@@ -646,6 +739,7 @@ public class MainActivity extends Activity {
         int width = webView.getWidth();
         int height = webView.getHeight();
         int amount = Math.max(dp(56), Math.round(height * 0.14f)) * direction;
+        boolean playerOnly = webPlayerMode;
 
         String js = "(function(){"
                 + "var vw=" + width + ",vh=" + height + ";"
@@ -653,14 +747,31 @@ public class MainActivity extends Activity {
                 + "var y=(" + localY + "/Math.max(vh,1))*innerHeight;"
                 + "var n=document.elementFromPoint(x,y);"
                 + "while(n&&n!==document.body&&n!==document.documentElement){"
-                + "var s=getComputedStyle(n);"
-                + "if((s.overflowY==='auto'||s.overflowY==='scroll')"
-                + "&&n.scrollHeight>n.clientHeight+4){"
+                + "if(n.scrollHeight>n.clientHeight+4){"
                 + "n.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
                 + "n=n.parentElement;}"
+                + "if(" + (playerOnly ? "true" : "false") + "){"
+                + "var all=document.querySelectorAll('div,section,aside,ul,ol,nav,[role=list],[role=menu]');"
+                + "var best=null,bestScore=Infinity;"
+                + "for(var i=0;i<all.length;i++){var e=all[i],r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+                + "if(s.display==='none'||s.visibility==='hidden'||r.width<40||r.height<80)continue;"
+                + "if(e.scrollHeight<=e.clientHeight+8)continue;"
+                + "if(x<r.left||x>r.right)continue;"
+                + "var dy=y<r.top?r.top-y:y>r.bottom?y-r.bottom:0;"
+                + "var score=dy+(r.width*r.height)/(Math.max(innerWidth*innerHeight,1))*30;"
+                + "if(score<bestScore){bestScore=score;best=e;}}"
+                + "if(best){best.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});return true;}"
+                + "return false;}"
                 + "window.scrollBy({top:" + amount + ",left:0,behavior:'smooth'});"
                 + "return true;})()";
-        webView.evaluateJavascript(js, null);
+
+        webView.evaluateJavascript(
+                js,
+                value -> {
+                    if (playerOnly && !"true".equals(value)) {
+                        runOnUiThread(() -> swipeScrollAtCursor(direction));
+                    }
+                });
         webView.postDelayed(this::updateCursorHoverState, 140);
     }
 
@@ -680,9 +791,7 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_UP:
                 if (cursorY <= edge + step) {
                     cursorY = edge;
-                    if (customView == null && !webPlayerMode) {
-                        scrollAtCursor(-1);
-                    }
+                    scrollAtCursor(-1);
                 } else {
                     cursorY -= step;
                 }
@@ -690,9 +799,7 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 if (root.getHeight() > 0 && cursorY >= root.getHeight() - edge - step) {
                     cursorY = root.getHeight() - edge;
-                    if (customView == null && !webPlayerMode) {
-                        scrollAtCursor(1);
-                    }
+                    scrollAtCursor(1);
                 } else {
                     cursorY += step;
                 }
@@ -1834,6 +1941,7 @@ public class MainActivity extends Activity {
     }
 
     private void showCustomView(View view, WebChromeClient.CustomViewCallback callback) {
+        clearPlayerExitConfirmation();
         if (customView != null) {
             callback.onCustomViewHidden();
             return;
@@ -1853,6 +1961,7 @@ public class MainActivity extends Activity {
     }
 
     private void exitCustomView() {
+        clearPlayerExitConfirmation();
         if (customView == null) return;
 
         webView.evaluateJavascript(
@@ -2445,7 +2554,7 @@ public class MainActivity extends Activity {
     private void installTvNavigation() {
         String js = """
 (function(){
-  if(window.__webPortalTV&&window.__webPortalTV.version===9){
+  if(window.__webPortalTV&&window.__webPortalTV.version===10){
     window.__webPortalTV.refresh();
     return;
   }
@@ -3232,7 +3341,7 @@ public class MainActivity extends Activity {
   }
 
   window.__webPortalTV={
-    version:9,
+    version:10,
     refresh:refresh,
     move:move,
     activate:activate,
@@ -3445,6 +3554,19 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
 
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                && (customView != null || webPlayerMode)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) {
+                    return handleWebPortalBack();
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                return true;
+            }
+        }
+
         if (embeddedPlayerMode && customView == null) {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
@@ -3530,6 +3652,146 @@ public class MainActivity extends Activity {
         return super.dispatchKeyEvent(event);
     }
 
+    private boolean playerExitConfirmationArmed() {
+        return playerExitConfirmUntil > android.os.SystemClock.uptimeMillis();
+    }
+
+    private void clearPlayerExitConfirmation() {
+        playerExitConfirmUntil = 0L;
+        if (playerExitHintView == null) return;
+
+        playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        playerExitHintView.animate().cancel();
+        playerExitHintView.setVisibility(View.GONE);
+        playerExitHintView.setAlpha(1f);
+    }
+
+    private void armPlayerExitConfirmation() {
+        if (playerExitHintView == null) return;
+
+        playerExitConfirmUntil =
+                android.os.SystemClock.uptimeMillis() + PLAYER_EXIT_CONFIRM_MS;
+        playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        playerExitHintView.animate().cancel();
+        playerExitHintView.setAlpha(1f);
+        playerExitHintView.setVisibility(View.VISIBLE);
+        playerExitHintView.bringToFront();
+        if (cursorView != null && cursorView.getVisibility() == View.VISIBLE) {
+            cursorView.bringToFront();
+        }
+        playerExitHintView.postDelayed(
+                playerExitHintHideRunnable,
+                PLAYER_EXIT_CONFIRM_MS);
+    }
+
+    private void returnPlayerToHome() {
+        clearPlayerExitConfirmation();
+
+        if (customView != null) {
+            exitCustomView();
+        }
+
+        String home = getSavedHomeUrl();
+        if (home != null && !home.trim().isEmpty()) {
+            loadUrl(home);
+        } else {
+            navigateBackOrHome();
+        }
+    }
+
+    private boolean handleWebPortalBack() {
+        if (customView == null && !webPlayerMode) {
+            clearPlayerExitConfirmation();
+            navigateBackOrHome();
+            return true;
+        }
+
+        if (playerExitConfirmationArmed()) {
+            returnPlayerToHome();
+            return true;
+        }
+
+        if (embeddedPlayerMode && customView == null) {
+            String closeScript =
+                    "(function(){"
+                            + "function vis(e){if(!e||!e.getBoundingClientRect)return false;"
+                            + "var r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+                            + "return s.display!=='none'&&s.visibility!=='hidden'&&r.width>1&&r.height>1;}"
+                            + "function closeIn(doc){"
+                            + "var q=doc.querySelectorAll('button,a,[role=button],[role=menuitem],[tabindex]');"
+                            + "for(var i=0;i<q.length;i++){var e=q[i];if(!vis(e))continue;"
+                            + "var t=((e.textContent||'')+' '+(e.getAttribute('aria-label')||'')+' '+"
+                            + "(e.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                            + "if(/^(close|back|cancel|done|dismiss|exit|×|✕|x)$/.test(t)){e.click();return true;}}"
+                            + "var rows=doc.querySelectorAll('[class*=episode i],[class*=chapter i],[class*=playlist i],li,article');"
+                            + "var visibleRows=0;for(var j=0;j<rows.length;j++){if(vis(rows[j]))visibleRows++;}"
+                            + "if(visibleRows>=2){for(var k=0;k<q.length;k++){var b=q[k];if(!vis(b))continue;"
+                            + "var bt=((b.textContent||'')+' '+(b.getAttribute('aria-label')||'')+' '+"
+                            + "(b.getAttribute('title')||'')).replace(/\\s+/g,' ').trim().toLowerCase();"
+                            + "if(/(^|\\b)(episodes?|playlist|chapters?|queue|season|episode list)(\\b|$)/.test(bt)){b.click();return true;}}}"
+                            + "return false;}"
+                            + "try{if(closeIn(document))return true;}catch(e){}"
+                            + "var fs=document.querySelectorAll('iframe');"
+                            + "for(var n=0;n<fs.length;n++){try{var d=fs[n].contentDocument;"
+                            + "if(d&&closeIn(d))return true;}catch(e2){}}"
+                            + "return false;})()";
+
+            webView.evaluateJavascript(
+                    closeScript,
+                    value -> runOnUiThread(() -> {
+                        if ("true".equals(value)) {
+                            clearPlayerExitConfirmation();
+                            if (cursorPreferenceEnabled) {
+                                activateCursorForPlayer();
+                            }
+                        } else {
+                            // Do not send a raw Back/Escape here: it could exit
+                            // fullscreen before the user confirms.
+                            armPlayerExitConfirmation();
+                        }
+                    }));
+            return true;
+        }
+
+        if (customView != null) {
+            webView.evaluateJavascript(
+                    "(function(){"
+                            + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                            + "&&window.__webPortalTV.closePlayerMenu())return true;"
+                            + "return false;})()",
+                    value -> runOnUiThread(() -> {
+                        if ("true".equals(value)) {
+                            clearPlayerExitConfirmation();
+                            if (cursorPreferenceEnabled) {
+                                activateCursorForPlayer();
+                            }
+                        } else {
+                            // First Back never exits fullscreen. It only arms the
+                            // short confirmation window while playback continues.
+                            armPlayerExitConfirmation();
+                        }
+                    }));
+            return true;
+        }
+
+        webView.evaluateJavascript(
+                "(function(){"
+                        + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
+                        + "&&window.__webPortalTV.closePlayerMenu())return true;"
+                        + "return false;})()",
+                value -> runOnUiThread(() -> {
+                    if ("true".equals(value)) {
+                        clearPlayerExitConfirmation();
+                        if (cursorPreferenceEnabled) {
+                            activateCursorForPlayer();
+                        }
+                    } else {
+                        armPlayerExitConfirmation();
+                    }
+                }));
+        return true;
+    }
+
     private String getSavedHomeUrl() {
         return normalizeUrl(prefs().getString(PREF_HOME, ""));
     }
@@ -3602,44 +3864,7 @@ public class MainActivity extends Activity {
         }
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (embeddedPlayerMode && customView == null) {
-                return handleEmbeddedPlayerBack();
-            }
-
-            if (customView != null) {
-                webView.evaluateJavascript(
-                        "(function(){"
-                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
-                                + "&&window.__webPortalTV.closePlayerMenu())return 'closed';"
-                                + "return 'exit';})()",
-                        value -> {
-                            if ("\"exit\"".equals(value)) {
-                                runOnUiThread(() -> {
-                                    if (!dispatchBackToCustomView()) {
-                                        exitCustomView();
-                                    }
-                                });
-                            }
-                        });
-                return true;
-            }
-
-            if (webPlayerMode) {
-                webView.evaluateJavascript(
-                        "(function(){"
-                                + "if(window.__webPortalTV&&window.__webPortalTV.closePlayerMenu"
-                                + "&&window.__webPortalTV.closePlayerMenu())return true;"
-                                + "return false;})()",
-                        value -> {
-                            if (!"true".equals(value)) {
-                                runOnUiThread(this::navigateBackOrHome);
-                            }
-                        });
-                return true;
-            }
-
-            navigateBackOrHome();
-            return true;
+            return handleWebPortalBack();
         }
 
         return super.onKeyDown(keyCode, event);
@@ -3679,6 +3904,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (playerExitHintView != null) {
+            playerExitHintView.removeCallbacks(playerExitHintHideRunnable);
+        }
         if (updateReceiverRegistered) {
             try {
                 unregisterReceiver(updateDownloadReceiver);
