@@ -45,11 +45,29 @@ public class PlayerActivity extends Activity {
     private FrameLayout seekPreviewCard;
     private TextView seekPreviewLabel;
     private View cursorView;
+    private TextView exitHintView;
     private float cursorX;
     private float cursorY;
+    private long exitConfirmUntil;
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideSeekPreview = () -> {
         if (seekPreviewCard != null) seekPreviewCard.setVisibility(View.GONE);
+    };
+    private final Runnable hideExitHint = () -> {
+        exitConfirmUntil = 0L;
+        if (exitHintView != null) {
+            exitHintView.animate().cancel();
+            exitHintView.animate()
+                    .alpha(0f)
+                    .setDuration(140)
+                    .withEndAction(() -> {
+                        if (exitHintView != null) {
+                            exitHintView.setVisibility(View.GONE);
+                            exitHintView.setAlpha(1f);
+                        }
+                    })
+                    .start();
+        }
     };
     private final Runnable hideCursor = () -> {
         if (cursorView == null) return;
@@ -138,7 +156,34 @@ public class PlayerActivity extends Activity {
         playerRoot.addView(seekPreviewCard, seekParams);
 
         setupCursorOverlay();
+        setupExitHint();
         setContentView(playerRoot);
+    }
+
+    private void setupExitHint() {
+        exitHintView = new TextView(this);
+        exitHintView.setText("Press Back again to exit player");
+        exitHintView.setTextColor(Color.WHITE);
+        exitHintView.setTextSize(14f);
+        exitHintView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        exitHintView.setGravity(Gravity.CENTER);
+        exitHintView.setPadding(dp(14), dp(8), dp(14), dp(8));
+        exitHintView.setFocusable(false);
+        exitHintView.setClickable(false);
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.argb(230, 4, 12, 24));
+        background.setStroke(dp(1), Color.rgb(49, 184, 255));
+        background.setCornerRadius(dp(10));
+        exitHintView.setBackground(background);
+        exitHintView.setVisibility(View.GONE);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        params.setMargins(dp(16), dp(16), dp(16), dp(34));
+        playerRoot.addView(exitHintView, params);
     }
 
     private void setupCursorOverlay() {
@@ -462,6 +507,46 @@ public class PlayerActivity extends Activity {
         }
     }
 
+    private void clearExitConfirmation() {
+        exitConfirmUntil = 0L;
+        if (exitHintView == null) return;
+        exitHintView.removeCallbacks(hideExitHint);
+        exitHintView.animate().cancel();
+        exitHintView.setVisibility(View.GONE);
+        exitHintView.setAlpha(1f);
+    }
+
+    private void armExitConfirmation() {
+        if (exitHintView == null) return;
+
+        exitConfirmUntil = android.os.SystemClock.uptimeMillis() + 2200L;
+        exitHintView.removeCallbacks(hideExitHint);
+        exitHintView.animate().cancel();
+        exitHintView.setAlpha(1f);
+        exitHintView.setVisibility(View.VISIBLE);
+        exitHintView.bringToFront();
+        if (cursorView != null && cursorView.getVisibility() == View.VISIBLE) {
+            cursorView.bringToFront();
+        }
+        exitHintView.postDelayed(hideExitHint, 2200L);
+    }
+
+    private boolean handleBackPress() {
+        if (hidePlayerMenuIfVisible()) {
+            clearExitConfirmation();
+            return true;
+        }
+
+        if (exitConfirmUntil > android.os.SystemClock.uptimeMillis()) {
+            clearExitConfirmation();
+            returnToBrowser();
+            return true;
+        }
+
+        armExitConfirmation();
+        return true;
+    }
+
     private void returnToBrowser() {
         if (returningToBrowser) return;
         returningToBrowser = true;
@@ -490,10 +575,7 @@ public class PlayerActivity extends Activity {
                 return true;
 
             case KeyEvent.KEYCODE_BACK:
-                if (!hidePlayerMenuIfVisible()) {
-                    returnToBrowser();
-                }
-                return true;
+                return handleBackPress();
 
             default:
                 return super.onKeyDown(keyCode, event);
@@ -556,9 +638,7 @@ public class PlayerActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (!hidePlayerMenuIfVisible()) {
-            returnToBrowser();
-        }
+        handleBackPress();
     }
 
     @Override
@@ -571,6 +651,7 @@ public class PlayerActivity extends Activity {
     protected void onStop() {
         uiHandler.removeCallbacks(hideSeekPreview);
         if (cursorView != null) cursorView.removeCallbacks(hideCursor);
+        if (exitHintView != null) exitHintView.removeCallbacks(hideExitHint);
         if (seekPreviewCard != null) seekPreviewCard.setVisibility(View.GONE);
         releasePlayer();
         super.onStop();
