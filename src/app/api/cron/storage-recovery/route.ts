@@ -79,6 +79,16 @@ export async function GET(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  const jobName = 'storage-recovery'
+  const startedAt = new Date().toISOString()
+  await supabase.from('operational_job_health').upsert({
+    job_name: jobName,
+    last_started_at: startedAt,
+    last_status: 'running',
+    last_error: null,
+    updated_at: startedAt,
+  })
+
   let copied = 0
   let skipped = 0
   const failures: Array<{ bucket: string; path: string; error: string }> = []
@@ -132,8 +142,27 @@ export async function GET(request: Request) {
 
   if (failures.length) {
     console.error('Storage recovery archive had failures', failures)
+    const failedAt = new Date().toISOString()
+    await supabase.from('operational_job_health').upsert({
+      job_name: jobName,
+      last_failed_at: failedAt,
+      last_status: 'failed',
+      last_error: failures.slice(0, 10).map((failure) => `${failure.bucket}:${failure.path}: ${failure.error}`).join('\n'),
+      metadata: { copied, skipped, failureCount: failures.length },
+      updated_at: failedAt,
+    })
     return NextResponse.json({ ok: false, copied, skipped, failures }, { status: 500 })
   }
+
+  const succeededAt = new Date().toISOString()
+  await supabase.from('operational_job_health').upsert({
+    job_name: jobName,
+    last_succeeded_at: succeededAt,
+    last_status: 'succeeded',
+    last_error: null,
+    metadata: { copied, skipped },
+    updated_at: succeededAt,
+  })
 
   return NextResponse.json({ ok: true, copied, skipped })
 }
