@@ -35,28 +35,54 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  if (!data?.length) return NextResponse.json({ ok: true, failedEvents: 0, alerted: false })
+
+  const { data: recoveryHealth, error: recoveryHealthError } = await supabase
+    .from('operational_job_health')
+    .select('last_started_at,last_succeeded_at,last_failed_at,last_status,last_error,updated_at')
+    .eq('job_name', 'storage-recovery')
+    .maybeSingle()
+  if (recoveryHealthError) throw recoveryHealthError
+
+  const staleBefore = Date.now() - 26 * 60 * 60 * 1000
+  const lastSuccessMs = recoveryHealth?.last_succeeded_at
+    ? new Date(recoveryHealth.last_succeeded_at).getTime()
+    : 0
+  const recoveryProblem =
+    !recoveryHealth ||
+    recoveryHealth.last_status === 'failed' ||
+    !lastSuccessMs ||
+    lastSuccessMs < staleBefore
+
+  if (!data?.length && !recoveryProblem) {
+    return NextResponse.json({ ok: true, failedEvents: 0, recoveryProblem: false, alerted: false })
+  }
 
   const alertEmail = process.env.RAISEHUB_ALERT_EMAIL?.trim() || 'alerts@raisehub.app'
 
-  const eventIds = data.map((row) => row.stripe_event_id).sort()
+  const failedEvents = data ?? []
+  const eventIds = failedEvents.map((row) => row.stripe_event_id).sort()
+  const problems = [
+    ...failedEvents
+      .slice(0, 10)
+      .map((row) => `Stripe: ${row.event_type} — ${row.stripe_event_id} — ${row.last_error ?? 'Unknown error'}`),
+    ...(recoveryProblem
+      ? [`Storage recovery: ${recoveryHealth?.last_status ?? 'missing heartbeat'} — last success ${recoveryHealth?.last_succeeded_at ?? 'never'} — ${recoveryHealth?.last_error ?? 'No recorded error'}`]
+      : []),
+  ]
   const result = await sendNotificationEmail({
     to: alertEmail,
-    title: `RaiseHub alert: ${data.length} Stripe webhook failure${data.length === 1 ? '' : 's'}`,
-    message: data
-      .slice(0, 10)
-      .map((row) => `${row.event_type} — ${row.stripe_event_id} — ${row.last_error ?? 'Unknown error'}`)
-      .join('\n'),
+    title: `RaiseHub operations alert: ${problems.length} issue${problems.length === 1 ? '' : 's'}`,
+    message: problems.join('\n'),
     actionUrl: '/dashboard/owner',
     actionLabel: 'Open RaiseHub owner dashboard',
-    idempotencyKey: `ops-stripe-webhook-${eventIds.join('-')}`.slice(0, 240),
+    idempotencyKey: `ops-${eventIds.join('-')}-recovery-${recoveryHealth?.updated_at ?? 'missing'}`.slice(0, 240),
     category: 'operations-alert',
   })
 
   if (result.status !== 'sent') {
-    console.error('Unable to send Stripe webhook failure alert', result)
-    return NextResponse.json({ ok: false, failedEvents: data.length, alerted: false, delivery: result }, { status: 500 })
+    console.error('Unable to send operations alert', result)
+    return NextResponse.json({ ok: false, failedEvents: failedEvents.length, recoveryProblem, alerted: false, delivery: result }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, failedEvents: data.length, alerted: true })
+  return NextResponse.json({ ok: true, failedEvents: failedEvents.length, recoveryProblem, alerted: true })
 }
