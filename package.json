@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm install --package-lock=false --ignore-scripts=false && next build",
+    "build": "npm install --include=dev --package-lock=false --ignore-scripts=false && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "sh -c 'files=$(find src -type f -name \"*.test.ts\"); if [ -z \"$files\" ]; then echo \"No test files found\"; exit 0; fi; node --conditions=react-server --import tsx --test $files'"
