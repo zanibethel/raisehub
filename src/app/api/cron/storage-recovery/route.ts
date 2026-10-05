@@ -7,10 +7,55 @@ export const maxDuration = 60
 
 const SOURCE_BUCKETS = ['logos', 'business-sites'] as const
 const ARCHIVE_BUCKET = 'recovery-archive'
+const PAGE_SIZE = 100
 
 function isAuthorized(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim()
   return Boolean(cronSecret) && request.headers.get('authorization') === `Bearer ${cronSecret}`
+}
+
+async function listAllObjects(
+  supabase: ReturnType<typeof createClient>,
+  bucket: (typeof SOURCE_BUCKETS)[number],
+) {
+  const files: Array<{ name: string; updated_at?: string | null }> = []
+  let offset = 0
+
+  for (;;) {
+    const { data, error } = await supabase.storage.from(bucket).list('', {
+      limit: PAGE_SIZE,
+      offset,
+      sortBy: { column: 'name', order: 'asc' },
+    })
+    if (error) throw error
+    if (!data?.length) break
+
+    for (const item of data) {
+      if (!item.name || item.id === null) continue
+      files.push({ name: item.name, updated_at: item.updated_at })
+    }
+
+    if (data.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
+
+  return files
+}
+
+async function archiveExists(
+  supabase: ReturnType<typeof createClient>,
+  archivePath: string,
+) {
+  const slash = archivePath.lastIndexOf('/')
+  const folder = slash >= 0 ? archivePath.slice(0, slash) : ''
+  const fileName = slash >= 0 ? archivePath.slice(slash + 1) : archivePath
+
+  const { data, error } = await supabase.storage.from(ARCHIVE_BUCKET).list(folder, {
+    limit: 100,
+    search: fileName,
+  })
+  if (error) throw error
+  return Boolean(data?.some((item) => item.name === fileName))
 }
 
 export async function GET(request: Request) {
@@ -24,56 +69,64 @@ export async function GET(request: Request) {
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json({ error: 'Storage recovery credentials are not configured.' }, { status: 503 })
   }
+
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
+
   let copied = 0
   let skipped = 0
   const failures: Array<{ bucket: string; path: string; error: string }> = []
 
   for (const bucket of SOURCE_BUCKETS) {
-    const { data: objects, error } = await supabase
-      .schema('storage')
-      .from('objects')
-      .select('name,updated_at')
-      .eq('bucket_id', bucket)
-      .not('name', 'is', null)
+    let objects: Awaited<ReturnType<typeof listAllObjects>>
+    try {
+      objects = await listAllObjects(supabase, bucket)
+    } catch (error) {
+      failures.push({
+        bucket,
+        path: '*',
+        error: error instanceof Error ? error.message : 'Unable to list source bucket.',
+      })
+      continue
+    }
 
-    if (error) throw error
-
-    for (const object of objects ?? []) {
-      const name = object.name
-      if (!name) continue
+    for (const object of objects) {
       const stamp = new Date(object.updated_at ?? Date.now()).toISOString().replaceAll(':', '-')
-      const archivePath = `${bucket}/${stamp}/${name}`
+      const archivePath = `${bucket}/${stamp}/${object.name}`
 
-      const { data: existing } = await supabase
-        .schema('storage')
-        .from('objects')
-        .select('id')
-        .eq('bucket_id', ARCHIVE_BUCKET)
-        .eq('name', archivePath)
-        .maybeSingle()
+      try {
+        if (await archiveExists(supabase, archivePath)) {
+          skipped += 1
+          continue
+        }
 
-      if (existing) {
-        skipped += 1
-        continue
-      }
+        const { data: sourceFile, error: downloadError } = await supabase.storage
+          .from(bucket)
+          .download(object.name)
+        if (downloadError) throw downloadError
 
-      const { error: copyError } = await supabase.storage
-        .from(bucket)
-        .copy(name, archivePath, { destinationBucket: ARCHIVE_BUCKET })
+        const { error: uploadError } = await supabase.storage
+          .from(ARCHIVE_BUCKET)
+          .upload(archivePath, sourceFile, {
+            upsert: false,
+            contentType: sourceFile.type || undefined,
+          })
+        if (uploadError) throw uploadError
 
-      if (copyError) {
-        failures.push({ bucket, path: name, error: copyError.message })
-      } else {
         copied += 1
+      } catch (error) {
+        failures.push({
+          bucket,
+          path: object.name,
+          error: error instanceof Error ? error.message : 'Unknown archive failure.',
+        })
       }
     }
   }
 
   if (failures.length) {
-    console.error('Storage recovery archive had copy failures', failures)
+    console.error('Storage recovery archive had failures', failures)
     return NextResponse.json({ ok: false, copied, skipped, failures }, { status: 500 })
   }
 
