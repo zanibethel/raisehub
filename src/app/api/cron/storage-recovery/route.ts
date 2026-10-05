@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -15,7 +15,7 @@ function isAuthorized(request: Request) {
 }
 
 async function listAllObjects(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   bucket: (typeof SOURCE_BUCKETS)[number],
 ) {
   const files: Array<{ name: string; updated_at?: string | null }> = []
@@ -43,7 +43,7 @@ async function listAllObjects(
 }
 
 async function archiveExists(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   archivePath: string,
 ) {
   const slash = archivePath.lastIndexOf('/')
