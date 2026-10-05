@@ -19,26 +19,31 @@ async function listAllObjects(
   bucket: (typeof SOURCE_BUCKETS)[number],
 ) {
   const files: Array<{ name: string; updated_at?: string | null }> = []
-  let offset = 0
 
-  for (;;) {
-    const { data, error } = await supabase.storage.from(bucket).list('', {
-      limit: PAGE_SIZE,
-      offset,
-      sortBy: { column: 'name', order: 'asc' },
-    })
-    if (error) throw error
-    if (!data?.length) break
+  async function walk(prefix = ''): Promise<void> {
+    let offset = 0
+    for (;;) {
+      const { data, error } = await supabase.storage.from(bucket).list(prefix, {
+        limit: PAGE_SIZE,
+        offset,
+        sortBy: { column: 'name', order: 'asc' },
+      })
+      if (error) throw error
+      if (!data?.length) break
 
-    for (const item of data) {
-      if (!item.name || item.id === null) continue
-      files.push({ name: item.name, updated_at: item.updated_at })
+      for (const item of data) {
+        if (!item.name) continue
+        const path = prefix ? `${prefix}/${item.name}` : item.name
+        if (item.id === null) await walk(path)
+        else files.push({ name: path, updated_at: item.updated_at })
+      }
+
+      if (data.length < PAGE_SIZE) break
+      offset += PAGE_SIZE
     }
-
-    if (data.length < PAGE_SIZE) break
-    offset += PAGE_SIZE
   }
 
+  await walk()
   return files
 }
 
