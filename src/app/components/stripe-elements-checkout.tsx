@@ -65,6 +65,9 @@ function PaymentForm({
     )
   }
 
+
+  const checkout = checkoutState.checkout
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (submitting) return
@@ -72,7 +75,7 @@ function PaymentForm({
     setSubmitting(true)
     setMessage('')
 
-    const result = await checkoutState.checkout.confirm()
+    const result = await checkout.confirm()
 
     if (result.type === 'error') {
       setMessage(result.error.message)
