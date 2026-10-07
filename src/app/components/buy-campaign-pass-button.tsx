@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
 import { createCampaignCheckoutAction } from '@/app/campaigns/stripe-checkout-actions'
+import StripeElementsCheckout from '@/app/components/stripe-elements-checkout'
 import { createClient } from '@/lib/supabase/client'
 
 type OrganizationOption = {
@@ -80,6 +81,8 @@ export default function BuyCampaignPassButton({
   const [message, setMessage] = useState('')
   const [demoComplete, setDemoComplete] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [embeddedTotalAmount, setEmbeddedTotalAmount] = useState(0)
 
   useEffect(() => {
     if (hasLockedSeller) {
@@ -149,6 +152,7 @@ export default function BuyCampaignPassButton({
   const donationNumber = Number(donationAmount) || 0
   const effectivePassPrice = hasActivePass ? 0 : passPrice
   const totalAmount = effectivePassPrice + donationNumber
+  const embeddedCheckoutActive = Boolean(clientSecret)
 
   async function handleBuyPass() {
     if (loading) return
@@ -183,7 +187,14 @@ export default function BuyCampaignPassButton({
     })
 
     if (result.status === 'checkout-ready') {
-      window.location.assign(result.url)
+      if (result.mode === 'hosted') {
+        window.location.assign(result.url)
+        return
+      }
+
+      setClientSecret(result.clientSecret)
+      setEmbeddedTotalAmount(totalAmount)
+      setLoading(false)
       return
     }
 
@@ -242,7 +253,7 @@ export default function BuyCampaignPassButton({
             id="campaign-seller"
             value={selectedSellerCode}
             onChange={(event) => setSelectedSellerCode(event.target.value)}
-            disabled={sellerOptionsLoading || Boolean(sellerOptionsError) || sellerOptions.length === 0}
+            disabled={sellerOptionsLoading || Boolean(sellerOptionsError) || sellerOptions.length === 0 || embeddedCheckoutActive}
             className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm disabled:bg-gray-100 disabled:text-gray-500"
           >
             <option value="">
@@ -290,14 +301,14 @@ export default function BuyCampaignPassButton({
         <label className="mb-2 block text-sm font-medium text-gray-700">{hasActivePass ? 'Additional donation' : 'Optional donation add-on'}</label>
         <div className="flex flex-wrap gap-2">
           {(hasActivePass ? ['5', '10', '25'] : ['0', '10', '25']).map((amount) => (
-            <button key={amount} type="button" onClick={() => setDonationAmount(amount)} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${donationAmount === amount ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>
+            <button key={amount} type="button" disabled={embeddedCheckoutActive} onClick={() => setDonationAmount(amount)} className={`rounded-lg border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${donationAmount === amount ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>
               {amount === '0' ? 'No donation' : `$${amount}`}
             </button>
           ))}
-          <button type="button" onClick={() => setDonationAmount('')} className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${!['0', '5', '10', '25'].includes(donationAmount) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>Custom</button>
+          <button type="button" disabled={embeddedCheckoutActive} onClick={() => setDonationAmount('')} className={`rounded-lg border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${!['0', '5', '10', '25'].includes(donationAmount) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'}`}>Custom</button>
         </div>
         {!['0', '5', '10', '25'].includes(donationAmount) ? (
-          <input type="number" min="0" step="1" value={donationAmount} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm" placeholder="Enter custom amount" />
+          <input type="number" min="0" step="1" value={donationAmount} disabled={embeddedCheckoutActive} onChange={(event) => setDonationAmount(event.target.value)} className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500" placeholder="Enter custom amount" />
         ) : null}
         <p className="mt-2 text-xs text-gray-500">Donations go directly toward {organizationName(selectedOrganization)}.</p>
       </div>
@@ -308,10 +319,30 @@ export default function BuyCampaignPassButton({
         <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3 font-semibold text-blue-900"><span>Total today</span><span>${totalAmount.toFixed(2)}</span></div>
       </div>
 
-      <button type="button" onClick={handleBuyPass} disabled={loading} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-        {loading ? 'Processing...' : hasActivePass ? `Donate Securely - $${totalAmount.toFixed(2)}` : `Continue to Secure Checkout - $${totalAmount.toFixed(2)}`}
+      <button type="button" onClick={handleBuyPass} disabled={loading || embeddedCheckoutActive} className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+        {embeddedCheckoutActive
+          ? 'Secure payment form ready below'
+          : loading
+            ? 'Preparing secure checkout...'
+            : hasActivePass
+              ? `Donate Securely - ${totalAmount.toFixed(2)}`
+              : `Continue to Secure Checkout - ${totalAmount.toFixed(2)}`}
       </button>
-      <p className="text-center text-xs text-gray-500">Production payments are completed securely through Stripe. Demo accounts create clearly marked simulated records without charging a card.</p>
+
+      {clientSecret ? (
+        <div className="rounded-2xl border border-blue-200 bg-slate-50 p-4 shadow-inner sm:p-5">
+          <StripeElementsCheckout
+            clientSecret={clientSecret}
+            totalAmount={embeddedTotalAmount}
+            onBack={() => {
+              setClientSecret(null)
+              setEmbeddedTotalAmount(0)
+            }}
+          />
+        </div>
+      ) : null}
+
+      <p className="text-center text-xs text-gray-500">Production payments are completed securely through Stripe. When embedded checkout is available, payment fields stay inside RaiseHub. Demo accounts create clearly marked simulated records without charging a card.</p>
       {message ? (
         <div className={`rounded-xl border p-4 text-sm ${demoComplete ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
           <p>{message}</p>

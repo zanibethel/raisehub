@@ -16,7 +16,12 @@ import { createPurchasePricingSnapshot } from '@/lib/services/purchase-pricing-s
 import { resolveEffectivePricing } from '@/lib/services/pricing-resolution-service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { createStripeCheckoutSession, stripeIsConfigured } from '@/lib/stripe/server'
+import {
+  createStripeCheckoutSession,
+  createStripeElementsCheckoutSession,
+  stripeElementsIsConfigured,
+  stripeIsConfigured,
+} from '@/lib/stripe/server'
 import type { CampaignRecoveryResult, SellableCampaignOption } from '@/lib/types/campaigns'
 
 type CheckoutInput = {
@@ -28,7 +33,8 @@ type CheckoutInput = {
 }
 
 type CheckoutResult =
-  | { status: 'checkout-ready'; url: string }
+  | { status: 'checkout-ready'; mode: 'elements'; clientSecret: string }
+  | { status: 'checkout-ready'; mode: 'hosted'; url: string }
   | {
       status: 'demo-complete'
       purchaseId: string
@@ -409,33 +415,96 @@ export async function createCampaignCheckoutAction(
 
   try {
     const origin = await resolveOrigin()
-    const session = await createStripeCheckoutSession({
-      attemptId: attempt.id,
-      amountCents: expectedAmountCents,
-      currency: 'usd',
-      customerEmail: user.email ?? null,
-      campaignName: campaign.name,
-      successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${origin}/checkout/canceled?attempt=${encodeURIComponent(attempt.id)}&campaign=${encodeURIComponent(campaign.id)}`,
-    })
+    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`
+    const cancelUrl = `${origin}/checkout/canceled?attempt=${encodeURIComponent(attempt.id)}&campaign=${encodeURIComponent(campaign.id)}`
+    let sessionId = ''
+    let sessionExpiresAt: number | null = null
+    let checkoutResult: CheckoutResult
 
-    if (!session.url) throw new Error('Stripe did not return a checkout URL')
+    if (stripeElementsIsConfigured()) {
+      try {
+        const elementsSession = await createStripeElementsCheckoutSession({
+          attemptId: attempt.id,
+          amountCents: expectedAmountCents,
+          currency: 'usd',
+          customerEmail: user.email ?? null,
+          campaignName: campaign.name,
+          returnUrl: successUrl,
+        })
 
-    const expiresAt = session.expires_at
-      ? new Date(session.expires_at * 1000).toISOString()
+        if (!elementsSession.client_secret) {
+          throw new Error('Stripe did not return an Elements client secret')
+        }
+
+        sessionId = elementsSession.id
+        sessionExpiresAt = elementsSession.expires_at
+        checkoutResult = {
+          status: 'checkout-ready',
+          mode: 'elements',
+          clientSecret: elementsSession.client_secret,
+        }
+      } catch {
+        const hostedSession = await createStripeCheckoutSession({
+          attemptId: attempt.id,
+          amountCents: expectedAmountCents,
+          currency: 'usd',
+          customerEmail: user.email ?? null,
+          campaignName: campaign.name,
+          successUrl,
+          cancelUrl,
+        })
+
+        if (!hostedSession.url) {
+          throw new Error('Stripe did not return a checkout URL')
+        }
+
+        sessionId = hostedSession.id
+        sessionExpiresAt = hostedSession.expires_at
+        checkoutResult = {
+          status: 'checkout-ready',
+          mode: 'hosted',
+          url: hostedSession.url,
+        }
+      }
+    } else {
+      const hostedSession = await createStripeCheckoutSession({
+        attemptId: attempt.id,
+        amountCents: expectedAmountCents,
+        currency: 'usd',
+        customerEmail: user.email ?? null,
+        campaignName: campaign.name,
+        successUrl,
+        cancelUrl,
+      })
+
+      if (!hostedSession.url) {
+        throw new Error('Stripe did not return a checkout URL')
+      }
+
+      sessionId = hostedSession.id
+      sessionExpiresAt = hostedSession.expires_at
+      checkoutResult = {
+        status: 'checkout-ready',
+        mode: 'hosted',
+        url: hostedSession.url,
+      }
+    }
+
+    const expiresAt = sessionExpiresAt
+      ? new Date(sessionExpiresAt * 1000).toISOString()
       : null
     const { error: updateError } = await untypedAdmin
       .from('checkout_attempts')
       .update({
         status: 'open',
-        stripe_checkout_session_id: session.id,
+        stripe_checkout_session_id: sessionId,
         expires_at: expiresAt,
         updated_at: new Date().toISOString(),
       })
       .eq('id', attempt.id)
 
     if (updateError) throw new Error(updateError.message)
-    return { status: 'checkout-ready', url: session.url }
+    return checkoutResult
   } catch {
     await untypedAdmin
       .from('checkout_attempts')

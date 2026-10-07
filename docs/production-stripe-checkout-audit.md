@@ -82,3 +82,24 @@ Validated against the PR #15 Vercel preview and the RaiseHub Supabase project on
 - One active `purchased_pass` entitlement was created with the expected six-month term.
 - Re-sending the same Stripe event returned HTTP `200` without creating a duplicate purchase or entitlement.
 - Browser return alone did not grant access before webhook confirmation.
+
+
+## Embedded Elements migration — October 6, 2026
+
+The original hosted Checkout foundation above is now implemented and remains the fulfillment authority. The campaign/pass purchase flow adds an embedded Stripe Elements option backed by the same Checkout Sessions API.
+
+Embedded campaign checkout rules:
+
+- Create the session server-side with `ui_mode = 'elements'`; the browser receives only the Checkout Session `client_secret`.
+- Render the Payment Element through `@stripe/react-stripe-js/checkout` and confirm with the Checkout object.
+- Keep `checkout_attempts`, server-calculated pricing, seller attribution, idempotency, signed webhook verification, and entitlement fulfillment unchanged.
+- Never fulfill a purchase from the embedded form or return URL. Signed Stripe webhook events remain authoritative.
+- Keep hosted Checkout as the automatic fallback when embedded checkout is unavailable or misconfigured.
+- Activate embedded checkout only when `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is present and its test/live mode matches `STRIPE_SECRET_KEY`.
+- Demo-mode purchases remain simulated and must never create a real Stripe Checkout Session.
+
+Additional browser-side environment variable:
+
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe publishable key matching the deployment's configured secret-key mode. Preview/test deployments use a `pk_test_` key; production/live uses a `pk_live_` key.
+
+Until that publishable key is configured, campaign purchases continue through the existing hosted Stripe Checkout path.

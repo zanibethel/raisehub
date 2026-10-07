@@ -20,6 +20,15 @@ export type StripeCheckoutSessionInput = {
   cancelUrl: string
 }
 
+export type StripeElementsCheckoutSessionInput = {
+  attemptId: string
+  amountCents: number
+  currency: string
+  customerEmail: string | null
+  campaignName: string
+  returnUrl: string
+}
+
 function requireEnvironmentValue(name: string) {
   const value = process.env[name]?.trim()
 
@@ -82,6 +91,19 @@ export function stripeIsConfigured() {
   )
 }
 
+export function stripeElementsIsConfigured() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim()
+  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()
+
+  if (!secretKey || !publishableKey || !isStripeSecretKey(secretKey)) {
+    return false
+  }
+
+  return secretKey.startsWith('sk_live_')
+    ? publishableKey.startsWith('pk_live_')
+    : publishableKey.startsWith('pk_test_')
+}
+
 export function getStripeClient() {
   return new Stripe(requireSecretKey(), {
     appInfo: {
@@ -133,6 +155,50 @@ export async function createStripeCheckoutSession(
     },
     {
       idempotencyKey: `raisehub-checkout-${input.attemptId}`,
+    }
+  )
+}
+
+export async function createStripeElementsCheckoutSession(
+  input: StripeElementsCheckoutSessionInput
+) {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    throw new Error('Stripe checkout amount must be a positive integer')
+  }
+
+  const stripe = getStripeClient()
+
+  return stripe.checkout.sessions.create(
+    {
+      ui_mode: 'elements',
+      mode: 'payment',
+      return_url: stripSensitiveReturnParams(input.returnUrl),
+      client_reference_id: input.attemptId,
+      customer_email: input.customerEmail ?? undefined,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      metadata: {
+        checkout_attempt_id: input.attemptId,
+      },
+      payment_intent_data: {
+        metadata: {
+          checkout_attempt_id: input.attemptId,
+        },
+      },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: input.currency.toLowerCase(),
+            unit_amount: input.amountCents,
+            product_data: {
+              name: `RaiseHub support — ${input.campaignName}`.slice(0, 120),
+            },
+          },
+        },
+      ],
+    },
+    {
+      idempotencyKey: `raisehub-elements-checkout-${input.attemptId}`,
     }
   )
 }
