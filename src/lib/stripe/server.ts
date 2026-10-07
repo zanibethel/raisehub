@@ -92,11 +92,16 @@ export function stripeIsConfigured() {
 }
 
 export function stripeElementsIsConfigured() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim()
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()
-  return Boolean(
-    publishableKey &&
-      (publishableKey.startsWith('pk_test_') || publishableKey.startsWith('pk_live_'))
-  )
+
+  if (!secretKey || !publishableKey || !isStripeSecretKey(secretKey)) {
+    return false
+  }
+
+  return secretKey.startsWith('sk_live_')
+    ? publishableKey.startsWith('pk_live_')
+    : publishableKey.startsWith('pk_test_')
 }
 
 export function getStripeClient() {
