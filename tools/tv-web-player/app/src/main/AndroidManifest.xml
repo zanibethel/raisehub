@@ -7,6 +7,7 @@
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
 
     <application
+        android:hardwareAccelerated="true"
         android:allowBackup="true"
         android:banner="@drawable/tv_banner"
         android:icon="@drawable/app_icon_firetv"
