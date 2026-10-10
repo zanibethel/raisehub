@@ -1626,9 +1626,9 @@ public class MainActivity extends Activity {
             }
             new AlertDialog.Builder(this)
                     .setTitle("Casting diagnostics")
-                    .setMessage(details + "\\nWebView: " + webViewVersion
-                            + "\\nWeb permissions: " + lastMetaPermissionRequest
-                            + "\\n\\nCast must be started from your Quest headset.")
+                    .setMessage(details + "\nWebView: " + webViewVersion
+                            + "\nWeb permissions: " + lastMetaPermissionRequest
+                            + "\n\nCast must be started from your Quest headset.")
                     .setPositiveButton("Close", null)
                     .show();
         });
