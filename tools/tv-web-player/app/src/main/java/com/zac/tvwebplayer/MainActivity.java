@@ -1700,7 +1700,8 @@ public class MainActivity extends Activity {
                 "Change website",
                 "Clear website cookies/cache",
                 "Update WebPortal",
-                "Casting diagnostics"
+                "Casting diagnostics",
+                "Cast Lab (experimental)"
         };
 
         TextView versionStatus = new TextView(this);
@@ -1758,6 +1759,9 @@ public class MainActivity extends Activity {
                     break;
                 case 7:
                     showCastingDiagnostics();
+                    break;
+                case 8:
+                    startActivity(new Intent(this, CastLabActivity.class));
                     break;
                 default:
                     break;
