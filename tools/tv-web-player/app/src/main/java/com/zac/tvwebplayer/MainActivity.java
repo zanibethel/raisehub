@@ -78,6 +78,7 @@ public class MainActivity extends Activity {
     private String defaultUserAgent;
     private String desktopUserAgent;
     private String currentPageUrl;
+    private String lastMetaPermissionRequest = "None";
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
@@ -291,12 +292,20 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
-                installPopupGuard();
-                installFullscreenIntentGuard();
-                installPlayerModeMonitor();
+                boolean casting = isMetaCastingPage(url);
+                // Meta's WebRTC receiver owns its video and fullscreen lifecycle.
+                // Our player auto-fullscreen, DOM popup guard and focus observer
+                // can interrupt the cast negotiation or incoming video track.
+                // Other sites keep all existing WebPortal player controls.
+                if (!casting) {
+                    installPopupGuard();
+                    installFullscreenIntentGuard();
+                    installPlayerModeMonitor();
+                }
+                setAdBannerVisible(!casting);
                 if (cursorPreferenceEnabled) {
                     applyCursorMode(true, false);
-                } else {
+                } else if (!casting) {
                     installPageCardNavigation();
                 }
             }
@@ -307,6 +316,11 @@ public class MainActivity extends Activity {
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 if (customView != null) {
                     callback.onCustomViewHidden();
+                    return;
+                }
+                if (isMetaCastingPage(webView.getUrl())) {
+                    // Let the casting website control its own explicit fullscreen.
+                    showCustomView(view, callback);
                     return;
                 }
 
@@ -348,7 +362,15 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                runOnUiThread(request::deny);
+                // Receiving an incoming WebRTC track does not require TV camera
+                // or microphone access. Never silently grant capture privileges.
+                runOnUiThread(() -> {
+                    if (isMetaCastingPage(webView.getUrl())) {
+                        lastMetaPermissionRequest = android.text.TextUtils.join(
+                                ", ", request.getResources()) + " (denied)";
+                    }
+                    request.deny();
+                });
             }
 
             @Override
@@ -809,6 +831,18 @@ public class MainActivity extends Activity {
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
                 + chromeMajor + ".0.0.0 Safari/537.36";
+    }
+
+    private boolean isMetaCastingPage(String url) {
+        if (!isMetaSite(url)) return false;
+        try {
+            String path = Uri.parse(url).getPath();
+            return path != null
+                    && (path.equalsIgnoreCase("/casting")
+                    || path.toLowerCase(Locale.US).startsWith("/casting/"));
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private boolean isMetaSite(String url) {
@@ -1553,6 +1587,53 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void showCastingDiagnostics() {
+        if (webView == null) return;
+        String js = """
+(function(){
+  var video = document.querySelector('video');
+  var parts = [
+    'Page: ' + location.host + location.pathname,
+    'Ready: ' + document.readyState,
+    'Secure context: ' + !!window.isSecureContext,
+    'Network online: ' + navigator.onLine,
+    'WebRTC: ' + (typeof RTCPeerConnection === 'function' ? 'available' : 'unavailable'),
+    'MediaStream: ' + (typeof MediaStream === 'function' ? 'available' : 'unavailable'),
+    'MediaSource: ' + (typeof MediaSource === 'function' ? 'available' : 'unavailable'),
+    'Video element: ' + !!video
+  ];
+  if (video) {
+    parts.push('Video readyState: ' + video.readyState
+      + ' / paused: ' + video.paused
+      + ' / size: ' + video.videoWidth + 'x' + video.videoHeight);
+    parts.push('Video error code: ' + (video.error ? video.error.code : 'none'));
+  }
+  return parts.join('\\n');
+})()
+""";
+        webView.evaluateJavascript(js, value -> {
+            String details = "Diagnostics unavailable.";
+            try {
+                Object parsed = new org.json.JSONTokener(value).nextValue();
+                details = String.valueOf(parsed);
+            } catch (Exception ignored) {
+                // A webpage may prevent JavaScript execution while unloading.
+            }
+            String webViewVersion = "unknown";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                android.content.pm.PackageInfo pkg = WebView.getCurrentWebViewPackage();
+                if (pkg != null) webViewVersion = pkg.versionName;
+            }
+            new AlertDialog.Builder(this)
+                    .setTitle("Casting diagnostics")
+                    .setMessage(details + "\nWebView: " + webViewVersion
+                            + "\nWeb permissions: " + lastMetaPermissionRequest
+                            + "\n\nCast must be started from your Quest headset.")
+                    .setPositiveButton("Close", null)
+                    .show();
+        });
+    }
+
     private void showMenu() {
         String[] actions = {
                 "Home",
@@ -1561,7 +1642,8 @@ public class MainActivity extends Activity {
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
-                "Update WebPortal"
+                "Update WebPortal",
+                "Casting diagnostics"
         };
 
         TextView versionStatus = new TextView(this);
@@ -1616,6 +1698,9 @@ public class MainActivity extends Activity {
                     break;
                 case 6:
                     openUpdateDownload();
+                    break;
+                case 7:
+                    showCastingDiagnostics();
                     break;
                 default:
                     break;
