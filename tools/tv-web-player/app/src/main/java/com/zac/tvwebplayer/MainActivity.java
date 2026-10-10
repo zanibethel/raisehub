@@ -50,6 +50,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "tv_web_player";
@@ -59,6 +61,7 @@ public class MainActivity extends Activity {
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
     private static final String PREF_CURSOR_MODE = "cursor_mode";
     private static final String PREF_CURSOR_PRIMARY_MIGRATED = "cursor_primary_migrated_1_9_7";
+    private static final String PREF_META_DESKTOP_MIGRATED = "meta_desktop_migrated_1_9_8";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -73,6 +76,7 @@ public class MainActivity extends Activity {
     private View customView;
     private WebChromeClient.CustomViewCallback customViewCallback;
     private String defaultUserAgent;
+    private String desktopUserAgent;
     private String currentPageUrl;
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
@@ -173,6 +177,22 @@ public class MainActivity extends Activity {
                     .apply();
         }
         cursorPreferenceEnabled = preferences.getBoolean(PREF_CURSOR_MODE, true);
+        // Earlier releases stored "mobile" for every newly saved site.
+        // Migrate Meta bookmarks once so existing Quest casting users
+        // receive the desktop mode automatically after updating.
+        if (!preferences.getBoolean(PREF_META_DESKTOP_MIGRATED, false)) {
+            SharedPreferences.Editor editor = preferences.edit();
+            String savedHome = normalizeUrl(preferences.getString(PREF_HOME, ""));
+            if (isMetaSite(savedHome)) {
+                editor.remove(PREF_SITE_MOBILE_PREFIX + savedHome);
+            }
+            for (String savedSite : getSavedSites()) {
+                if (isMetaSite(savedSite)) {
+                    editor.remove(PREF_SITE_MOBILE_PREFIX + normalizeUrl(savedSite));
+                }
+            }
+            editor.putBoolean(PREF_META_DESKTOP_MIGRATED, true).apply();
+        }
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
@@ -219,6 +239,7 @@ public class MainActivity extends Activity {
         settings.setSupportMultipleWindows(false);
 
         defaultUserAgent = settings.getUserAgentString();
+        desktopUserAgent = makeDesktopUserAgent(defaultUserAgent);
         applyUserAgent();
 
         CookieManager cookies = CookieManager.getInstance();
@@ -230,12 +251,13 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return handleNavigation(request.getUrl().toString());
+                return handleNavigation(
+                        request.getUrl().toString(), request.isForMainFrame());
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return handleNavigation(url);
+                return handleNavigation(url, true);
             }
 
             @Override
@@ -243,6 +265,13 @@ public class MainActivity extends Activity {
                     WebView view,
                     String url,
                     android.graphics.Bitmap favicon) {
+                // A redirect can cross from a normal site into Meta (or back).
+                // Re-start with the correct UA before presenting the destination.
+                if (applyUserAgentForUrl(url)) {
+                    view.stopLoading();
+                    view.loadUrl(url);
+                    return;
+                }
                 webPlayerMode = false;
                 embeddedPlayerMode = false;
                 cursorMode = false;
@@ -769,17 +798,69 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void applyUserAgent() {
-        boolean mobile = prefs().getBoolean(PREF_MOBILE, true);
-        String userAgent = defaultUserAgent;
-        if (mobile && userAgent != null &&
-                !userAgent.toLowerCase(Locale.US).contains(" mobile")) {
-            userAgent = userAgent + " Mobile";
+    private String makeDesktopUserAgent(String engineUserAgent) {
+        // Match the installed WebView's Chromium major instead of claiming a
+        // newer rendering engine. Remove Android and WebView identifiers.
+        String chromeMajor = "120";
+        if (engineUserAgent != null) {
+            Matcher matcher = Pattern.compile("Chrome/(\\d+)").matcher(engineUserAgent);
+            if (matcher.find()) chromeMajor = matcher.group(1);
         }
-        webView.getSettings().setUserAgentString(userAgent);
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
+                + chromeMajor + ".0.0.0 Safari/537.36";
     }
 
-    private boolean handleNavigation(String url) {
+    private boolean isMetaSite(String url) {
+        try {
+            String host = Uri.parse(url).getHost();
+            if (host == null) return false;
+            host = host.toLowerCase(Locale.US);
+            return host.equals("meta.com") || host.endsWith(".meta.com")
+                    || host.equals("oculus.com") || host.endsWith(".oculus.com");
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private boolean mobileModeForNavigation(String url) {
+        String home = getSavedHomeUrl();
+        if (!home.isEmpty()) {
+            try {
+                Uri homeUri = Uri.parse(home);
+                Uri pageUri = Uri.parse(url);
+                String homeHost = normalizedHost(homeUri);
+                if (!homeHost.isEmpty() && homeHost.equals(normalizedHost(pageUri))) {
+                    return mobileModeForSite(home);
+                }
+            } catch (Exception ignored) {
+                // Fall back to the requested site's own compatibility setting.
+            }
+        }
+        return mobileModeForSite(url);
+    }
+
+    private boolean applyUserAgentForUrl(String url) {
+        if (webView == null) return false;
+        boolean mobile = mobileModeForNavigation(url);
+        String userAgent = mobile ? defaultUserAgent : desktopUserAgent;
+        if (mobile && userAgent != null
+                && !userAgent.toLowerCase(Locale.US).contains(" mobile")) {
+            userAgent += " Mobile";
+        }
+        if (userAgent == null
+                || userAgent.equals(webView.getSettings().getUserAgentString())) {
+            return false;
+        }
+        webView.getSettings().setUserAgentString(userAgent);
+        return true;
+    }
+
+    private void applyUserAgent() {
+        applyUserAgentForUrl(getSavedHomeUrl());
+    }
+
+    private boolean handleNavigation(String url, boolean mainFrame) {
         if (url == null) return false;
 
         if (isDirectMediaUrl(url)) {
@@ -790,6 +871,10 @@ public class MainActivity extends Activity {
         Uri uri = Uri.parse(url);
         String scheme = uri.getScheme();
         if (scheme == null || scheme.equals("http") || scheme.equals("https")) {
+            if (mainFrame && applyUserAgentForUrl(url)) {
+                webView.loadUrl(url);
+                return true;
+            }
             return false;
         }
 
@@ -827,6 +912,7 @@ public class MainActivity extends Activity {
     private void loadUrl(String url) {
         if (url == null || url.isEmpty()) return;
         currentPageUrl = url;
+        applyUserAgentForUrl(url);
         webView.loadUrl(url);
         webView.requestFocus();
     }
@@ -921,7 +1007,10 @@ public class MainActivity extends Activity {
 
     private boolean mobileModeForSite(String url) {
         String normalized = normalizeUrl(url);
-        boolean fallback = prefs().getBoolean(PREF_MOBILE, true);
+        // Meta/Quest casting advertises a desktop-only browser experience.
+        // Keep other websites in their previous default compatibility mode.
+        boolean fallback = isMetaSite(normalized)
+                ? false : prefs().getBoolean(PREF_MOBILE, true);
         if (normalized.isEmpty()) return fallback;
         return prefs().getBoolean(PREF_SITE_MOBILE_PREFIX + normalized, fallback);
     }
@@ -1115,6 +1204,22 @@ public class MainActivity extends Activity {
         mobile.setTextSize(17);
         mobile.setPadding(0, dp(8), 0, dp(8));
         mobile.setChecked(mobileModeForSite(currentHome));
+        // When a new Meta/Quest address is typed, select desktop mode by
+        // default. The user can still explicitly opt into mobile mode.
+        manualInput.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isMetaSite(normalizeUrl(s.toString()))) {
+                    mobile.setChecked(mobileModeForSite(normalizeUrl(s.toString())));
+                }
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable editable) {}
+        });
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             mobile.setButtonTintList(new android.content.res.ColorStateList(
                     new int[][] {
