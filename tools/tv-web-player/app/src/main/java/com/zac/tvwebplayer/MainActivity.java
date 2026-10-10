@@ -926,7 +926,7 @@ public class MainActivity extends Activity {
                                 .setPlatform("Windows")
                                 .setPlatformVersion("10.0.0")
                                 .setArchitecture("x86")
-                                .setBitness(UserAgentMetadata.BITNESS_64)
+                                .setBitness(64)
                                 .setMobile(false)
                                 .setModel("")
                                 .build();
