@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
     private static final String PREF_CURSOR_MODE = "cursor_mode";
     private static final String PREF_CURSOR_PRIMARY_MIGRATED = "cursor_primary_migrated_1_9_7";
+    private static final String PREF_META_DESKTOP_MIGRATED = "meta_desktop_migrated_1_9_8";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -176,6 +177,22 @@ public class MainActivity extends Activity {
                     .apply();
         }
         cursorPreferenceEnabled = preferences.getBoolean(PREF_CURSOR_MODE, true);
+        // Earlier releases stored "mobile" for every newly saved site.
+        // Migrate Meta bookmarks once so existing Quest casting users
+        // receive the desktop mode automatically after updating.
+        if (!preferences.getBoolean(PREF_META_DESKTOP_MIGRATED, false)) {
+            SharedPreferences.Editor editor = preferences.edit();
+            String savedHome = normalizeUrl(preferences.getString(PREF_HOME, ""));
+            if (isMetaSite(savedHome)) {
+                editor.remove(PREF_SITE_MOBILE_PREFIX + savedHome);
+            }
+            for (String savedSite : getSavedSites()) {
+                if (isMetaSite(savedSite)) {
+                    editor.remove(PREF_SITE_MOBILE_PREFIX + normalizeUrl(savedSite));
+                }
+            }
+            editor.putBoolean(PREF_META_DESKTOP_MIGRATED, true).apply();
+        }
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
