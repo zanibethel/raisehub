@@ -79,6 +79,7 @@ public class MainActivity extends Activity {
     private String desktopUserAgent;
     private String currentPageUrl;
     private String lastMetaPermissionRequest = "None";
+    private boolean earlyCastingProbeInstalled;
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
@@ -224,6 +225,9 @@ public class MainActivity extends Activity {
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         webView.addJavascriptInterface(new WebPortalBridge(), "WebPortalBridge");
+        // Install before the first URL load so we can see ICE/peer failures
+        // that occur before a page's onPageFinished callback.
+        earlyCastingProbeInstalled = CastingProbe.installEarly(webView);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -293,6 +297,9 @@ public class MainActivity extends Activity {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
                 boolean casting = isMetaCastingPage(url);
+                if (casting && !earlyCastingProbeInstalled) {
+                    CastingProbe.installLate(view);
+                }
                 // Meta's WebRTC receiver owns its video and fullscreen lifecycle.
                 // Our player auto-fullscreen, DOM popup guard and focus observer
                 // can interrupt the cast negotiation or incoming video track.
@@ -1589,46 +1596,31 @@ public class MainActivity extends Activity {
 
     private void showCastingDiagnostics() {
         if (webView == null) return;
-        String js = """
-(function(){
-  var video = document.querySelector('video');
-  var parts = [
-    'Page: ' + location.host + location.pathname,
-    'Ready: ' + document.readyState,
-    'Secure context: ' + !!window.isSecureContext,
-    'Network online: ' + navigator.onLine,
-    'WebRTC: ' + (typeof RTCPeerConnection === 'function' ? 'available' : 'unavailable'),
-    'MediaStream: ' + (typeof MediaStream === 'function' ? 'available' : 'unavailable'),
-    'MediaSource: ' + (typeof MediaSource === 'function' ? 'available' : 'unavailable'),
-    'Video element: ' + !!video
-  ];
-  if (video) {
-    parts.push('Video readyState: ' + video.readyState
-      + ' / paused: ' + video.paused
-      + ' / size: ' + video.videoWidth + 'x' + video.videoHeight);
-    parts.push('Video error code: ' + (video.error ? video.error.code : 'none'));
-  }
-  return parts.join('\\n');
-})()
-""";
-        webView.evaluateJavascript(js, value -> {
+        webView.evaluateJavascript(CastingProbe.DIAGNOSTICS, value -> {
             String details = "Diagnostics unavailable.";
             try {
                 Object parsed = new org.json.JSONTokener(value).nextValue();
                 details = String.valueOf(parsed);
             } catch (Exception ignored) {
-                // A webpage may prevent JavaScript execution while unloading.
+                // An unloading webpage may not return a JavaScript value.
             }
             String webViewVersion = "unknown";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 android.content.pm.PackageInfo pkg = WebView.getCurrentWebViewPackage();
                 if (pkg != null) webViewVersion = pkg.versionName;
             }
+            String report = details + "\nWebView: " + webViewVersion
+                    + "\nTrace type: " + (earlyCastingProbeInstalled ? "early" : "page-loaded")
+                    + "\nWeb permissions: " + lastMetaPermissionRequest;
             new AlertDialog.Builder(this)
                     .setTitle("Casting diagnostics")
-                    .setMessage(details + "\nWebView: " + webViewVersion
-                            + "\nWeb permissions: " + lastMetaPermissionRequest
-                            + "\n\nCast must be started from your Quest headset.")
+                    .setMessage(report)
+                    .setNeutralButton("Copy report", (dialog, which) -> {
+                        ((android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE))
+                                .setPrimaryClip(android.content.ClipData.newPlainText(
+                                        "WebPortal casting diagnostics", report));
+                        Toast.makeText(this, "Casting report copied.", Toast.LENGTH_SHORT).show();
+                    })
                     .setPositiveButton("Close", null)
                     .show();
         });
