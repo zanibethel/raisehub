@@ -41,6 +41,10 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.webkit.UserAgentMetadata;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -48,6 +52,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -77,6 +82,10 @@ public class MainActivity extends Activity {
     private WebChromeClient.CustomViewCallback customViewCallback;
     private String defaultUserAgent;
     private String desktopUserAgent;
+    private UserAgentMetadata originalUserAgentMetadata;
+    private boolean userAgentMetadataAvailable;
+    private boolean desktopClientHintsApplied;
+    private String clientHintsState = "Not configured";
     private String currentPageUrl;
     private String lastMetaPermissionRequest = "None";
     private boolean earlyCastingProbeInstalled;
@@ -245,6 +254,17 @@ public class MainActivity extends Activity {
 
         defaultUserAgent = settings.getUserAgentString();
         desktopUserAgent = makeDesktopUserAgent(defaultUserAgent);
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+            try {
+                originalUserAgentMetadata = WebSettingsCompat.getUserAgentMetadata(settings);
+                userAgentMetadataAvailable = true;
+                clientHintsState = "Original Android hints";
+            } catch (RuntimeException unsupported) {
+                clientHintsState = "Not supported by Fire TV WebView";
+            }
+        } else {
+            clientHintsState = "Not supported by Fire TV WebView";
+        }
         applyUserAgent();
 
         CookieManager cookies = CookieManager.getInstance();
@@ -881,9 +901,53 @@ public class MainActivity extends Activity {
         return mobileModeForSite(url);
     }
 
+    private void applyMetaClientHints(boolean desktop) {
+        if (!userAgentMetadataAvailable || webView == null) return;
+        if (desktopClientHintsApplied == desktop) return;
+        WebSettings settings = webView.getSettings();
+        try {
+            if (desktop) {
+                // A custom Windows desktop UA otherwise has incomplete UA-CH hints.
+                // Use the *installed* Chromium major for internally consistent hints.
+                Matcher matcher = Pattern.compile("Chrome/(\\d+)").matcher(desktopUserAgent);
+                String major = matcher.find() ? matcher.group(1) : "120";
+                String fullVersion = major + ".0.0.0";
+                UserAgentMetadata.BrandVersion chromium =
+                        new UserAgentMetadata.BrandVersion.Builder()
+                                .setBrand("Chromium").setMajorVersion(major)
+                                .setFullVersion(fullVersion).build();
+                UserAgentMetadata.BrandVersion chrome =
+                        new UserAgentMetadata.BrandVersion.Builder()
+                                .setBrand("Google Chrome").setMajorVersion(major)
+                                .setFullVersion(fullVersion).build();
+                UserAgentMetadata desktopMetadata =
+                        new UserAgentMetadata.Builder(originalUserAgentMetadata)
+                                .setBrandVersionList(Arrays.asList(chromium, chrome))
+                                .setPlatform("Windows")
+                                .setPlatformVersion("10.0.0")
+                                .setArchitecture("x86")
+                                .setBitness(UserAgentMetadata.BITNESS_64)
+                                .setMobile(false)
+                                .setModel("")
+                                .build();
+                WebSettingsCompat.setUserAgentMetadata(settings, desktopMetadata);
+                clientHintsState = "Desktop Windows/Chrome (" + major + ")";
+            } else {
+                WebSettingsCompat.setUserAgentMetadata(settings, originalUserAgentMetadata);
+                clientHintsState = "Original Android hints";
+            }
+            desktopClientHintsApplied = desktop;
+        } catch (RuntimeException unsupported) {
+            clientHintsState = "Metadata override rejected";
+        }
+    }
+
     private boolean applyUserAgentForUrl(String url) {
         if (webView == null) return false;
         boolean mobile = mobileModeForNavigation(url);
+        // Only the Meta receiver gets matching desktop UA Client Hints.
+        // All other saved websites retain their existing browser identity.
+        applyMetaClientHints(!mobile && isMetaSite(url));
         String userAgent = mobile ? defaultUserAgent : desktopUserAgent;
         if (mobile && userAgent != null
                 && !userAgent.toLowerCase(Locale.US).contains(" mobile")) {
@@ -1611,7 +1675,8 @@ public class MainActivity extends Activity {
             }
             String report = details + "\nWebView: " + webViewVersion
                     + "\nTrace type: " + (earlyCastingProbeInstalled ? "early" : "page-loaded")
-                    + "\nWeb permissions: " + lastMetaPermissionRequest;
+                    + "\nWeb permissions: " + lastMetaPermissionRequest
+                    + "\nUA client hints: " + clientHintsState;
             new AlertDialog.Builder(this)
                     .setTitle("Casting diagnostics")
                     .setMessage(report)
