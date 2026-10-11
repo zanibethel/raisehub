@@ -1,0 +1,43 @@
+name: Build WebPortal Cast APK
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/webportal-cast/**'
+      - '.github/workflows/webportal-cast-apk.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/webportal-cast/**'
+      - '.github/workflows/webportal-cast-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Build independently installable debug APK
+        working-directory: tools/webportal-cast
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Stage APK
+        run: cp tools/webportal-cast/app/build/outputs/apk/debug/app-debug.apk WebPortal-Cast-v0.1.0.apk
+      - name: Validate APK
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose WebPortal-Cast-v0.1.0.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WebPortal-Cast-v0.1.0-apk
+          path: WebPortal-Cast-v0.1.0.apk
+          if-no-files-found: error
