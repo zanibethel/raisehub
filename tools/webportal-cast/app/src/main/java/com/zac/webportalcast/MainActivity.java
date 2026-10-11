@@ -17,6 +17,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -206,9 +207,22 @@ public final class MainActivity extends Activity {
         dashboard.setPadding(dp(38), dp(26), dp(38), dp(22));
         dashboard.setBackgroundColor(NAVY);
 
-        TextView title = label("WEBPORTAL  /  CAST", 30, CYAN, true);
-        dashboard.addView(title);
-        dashboard.addView(label("Your Fire TV's local media receiver — free, no session timer", 18, Color.WHITE, false));
+        // Icon-only launcher artwork with safe margins; use the same scaled artwork
+        // inside the app rather than embedding small, hard-to-read banner text.
+        LinearLayout brandedHeader = new LinearLayout(this);
+        brandedHeader.setOrientation(LinearLayout.HORIZONTAL);
+        brandedHeader.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView mark = new ImageView(this);
+        mark.setImageResource(R.drawable.app_icon);
+        mark.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        brandedHeader.addView(mark, new LinearLayout.LayoutParams(dp(92), dp(92)));
+        LinearLayout brandText = new LinearLayout(this);
+        brandText.setOrientation(LinearLayout.VERTICAL);
+        brandText.setPadding(dp(14), 0, 0, 0);
+        brandText.addView(label("WEBPORTAL  CAST", 30, CYAN, true));
+        brandText.addView(label("Your Fire TV's local media receiver — free, no session timer", 18, Color.WHITE, false));
+        brandedHeader.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1f));
+        dashboard.addView(brandedHeader);
         addSpace(dashboard, 16);
 
         statusLabel = label("Starting receiver...", 22, CYAN, true);
