@@ -1,6 +1,7 @@
 package com.zac.webportalcast;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -15,9 +16,14 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
@@ -47,6 +53,15 @@ public final class MainActivity extends Activity {
     private TextView updateLabel;
     private Button updateButton;
     private DlnaReceiver receiver;
+    private CastDiagnostics diagnostics;
+    private LinearLayout reportView;
+    private TextView reportStatus;
+    private TextView reportEvents;
+    private TextView reportAddress;
+    private ImageView reportQr;
+    private Button reportStartButton;
+    private Button reportStopButton;
+    private boolean showingReport;
     private String queuedUri;
     private boolean watchingVideo;
     private volatile long cachedPositionMs;
@@ -73,6 +88,8 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     showDashboard();
                     log("Playback error: " + error.getErrorCodeName());
+                    if (diagnostics != null)
+                        diagnostics.record("ERROR", "Media decoder: " + error.getErrorCodeName());
                 });
             }
             @Override public void onPlaybackStateChanged(int playbackState) {
@@ -80,6 +97,7 @@ public final class MainActivity extends Activity {
                     runOnUiThread(() -> {
                         showDashboard();
                         log("Playback finished");
+                    if (diagnostics != null) diagnostics.record("MEDIA", "Media playback finished");
                     });
                 }
             }
@@ -173,6 +191,8 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> log(message));
             }
         });
+        diagnostics = new CastDiagnostics(this, () -> refreshReport());
+        receiver.setDiagnostics(diagnostics);
         receiver.start();
         statusLabel.setText(receiver.isRunning()
                 ? "DLNA receiver active — waiting for a sender"
@@ -199,6 +219,15 @@ public final class MainActivity extends Activity {
                 + "Not yet supported: Quest built-in casting, Chromecast, AirPlay or Miracast.",
                 17, MUTED, false));
         addSpace(dashboard, 16);
+
+        dashboard.addView(label("QUEST CONNECTION REPORT", 18, CYAN, true));
+        Button connectionReport = action("Open Cast Diagnostics");
+        connectionReport.setOnClickListener(v -> showReport());
+        dashboard.addView(connectionReport, new LinearLayout.LayoutParams(dp(350), dp(58)));
+        dashboard.addView(label(
+                "Find nearby Cast receivers, test Quest discovery and export a timestamped "
+                + "connection report to your phone. Does not capture game audio/video.", 16, MUTED, false));
+        addSpace(dashboard, 14);
 
         dashboard.addView(label("APP UPDATES", 18, CYAN, true));
         LinearLayout updateControls = new LinearLayout(this);
@@ -253,6 +282,111 @@ public final class MainActivity extends Activity {
                 15, MUTED, false));
     }
 
+    private void showReport() {
+        if (reportView == null) createReportView();
+        showingReport = true;
+        root.removeAllViews();
+        root.addView(reportView, new FrameLayout.LayoutParams(-1, -1));
+        refreshReport();
+    }
+
+    private void createReportView() {
+        reportView = new LinearLayout(this);
+        reportView.setOrientation(LinearLayout.VERTICAL);
+        reportView.setBackgroundColor(NAVY);
+        reportView.setPadding(dp(38), dp(15), dp(38), dp(18));
+        reportView.addView(label("CAST DIAGNOSTICS / QUEST TEST", 25, CYAN, true));
+        reportView.addView(label(
+                "1. Select Start.  2. Open Quest casting destinations and try WebPortal Cast TEST.  "
+                + "3. Scan the QR with your phone on the same Wi-Fi to copy the connection report.",
+                16, Color.WHITE, false));
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        reportStartButton = action("Start new test");
+        reportStartButton.setOnClickListener(v -> {
+            if (diagnostics != null) diagnostics.start();
+            refreshReport();
+        });
+        buttons.addView(reportStartButton, new LinearLayout.LayoutParams(dp(225), dp(54)));
+        reportStopButton = action("Stop test");
+        reportStopButton.setOnClickListener(v -> {
+            if (diagnostics != null) diagnostics.stopProbe();
+            refreshReport();
+        });
+        LinearLayout.LayoutParams stopSize = new LinearLayout.LayoutParams(dp(160), dp(54));
+        stopSize.leftMargin = dp(9);
+        buttons.addView(reportStopButton, stopSize);
+        Button back = action("Return home");
+        back.setOnClickListener(v -> showDashboard());
+        LinearLayout.LayoutParams backSize = new LinearLayout.LayoutParams(dp(175), dp(54));
+        backSize.leftMargin = dp(9);
+        buttons.addView(back, backSize);
+        reportView.addView(buttons);
+
+        reportStatus = label("Select Start new test", 16, CYAN, true);
+        reportView.addView(reportStatus);
+
+        LinearLayout details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.HORIZONTAL);
+        details.setGravity(Gravity.CENTER_VERTICAL);
+        reportQr = new ImageView(this);
+        reportQr.setBackgroundColor(Color.WHITE);
+        reportQr.setPadding(dp(4), dp(4), dp(4), dp(4));
+        details.addView(reportQr, new LinearLayout.LayoutParams(dp(160), dp(160)));
+        reportAddress = label("Private report link is generated when a test starts.", 17, MUTED, false);
+        reportAddress.setPadding(dp(16), 0, 0, 0);
+        details.addView(reportAddress, new LinearLayout.LayoutParams(0, dp(160), 1f));
+        reportView.addView(details);
+
+        reportView.addView(label("SESSION TIMELINE", 17, CYAN, true));
+        ScrollView logScroll = new ScrollView(this);
+        reportEvents = label("", 14, Color.WHITE, false);
+        reportEvents.setTextIsSelectable(true);
+        logScroll.addView(reportEvents);
+        reportView.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        reportView.addView(label(
+                "The experimental Cast contact listener does not implement Cast TLS or game streaming. "
+                + "No packets, headset IP addresses, passwords or media are recorded. "
+                + "The report is available locally only while this app stays open.",
+                14, MUTED, false));
+    }
+
+    private void refreshReport() {
+        if (reportView == null || diagnostics == null) return;
+        reportStartButton.setEnabled(!diagnostics.isRunning());
+        reportStopButton.setEnabled(diagnostics.isRunning());
+        reportStatus.setText(diagnostics.summary());
+        if (diagnostics.hasSession()) {
+            String url = diagnostics.getReportUrl(receiver == null ? "" : receiver.getLocation());
+            reportAddress.setText("PHONE REPORT LINK (local Wi-Fi):\\n" + url
+                    + "\\n\\nScan the code to open and copy the full report. "
+                    + "Nearby service names may identify devices.");
+            if (!url.isEmpty()) {
+                try {
+                    BitMatrix matrix = new QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, 220, 220);
+                    Bitmap bitmap = Bitmap.createBitmap(matrix.getWidth(), matrix.getHeight(), Bitmap.Config.ARGB_8888);
+                    for (int y = 0; y < matrix.getHeight(); y++) {
+                        for (int x = 0; x < matrix.getWidth(); x++) {
+                            bitmap.setPixel(x, y, matrix.get(x, y) ? Color.BLACK : Color.WHITE);
+                        }
+                    }
+                    reportQr.setImageBitmap(bitmap);
+                } catch (Exception error) {
+                    reportQr.setImageDrawable(null);
+                    reportAddress.append("\\nQR unavailable. Type the link into your phone browser.");
+                }
+            }
+            String text = diagnostics.renderReport();
+            int section = text.indexOf("EVENT TIMELINE");
+            reportEvents.setText(section >= 0 ? text.substring(section) : text);
+        } else {
+            reportAddress.setText("Private report link will appear here after Start.");
+            reportQr.setImageDrawable(null);
+            reportEvents.setText("No test started.");
+        }
+    }
+
     private TextView label(String value, int sp, int color, boolean bold) {
         TextView result = new TextView(this);
         result.setText(value);
@@ -291,6 +425,7 @@ public final class MainActivity extends Activity {
 
     private void showDashboard() {
         watchingVideo = false;
+        showingReport = false;
         if (root != null && dashboard != null) {
             root.removeAllViews();
             root.addView(dashboard, new FrameLayout.LayoutParams(-1, -1));
@@ -312,6 +447,7 @@ public final class MainActivity extends Activity {
             root.addView(videoView, new FrameLayout.LayoutParams(-1, -1));
             watchingVideo = true;
             log("Playing remote stream");
+            if (diagnostics != null) diagnostics.record("MEDIA", "Remote media playback began");
         } catch (RuntimeException error) {
             showDashboard();
             log("Unable to start playback: " + error.getClass().getSimpleName());
@@ -325,10 +461,12 @@ public final class MainActivity extends Activity {
         showDashboard();
         statusLabel.setText("DLNA receiver active — waiting for a sender");
         log(reason);
+        if (diagnostics != null) diagnostics.record("MEDIA", "Playback stopped");
     }
 
     @Override public void onBackPressed() {
         if (watchingVideo) stopPlayback("Returned to receiver home");
+        else if (showingReport) showDashboard();
         else super.onBackPressed();
     }
 
@@ -360,7 +498,13 @@ public final class MainActivity extends Activity {
         if (appUpdater != null) appUpdater.resumePendingInstall();
     }
 
+    @Override protected void onStop() {
+        if (diagnostics != null) diagnostics.stopProbe();
+        super.onStop();
+    }
+
     @Override protected void onDestroy() {
+        if (diagnostics != null) diagnostics.close();
         if (appUpdater != null) appUpdater.close();
         main.removeCallbacks(cachePlaybackPosition);
         if (receiver != null) receiver.stop();
