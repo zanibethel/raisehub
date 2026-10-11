@@ -1,0 +1,51 @@
+plugins { id 'com.android.application' }
+
+def castKeystorePath = System.getenv('WEBPORTAL_KEYSTORE_PATH')
+def castStorePassword = System.getenv('WEBPORTAL_KEYSTORE_PASSWORD')
+def castKeyAlias = System.getenv('WEBPORTAL_KEY_ALIAS')
+def castKeyPassword = System.getenv('WEBPORTAL_KEY_PASSWORD')
+def haveSigning = castKeystorePath && castStorePassword && castKeyAlias && castKeyPassword
+
+android {
+    namespace 'com.zac.webportalcast'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.zac.webportalcast'
+        minSdk 23
+        targetSdk 32
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    signingConfigs {
+        persistentRelease {
+            if (haveSigning) {
+                storeFile file(castKeystorePath)
+                storePassword castStorePassword
+                keyAlias castKeyAlias
+                keyPassword castKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (haveSigning) signingConfig signingConfigs.persistentRelease
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.media3:media3-exoplayer:1.8.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.8.1'
+    implementation 'androidx.media3:media3-exoplayer-dash:1.8.1'
+    implementation 'androidx.media3:media3-ui:1.8.1'
+}
