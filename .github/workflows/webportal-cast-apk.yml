@@ -53,6 +53,25 @@ jobs:
           printf '%s' "$WEBPORTAL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/webportal-cast-release.jks"
           test -s "$RUNNER_TEMP/webportal-cast-release.jks"
 
+      - name: Confirm release version increases
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\\1/p' tools/webportal-cast/app/build.gradle | head -n 1)"
+          VERSION_NAME="$(sed -nE "s/^[[:space:]]*versionName[[:space:]]+'([^']+)'.*/\\1/p" tools/webportal-cast/app/build.gradle | head -n 1)"
+          test -n "$VERSION_CODE" && test -n "$VERSION_NAME"
+          if gh release view webportal-cast >/dev/null 2>&1; then
+            PREVIOUS_CODE="$(gh release view webportal-cast --json body --jq '.body' | sed -nE 's/^Version-Code: ([0-9]+)$/\\1/p' | head -n 1)"
+            if [ -n "$PREVIOUS_CODE" ] && [ "$VERSION_CODE" -le "$PREVIOUS_CODE" ]; then
+              echo "::error::Refusing non-increasing versionCode: current release=$PREVIOUS_CODE new=$VERSION_CODE"
+              exit 1
+            fi
+          fi
+          echo "CAST_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "CAST_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+
       - name: Build permanently signed release APK
         if: github.event_name != 'pull_request'
         working-directory: tools/webportal-cast
@@ -83,16 +102,31 @@ jobs:
           path: WebPortalCast.apk
           if-no-files-found: error
 
-      - name: Publish permanent release download
+      - name: Publish permanent release download and verified update metadata
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          SHA256="$(sha256sum WebPortalCast.apk | awk '{print $1}')"
+          printf '%s\\n' \\
+            'Standalone Fire TV DLNA receiver, with built-in software updates.' \\
+            'Direct Meta Quest, Google Cast, AirPlay and Miracast are not yet supported.' \\
+            'First installation: https://raisehub.app/cast' \\
+            'Later updates: choose Check for updates in the app.' \\
+            '' \\
+            "Version-Code: $CAST_VERSION_CODE" \\
+            "Version-Name: $CAST_VERSION_NAME" \\
+            "SHA256: $SHA256" > "$RUNNER_TEMP/webportal-cast-release-notes.txt"
           if gh release view webportal-cast >/dev/null 2>&1; then
             gh release upload webportal-cast WebPortalCast.apk --clobber
+            gh release edit webportal-cast \\
+              --target "$GITHUB_SHA" \\
+              --title "WebPortal Cast v$CAST_VERSION_NAME" \\
+              --notes-file "$RUNNER_TEMP/webportal-cast-release-notes.txt"
           else
-            gh release create webportal-cast WebPortalCast.apk \
-              --target "$GITHUB_SHA" \
-              --title "WebPortal Cast" \
-              --notes "Standalone Fire TV DLNA media receiver. Quest, Google Cast, AirPlay and Miracast are not yet supported. Install via https://raisehub.app/cast"
+            gh release create webportal-cast WebPortalCast.apk \\
+              --target "$GITHUB_SHA" \\
+              --title "WebPortal Cast v$CAST_VERSION_NAME" \\
+              --notes-file "$RUNNER_TEMP/webportal-cast-release-notes.txt"
           fi
