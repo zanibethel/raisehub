@@ -96,6 +96,26 @@ jobs:
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs WebPortalCast.apk
 
+      - name: Verify existing users can update in place
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view webportal-cast >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/cast-previous"
+            gh release download webportal-cast --pattern WebPortalCast.apk --dir "$RUNNER_TEMP/cast-previous"
+            APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+            OLD_CERT="$("$APKSIGNER" verify --print-certs "$RUNNER_TEMP/cast-previous/WebPortalCast.apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2; exit}')"
+            NEW_CERT="$("$APKSIGNER" verify --print-certs WebPortalCast.apk | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2; exit}')"
+            test -n "$OLD_CERT" && test -n "$NEW_CERT"
+            if [ "$OLD_CERT" != "$NEW_CERT" ]; then
+              echo "::error::Signing certificate changed; existing Fire TV installations cannot update!"
+              exit 1
+            fi
+            echo "Verified original published signer matches new signed APK"
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: WebPortalCast-apk
