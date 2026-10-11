@@ -43,6 +43,9 @@ public final class MainActivity extends Activity {
     private TextView logLabel;
     private EditText manualUrl;
     private ExoPlayer player;
+    private AppUpdater appUpdater;
+    private TextView updateLabel;
+    private Button updateButton;
     private DlnaReceiver receiver;
     private String queuedUri;
     private boolean watchingVideo;
@@ -92,6 +95,51 @@ public final class MainActivity extends Activity {
         makeDashboard();
         showDashboard();
         cachePlaybackPosition.run();
+
+        appUpdater = new AppUpdater(this, new AppUpdater.Listener() {
+            @Override public void onChecking() {
+                updateLabel.setText("Checking for a newer version...");
+                updateButton.setText("Checking...");
+                updateButton.setEnabled(false);
+            }
+
+            @Override public void onUpToDate(String version) {
+                updateLabel.setText("Installed version " + version + " — up to date");
+                updateButton.setText("Check for updates");
+                updateButton.setEnabled(true);
+                updateButton.setOnClickListener(v -> appUpdater.check(true));
+            }
+
+            @Override public void onAvailable(String version) {
+                updateLabel.setText("Version " + version + " is available");
+                updateButton.setText("Download & install " + version);
+                updateButton.setEnabled(true);
+                updateButton.setOnClickListener(v -> appUpdater.download());
+                log("New signed app version available: " + version);
+            }
+
+            @Override public void onProgress(int percent) {
+                updateLabel.setText("Downloading update: " + percent + "%");
+                updateButton.setEnabled(false);
+                updateButton.setText("Downloading...");
+            }
+
+            @Override public void onDownloadVerified() {
+                updateLabel.setText("Download verified — opening system installer");
+                updateButton.setText("Install update");
+                updateButton.setEnabled(true);
+                updateButton.setOnClickListener(v -> appUpdater.resumePendingInstall());
+            }
+
+            @Override public void onMessage(String message) {
+                updateLabel.setText(message);
+                updateButton.setText("Check for updates");
+                updateButton.setEnabled(true);
+                updateButton.setOnClickListener(v -> appUpdater.check(true));
+                log(message);
+            }
+        });
+        appUpdater.check(false);
 
         receiver = new DlnaReceiver(getApplicationContext(), new DlnaReceiver.Listener() {
             @Override public void onQueued(String url) {
@@ -150,6 +198,25 @@ public final class MainActivity extends Activity {
                 "Supported now: DLNA / UPnP local video and audio streaming. "
                 + "Not yet supported: Quest built-in casting, Chromecast, AirPlay or Miracast.",
                 17, MUTED, false));
+        addSpace(dashboard, 16);
+
+        dashboard.addView(label("APP UPDATES", 18, CYAN, true));
+        LinearLayout updateControls = new LinearLayout(this);
+        updateControls.setOrientation(LinearLayout.HORIZONTAL);
+        updateControls.setGravity(Gravity.CENTER_VERTICAL);
+        updateLabel = label("Version " + BuildConfig.VERSION_NAME + " — checking for updates...", 17, MUTED, false);
+        updateControls.addView(updateLabel, new LinearLayout.LayoutParams(0, dp(58), 1f));
+        updateButton = action("Check for updates");
+        updateButton.setOnClickListener(v -> {
+            if (appUpdater != null) appUpdater.check(true);
+        });
+        LinearLayout.LayoutParams updateButtonSize = new LinearLayout.LayoutParams(dp(270), dp(60));
+        updateButtonSize.leftMargin = dp(14);
+        updateControls.addView(updateButton, updateButtonSize);
+        dashboard.addView(updateControls);
+        dashboard.addView(label(
+                "Updates download in-app. Android will ask you to approve installation once. "
+                + "No Downloader link is needed for later releases.", 15, MUTED, false));
         addSpace(dashboard, 16);
 
         dashboard.addView(label("TEST A DIRECT MEDIA LINK", 18, CYAN, true));
@@ -288,7 +355,13 @@ public final class MainActivity extends Activity {
         return super.onKeyDown(keyCode, event);
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        if (appUpdater != null) appUpdater.resumePendingInstall();
+    }
+
     @Override protected void onDestroy() {
+        if (appUpdater != null) appUpdater.close();
         main.removeCallbacks(cachePlaybackPosition);
         if (receiver != null) receiver.stop();
         if (videoView != null) videoView.setPlayer(null);
