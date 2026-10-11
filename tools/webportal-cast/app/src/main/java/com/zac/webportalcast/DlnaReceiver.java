@@ -69,6 +69,14 @@ public final class DlnaReceiver {
     private volatile String currentUri = "";
     private volatile String location = "";
     private volatile int requestedVolume = 50;
+    private volatile CastDiagnostics diagnostics;
+
+    public void setDiagnostics(CastDiagnostics value) { diagnostics = value; }
+
+    private void diagnosticEvent(String category, String detail) {
+        CastDiagnostics session = diagnostics;
+        if (session != null) session.record(category, detail);
+    }
 
     public DlnaReceiver(Context context, Listener listener) {
         this.context = context.getApplicationContext();
@@ -92,6 +100,7 @@ public final class DlnaReceiver {
             httpServer.setSoTimeout(2000);
             location = "http://" + localIPv4() + ":" + httpServer.getLocalPort() + "/device.xml";
             running = true;
+            diagnosticEvent("NETWORK", "Local HTTP device descriptor listener started");
             workers.execute(this::httpAcceptLoop);
             acquireMulticast();
             startDiscovery();
@@ -149,6 +158,7 @@ public final class DlnaReceiver {
                 if (!message.toLowerCase(Locale.US).contains("ssdp:discover")) continue;
                 String target = header(message, "st");
                 if (target.isEmpty()) continue;
+                diagnosticEvent("SSDP_SEARCH", "A DLNA M-SEARCH discovery query reached the TV");
                 answerSearch(request.getAddress(), request.getPort(), target);
             } catch (java.net.SocketTimeoutException timeout) {
                 // Wake up to refresh announcements or observe stop().
@@ -240,7 +250,23 @@ public final class DlnaReceiver {
             if (requestParts.length < 2) { respond(out, 400, "text/plain", "Bad request"); return; }
 
             String method = requestParts[0].toUpperCase(Locale.US);
-            String path = requestParts[1].split("\\?", 2)[0];
+            String rawPath = requestParts[1];
+            String path = rawPath.split("\\?", 2)[0];
+            // A bearer-token LAN report is only served after the user starts a test.
+            // Never record query strings or the report access key.
+            if ("/report".equals(path)) {
+                if (!"GET".equals(method)) {
+                    respond(out, 405, "text/plain", "Method not allowed"); return;
+                }
+                int index = rawPath.indexOf("?key=");
+                String token = index > 0 ? rawPath.substring(index + 5) : "";
+                CastDiagnostics report = diagnostics;
+                String content = token.matches("[0-9a-f]{24}") && report != null
+                        ? report.reportForKey(token) : null;
+                if (content == null) respond(out, 404, "text/plain", "Report unavailable");
+                else respond(out, 200, "text/plain; charset=utf-8", content);
+                return;
+            }
             int contentLength = 0;
             String soapAction = "";
             String line;
@@ -282,6 +308,7 @@ public final class DlnaReceiver {
                 else if ("/upnp/scpd/rendering.xml".equals(path)) xml = scpd("rc");
                 else if ("/upnp/scpd/connection.xml".equals(path)) xml = scpd("cm");
                 else { respond(out, 404, "text/plain", "Not found"); return; }
+                diagnosticEvent("DLNA_HTTP", "DLNA device descriptor or service capabilities requested");
                 respond(out, 200, "text/xml; charset=utf-8", "HEAD".equals(method) ? "" : xml);
                 return;
             }
@@ -294,15 +321,19 @@ public final class DlnaReceiver {
                 int hash = soapAction.lastIndexOf('#');
                 String action = hash >= 0 ? soapAction.substring(hash + 1).trim() : "";
                 if (!soapAction.startsWith(service + "#") || !action.matches("[A-Za-z]{2,40}")) {
+                    diagnosticEvent("ERROR", "A DLNA control request had an invalid SOAP action");
                     respond(out, 400, "text/plain", "Bad SOAP action");
                     return;
                 }
                 String result = control(service, action, body);
+                diagnosticEvent(result == null ? "ERROR" : "DLNA_SOAP",
+                        "DLNA " + (result == null ? "rejected" : "accepted") + " action: " + action);
                 respond(out, result == null ? 501 : 200, "text/xml; charset=utf-8",
                         result == null ? fault() : result);
                 return;
             }
             if ("SUBSCRIBE".equals(method) || "UNSUBSCRIBE".equals(method)) {
+                diagnosticEvent("DLNA_HTTP", "DLNA event subscription attempted; not implemented");
                 respond(out, 501, "text/plain", "GENA notifications not implemented");
                 return;
             }
@@ -310,6 +341,7 @@ public final class DlnaReceiver {
         } catch (IOException ignored) {
             // Broken control-point connection. Avoid logging private network info.
         } catch (RuntimeException error) {
+            diagnosticEvent("ERROR", "Receiver request exception: " + error.getClass().getSimpleName());
             listener.onLog("Receiver request error: " + error.getClass().getSimpleName());
         }
     }
