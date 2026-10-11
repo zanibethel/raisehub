@@ -61,15 +61,16 @@ public final class CastDiagnostics {
     private boolean registered;
     private boolean discovered;
     private int tcpContacts;
-    private final Runnable notifyListener = () -> {
-        synchronized (CastDiagnostics.this) { notificationPending = false; }
-        listener.onChanged();
-    };
+    private final Runnable notifyListener;
     private boolean notificationPending;
 
     public CastDiagnostics(Activity activity, Listener listener) {
         this.activity = activity;
         this.listener = listener;
+        this.notifyListener = () -> {
+            synchronized (CastDiagnostics.this) { notificationPending = false; }
+            this.listener.onChanged();
+        };
         nsd = (NsdManager) activity.getSystemService(Context.NSD_SERVICE);
     }
 
