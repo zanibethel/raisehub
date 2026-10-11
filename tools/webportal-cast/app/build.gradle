@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId 'com.zac.webportalcast'
         minSdk 23
-        targetSdk 32
+        targetSdk 35
         versionCode 1
         versionName '0.1.0'
     }
