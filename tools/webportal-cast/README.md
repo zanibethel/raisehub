@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.1 receiver capability
+## Version 0.1.2 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -24,6 +24,18 @@ adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Quest connection report (v0.1.2)
+
+Open **Cast Diagnostics** on the Fire TV receiver home screen, select **Start new test**, then open the Meta Quest casting picker and attempt to select **WebPortal Cast TEST**, if listed. The temporary experiment:
+- Advertises `_googlecast._tcp.` under an unmistakably experimental name and counts inbound TCP connection attempts without reading packet bodies, replying as a Cast TLS device, or pretending to be certified.
+- Watches DNS-SD for nearby Cast receivers such as AirScreen, so you can see local Cast discovery results from **our app**, rather than needing a screenshot from a competitor.
+- Captures receiver-side SSDP M-SEARCH, DLNA descriptor requests, SOAP control actions and error status; logs media player activity/error codes. Discovery does **not** prove the Quest found our test receiver or that streaming will work.
+- Generates a timestamped, structured report with app version, Android device info, a category count summary, and a bounded event timeline. No headset IPs, raw network packets, passwords, credentials, media URLs, audio or video are captured. Nearby receiver names can be identifying; review before sharing.
+- Shows an offline-generated QR code and local HTTP address. Scan on a phone **on the same Wi-Fi** to open the report as copyable text. A fresh cryptographically random access token is created each session. The report exists only while the receiver app is open; the app never uploads reports to external services.
+- **Stop test** tears down the experimental Cast advertisement/TCP listener while preserving the report for review. Leaving the app pauses the probe; returning and pressing **Start new test** begins a new session.
+
+This probe detects only packets aimed at the experimental receiver and discovery signals accessible on the TV. It cannot inspect encrypted AirScreen communication, prove that Quest uses a particular transport, or miraculously implement Cast authentication/video streaming.
+
 ### Built-in updater
 
 - v0.1.1 adds **Check for updates** to the receiver home screen. Checks automatically on opening the app; updates are user-controlled.
@@ -35,7 +47,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - The stable Downloader URL is `https://raisehub.app/cast` and the **subsequent** upgrades are launched inside the TV app.
 - The release body contains machine-readable `Version-Code`, `Version-Name` and `SHA256` lines, matched to GitHub's asset digest, to avoid serving a partially published update.
 
-For this first release, keep the app open. DLNA discovery stops when it is closed.
+Keep the app open while running a receiver/diagnostic session. DLNA discovery stops when it is closed.
 
 ### Acceptance testing
 
@@ -50,7 +62,7 @@ For this first release, keep the app open. DLNA discovery stops when it is close
 
 The HTTP listener serves fixed UPnP service descriptors and a tiny allowlisted SOAP control surface; it is not a general proxy or internet-facing server. URL playback is restricted to http/https and only accepts URLs explicitly supplied via local remote or LAN control requests. XML input is size capped and no arbitrary entity expansion is allowed. No media or credentials are stored.
 
-For deployment: replace debug signing with a persistent release keystore; do not silently replace the existing WebPortal signing key.
+Production CI uses the persistent release key and compares the signer against the existing release to preserve in-place update compatibility.
 
 ### Next protocol milestones
 
