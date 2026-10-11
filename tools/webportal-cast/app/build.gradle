@@ -1,5 +1,11 @@
 plugins { id 'com.android.application' }
 
+def castKeystorePath = System.getenv('WEBPORTAL_KEYSTORE_PATH')
+def castStorePassword = System.getenv('WEBPORTAL_KEYSTORE_PASSWORD')
+def castKeyAlias = System.getenv('WEBPORTAL_KEY_ALIAS')
+def castKeyPassword = System.getenv('WEBPORTAL_KEY_PASSWORD')
+def haveSigning = castKeystorePath && castStorePassword && castKeyAlias && castKeyPassword
+
 android {
     namespace 'com.zac.webportalcast'
     compileSdk 35
@@ -12,9 +18,23 @@ android {
         versionName '0.1.0'
     }
 
+    signingConfigs {
+        persistentRelease {
+            if (haveSigning) {
+                storeFile file(castKeystorePath)
+                storePassword castStorePassword
+                keyAlias castKeyAlias
+                keyPassword castKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug { minifyEnabled false }
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (haveSigning) signingConfig signingConfigs.persistentRelease
+        }
     }
 
     compileOptions {
