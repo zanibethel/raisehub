@@ -10,6 +10,8 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false"
         android:label="WebPortal Cast"
+        android:icon="@drawable/app_icon"
+        android:banner="@drawable/tv_banner"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true">
         <activity
