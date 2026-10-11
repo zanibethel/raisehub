@@ -359,8 +359,8 @@ public final class MainActivity extends Activity {
         reportStatus.setText(diagnostics.summary());
         if (diagnostics.hasSession()) {
             String url = diagnostics.getReportUrl(receiver == null ? "" : receiver.getLocation());
-            reportAddress.setText("PHONE REPORT LINK (local Wi-Fi):\\n" + url
-                    + "\\n\\nScan the code to open and copy the full report. "
+            reportAddress.setText("PHONE REPORT LINK (local Wi-Fi):\n" + url
+                    + "\n\nScan the code to open and copy the full report. "
                     + "Nearby service names may identify devices.");
             if (!url.isEmpty()) {
                 try {
@@ -374,7 +374,7 @@ public final class MainActivity extends Activity {
                     reportQr.setImageBitmap(bitmap);
                 } catch (Exception error) {
                     reportQr.setImageDrawable(null);
-                    reportAddress.append("\\nQR unavailable. Type the link into your phone browser.");
+                    reportAddress.append("\nQR unavailable. Type the link into your phone browser.");
                 }
             }
             String text = diagnostics.renderReport();
