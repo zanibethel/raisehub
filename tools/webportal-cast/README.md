@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1 receiver capability
+## Version 0.1.1 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -15,7 +15,7 @@ Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webport
 
 ### Build and install
 
-GitHub Actions builds a separate debug APK for this module, without touching WebPortal:
+GitHub Actions builds a separately signed release APK, plus a debug APK for pull requests, without touching WebPortal:
 
 ```sh
 cd tools/webportal-cast
@@ -23,6 +23,17 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Built-in updater
+
+- v0.1.1 adds **Check for updates** to the receiver home screen. Checks automatically on opening the app; updates are user-controlled.
+- The app loads the GitHub release manifest (version code/name, expected file size, asset SHA-256 digest and a matching metadata checksum). It offers **Download & install** only when the release versionCode is higher than the installed versionCode.
+- Downloads stay in app-private cache. SHA-256, APK package name, embedded versionCode, and Android signing certificate are compared against the installed release.
+- Android/Fire OS installer approval is always required. On Android 8+, the first install may need Settings > Install unknown apps > WebPortal Cast.
+- A debug-signed prototype cannot upgrade in place to the persistently signed public release; uninstall the debug prototype and install `https://raisehub.app/cast` once.
+- Preserve `applicationId = com.zac.webportalcast` and the same permanent release keystore. Increase `versionCode` for every release. The GitHub release publisher rejects non-increasing versions.
+- The stable Downloader URL is `https://raisehub.app/cast` and the **subsequent** upgrades are launched inside the TV app.
+- The release body contains machine-readable `Version-Code`, `Version-Name` and `SHA256` lines, matched to GitHub's asset digest, to avoid serving a partially published update.
 
 For this first release, keep the app open. DLNA discovery stops when it is closed.
 
