@@ -10,6 +10,11 @@
       "source": "/webportal",
       "destination": "https://github.com/zanibethel/raisehub/releases/download/webportal/WebPortal.apk",
       "permanent": false
+    },
+    {
+      "source": "/cast",
+      "destination": "https://github.com/zanibethel/raisehub/releases/download/webportal-cast/WebPortalCast.apk",
+      "permanent": false
     }
   ],
   "crons": [
