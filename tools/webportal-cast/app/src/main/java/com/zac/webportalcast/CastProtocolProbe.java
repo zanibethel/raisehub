@@ -18,6 +18,9 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.cert.Certificate;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Date;
@@ -57,7 +60,9 @@ public final class CastProtocolProbe {
         void onEvent(String category, String description);
     }
 
-    private static final String KEY_ALIAS = "webportal_cast_local_test_tls_01";
+    // v0.1.9: use a new alias; old key authorizations cannot be widened
+    // after generation and the old key remains untouched.
+    private static final String KEY_ALIAS = "webportal_cast_local_test_tls_02";
     private static final int FRAME_LIMIT = 65536;
     private static final int MAX_FRAMES = 6;
     private static final int MAX_SESSION_MS = 9000;
@@ -253,11 +258,19 @@ public final class CastProtocolProbe {
             KeyGenParameterSpec parameters = new KeyGenParameterSpec.Builder(
                     KEY_ALIAS, KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_DECRYPT)
                     .setKeySize(2048)
-                    .setDigests(KeyProperties.DIGEST_SHA256)
-                    .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+                    // Android's TLS stack signs already-hashed transcript data.
+                    // The old key only permitted SHA256, not DIGEST_NONE.
+                    .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA256,
+                            KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
+                    .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1,
+                            KeyProperties.SIGNATURE_PADDING_RSA_PSS)
+                    // TLS providers may require no-padding or PKCS#1 when
+                    // performing RSA server operations on older Android.
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE,
+                            KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+                    .setRandomizedEncryptionRequired(false)
                     .setCertificateSubject(new X500Principal("CN=WebPortal Cast TEST"))
-                    .setCertificateSerialNumber(BigInteger.valueOf(1))
+                    .setCertificateSerialNumber(BigInteger.valueOf(2))
                     .setCertificateNotBefore(new Date(now - 86400000L))
                     .setCertificateNotAfter(new Date(now + 3650L * 86400000L))
                     .build();
@@ -265,37 +278,50 @@ public final class CastProtocolProbe {
             generator.generateKeyPair();
         }
 
-        // On older Fire OS, a private key can exist in AndroidKeyStore but
-        // the TLS provider may fail to select its server certificate alias.
-        // Report that distinction without logging alias, key or certificate.
-        boolean hasCertificate = keyStore.getCertificate(KEY_ALIAS) != null;
-        boolean hasPrivateKey = keyStore.isKeyEntry(KEY_ALIAS)
-                && keyStore.getKey(KEY_ALIAS, null) instanceof java.security.PrivateKey;
-        KeyManagerFactory keys = KeyManagerFactory.getInstance(
-                KeyManagerFactory.getDefaultAlgorithm());
-        keys.init(keyStore, null);
-        KeyManager[] selected = keys.getKeyManagers();
-        boolean rsaServerAliasFound = false;
-        for (KeyManager manager : selected) {
-            if (manager instanceof X509KeyManager) {
-                X509KeyManager x509 = (X509KeyManager) manager;
-                String alias = x509.chooseServerAlias("RSA", null, null);
-                if (alias != null && x509.getPrivateKey(alias) != null
-                        && x509.getCertificateChain(alias) != null) {
-                    rsaServerAliasFound = true;
-                    break;
-                }
-            }
-        }
+        // Restrict this TLS context to the new key. Both the old v0.1.4
+        // and new v0.1.9 keys coexist in AndroidKeyStore, so choosing a
+        // generic RSA alias could otherwise defeat our pinned self-test.
+        Certificate certificate = keyStore.getCertificate(KEY_ALIAS);
+        java.security.Key privateKeyCandidate = keyStore.getKey(KEY_ALIAS, null);
+        boolean hasCertificate = certificate instanceof X509Certificate;
+        boolean hasPrivateKey = privateKeyCandidate instanceof PrivateKey;
         listener.onEvent("TLS_IDENTITY",
-                "Local key entry=" + hasPrivateKey + " certificate=" + hasCertificate
-                        + " RSA server alias selectable=" + rsaServerAliasFound);
-        if (!hasPrivateKey || !hasCertificate) {
-            throw new java.security.KeyStoreException("Local TLS test key or certificate missing");
-        }
+                "Test key=" + hasPrivateKey + " certificate=" + hasCertificate
+                        + " pinned RSA server identity=" + (hasPrivateKey && hasCertificate));
+        if (!hasPrivateKey || !hasCertificate)
+            throw new java.security.KeyStoreException("Local test TLS key or certificate unavailable");
+
+        PrivateKey privateKey = (PrivateKey) privateKeyCandidate;
+        X509Certificate x509 = (X509Certificate) certificate;
+        checkLocalSigning(privateKey, x509);
+
         SSLContext tls = SSLContext.getInstance("TLS");
-        tls.init(selected, null, new SecureRandom());
+        tls.init(new javax.net.ssl.KeyManager[]{
+                new CastTestKeyManager(KEY_ALIAS, privateKey, x509)
+        }, null, new SecureRandom());
         return tls;
+    }
+
+    /**
+     * Test the exact raw-signing primitive some Android TLS providers use.
+     * The message, signature, and key are ephemeral/private and never logged.
+     * Failure is diagnostic only; the local TLS self-test remains definitive.
+     */
+    private void checkLocalSigning(PrivateKey key, X509Certificate certificate) {
+        try {
+            byte[] sample = new byte[32];
+            new SecureRandom().nextBytes(sample);
+            Signature signing = Signature.getInstance("NONEwithRSA");
+            signing.initSign(key);
+            signing.update(sample);
+            byte[] signature = signing.sign();
+            Signature verify = Signature.getInstance("NONEwithRSA");
+            verify.initVerify(certificate.getPublicKey());
+            verify.update(sample);
+            listener.onEvent("TLS_KEY_SIGN", "Raw RSA test signature verified=" + verify.verify(signature));
+        } catch (Exception error) {
+            listener.onEvent("TLS_KEY_SIGN", "Raw RSA test unavailable: " + error.getClass().getSimpleName());
+        }
     }
 
     private void examine(SSLSocket peer, int number) {
