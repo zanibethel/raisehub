@@ -216,7 +216,7 @@ public final class CastControlledSender {
         return pin.toLowerCase(Locale.ROOT);
     }
 
-    static String hexSha256(byte[] data) throws Exception {
+    static String hexSha256(byte[] data) throws java.security.NoSuchAlgorithmException {
         byte[] sha = MessageDigest.getInstance("SHA-256").digest(data);
         StringBuilder out = new StringBuilder(64);
         for (byte b : sha) out.append(String.format(Locale.ROOT, "%02x", b & 255));
