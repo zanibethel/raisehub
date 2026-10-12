@@ -676,12 +676,14 @@ public final class MainActivity extends Activity {
                 })
                 .setNegativeButton("Cancel", (d, which) -> {})
                 .create();
-        dialog.getWindow();
         dialog.setOnShowListener(ignored -> {
-            if (dialog.getWindow() != null)
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        buttonShape(Color.rgb(8, 30, 46), CYAN, 2));
                 dialog.getWindow().setSoftInputMode(
                         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                         | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            }
             edit.requestFocus();
         });
         dialog.show();
