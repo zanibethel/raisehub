@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.2.2 receiver capability
+## Version 0.2.3 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,26 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Quest's built-in Web casting through Silk (v0.2.3)
+
+**Purpose:** Provide a legitimate Fire TV-only experiment for native headset screen capture **without a Quest companion APK**, using the Quest's built-in **Cast → Web** option. This is distinct from selecting a Chromecast receiver; the official Meta browser stream uses Meta's hosted casting page. The user asked for a no-sideloaded-headset experience and previously reported successful Quest → AirScreen mirroring but timed out on AirScreen's free tier.
+
+**Important previous attempt:** The separate WebPortal Android 7 embedded WebView (v1.9.8–1.9.11) spoofed a desktop Chrome user-agent, displayed Meta's casting page, then showed "Casting stopped". Diagnostics there reported missing remote SDP. The new experiment **does not repeat that implementation**: it opens Meta's official page directly in Amazon Silk, a separately maintained Chromium-based browser on Fire TV.
+
+**User flow:**
+1. Open WebPortal Cast 0.2.3 on Fire TV.
+2. Choose **Try Quest Web casting through Amazon Silk**, review the explanatory dialog, and choose **Open Meta Casting**.
+3. The app tries the installed Amazon Silk package first, then the system browser resolver. It never embeds Meta login in its app or reads cookies.
+4. On the browser page at `https://horizon.meta.com/casting/`, sign in directly to Meta if required, enable desktop-site mode if the page requests a desktop browser.
+5. On the headset, use its built-in **Cast → Web** (not the Chromecast destination). No headset APK, no app pairing key.
+6. Observe whether the page receives a video stream, shows a compatibility warning, or returns "Casting stopped." If it works, try fullscreen in Silk and capture only a description of the result. If the browser is missing, WebPortal Cast reports that it must be enabled or installed.
+
+This is an **experimental launcher**, not a newly implemented custom Cast receiver or a guaranteed solution. It relies on the Meta-hosted web service, an existing Fire TV browser, a user-initiated Meta login and Silk's media capability. Meta documents browser casting as using its cloud service, so this route is **not** fully local. We do not send credentials, store video, inject JavaScript into Meta, spoof a browser identity, intercept network connections or open arbitrary external sites.
+
+**References:** [Meta support on Web casting](https://communityforums.atmeta.com/discussions/OtherTroubleshooting/a-question-about-the-casting-function/1344561), [Amazon Silk developer documentation](https://docs.aws.amazon.com/silk/latest/developerguide/what-is-silk.html), [Fire TV Silk remote controls](https://digprjsurvey.amazon.com/csad/help/node/TZ6CJ7nVQJW26yiItl).
+
+**Trust boundary:** Quest native **Cast → Chromecast** still cannot complete our certified receiver authentication. The v0.2.2 hardware report showed six signed replies, six disconnections, and no post-auth controls. The relevant Open Screen validation [requires a Cast trust root](https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/sender/channel/cast_auth_util.cc); another self-signed key won't satisfy it. Keep this diagnostic feature for protocol learning, but do not claim Silk creates a Chromecast destination.
 
 ### Self-owned Cast deviceauth compatibility experiment (v0.2.2)
 
