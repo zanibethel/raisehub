@@ -28,6 +28,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLContext;
@@ -263,11 +265,36 @@ public final class CastProtocolProbe {
             generator.generateKeyPair();
         }
 
+        // On older Fire OS, a private key can exist in AndroidKeyStore but
+        // the TLS provider may fail to select its server certificate alias.
+        // Report that distinction without logging alias, key or certificate.
+        boolean hasCertificate = keyStore.getCertificate(KEY_ALIAS) != null;
+        boolean hasPrivateKey = keyStore.isKeyEntry(KEY_ALIAS)
+                && keyStore.getKey(KEY_ALIAS, null) instanceof java.security.PrivateKey;
         KeyManagerFactory keys = KeyManagerFactory.getInstance(
                 KeyManagerFactory.getDefaultAlgorithm());
         keys.init(keyStore, null);
+        KeyManager[] selected = keys.getKeyManagers();
+        boolean rsaServerAliasFound = false;
+        for (KeyManager manager : selected) {
+            if (manager instanceof X509KeyManager) {
+                X509KeyManager x509 = (X509KeyManager) manager;
+                String alias = x509.chooseServerAlias("RSA", null, null);
+                if (alias != null && x509.getPrivateKey(alias) != null
+                        && x509.getCertificateChain(alias) != null) {
+                    rsaServerAliasFound = true;
+                    break;
+                }
+            }
+        }
+        listener.onEvent("TLS_IDENTITY",
+                "Local key entry=" + hasPrivateKey + " certificate=" + hasCertificate
+                        + " RSA server alias selectable=" + rsaServerAliasFound);
+        if (!hasPrivateKey || !hasCertificate) {
+            throw new java.security.KeyStoreException("Local TLS test key or certificate missing");
+        }
         SSLContext tls = SSLContext.getInstance("TLS");
-        tls.init(keys.getKeyManagers(), null, new SecureRandom());
+        tls.init(selected, null, new SecureRandom());
         return tls;
     }
 
