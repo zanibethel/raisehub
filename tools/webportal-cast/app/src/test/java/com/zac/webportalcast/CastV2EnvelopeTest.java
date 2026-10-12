@@ -127,7 +127,7 @@ public final class CastV2EnvelopeTest {
 
     @Test public void idleReceiverStatusUsesDocumentedResponseType() throws Exception {
         assertEquals(
-                "{\"responseType\":\"RECEIVER_STATUS\",\"requestId\":549," +
+                "{\"type\":\"RECEIVER_STATUS\",\"responseType\":\"RECEIVER_STATUS\",\"requestId\":549," +
                 "\"status\":{\"applications\":[],\"isActiveInput\":true," +
                 "\"standby\":false,\"volume\":{\"level\":0.5,\"muted\":false}}}",
                 CastV2ControlSession.idleStatusJson(549L));
