@@ -321,6 +321,9 @@ public final class CastDiagnostics {
                 || safeCategory.equals("TLS_AUTH_TEST_IDENTITY")
                 || safeCategory.equals("TLS_TEST_SHA256")
                 || safeCategory.equals("CAST_TEST_PORT")
+                || safeCategory.equals("V2_SELFTEST_START")
+                || safeCategory.equals("V2_SELFTEST_OK")
+                || safeCategory.equals("V2_SELFTEST_FAIL")
                 || safeCategory.equals("V2_LAUNCH_UNSUPPORTED")
                 || safeCategory.equals("V2_OFFER_UNSUPPORTED")) {
             milestones.put(safeCategory, entry);
@@ -408,6 +411,8 @@ public final class CastDiagnostics {
                 + "  |  TLS failed: " + count("TLS_FAILED")
                 + "  |  Local TLS: " + (count("TLS_SELFTEST_OK") > 0 ? "PASS" :
                         count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
+                + "  |  Real TV V2 test: " + (count("V2_SELFTEST_OK") > 0 ? "PASS" :
+                        count("V2_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
                 + "  |  Auth challenges: " + count("V2_AUTH_CHALLENGE")
                 + "  |  Local auth replies: " + count("V2_AUTH_RESPONSE_LOCAL")
                 + "  |  Post-auth controls: " + count("V2_POST_AUTH_TRAFFIC")
