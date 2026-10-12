@@ -30,7 +30,7 @@ jobs:
       - name: Build PR test APK (no production signing secrets)
         if: github.event_name == 'pull_request'
         working-directory: tools/webportal-cast
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Verify release signing credentials
         if: github.event_name != 'pull_request'
@@ -80,7 +80,7 @@ jobs:
           WEBPORTAL_KEYSTORE_PASSWORD: ${{ secrets.WEBPORTAL_KEYSTORE_PASSWORD }}
           WEBPORTAL_KEY_ALIAS: ${{ secrets.WEBPORTAL_KEY_ALIAS }}
           WEBPORTAL_KEY_PASSWORD: ${{ secrets.WEBPORTAL_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
 
       - name: Stage APK
         run: |
