@@ -118,6 +118,7 @@ final class CastOnDeviceSelfTest {
                 byte[] responseCert = findBytes(response, 2);
                 byte[] echoedNonce = findBytes(response, 5);
                 require(signature != null && signature.length >= 128 &&
+                                responseCert != null && echoedNonce != null &&
                                 MessageDigest.isEqual(exactCertificate, responseCert) &&
                                 MessageDigest.isEqual(nonce, echoedNonce) &&
                                 findNumber(response, 4, -1) == 1 &&
