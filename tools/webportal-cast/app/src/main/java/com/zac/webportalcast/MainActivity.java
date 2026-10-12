@@ -266,11 +266,22 @@ public final class MainActivity extends Activity {
         dashboard.addView(statusLabel);
         addSpace(dashboard, 12);
         dashboard.addView(label(
-                "Supported now: DLNA media, experimental Quest direct-video companion, "
-                + "and Cast V2 TLS/control tests using the Quest's built-in Cast menu. "
-                + "Certified Chromecast receiver authentication and native mirroring are not supported.",
+                "Supported: DLNA media. Available experiments: built-in Quest Web casting " +
+                "(via Amazon Silk); Quest companion direct video; and Cast V2 protocol diagnostics. " +
+                "Native uncertified Chromecast gameplay mirroring is not supported.",
                 17, MUTED, false));
         addSpace(dashboard, 16);
+
+        dashboard.addView(label("QUEST BUILT-IN WEB CAST • NO HEADSET APK", 18, FOCUS_YELLOW, true));
+        Button webCast = action("Try Quest Web casting through Amazon Silk");
+        webCast.setOnClickListener(v -> QuestWebCasting.showGuide(this));
+        dashboard.addView(webCast, new LinearLayout.LayoutParams(-1, dp(62)));
+        dashboard.addView(label(
+                "Uses the Quest's built-in Cast → Web option and Meta's official website. " +
+                "Silk runs its own browser engine, unlike our earlier embedded WebView. " +
+                "Experimental on Fire OS 5; may require Meta login and fullscreen selection.",
+                16, MUTED, false));
+        addSpace(dashboard, 14);
 
         dashboard.addView(label("QUEST CONNECTION REPORT", 18, CYAN, true));
         Button connectionReport = action("Open Cast Diagnostics");
