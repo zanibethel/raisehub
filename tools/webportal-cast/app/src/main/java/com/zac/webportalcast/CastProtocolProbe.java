@@ -7,8 +7,18 @@ import android.security.keystore.KeyProperties;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.math.BigInteger;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.security.MessageDigest;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
@@ -22,6 +32,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -52,6 +64,8 @@ public final class CastProtocolProbe {
     private static final int MAX_FRAMES = 6;
     private static final int MAX_SESSION_MS = 9000;
     private static final int HANDSHAKE_TIMEOUT_MS = 5000;
+    private static final int HEADER_TIMEOUT_MS = 1500;
+    private static final int SELF_TEST_TIMEOUT_MS = 3000;
     private static final int FRAME_READ_TIMEOUT_MS = 2200;
 
     private final Activity activity;
@@ -67,7 +81,10 @@ public final class CastProtocolProbe {
             }, new ThreadPoolExecutor.AbortPolicy());
 
     private volatile boolean running;
-    private volatile SSLServerSocket server;
+    private volatile ServerSocket server;
+    private final Set<Socket> activePlainSockets =
+            Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<Socket, Boolean>());
+    private volatile boolean firstContactClassified;
     private Thread acceptThread;
     private int connectionSequence;
 
@@ -89,35 +106,62 @@ public final class CastProtocolProbe {
             listener.onEvent("TLS_SETUP", "Preparing local self-signed AndroidKeyStore test identity");
             SSLContext context = createTlsContext();
             if (!running) return;
-            SSLServerSocket socket = (SSLServerSocket)
-                    context.getServerSocketFactory().createServerSocket(0, 8);
+            runLoopbackSelfTest(context);
+            if (!running) return;
+
+            // Use a plain accept socket so we can classify the first five bytes
+            // of just ONE inbound connection. That connection is then closed;
+            // subsequent peers use regular TLS. No source IP or bytes are logged.
+            ServerSocket socket = new ServerSocket(0, 8);
             socket.setSoTimeout(1000);
-            socket.setNeedClientAuth(false);
             server = socket;
             if (!running) {
                 socket.close();
                 return;
             }
-            listener.onEvent("TLS_READY", "TLS test listener active; certificate is NOT Google Cast trusted");
+            listener.onEvent("TLS_READY", "Experimental TLS listener active; NOT a Google-trusted Cast receiver");
             listener.onReady(socket.getLocalPort());
             while (running) {
                 try {
-                    SSLSocket peer = (SSLSocket) socket.accept();
-                    if (!running) { peer.close(); break; }
-                    synchronized (this) { connectionSequence++; }
+                    Socket raw = socket.accept();
+                    if (!running) { raw.close(); break; }
                     final int number;
-                    synchronized (this) { number = connectionSequence; }
-                    activeSockets.add(peer);
+                    synchronized (this) { number = ++connectionSequence; }
+                    activePlainSockets.add(raw);
                     listener.onContact();
+                    if (!firstContactClassified) {
+                        firstContactClassified = true;
+                        try {
+                            connections.execute(() -> classifyOneConnection(raw, number));
+                        } catch (RejectedExecutionException overloaded) {
+                            activePlainSockets.remove(raw);
+                            raw.close();
+                            listener.onEvent("TLS_BUSY", "Diagnostic listener overloaded");
+                        }
+                        continue;
+                    }
                     try {
-                        connections.execute(() -> examine(peer, number));
-                    } catch (RejectedExecutionException overloaded) {
-                        activeSockets.remove(peer);
-                        peer.close();
-                        listener.onEvent("TLS_BUSY", "Probe is busy; a connection was dropped");
+                        // The layered server socket is exercised by the loopback
+                        // self-test on the TV before advertising this listener.
+                        SSLSocket peer = (SSLSocket) context.getSocketFactory()
+                                .createSocket(raw, "localhost", raw.getPort(), true);
+                        activeSockets.add(peer);
+                        try {
+                            connections.execute(() -> examine(peer, number));
+                        } catch (RejectedExecutionException overloaded) {
+                            activeSockets.remove(peer);
+                            peer.close();
+                            listener.onEvent("TLS_BUSY", "Probe is busy; a connection was dropped");
+                        }
+                    } catch (Exception wrapping) {
+                        if (running) listener.onEvent("TLS_WRAP_ERROR",
+                                "Connection #" + number + " TLS socket could not initialize: " +
+                                        wrapping.getClass().getSimpleName());
+                        try { raw.close(); } catch (IOException ignored) {}
+                        activePlainSockets.remove(raw);
                     }
                 } catch (SocketTimeoutException idle) {
-                    // Check the stop flag.
+                    // Periodically check the stop flag.
                 }
             }
         } catch (Exception error) {
@@ -125,11 +169,116 @@ public final class CastProtocolProbe {
                 listener.onEvent("TLS_SETUP_ERROR", "TLS probe startup failed: " + error.getClass().getSimpleName());
             }
         } finally {
-            SSLServerSocket open = server;
+            ServerSocket open = server;
             if (open != null) {
                 try { open.close(); } catch (IOException ignored) {}
                 server = null;
             }
+        }
+    }
+
+    private void classifyOneConnection(Socket raw, int number) {
+        try (Socket socket = raw) {
+            socket.setSoTimeout(HEADER_TIMEOUT_MS);
+            InputStream in = socket.getInputStream();
+            byte[] first = new byte[5];
+            int length = 0;
+            while (running && length < first.length) {
+                int got = in.read(first, length, first.length - length);
+                if (got < 0) break;
+                length += got;
+            }
+            if (running) listener.onEvent("PROTO_FIRST", "Connection #" + number +
+                    " started with: " + CastHandshakeClassifier.firstRecord(first, length) +
+                    " (one diagnostic contact intentionally closed)");
+            // The five bytes are discarded immediately; never export or persist.
+        } catch (SocketTimeoutException timeout) {
+            if (running) listener.onEvent("PROTO_FIRST", "First connection sent no complete header before timeout");
+        } catch (IOException closed) {
+            if (running) listener.onEvent("PROTO_FIRST", "First connection ended during header classification");
+        } finally {
+            activePlainSockets.remove(raw);
+        }
+    }
+
+    /**
+     * Checks the precise server-side TLS layering used by external connections.
+     * Both endpoints are inside this process, bound to loopback only. The test
+     * client trusts precisely the certificate stored under our LOCAL alias,
+     * never arbitrary certificates or network hosts.
+     */
+    private void runLoopbackSelfTest(SSLContext serverContext) {
+        listener.onEvent("TLS_SELFTEST", "Running isolated loopback TLS test with locally pinned certificate");
+        try {
+            KeyStore localKeys = KeyStore.getInstance("AndroidKeyStore");
+            localKeys.load(null);
+            final X509Certificate expected = (X509Certificate) localKeys.getCertificate(KEY_ALIAS);
+            if (expected == null) throw new CertificateException("Local test identity not found");
+            X509TrustManager localPin = new X509TrustManager() {
+                @Override public void checkClientTrusted(X509Certificate[] chain, String authType)
+                        throws CertificateException {
+                    throw new CertificateException("Client certificates are not supported");
+                }
+                @Override public void checkServerTrusted(X509Certificate[] chain, String authType)
+                        throws CertificateException {
+                    if (chain == null || chain.length == 0 || chain[0] == null)
+                        throw new CertificateException("Missing local test certificate");
+                    try {
+                        if (!MessageDigest.isEqual(chain[0].getEncoded(), expected.getEncoded()))
+                            throw new CertificateException("Unexpected local test certificate");
+                    } catch (java.security.cert.CertificateEncodingException exception) {
+                        throw new CertificateException("Certificate unreadable", exception);
+                    }
+                }
+                @Override public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+            };
+            SSLContext clientContext = SSLContext.getInstance("TLS");
+            clientContext.init(null, new TrustManager[] { localPin }, new SecureRandom());
+            try (ServerSocket loopServer = new ServerSocket(
+                    0, 1, InetAddress.getLoopbackAddress())) {
+                loopServer.setSoTimeout(SELF_TEST_TIMEOUT_MS);
+                AtomicBoolean serverSuccess = new AtomicBoolean(false);
+                AtomicReference<Throwable> serverError = new AtomicReference<>();
+                Thread loopThread = new Thread(() -> {
+                    try (Socket accepted = loopServer.accept();
+                         SSLSocket serverSide = (SSLSocket) serverContext.getSocketFactory()
+                                 .createSocket(accepted, "localhost", accepted.getPort(), true)) {
+                        serverSide.setUseClientMode(false);
+                        serverSide.setSoTimeout(SELF_TEST_TIMEOUT_MS);
+                        serverSide.startHandshake();
+                        serverSuccess.set(true);
+                    } catch (Exception problem) {
+                        serverError.set(problem);
+                    }
+                }, "cast-tls-selftest");
+                loopThread.setDaemon(true);
+                loopThread.start();
+                boolean clientSuccess = false;
+                Throwable clientError = null;
+                try (SSLSocket client = (SSLSocket) clientContext.getSocketFactory()
+                        .createSocket(InetAddress.getLoopbackAddress(), loopServer.getLocalPort())) {
+                    client.setUseClientMode(true);
+                    client.setSoTimeout(SELF_TEST_TIMEOUT_MS);
+                    client.startHandshake();
+                    clientSuccess = true;
+                } catch (Exception failure) {
+                    clientError = failure;
+                }
+                loopThread.join(SELF_TEST_TIMEOUT_MS + 500L);
+                if (clientSuccess && serverSuccess.get()) {
+                    listener.onEvent("TLS_SELFTEST_OK", "Fire TV completed local TLS handshake using the test key");
+                } else {
+                    Throwable reason = clientError != null ? clientError : serverError.get();
+                    listener.onEvent("TLS_SELFTEST_FAIL", "Local TLS test failed: " +
+                            CastHandshakeClassifier.tlsFailure(reason) + " (" +
+                            (reason == null ? "incomplete handshake" : reason.getClass().getSimpleName()) + ")");
+                }
+            }
+        } catch (Exception failure) {
+            listener.onEvent("TLS_SELFTEST_FAIL",
+                    "Local TLS test unavailable: " + failure.getClass().getSimpleName());
         }
     }
 
@@ -220,10 +369,10 @@ public final class CastProtocolProbe {
             }
         } catch (SSLHandshakeException authFailure) {
             listener.onEvent("TLS_FAILED", "Connection " + id +
-                    " TLS handshake failed (" + classification(authFailure) + ")");
+                    " TLS handshake failed (" + CastHandshakeClassifier.tlsFailure(authFailure) + ")");
         } catch (SSLException tlsFailure) {
             listener.onEvent("TLS_FAILED", "Connection " + id +
-                    " TLS negotiation interrupted (" + classification(tlsFailure) + ")");
+                    " TLS negotiation interrupted (" + CastHandshakeClassifier.tlsFailure(tlsFailure) + ")");
         } catch (SocketTimeoutException timeout) {
             listener.onEvent("TLS_TIMEOUT", "Connection " + id + " handshake timed out");
         } catch (IOException closed) {
@@ -233,27 +382,14 @@ public final class CastProtocolProbe {
             if (running) listener.onEvent("TLS_ERROR", "Connection " + id + " receiver exception");
         } finally {
             activeSockets.remove(peer);
+            // The underlying TCP socket closes with its TLS wrapper; raw set
+            // is session-local and never exported or reused.
         }
     }
 
     private static String safeProtocol(String value) {
         if (value == null) return "unknown TLS";
         return value.matches("TLSv[0-9.]{2,8}") ? value : "TLS";
-    }
-
-    private static String classification(SSLException failure) {
-        String msg = failure.getMessage();
-        if (msg == null) return "unspecified";
-        String normalized = msg.toLowerCase(java.util.Locale.US);
-        if (normalized.contains("certificate") || normalized.contains("unknown_ca")
-                || normalized.contains("bad certificate")) return "certificate/identity rejection";
-        if (normalized.contains("protocol") || normalized.contains("version"))
-            return "protocol version/cipher incompatibility";
-        if (normalized.contains("handshake") || normalized.contains("alert"))
-            return "peer rejected handshake";
-        if (normalized.contains("connection") || normalized.contains("reset"))
-            return "connection closed during TLS";
-        return "TLS negotiation failed";
     }
 
     /**
@@ -320,7 +456,7 @@ public final class CastProtocolProbe {
 
     public void stop() {
         running = false;
-        SSLServerSocket socket = server;
+        ServerSocket socket = server;
         server = null;
         if (socket != null) {
             try { socket.close(); } catch (IOException ignored) {}
@@ -329,6 +465,10 @@ public final class CastProtocolProbe {
             try { peer.close(); } catch (IOException ignored) {}
         }
         activeSockets.clear();
+        for (Socket raw : activePlainSockets) {
+            try { raw.close(); } catch (IOException ignored) {}
+        }
+        activePlainSockets.clear();
         connections.shutdownNow();
     }
 }
