@@ -219,13 +219,13 @@ final class CastV2ControlSession {
         if (appIds == null || appIds.length > 16)
             throw new IOException("App availability request too large");
         StringBuilder out = new StringBuilder(96 + appIds.length * 110);
-        out.append("{\\"responseType\\":\\"GET_APP_AVAILABILITY\\",\\"requestId\\":");
-        out.append(Math.max(0L, requestId)).append(",\\"availability\\":{");
+        out.append("{\"responseType\":\"GET_APP_AVAILABILITY\",\"requestId\":");
+        out.append(Math.max(0L, requestId)).append(",\"availability\":{");
         for (int i = 0; i < appIds.length; i++) {
             if (appIds[i] == null || !appIds[i].matches("[A-Za-z0-9._-]{1,80}"))
                 throw new IOException("Invalid app identifier");
             if (i > 0) out.append(',');
-            out.append('"').append(appIds[i]).append("\\":\\"APP_UNAVAILABLE\\"");
+            out.append('"').append(appIds[i]).append("\":\"APP_UNAVAILABLE\"");
         }
         return out.append("}}").toString();
     }
