@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.5 receiver capability
+## Version 0.1.6 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,17 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Dedicated server TLS fix / local self-test (v0.1.6)
+
+**Why:** The Fire TV AFTMM (Android API 25) report for v0.1.5 confirmed the Meta Quest's first packet is a TLS handshake record, but the local loopback TLS test failed and all 15 subsequent Quest handshakes failed. Therefore a certificate rejection by Quest was **not demonstrated**, and the receiver's server implementation required isolation.
+
+- Switch both the production experimental receiver and its loopback test to `SSLContext.getServerSocketFactory().createServerSocket(...)` with `SSLServerSocket`, in server mode from the start. Previously we used a client-side `getSocketFactory().createSocket(accepted,...)` and switched mode on Android 7.
+- No longer intercept or discard the first Quest connection for a five-byte protocol check. The previous version established it was TLS. Every new Quest connection goes through the same server-mode TLS accept path.
+- Test client still trusts **only the exact local AndroidKeyStore test certificate** and connects to device loopback. The new report prints independent, allowlisted client/server self-test outcomes in a single `TLS_SELFTEST_FAIL` event if either side fails; no raw SSL exception text, IPs or certificates are exported.
+- Preserve previous defensive connection/message limits, Cast DNS-SD diagnostics, app branding, versioned releases, in-place updater, DLNA, and bounded local QR report.
+- **Hardware validation required:** v0.1.6 must show `TLS_SELFTEST_OK` before concluding anything from Quest TLS failures. If it still fails, inspect the client/server categories and fix the local TLS implementation again rather than attempting to bypass device certificate checks.
+- The test certificate is not a Google Cast device identity. Even if TLS works, subsequent Cast V2 device authentication and media streaming remain unimplemented.
 
 ### Quest TLS failure isolation (v0.1.5)
 
