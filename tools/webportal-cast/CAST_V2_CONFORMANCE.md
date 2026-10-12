@@ -21,6 +21,58 @@ Chromium Cast sender authentication verifies receiver device-auth certificates a
 
 No private hardware keys, precomputed signatures from proprietary software, impersonated device identities or certification bypasses will be introduced. Adding video decoding first would not resolve sender trust.
 
+## Controlled sender validation (staged in this draft PR)
+
+A standalone **Java 17**, JDK-only sender now lives at
+`tools/webportal-cast/devtools/CastControlledSender.java`. It requires no
+Quest app, Google API or third-party dependency. It has two modes:
+
+**GitHub Actions offline mode (fully automated for PRs):** a temporary
+48-hour RSA/PKCS#12 test certificate is created by `keytool`, and a local
+loopback TLS fixture answers Cast V2 messages. The sender then verifies
+the exact SHA-256 certificate fingerprint (and deliberately rejects a
+wrong fingerprint), `GET_APP_AVAILABILITY`, `GET_STATUS`, the sender nonce
+and authenticated RSA/SHA256 signature over `nonce || TLS_cert_DER`, and
+a heartbeat PING/PONG. This proves the independent sender and its
+controlled fixture interoperate; it is **not yet a hardware-in-the-loop
+test of the actual Android receiver**. The existing Android unit tests
+verify the receiver's separate auth serializer and envelope handling.
+
+**Optional later LAN hardware mode (only after a signed diagnostic
+update):** the draft receiver adds the **public** identity fields
+`TLS_TEST_SHA256` (64-hex character SHA-256 of its locally generated
+test TLS certificate) and `CAST_TEST_PORT` (ephemeral listener port)
+to the retained Cast Diagnostics report. The Fire TV's local IPv4 address
+can be determined from the existing DLNA/report address in the app. From
+a trusted computer on the same LAN with Java 17:
+
+```sh
+cd tools/webportal-cast
+mkdir -p /tmp/cast-controlled-classes
+javac --release 17 -d /tmp/cast-controlled-classes \
+    devtools/CastControlledSender.java
+
+java -cp /tmp/cast-controlled-classes \
+    com.zac.webportalcast.devtools.CastControlledSender \
+    --host FIRE_TV_PRIVATE_IPV4 \
+    --port PORT_FROM_CAST_TEST_PORT \
+    --tls-cert-sha256 64_HEX_FROM_TLS_TEST_SHA256
+```
+
+The sender strictly permits only RFC1918/loopback IPv4, uses TLS 1.2,
+requires explicit certificate pinning, never ignores a mismatch, and
+verifies the Cast auth signature *cryptographically*. It then sends
+post-auth heartbeat and status messages under the developer's own
+explicit, local trust policy. The production Quest sender has no such
+custom trust setting.
+
+**Do not run the LAN mode against today's released v0.2.3: it has not
+yet been updated to expose these public test values or include this
+draft's app-availability fix.** No production APK has been published as
+part of this work. Once CI and controlled-device feasibility justify
+a release, install a signed debug/production build through the
+existing compatible update path and confirm the report then.
+
 ## Next engineering gate
 1. Keep this PR as draft. Run unit tests/build to check our code without asking for repeated device installs.
 2. Validate the control protocol using a separately developed sender whose trust configuration explicitly accepts an app-owned test cert. This does not change stock Quest behavior.
