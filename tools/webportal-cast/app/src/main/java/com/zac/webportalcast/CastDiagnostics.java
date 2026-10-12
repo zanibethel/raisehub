@@ -12,6 +12,9 @@ import android.os.Looper;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -57,6 +60,9 @@ public final class CastDiagnostics {
     private boolean registered;
     private boolean discovered;
     private int tcpContacts;
+    private boolean resolvingCapabilities;
+    private int resolvedAttempts;
+    private final Set<String> capabilityNames = new HashSet<>();
     private final Runnable notifyListener;
     private boolean notificationPending;
 
@@ -105,6 +111,9 @@ public final class CastDiagnostics {
             tcpContacts = 0;
             registered = false;
             discovered = false;
+            resolvingCapabilities = false;
+            resolvedAttempts = 0;
+            capabilityNames.clear();
             running = true;
         }
         record("SESSION", "Quest connection test started");
@@ -205,6 +214,9 @@ public final class CastDiagnostics {
                     name = name.replaceAll("[^a-zA-Z0-9 _.-]", "?");
                     if (name.length() > 65) name = name.substring(0, 65);
                     record("CAST_FOUND", "Nearby Cast service: " + name);
+                    if (!name.contains("WebPortal Cast TEST")) {
+                        resolveNearbyCapabilities(service, name);
+                    }
                 }
                 @Override public void onServiceLost(NsdServiceInfo service) {
                     record("CAST_SCAN", "Previously discovered Cast service went offline");
@@ -224,6 +236,53 @@ public final class CastDiagnostics {
         } catch (RuntimeException error) {
             record("ERROR", "Cast DNS-SD discovery could not start: " + error.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * Resolve one nearby non-test Cast receiver at a time. On Android 7
+     * (Fire OS API 25), NSD discovery does not include TXT capability fields.
+     * Log only allowlisted, low-entropy feature flags; omit IDs, IPs, ports,
+     * model names, icons and full TXT records.
+     */
+    private synchronized void resolveNearbyCapabilities(NsdServiceInfo candidate, String safeName) {
+        if (!running || nsd == null || resolvingCapabilities || resolvedAttempts >= 2
+                || capabilityNames.contains(safeName)) return;
+        capabilityNames.add(safeName);
+        resolvedAttempts++;
+        resolvingCapabilities = true;
+        try {
+            nsd.resolveService(candidate, new NsdManager.ResolveListener() {
+                @Override public void onResolveFailed(NsdServiceInfo serviceInfo, int error) {
+                    synchronized (CastDiagnostics.this) { resolvingCapabilities = false; }
+                    record("CAST_CAPS", "Nearby receiver TXT capability lookup failed: code " + error);
+                }
+                @Override public void onServiceResolved(NsdServiceInfo resolved) {
+                    synchronized (CastDiagnostics.this) { resolvingCapabilities = false; }
+                    Map<String, byte[]> fields = resolved.getAttributes();
+                    if (fields == null) {
+                        record("CAST_CAPS", "Nearby receiver TXT capability fields unavailable");
+                        return;
+                    }
+                    record("CAST_CAPS", "Nearby receiver TXT: ve=" + safeNumericFlag(fields, "ve")
+                            + " ca=" + safeNumericFlag(fields, "ca")
+                            + " st=" + safeNumericFlag(fields, "st")
+                            + " flags(fn/md/id)=" + (fields.containsKey("fn") ? "Y" : "N")
+                            + "/" + (fields.containsKey("md") ? "Y" : "N")
+                            + "/" + (fields.containsKey("id") ? "Y" : "N"));
+                }
+            });
+        } catch (RuntimeException error) {
+            resolvingCapabilities = false;
+            record("CAST_CAPS", "Nearby receiver TXT capability lookup unavailable");
+        }
+    }
+
+    private static String safeNumericFlag(Map<String, byte[]> attributes, String key) {
+        byte[] bytes = attributes.get(key);
+        if (bytes == null || bytes.length == 0 || bytes.length > 8) return "-";
+        String value = new String(bytes, StandardCharsets.US_ASCII);
+        // Do not export raw TXT contents: only documented low-entropy values.
+        return value.matches("[0-9]{1,8}") ? value : "-";
     }
 
     public synchronized void record(String category, String detail) {
@@ -294,6 +353,8 @@ public final class CastDiagnostics {
                 + "  |  Nearby Cast: " + count("CAST_FOUND")
                 + "  |  TLS OK: " + count("TLS_OK")
                 + "  |  TLS failed: " + count("TLS_FAILED")
+                + "  |  Local TLS: " + (count("TLS_SELFTEST_OK") > 0 ? "PASS" :
+                        count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
                 + "  |  Deviceauth: " + count("V2_AUTH")
                 + "  |  DLNA searches: " + count("SSDP_SEARCH")
                 + "  |  DLNA requests: " + count("DLNA_HTTP")
@@ -317,6 +378,11 @@ public final class CastDiagnostics {
                 .append("Status: ").append(summary()).append("\n")
                 .append("Test Cast advertisement registered: ").append(registered).append("\n")
                 .append("Cast discovery currently active: ").append(discovered).append("\n")
+                .append("Initial protocol classified: ").append(count("PROTO_FIRST") > 0).append("\n")
+                .append("Loopback local TLS self-test: ")
+                .append(count("TLS_SELFTEST_OK") > 0 ? "PASS" :
+                        count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "NOT RUN").append("\n")
+                .append("Nearby receiver capability lookups: ").append(count("CAST_CAPS")).append("\n")
                 .append("TLS attempts: ").append(count("TLS_STARTED")).append("\n")
                 .append("TLS handshakes completed: ").append(count("TLS_OK")).append("\n")
                 .append("TLS handshakes failed: ").append(count("TLS_FAILED")).append("\n")
@@ -325,6 +391,9 @@ public final class CastDiagnostics {
                 .append("INTERPRETATION\n")
                 .append("- No events does not prove that Quest did not cast: we only see packets addressed to this app or local discovery callbacks.\n")
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
+                .append("- First inbound connection is intentionally consumed to classify its first 5 bytes (not retained).\n")
+                .append("- Subsequent connections negotiate TLS; loopback self-test uses an exact local-certificate pin.\n")
+                .append("- Nearby Cast TXT comparison logs only allowlisted numeric flags and field presence.\n")
                 .append("- The local TLS server uses a self-signed test identity, NOT a Google-trusted device certificate.\n")
                 .append("- TLS success is not Cast device authentication; a deviceauth challenge is only observed, never answered.\n")
                 .append("- Cast V2 frames are read in memory only to extract namespaces; no payloads or certificates are retained.\n")

@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.4 receiver capability
+## Version 0.1.5 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,17 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Quest TLS failure isolation (v0.1.5)
+
+This follows the actual Quest-on-Fire-TV report from v0.1.4: 15 TCP contacts, 15 TLS failures, zero TLS successes, zero device-auth messages. Those observations do **not** establish whether the peer rejected the certificate, whether AndroidKeyStore can serve TLS correctly, or whether the Quest sent TLS at all.
+
+- **First connection only:** read and immediately discard up to five initial bytes, classify the transport as a TLS handshake record, TLS alert, HTTP method, short record, or unrecognized data. That single diagnostic connection is intentionally closed; following contacts attempt ordinary TLS. Only a class label is saved, not packet bytes, sender IP or request path.
+- **Local TLS self-test:** before advertising the receiver, create a temporary server on `127.0.0.1` using exactly the same layered TLS implementation. Use a separate test client whose certificate validation accepts only the local app-owned AndroidKeyStore certificate. Report `TLS_SELFTEST_OK` or `TLS_SELFTEST_FAIL`. This does not establish Google device trust.
+- **Handshakes:** group TLS failures into explicit allowlisted categories: certificate/trust alert, cipher mismatch, TLS version mismatch, invalid record, generic handshake failure alert, peer disconnect, and other errors. The raw exceptions are not exported or retained. Even a peer handshake-failure alert by itself does not prove a certificate issue.
+- **Nearby Cast receiver comparison:** use Android NSD service resolution to read only numeric values of TXT `ve`, `ca` and `st`, plus booleans for the presence of `fn`, `md` and `id`. Never export device IDs, addresses, models, TXT blobs or credentials. These are advertised claims, **not** proof of certified support.
+- **Testing:** update v0.1.4 → v0.1.5 inside the existing app; start a new Cast Diagnostics session; select WebPortal Cast TEST from the Meta Quest Chromecast list; after the expected error, stop test and share the local QR report. Pay particular attention to `PROTO_FIRST`, `TLS_SELFTEST_*`, `TLS_FAILED`, and `CAST_CAPS`.
+- This is still **not** a working Cast V2/Google-certified receiver. All probes run only when explicitly started, on a trusted home LAN, with conservative frame and handshake limits.
 
 ### Cast V2 TLS transport diagnostics (v0.1.4)
 
