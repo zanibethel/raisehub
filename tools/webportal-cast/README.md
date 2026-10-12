@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.6 receiver capability
+## Version 0.1.7 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,18 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Fire TV D-pad visibility, UI screen fit, and text entry (v0.1.7)
+
+Designed for Fire TV overscan and screens where the active button was difficult to see or the remote opened a hard-to-find on-screen text field.
+
+- All on-screen actions have a bold **bright-yellow focus background**, dark text, a **4dp white border** and a slight 1.02× focus emphasis. Disabled buttons remain muted. No longer relies on Fire OS default gray focus.
+- **Screen Fit** is accessible from the Home header, Cast Diagnostics, or the Fire TV **MENU** key. The adjustment overlay stays centered and unscaled so it remains reachable even after incorrect settings. Buttons **Smaller / Larger** adjust app size from 70–100% in 5% steps.
+- Enter **Move with remote arrows** mode, then press D-pad Left/Right/Up/Down to shift the app in 12dp steps (bounded to ±120dp). Press OK or Back to exit move mode. **Center position**, **Reset 100%**, and **Save & return** are always available. Adjustments persist with local `SharedPreferences` across app restarts.
+- Both Home and Cast Diagnostics use full-page scroll containers, preserving focus navigation when content is taller than the available screen. The app content scales/repositions; the overlay remains at full size. Video playback is deliberately unscaled so the actual media aspect ratio stays correct.
+- Inline URL entry is replaced with a visibly labeled **Enter media URL** button and a centered dark dialog. No TV keyboard opens just from navigating past the URL field. The Fire TV system keyboard is controlled by Fire OS, so **Screen Fit cannot resize an external/system keyboard**; Back closes it.
+- Existing DLNA, Quest TLS probe, QR reports, built-in updater, logo, signing key and stable download URL are preserved. The feature changes only local rendering, not the Fire TV hardware output or display settings.
+- Unit tests cover Screen Fit scale bounds, offset limits, default settings and reset. Android CI still builds/tests before signed release.
 
 ### Dedicated server TLS fix / local self-test (v0.1.6)
 
