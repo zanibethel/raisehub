@@ -1,5 +1,6 @@
 package com.zac.webportalcast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -142,6 +143,39 @@ final class CastV2ControlSession {
             } else if (RECEIVER.equals(frame.namespace) && "GET_STATUS".equals(type)) {
                 sendEmptyStatus(out, frame, message);
                 events.record("V2_STATUS", "Session " + id + " honest receiver status sent: no running apps");
+            } else if (RECEIVER.equals(frame.namespace) && "GET_APP_AVAILABILITY".equals(type)) {
+                // This request was observed on Quest *before* deviceauth.
+                // Previous versions silently ignored it. We advertise no
+                // receiver apps because none can launch or stream natively yet.
+                JSONArray requested = message.optJSONArray("appId");
+                if (requested == null || requested.length() > 16) {
+                    events.record("V2_APP_AVAIL_INVALID", "Session " + id +
+                            " invalid app availability request");
+                    continue;
+                }
+                String[] appIds = new String[requested.length()];
+                boolean valid = true;
+                for (int index = 0; index < requested.length(); index++) {
+                    String appId = requested.optString(index, "");
+                    if (!appId.matches("[A-Za-z0-9._-]{1,80}")) {
+                        valid = false;
+                        break;
+                    }
+                    appIds[index] = appId;
+                }
+                if (!valid) {
+                    events.record("V2_APP_AVAIL_INVALID", "Session " + id +
+                            " unsupported app identifier format");
+                    continue;
+                }
+                long requestId = Math.max(0L, message.optLong("requestId", 0));
+                byte[] json = unavailableAppsJson(requestId, appIds)
+                        .getBytes(StandardCharsets.UTF_8);
+                CastV2Envelope.write(out, new CastV2Envelope("receiver-0",
+                        frame.source, RECEIVER, CastV2Envelope.STRING, json));
+                events.record("V2_APP_AVAIL_REPLY", "Session " + id +
+                        " replied APP_UNAVAILABLE for " + appIds.length +
+                        " queried receiver app(s), no native streaming app installed");
             } else if (RECEIVER.equals(frame.namespace) && "LAUNCH".equals(type)) {
                 // Without certified identity and a negotiated streaming app,
                 // do not send fake launch success / transportId.
@@ -174,6 +208,26 @@ final class CastV2ControlSession {
                 " messages, deviceauth challenges=" + authChallenges +
                 ", sender continued=" + postAuthTraffic +
                 ", certified authentication NOT demonstrated");
+    }
+
+    /**
+     * Pure, bounded JSON generator used by local JVM protocol tests.
+     * appIds are validated by the caller and again here; no uncontrolled
+     * input is interpolated into JSON. Return honest availability only.
+     */
+    static String unavailableAppsJson(long requestId, String[] appIds) throws IOException {
+        if (appIds == null || appIds.length > 16)
+            throw new IOException("App availability request too large");
+        StringBuilder out = new StringBuilder(96 + appIds.length * 110);
+        out.append("{\\"responseType\\":\\"GET_APP_AVAILABILITY\\",\\"requestId\\":");
+        out.append(Math.max(0L, requestId)).append(",\\"availability\\":{");
+        for (int i = 0; i < appIds.length; i++) {
+            if (appIds[i] == null || !appIds[i].matches("[A-Za-z0-9._-]{1,80}"))
+                throw new IOException("Invalid app identifier");
+            if (i > 0) out.append(',');
+            out.append('"').append(appIds[i]).append("\\":\\"APP_UNAVAILABLE\\"");
+        }
+        return out.append("}}").toString();
     }
 
     private static CastV2Envelope textResponse(CastV2Envelope request,
