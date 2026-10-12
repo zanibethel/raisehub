@@ -282,8 +282,9 @@ public final class MainActivity extends Activity {
         dashboard.addView(builtInCast, new LinearLayout.LayoutParams(-1, dp(62)));
         dashboard.addView(label(
                 "Use Cast Diagnostics to advertise WebPortal Cast TEST. "
-                + "This version answers Cast heartbeats/status and identifies the "
-                + "certified device-authentication barrier. Screen mirroring is not enabled yet.",
+                + "This version sends a correctly signed, SELF-OWNED test certificate "
+                + "in reply to deviceauth to measure Quest compatibility. "
+                + "It is NOT Google-certified and cannot mirror gameplay yet.",
                 16, MUTED, false));
         addSpace(dashboard, 12);
         dashboard.addView(label("QUEST DIRECT CAST • VIDEO PREVIEW", 18, CYAN, true));
@@ -449,7 +450,9 @@ public final class MainActivity extends Activity {
                 + "from Quest's built-in Chromecast casting screen. 3. After the Quest's "
                 + "result, stop test and scan the report QR. This version handles "
                 + "heartbeat/status and reports certified-authentication challenges; "
-                + "it cannot yet receive video from the native Cast sender.",
+                + "The signed test identity is NOT a Google-certified Cast receiver. "
+                + "Report whether the Quest continues after authentication; "
+                + "native game video is not implemented.",
                 16, Color.WHITE, false));
 
         LinearLayout buttons = new LinearLayout(this);
