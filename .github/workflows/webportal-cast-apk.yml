@@ -30,7 +30,7 @@ jobs:
       - name: Build PR test APK (no production signing secrets)
         if: github.event_name == 'pull_request'
         working-directory: tools/webportal-cast
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: gradle :protocol:test :app:testDebugUnitTest :app:assembleDebug :quest:assembleDebug --stacktrace
 
       - name: Verify release signing credentials
         if: github.event_name != 'pull_request'
@@ -80,14 +80,16 @@ jobs:
           WEBPORTAL_KEYSTORE_PASSWORD: ${{ secrets.WEBPORTAL_KEYSTORE_PASSWORD }}
           WEBPORTAL_KEY_ALIAS: ${{ secrets.WEBPORTAL_KEY_ALIAS }}
           WEBPORTAL_KEY_PASSWORD: ${{ secrets.WEBPORTAL_KEY_PASSWORD }}
-        run: gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
+        run: gradle :protocol:test :app:testDebugUnitTest :app:assembleRelease :quest:assembleRelease --stacktrace
 
       - name: Stage APK
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             cp tools/webportal-cast/app/build/outputs/apk/debug/app-debug.apk WebPortalCast.apk
+            cp tools/webportal-cast/quest/build/outputs/apk/debug/quest-debug.apk WebPortalQuestCast.apk
           else
             cp tools/webportal-cast/app/build/outputs/apk/release/app-release.apk WebPortalCast.apk
+            cp tools/webportal-cast/quest/build/outputs/apk/release/quest-release.apk WebPortalQuestCast.apk
           fi
 
       - name: Verify APK signature
@@ -95,6 +97,7 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs WebPortalCast.apk
+          "$APKSIGNER" verify --verbose --print-certs WebPortalQuestCast.apk
 
       - name: Verify existing users can update in place
         if: github.event_name != 'pull_request'
@@ -118,8 +121,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: WebPortalCast-apk
-          path: WebPortalCast.apk
+          name: WebPortalCast-and-Quest-apks
+          path: |
+            WebPortalCast.apk
+            WebPortalQuestCast.apk
           if-no-files-found: error
 
       - name: Publish permanent release download and verified update metadata
@@ -129,23 +134,28 @@ jobs:
         run: |
           set -euo pipefail
           SHA256="$(sha256sum WebPortalCast.apk | awk '{print $1}')"
+          QUEST_SHA256="$(sha256sum WebPortalQuestCast.apk | awk '{print $1}')"
           printf '%s\n' \
-            'Standalone Fire TV DLNA receiver, with built-in software updates.' \
-            'Direct Meta Quest, Google Cast, AirPlay and Miracast are not yet supported.' \
-            'First installation: https://raisehub.app/cast' \
-            'Later updates: choose Check for updates in the app.' \
+            'WebPortal Cast Fire TV receiver + optional WebPortal Quest Cast sideload companion.' \
+            'Quest Direct Cast preview supports 720p/30fps encrypted local video with TV PIN pairing and permission-based screen capture; NO AUDIO yet.' \
+            'ChromeCast built-in Quest casting, Google Cast, AirPlay and Miracast are not yet supported.' \
+            'Fire TV: https://raisehub.app/cast' \
+            'Quest APK: https://github.com/zanibethel/raisehub/releases/download/webportal-cast/WebPortalQuestCast.apk' \
+            'After installing the Quest companion APK, open Quest Direct Cast on TV and type its IPv4 address/pair code in the Quest app.' \
+            'Later TV updates: choose Check for updates in the app.' \
             '' \
             "Version-Code: $CAST_VERSION_CODE" \
             "Version-Name: $CAST_VERSION_NAME" \
-            "SHA256: $SHA256" > "$RUNNER_TEMP/webportal-cast-release-notes.txt"
+            "SHA256: $SHA256" \
+            "Quest-SHA256: $QUEST_SHA256" > "$RUNNER_TEMP/webportal-cast-release-notes.txt"
           if gh release view webportal-cast >/dev/null 2>&1; then
-            gh release upload webportal-cast WebPortalCast.apk --clobber
+            gh release upload webportal-cast WebPortalCast.apk WebPortalQuestCast.apk --clobber
             gh release edit webportal-cast \
               --target "$GITHUB_SHA" \
               --title "WebPortal Cast v$CAST_VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/webportal-cast-release-notes.txt"
           else
-            gh release create webportal-cast WebPortalCast.apk \
+            gh release create webportal-cast WebPortalCast.apk WebPortalQuestCast.apk \
               --target "$GITHUB_SHA" \
               --title "WebPortal Cast v$CAST_VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/webportal-cast-release-notes.txt"
