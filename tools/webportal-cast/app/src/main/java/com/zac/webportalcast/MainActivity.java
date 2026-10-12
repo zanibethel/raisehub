@@ -312,7 +312,8 @@ public final class MainActivity extends Activity {
         reportView.addView(label(
                 "1. Start new test.  2. On Quest, select WebPortal Cast TEST in Chromecast.  "
                 + "3. After Quest reports an error, stop the test and scan the QR code. "
-                + "This probe tests TLS/Cast V2 stages; it does not mirror video.",
+                + "First connection checks the protocol header; later attempts test TLS. "
+                + "This is diagnostics only, not a gameplay mirror.",
                 16, Color.WHITE, false));
 
         LinearLayout buttons = new LinearLayout(this);
@@ -360,7 +361,9 @@ public final class MainActivity extends Activity {
         logScroll.addView(reportEvents);
         reportView.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         reportView.addView(label(
-                "Experimental TLS uses a local self-signed identity, not a certified Chromecast certificate. "
+                "This test runs a local TLS self-check, classifies the first Quest connection "
+                + "and logs limited handshake stages. The TLS identity is self-signed, "
+                + "not a certified Chromecast certificate. "
                 + "A failed device-authentication check is expected. "
                 + "Only TLS results and Cast message namespaces are logged, not payloads, passwords, IP addresses or game footage. "
                 + "Reports remain on your local network while the app stays open.",
