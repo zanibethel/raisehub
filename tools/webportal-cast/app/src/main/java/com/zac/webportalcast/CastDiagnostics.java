@@ -293,8 +293,8 @@ public final class CastDiagnostics {
 
     public synchronized void record(String category, String detail) {
         if (key == null || stoppedAt != 0) return;
-        String safeCategory = category.replaceAll("[^A-Z_]", "").substring(0,
-                Math.min(28, category.replaceAll("[^A-Z_]", "").length()));
+        String safeCategory = category.replaceAll("[^A-Z0-9_]", "").substring(0,
+                Math.min(28, category.replaceAll("[^A-Z0-9_]", "").length()));
         // All call sites supply whitelisted, human-readable events (never raw media URLs).
         String safeDetail = detail.replace('\n', ' ').replace('\r', ' ');
         // Keep both client and server local TLS causes in a single report line.
@@ -309,7 +309,11 @@ public final class CastDiagnostics {
         if (safeCategory.equals("TLS_SELFTEST_OK") || safeCategory.equals("TLS_SELFTEST_FAIL")
                 || safeCategory.equals("TLS_SETUP_ERROR") || safeCategory.equals("TLS_IDENTITY")
                 || safeCategory.equals("TLS_READY") || safeCategory.equals("TLS_WRAP_ERROR")
-                || safeCategory.equals("TLS_KEY_SIGN")) {
+                || safeCategory.equals("TLS_KEY_SIGN")
+                || safeCategory.equals("V2_AUTH_CHALLENGE")
+                || safeCategory.equals("V2_AUTH_ERROR")
+                || safeCategory.equals("V2_LAUNCH_UNSUPPORTED")
+                || safeCategory.equals("V2_OFFER_UNSUPPORTED")) {
             milestones.put(safeCategory, entry);
         }
         if (safeCategory.equals("TLS_FAILED")) {
@@ -395,7 +399,8 @@ public final class CastDiagnostics {
                 + "  |  TLS failed: " + count("TLS_FAILED")
                 + "  |  Local TLS: " + (count("TLS_SELFTEST_OK") > 0 ? "PASS" :
                         count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
-                + "  |  Deviceauth: " + count("V2_AUTH")
+                + "  |  Auth challenges: " + count("V2_AUTH_CHALLENGE")
+                + "  |  Cast heartbeat: " + count("V2_HEARTBEAT")
                 + "  |  DLNA searches: " + count("SSDP_SEARCH")
                 + "  |  DLNA requests: " + count("DLNA_HTTP")
                 + "  |  Errors: " + count("ERROR");
@@ -427,12 +432,19 @@ public final class CastDiagnostics {
                 .append("TLS handshakes completed: ").append(count("TLS_OK")).append("\n")
                 .append("TLS handshakes failed: ").append(count("TLS_FAILED")).append("\n")
                 .append("TLS handshake timeouts: ").append(count("TLS_TIMEOUT")).append("\n")
-                .append("Cast V2 authenticated: NO (diagnostic test identity only)\n\n")
+                .append("Cast auth challenges received: ").append(count("V2_AUTH_CHALLENGE")).append("\n")
+                .append("Honest auth-error replies: ").append(count("V2_AUTH_ERROR")).append("\n")
+                .append("Cast heartbeat responses: ").append(count("V2_HEARTBEAT")).append("\n")
+                .append("Cast receiver status replies: ").append(count("V2_STATUS")).append("\n")
+                .append("Cast V2 authenticated: NO (no Google-certified receiver identity)\n\n")
                 .append("INTERPRETATION\n")
                 .append("- No events does not prove that Quest did not cast: we only see packets addressed to this app or local discovery callbacks.\n")
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
                 .append("- v0.1.5 previously confirmed that the Quest sends a TLS handshake record.\n")
-                .append("- Every new connection is now accepted by a dedicated server-mode TLS socket.\n")
+                .append("- TLS Cast control now supports PING/PONG, CONNECT and truthful idle GET_STATUS.\n")
+                .append("- Device-authentication challenges get explicit unsupported-identity errors, never forged certificates.\n")
+                .append("- LAUNCH and stream OFFER cannot succeed until genuine authenticated receiver/media support exists.\n")
+                .append("- Every new connection is accepted by a dedicated server-mode TLS socket.\n")
                 .append("- The local TLS key has been regenerated with TLS-required RSA digest/padding permissions.\n")
                 .append("- The loopback TLS self-test independently reports client and server failures.\n")
                 .append("- Nearby Cast TXT comparison logs only allowlisted numeric flags and field presence.\n")
