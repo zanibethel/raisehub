@@ -43,11 +43,12 @@ import javax.net.ssl.SSLSocket;
 import javax.security.auth.x500.X500Principal;
 
 /**
- * Explicitly experimental Cast V2 transport diagnostics. NOT a Cast receiver.
+ * Experimental Cast V2 control receiver. NOT a certified or video-capable Cast receiver.
  *
  * Uses an app-owned, untrusted AndroidKeyStore self-signed TLS test identity.
- * It cannot impersonate Google-certified devices, respond to deviceauth
- * challenges, or receive gameplay. No production secrets are bundled.
+ * It cannot impersonate Google-certified devices or receive Cast gameplay.
+ * It answers deviceauth challenges with an explicit error (never a forged
+ * certificate/signature), and supports heartbeat / truthful idle status.
  *
  * Only TLS state and bounded protobuf namespace metadata are recorded.
  * No source addresses, packet contents, media, credentials or certificates
@@ -335,48 +336,15 @@ public final class CastProtocolProbe {
             socket.startHandshake();
             listener.onEvent("TLS_OK", "Connection " + id + " negotiated " +
                     safeProtocol(socket.getSession().getProtocol()));
-            socket.setSoTimeout(FRAME_READ_TIMEOUT_MS);
-            DataInputStream stream = new DataInputStream(socket.getInputStream());
-            int messages = 0;
-            while (running && messages < MAX_FRAMES
-                    && System.currentTimeMillis() - started < MAX_SESSION_MS) {
-                int length;
-                try {
-                    length = stream.readInt(); // Cast V2 unsigned 32-bit network-order length.
-                } catch (SocketTimeoutException timeout) {
-                    listener.onEvent("V2_WAIT", "Connection " + id + " has TLS but no complete Cast V2 header");
-                    break;
-                } catch (EOFException ended) {
-                    listener.onEvent("V2_CLOSED", "Connection " + id + " closed after TLS handshake");
-                    break;
-                }
-                if (length <= 0 || length > FRAME_LIMIT) {
-                    listener.onEvent("V2_INVALID", "Connection " + id + " frame length is unsupported");
-                    break;
-                }
-                byte[] frame = new byte[length];
-                try {
-                    stream.readFully(frame); // In memory only, never saved or logged.
-                } catch (SocketTimeoutException timeout) {
-                    listener.onEvent("V2_WAIT", "Connection " + id + " sent incomplete Cast frame");
-                    break;
-                }
-                messages++;
-                String namespace = parseNamespace(frame);
-                if (namespace == null) {
-                    listener.onEvent("V2_INVALID", "Connection " + id + " sent unrecognized protobuf envelope");
-                    break;
-                }
-                if (namespace.equals("urn:x-cast:com.google.cast.tp.deviceauth")) {
-                    listener.onEvent("V2_AUTH", "Connection " + id +
-                            " sent Cast deviceauth message; no certified response available");
-                    break;
-                }
-                listener.onEvent("V2_NAMESPACE", "Connection " + id + " namespace: " + namespace);
-            }
-            if (messages >= MAX_FRAMES) {
-                listener.onEvent("V2_LIMIT", "Connection " + id + " diagnostic frame limit reached");
-            }
+            // Cast V2 deviceauth is distinct from the TLS handshake. We now
+            // retain the authenticated TLS channel long enough to respond to
+            // heartbeats and truthful status requests, and explicitly decline
+            // unsupported device identity/streaming operations.
+            socket.setSoTimeout(8000);
+            CastV2ControlSession.run(socket, number,
+                    (category, description) -> {
+                        if (running) listener.onEvent(category, description);
+                    });
         } catch (SSLHandshakeException authFailure) {
             listener.onEvent("TLS_FAILED", "Connection " + id +
                     " TLS handshake failed (" + CastHandshakeClassifier.tlsFailure(authFailure) + ")");

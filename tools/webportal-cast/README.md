@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.2.0 receiver capability
+## Version 0.2.1 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,24 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Quest built-in Chromecast V2 control handling (v0.2.1)
+
+**Goal:** Move toward AirScreen-style casting that uses the Quest's existing **Cast → Chromecast** screen, with **no sideloaded Quest companion**. This is an incremental native-sender compatibility investigation, not a working Google-certified Chromecast or game-mirror receiver.
+
+The Fire TV v0.1.9 hardware test confirmed AndroidKeyStore RSA signing, a passing local TLS test, three TLSv1.2 connections and three Cast V2 deviceauth namespace messages from nearby senders. We previously closed each socket immediately after inspecting that namespace, so we could not distinguish subsequent Cast V2 control traffic.
+
+- Strict bounded reader/writer for Cast V2 framed protobuf `CastMessage` fields: protocol version, source/destination, namespace, UTF-8 JSON / binary payload, maximum 64 KiB per frame and 8 KiB JSON.
+- On each authenticated **TLS transport** socket, handle Cast virtual `CONNECT/CLOSE`, heartbeat `PING/PONG`, and `GET_STATUS` with an honest idle `RECEIVER_STATUS` (no launched applications). Connection sessions have message/time/read limits and never export arbitrary sender messages.
+- Distinguish the device-authentication **challenge received** from **device authentication succeeded**. The app has no Google-issued receiver certificate, so it responds with a protocol-defined `AuthError.INTERNAL_ERROR` (explicit lack of authenticated device identity), and never forges device credentials, signed responses or app launch success.
+- Unexpected native `LAUNCH` requests receive idle status instead of fictitious success. Unexpected streaming `OFFER` gets `ANSWER` with an explicit unsupported-transport error; we do **not** announce a UDP port or pretend to support mirroring RTP/RTCP.
+- Event labels retain numeric `V2_` prefixes (previous bug stripped the `2`), report auth challenges and auth-error responses independently, and retain critical milestones even if control events recur.
+- **Fire TV test only:** Update WebPortal Cast to v0.2.1, open the **Test Quest's built-in Chromecast connection** button, Start new test, then use the built-in Quest casting menu to choose **WebPortal Cast TEST**. Stop the test after the Quest's result, send the QR report. Pay attention to `V2_AUTH_CHALLENGE`, `V2_AUTH_ERROR`, `V2_CONNECT`, `V2_HEARTBEAT`, `V2_STATUS`, `V2_LAUNCH_UNSUPPORTED`, `V2_OFFER_UNSUPPORTED`. Do not share sender credentials or personal media.
+- **Hard limitation:** Google's Cast authentication can require Google-issued device certificates; a self-signed Android certificate is not a substitute. If the headset refuses after deviceauth, implementing more heartbeat/streaming code alone will not solve certified receiver identity. Receiver-side RTP/RTCP video and audio implementation remains separate future work, only relevant if the native Quest sender accepts the receiver.
+
+References: [Chromium Cast V2 protobuf](https://chromium.googlesource.com/chromium/src/+/main/components/cast_channel/proto/cast_channel.proto) and [Open Screen Streaming Session Protocol](https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/protocol/streaming_session_protocol.md).
+
+The optional companion APK introduced in 0.2.0 remains a separate **fallback**; it is *not required to run the built-in Quest casting diagnostics*. Existing DLNA, UI Screen Fit/focus, receiver video preview and updater/signing behavior remain unchanged.
 
 ### Quest Direct Cast video MVP (v0.2.0 TV + v0.1.0 Quest companion)
 
