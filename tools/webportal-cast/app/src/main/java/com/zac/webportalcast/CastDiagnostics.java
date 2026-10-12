@@ -443,6 +443,10 @@ public final class CastDiagnostics {
                 .append("Loopback local TLS self-test: ")
                 .append(count("TLS_SELFTEST_OK") > 0 ? "PASS" :
                         count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "NOT RUN").append("\n")
+                .append("Real Fire TV Cast V2 loopback self-test: ")
+                .append(count("V2_SELFTEST_OK") > 0 ? "PASS" :
+                        count("V2_SELFTEST_FAIL") > 0 ? "FAIL" : "NOT RUN").append("\n")
+                .append("Loopback test traffic excluded from Quest/TLS session counters.\n")
                 .append("Nearby receiver capability lookups: ").append(count("CAST_CAPS")).append("\n")
                 .append("TLS attempts: ").append(count("TLS_STARTED")).append("\n")
                 .append("TLS handshakes completed: ").append(count("TLS_OK")).append("\n")
@@ -463,7 +467,7 @@ public final class CastDiagnostics {
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
                 .append("- v0.1.5 previously confirmed that the Quest sends a TLS handshake record.\n")
                 .append("- TLS Cast control now supports PING/PONG, CONNECT and truthful idle GET_STATUS.\n")
-                .append("- A self-owned, locally signed test AuthResponse is returned; it is NOT trusted by Google Cast CAs.\n")
+                .append("- A self-owned, locally signed test AuthResponse is returned; it is NOT trusted by Google Cast CAs.\n")                .append("- Real TV loopback test verifies Cast controls under explicit local cert trust, not Quest trust.\n")
                 .append("- Observed post-auth traffic is not proof that sender validated the test certificate.\n")
                 .append("- LAUNCH and stream OFFER cannot succeed until genuine authenticated receiver/media support exists.\n")
                 .append("- Every new connection is accepted by a dedicated server-mode TLS socket.\n")
