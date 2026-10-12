@@ -8,6 +8,8 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 
 import javax.net.ssl.SSLSocket;
 
@@ -16,7 +18,8 @@ import javax.net.ssl.SSLSocket;
  * it can and cannot do. Supports heartbeat and truthful receiver status, not
  * authenticated Google Cast hardware or RTP/RTCP mirror playback.
  *
- * It never forges device certificates/signatures and never sends a successful
+ * For the explicit local-auth test it can sign with an app-owned self-signed
+ * certificate, but cannot confer Cast CA trust, and never sends a successful
  * LAUNCH/ANSWER before media transport is implemented.
  */
 final class CastV2ControlSession {
@@ -32,7 +35,9 @@ final class CastV2ControlSession {
 
     private CastV2ControlSession() {}
 
-    static void run(SSLSocket peer, int connection, Events events) throws IOException {
+    static void run(SSLSocket peer, int connection, Events events,
+                    PrivateKey localPrivateKey, X509Certificate localCertificate)
+            throws IOException {
         final String id = "#" + connection;
         DataInputStream in = new DataInputStream(peer.getInputStream());
         DataOutputStream out = new DataOutputStream(peer.getOutputStream());
@@ -40,6 +45,7 @@ final class CastV2ControlSession {
         int messages = 0;
         int authChallenges = 0;
         int replied = 0;
+        boolean postAuthTraffic = false;
         while (messages < MAX_MESSAGES && System.currentTimeMillis() - started < MAX_DURATION_MS) {
             CastV2Envelope frame;
             try {
@@ -58,33 +64,56 @@ final class CastV2ControlSession {
             messages++;
             if (AUTH.equals(frame.namespace)) {
                 if (frame.payloadType != CastV2Envelope.BINARY) {
-                    events.record("V2_AUTH_INVALID", "Session " + id + " deviceauth not binary");
+                    events.record("V2_AUTH_INVALID", "Session " + id + " deviceauth payload not binary");
                     break;
                 }
-                // DeviceAuthMessage.challenge=field 1, wire type 2. Never read
-                // nonce content or record certificate material.
-                if (frame.payload.length > 0 && (frame.payload[0] & 255) == 10) {
-                    authChallenges++;
-                    events.record("V2_AUTH_CHALLENGE", "Session " + id +
-                            " received device identity challenge; untrusted TV has no certified identity");
-                    // DeviceAuthMessage.error (field 3) with AuthError.INTERNAL_ERROR (0).
-                    // This is an explicit *failure* response. We cannot provide
-                    // the signed Google device identity required by strict senders.
-                    if (replied < 1) {
-                        CastV2Envelope.write(out, new CastV2Envelope("receiver-0",
-                                frame.source, AUTH, CastV2Envelope.BINARY,
-                                new byte[] {0x1a, 0x02, 0x08, 0x00}));
-                        replied++;
-                        events.record("V2_AUTH_ERROR", "Session " + id +
-                                " replied unsupported device identity; NOT authenticated");
-                    }
-                } else {
-                    events.record("V2_AUTH_OTHER", "Session " + id +
-                            " received non-challenge auth message");
+                CastLocalAuthResponse.Challenge challenge;
+                try {
+                    challenge = CastLocalAuthResponse.parseChallenge(frame.payload);
+                } catch (IOException notChallenge) {
+                    events.record("V2_AUTH_INVALID", "Session " + id +
+                            " invalid or unexpected device-auth challenge");
+                    break;
                 }
-                // Remain on TLS channel briefly so the sender can close
-                // cleanly, but do not accept a fake authenticated session.
+                authChallenges++;
+                events.record("V2_AUTH_CHALLENGE", "Session " + id +
+                        " received device identity challenge; receiver certificate is SELF-OWNED");
+                if (replied > 0) {
+                    events.record("V2_AUTH_REPEATED", "Session " + id +
+                            " extra auth challenge ignored");
+                    continue;
+                }
+                replied++;
+                byte[] answer;
+                if (!CastLocalAuthResponse.supported(challenge)) {
+                    answer = CastLocalAuthResponse.unsupportedAlgorithmError();
+                    events.record("V2_AUTH_UNSUPPORTED", "Session " + id +
+                            " requested unsupported signature/hash algorithm");
+                } else {
+                    try {
+                        answer = CastLocalAuthResponse.encode(challenge,
+                                localPrivateKey, localCertificate.getPublicKey(),
+                                localCertificate.getEncoded());
+                        events.record("V2_AUTH_RESPONSE_LOCAL", "Session " + id +
+                                " sent correctly signed SELF-OWNED test identity; Cast trust NOT established" +
+                                " (hash=" + (challenge.hashAlgorithm == 1 ? "SHA256" : "SHA1") +
+                                ", nonce=" + challenge.noncePresent + ")");
+                    } catch (Exception localFailure) {
+                        answer = new byte[] {0x1a, 0x02, 0x08, 0x00};
+                        events.record("V2_AUTH_SIGN_FAIL", "Session " + id +
+                                " local test signature unavailable: " +
+                                localFailure.getClass().getSimpleName());
+                    }
+                }
+                CastV2Envelope.write(out, new CastV2Envelope("receiver-0",
+                        frame.source, AUTH, CastV2Envelope.BINARY, answer));
                 continue;
+            }
+            if (replied > 0 && !postAuthTraffic) {
+                postAuthTraffic = true;
+                events.record("V2_POST_AUTH_TRAFFIC", "Session " + id +
+                        " sender continued with Cast control messages after local response; " +
+                        "acceptance of identity NOT proven");
             }
             if (frame.payloadType != CastV2Envelope.STRING) {
                 events.record("V2_BINARY", "Session " + id + " non-auth binary control message");
@@ -143,7 +172,8 @@ final class CastV2ControlSession {
         }
         events.record("V2_END", "Session " + id + " processed " + messages +
                 " messages, deviceauth challenges=" + authChallenges +
-                ", authenticated=false");
+                ", sender continued=" + postAuthTraffic +
+                ", certified authentication NOT demonstrated");
     }
 
     private static CastV2Envelope textResponse(CastV2Envelope request,

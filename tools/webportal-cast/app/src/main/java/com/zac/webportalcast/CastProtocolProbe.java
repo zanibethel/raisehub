@@ -63,7 +63,8 @@ public final class CastProtocolProbe {
 
     // v0.1.9: use a new alias; old key authorizations cannot be widened
     // after generation and the old key remains untouched.
-    private static final String KEY_ALIAS = "webportal_cast_local_test_tls_02";
+    // New local-only test identity: constrained TLS validity, not Cast-certified.
+    private static final String KEY_ALIAS = "webportal_cast_auth_test_tls_03";
     private static final int FRAME_LIMIT = 65536;
     private static final int MAX_FRAMES = 6;
     private static final int MAX_SESSION_MS = 9000;
@@ -84,6 +85,8 @@ public final class CastProtocolProbe {
 
     private volatile boolean running;
     private volatile SSLServerSocket server;
+    private volatile PrivateKey localAuthKey;
+    private volatile X509Certificate localAuthCertificate;
     private Thread acceptThread;
     private int connectionSequence;
 
@@ -252,6 +255,16 @@ public final class CastProtocolProbe {
         // is made. No Google/device/vendor certificate is used or imitated.
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
+        // Sender implementations may reject TLS self-signed certificates with
+        // more than four days remaining, even before checking Cast device auth.
+        // Rotate only our test identity near expiry; retain all older aliases.
+        Certificate previous = keyStore.getCertificate(KEY_ALIAS);
+        if (previous instanceof X509Certificate &&
+                ((X509Certificate)previous).getNotAfter().getTime() -
+                        System.currentTimeMillis() < 12L * 60 * 60 * 1000) {
+            keyStore.deleteEntry(KEY_ALIAS);
+            listener.onEvent("TLS_IDENTITY", "Expired or expiring local test TLS identity rotated");
+        }
         if (!keyStore.containsAlias(KEY_ALIAS)) {
             KeyPairGenerator generator = KeyPairGenerator.getInstance(
                     KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
@@ -261,8 +274,9 @@ public final class CastProtocolProbe {
                     .setKeySize(2048)
                     // Android's TLS stack signs already-hashed transcript data.
                     // The old key only permitted SHA256, not DIGEST_NONE.
-                    .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA256,
-                            KeyProperties.DIGEST_SHA384, KeyProperties.DIGEST_SHA512)
+                    .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA1,
+                            KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384,
+                            KeyProperties.DIGEST_SHA512)
                     .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1,
                             KeyProperties.SIGNATURE_PADDING_RSA_PSS)
                     // TLS providers may require no-padding or PKCS#1 when
@@ -271,9 +285,9 @@ public final class CastProtocolProbe {
                             KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
                     .setRandomizedEncryptionRequired(false)
                     .setCertificateSubject(new X500Principal("CN=WebPortal Cast TEST"))
-                    .setCertificateSerialNumber(BigInteger.valueOf(2))
-                    .setCertificateNotBefore(new Date(now - 86400000L))
-                    .setCertificateNotAfter(new Date(now + 3650L * 86400000L))
+                    .setCertificateSerialNumber(BigInteger.valueOf(3))
+                    .setCertificateNotBefore(new Date(now - 60000L))
+                    .setCertificateNotAfter(new Date(now + 2L * 86400000L))
                     .build();
             generator.initialize(parameters);
             generator.generateKeyPair();
@@ -294,6 +308,13 @@ public final class CastProtocolProbe {
 
         PrivateKey privateKey = (PrivateKey) privateKeyCandidate;
         X509Certificate x509 = (X509Certificate) certificate;
+        localAuthKey = privateKey;
+        localAuthCertificate = x509;
+        long remainingHours = Math.max(0,
+                (x509.getNotAfter().getTime() - System.currentTimeMillis()) / 3600000L);
+        listener.onEvent("TLS_AUTH_TEST_IDENTITY",
+                "Local self-owned certificate, valid for " + remainingHours +
+                        " more hours (NOT Google-trusted)");
         checkLocalSigning(privateKey, x509);
 
         SSLContext tls = SSLContext.getInstance("TLS");
@@ -344,7 +365,7 @@ public final class CastProtocolProbe {
             CastV2ControlSession.run(socket, number,
                     (category, description) -> {
                         if (running) listener.onEvent(category, description);
-                    });
+                    }, localAuthKey, localAuthCertificate);
         } catch (SSLHandshakeException authFailure) {
             listener.onEvent("TLS_FAILED", "Connection " + id +
                     " TLS handshake failed (" + CastHandshakeClassifier.tlsFailure(authFailure) + ")");

@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.2.1 receiver capability
+## Version 0.2.2 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,24 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Self-owned Cast deviceauth compatibility experiment (v0.2.2)
+
+**Why:** v0.2.1 on Amazon AFTMM (Android API 25) showed five real TLS 1.2 sessions, five Cast device-authentication challenges, and five protocol `AuthError` replies from our TV. All senders closed immediately afterward, before heartbeat, launch or media negotiation. This did not test whether a sender would accept a correctly formed response using an **untrusted, app-owned** credential.
+
+**Experimental response:**
+- Generate a **separate**, local-only AndroidKeyStore RSA identity (new alias) and TLS certificate that expires in **two days**, below the four-day remaining-TLS-cert limit imposed by several Chromium Cast sender implementations. Rotate just this app-owned test identity when it is about to expire; leave older diagnostic keys untouched.
+- Permit SHA-1 and SHA-256 RSA signing for this narrowly scoped compatibility test (legacy protobuf default SHA-1; modern challenge may request SHA-256). No private key, credentials or certificate data are exported.
+- Strictly parse `DeviceAuthMessage.challenge` including optional `signature_algorithm`, `sender_nonce` and `hash_algorithm` (with bounded metadata). Respond with a protobuf `DeviceAuthMessage.response` carrying our own certificate, RSA signature and echoed nonce and algorithm values. **Signed input** is exactly `sender_nonce || TLS_certificate_DER`, matching the public Cast sender validation logic. Verify the signature locally before sending.
+- For unknown algorithms or failures, return an explicit error; never invent signed Google-issued identity, intermediate CAs, device policies or proof of Cast certification.
+- Record `V2_AUTH_CHALLENGE`, `V2_AUTH_RESPONSE_LOCAL`, `V2_POST_AUTH_TRAFFIC`, `V2_AUTH_SIGN_FAIL`, `V2_AUTH_UNSUPPORTED`. Distinguish sent replies from certified/accepted authentication. A following heartbeat/status indicates **progress**, not proof the sender trusts our certificate.
+- Keep current heartbeat/status handling and refuse nonexistent app launch or media streaming support. **No video or audio mirroring is added** by this experiment.
+
+**Hardware test:** Update only the Fire TV APK to 0.2.2. Select **Test Quest's built-in Chromecast connection** → Start new test. On Quest use its native Cast → Chromecast menu and select **WebPortal Cast TEST**. End the test after the result and share the QR report. Check especially `TLS_SELFTEST_OK`, `V2_AUTH_RESPONSE_LOCAL`, `V2_POST_AUTH_TRAFFIC` and `V2_END`. A rejection of the self-owned credential would indicate a hard trust barrier rather than a transport bug.
+
+Protocol reference: https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/common/channel/proto/cast_channel.proto . Sender verification reference: https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/sender/channel/cast_auth_util.cc .
+
+This is a deliberately uncertified diagnostic identity. The optional Quest companion added in 0.2.0 remains a separate fallback, not required for this test.
 
 ### Quest built-in Chromecast V2 control handling (v0.2.1)
 
