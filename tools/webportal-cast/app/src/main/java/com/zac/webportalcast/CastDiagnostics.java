@@ -9,10 +9,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
@@ -26,9 +22,10 @@ import java.util.TimeZone;
  * Local-only, user-started Quest/Cast connection diagnostics.
  *
  * During a test: (1) register an explicitly experimental _googlecast._tcp
- * service with a TCP contact counter, (2) scan for nearby Cast DNS-SD names,
- * (3) record the receiver's existing SSDP, HTTP and SOAP events.
- * The probe is NOT a TLS or Google Cast implementation.
+ * service backed by an untrusted self-signed TLS probe, (2) inspect bounded
+ * Cast V2 message namespace metadata when TLS succeeds, (3) scan for nearby
+ * DNS-SD names and capture the existing SSDP/HTTP/SOAP events.
+ * The probe is NOT a certified Google Cast receiver or mirroring service.
  *
  * Export is available only when the user starts a session, via an
  * unguessable session URL on the receiver's LAN-only HTTP listener.
@@ -52,8 +49,7 @@ public final class CastDiagnostics {
     private NsdManager.RegistrationListener registration;
     private NsdManager.DiscoveryListener discovery;
     private WifiManager.MulticastLock wifiLock;
-    private ServerSocket probeSocket;
-    private Thread probeThread;
+    private CastProtocolProbe protocolProbe;
     private String key;
     private long startedAt;
     private long stoppedAt;
@@ -112,7 +108,7 @@ public final class CastDiagnostics {
             running = true;
         }
         record("SESSION", "Quest connection test started");
-        record("NETWORK", "DLNA listener stays active; Cast test is discovery/contact only");
+        record("NETWORK", "DLNA active; experimental TLS/Cast V2 probe is metadata-only");
         if (nsd == null) {
             record("ERROR", "Android network service discovery unavailable");
             return;
@@ -131,32 +127,25 @@ public final class CastDiagnostics {
             record("WARN", "Multicast lock failed; Wi-Fi discovery may be limited");
         }
 
-        try {
-            probeSocket = new ServerSocket(0, 8);
-            probeSocket.setSoTimeout(1600);
-            int port = probeSocket.getLocalPort();
-            Thread thread = new Thread(() -> {
-                while (running && probeSocket != null && !probeSocket.isClosed()) {
-                    try (Socket peer = probeSocket.accept()) {
-                        // Deliberately do not read the TLS handshake or peer IP.
-                        synchronized (CastDiagnostics.this) { tcpContacts++; }
-                        record("CAST_TCP", "Incoming connection to the experimental Cast port; no Cast TLS receiver yet");
-                    } catch (SocketTimeoutException timeout) {
-                        // Periodically check the lifecycle flag.
-                    } catch (IOException closed) {
-                        if (running) record("ERROR", "Experimental Cast TCP listener stopped unexpectedly");
-                        break;
-                    }
-                }
-            }, "cast-diagnostics-probe");
-            thread.setDaemon(true);
-            probeThread = thread;
-            thread.start();
-            record("CAST_TCP", "Experimental TCP contact listener open");
-            registerTestReceiver(port);
-        } catch (IOException e) {
-            record("ERROR", "Could not open Cast contact listener: " + e.getClass().getSimpleName());
-        }
+        final CastProtocolProbe[] probeHolder = new CastProtocolProbe[1];
+        CastProtocolProbe probe = new CastProtocolProbe(activity, new CastProtocolProbe.Listener() {
+            @Override public void onReady(int port) {
+                if (running && protocolProbe == probeHolder[0]) registerTestReceiver(port);
+            }
+
+            @Override public void onContact() {
+                if (!running) return;
+                synchronized (CastDiagnostics.this) { tcpContacts++; }
+                record("CAST_TCP", "Incoming Cast test-port connection");
+            }
+
+            @Override public void onEvent(String category, String detail) {
+                if (running) record(category, detail);
+            }
+        });
+        protocolProbe = probe;
+        probeHolder[0] = probe;
+        probe.start();
         discoverNearbyReceivers();
     }
 
@@ -256,10 +245,9 @@ public final class CastDiagnostics {
             wasRunning = running;
             running = false;
         }
-        if (probeSocket != null) {
-            try { probeSocket.close(); } catch (IOException ignored) {}
-            probeSocket = null;
-        }
+        CastProtocolProbe probe = protocolProbe;
+        protocolProbe = null;
+        if (probe != null) probe.stop();
         if (nsd != null && discovery != null) {
             try { nsd.stopServiceDiscovery(discovery); } catch (RuntimeException ignored) {}
             discovery = null;
@@ -304,6 +292,9 @@ public final class CastDiagnostics {
         return (running ? "TEST RUNNING" : "TEST STOPPED")
                 + "  |  Cast TCP: " + tcpContacts
                 + "  |  Nearby Cast: " + count("CAST_FOUND")
+                + "  |  TLS OK: " + count("TLS_OK")
+                + "  |  TLS failed: " + count("TLS_FAILED")
+                + "  |  Deviceauth: " + count("V2_AUTH")
                 + "  |  DLNA searches: " + count("SSDP_SEARCH")
                 + "  |  DLNA requests: " + count("DLNA_HTTP")
                 + "  |  Errors: " + count("ERROR");
@@ -325,11 +316,19 @@ public final class CastDiagnostics {
                 .append("Session stopped: ").append(stoppedAt > 0 ? utc(stoppedAt) : "still running").append("\n")
                 .append("Status: ").append(summary()).append("\n")
                 .append("Test Cast advertisement registered: ").append(registered).append("\n")
-                .append("Cast discovery currently active: ").append(discovered).append("\n\n")
+                .append("Cast discovery currently active: ").append(discovered).append("\n")
+                .append("TLS attempts: ").append(count("TLS_STARTED")).append("\n")
+                .append("TLS handshakes completed: ").append(count("TLS_OK")).append("\n")
+                .append("TLS handshakes failed: ").append(count("TLS_FAILED")).append("\n")
+                .append("TLS handshake timeouts: ").append(count("TLS_TIMEOUT")).append("\n")
+                .append("Cast V2 authenticated: NO (diagnostic test identity only)\n\n")
                 .append("INTERPRETATION\n")
                 .append("- No events does not prove that Quest did not cast: we only see packets addressed to this app or local discovery callbacks.\n")
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
-                .append("- The experimental Cast listener always closes connections; no TLS/auth or screen mirror is present.\n")
+                .append("- The local TLS server uses a self-signed test identity, NOT a Google-trusted device certificate.\n")
+                .append("- TLS success is not Cast device authentication; a deviceauth challenge is only observed, never answered.\n")
+                .append("- Cast V2 frames are read in memory only to extract namespaces; no payloads or certificates are retained.\n")
+                .append("- No Cast media or screen mirroring is implemented; a Quest error is expected.\n")
                 .append("- No sender addresses, media links, credentials, packet payloads, audio or video are captured.\n")
                 .append("- Nearby receiver names may identify local devices; review before sharing.\n\n")
                 .append("EVENT COUNTS\n");
