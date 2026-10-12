@@ -131,6 +131,16 @@ public final class CastProtocolProbe {
             }
             listener.onEvent("TLS_READY", "Server-mode TLS listener active; NOT a certified Cast receiver");
             listener.onReady(socket.getLocalPort());
+            // Connect the *real* Android listener to the independent on-device
+            // test client using only the loopback interface. Run on a new
+            // thread so the accept loop remains free to serve the test socket.
+            Thread controlSelfTest = new Thread(() ->
+                    CastOnDeviceSelfTest.run(socket.getLocalPort(),
+                            localAuthCertificate, (category, description) -> {
+                                if (running) listener.onEvent(category, description);
+                            }), "cast-v2-on-device-selftest");
+            controlSelfTest.setDaemon(true);
+            controlSelfTest.start();
             while (running) {
                 try {
                     SSLSocket peer = (SSLSocket) socket.accept();
@@ -138,7 +148,10 @@ public final class CastProtocolProbe {
                     final int number;
                     synchronized (this) { number = ++connectionSequence; }
                     activeSockets.add(peer);
-                    listener.onContact();
+                    // The local self-test must never inflate counters intended
+                    // for real Quest/sender Cast TCP connections.
+                    if (!peer.getInetAddress().isLoopbackAddress())
+                        listener.onContact();
                     try {
                         connections.execute(() -> examine(peer, number));
                     } catch (RejectedExecutionException overloaded) {
@@ -356,14 +369,14 @@ public final class CastProtocolProbe {
 
     private void examine(SSLSocket peer, int number) {
         String id = "#" + number;
-        long started = System.currentTimeMillis();
+        boolean localTest = peer.getInetAddress().isLoopbackAddress();
         try (SSLSocket socket = peer) {
             socket.setUseClientMode(false);
             socket.setNeedClientAuth(false);
             socket.setSoTimeout(HANDSHAKE_TIMEOUT_MS);
-            listener.onEvent("TLS_STARTED", "Connection " + id + " attempting TLS handshake");
+            if (!localTest) listener.onEvent("TLS_STARTED", "Connection " + id + " attempting TLS handshake");
             socket.startHandshake();
-            listener.onEvent("TLS_OK", "Connection " + id + " negotiated " +
+            if (!localTest) listener.onEvent("TLS_OK", "Connection " + id + " negotiated " +
                     safeProtocol(socket.getSession().getProtocol()));
             // Cast V2 deviceauth is distinct from the TLS handshake. We now
             // retain the authenticated TLS channel long enough to respond to
@@ -372,21 +385,21 @@ public final class CastProtocolProbe {
             socket.setSoTimeout(8000);
             CastV2ControlSession.run(socket, number,
                     (category, description) -> {
-                        if (running) listener.onEvent(category, description);
+                        if (running && !localTest) listener.onEvent(category, description);
                     }, localAuthKey, localAuthCertificate);
         } catch (SSLHandshakeException authFailure) {
-            listener.onEvent("TLS_FAILED", "Connection " + id +
+            if (!localTest) listener.onEvent("TLS_FAILED", "Connection " + id +
                     " TLS handshake failed (" + CastHandshakeClassifier.tlsFailure(authFailure) + ")");
         } catch (SSLException tlsFailure) {
-            listener.onEvent("TLS_FAILED", "Connection " + id +
+            if (!localTest) listener.onEvent("TLS_FAILED", "Connection " + id +
                     " TLS negotiation interrupted (" + CastHandshakeClassifier.tlsFailure(tlsFailure) + ")");
         } catch (SocketTimeoutException timeout) {
-            listener.onEvent("TLS_TIMEOUT", "Connection " + id + " handshake timed out");
+            if (!localTest) listener.onEvent("TLS_TIMEOUT", "Connection " + id + " handshake timed out");
         } catch (IOException closed) {
-            if (running) listener.onEvent("TLS_CLOSED", "Connection " + id +
+            if (running && !localTest) listener.onEvent("TLS_CLOSED", "Connection " + id +
                     " closed or disconnected (" + closed.getClass().getSimpleName() + ")");
         } catch (RuntimeException error) {
-            if (running) listener.onEvent("TLS_ERROR", "Connection " + id + " receiver exception");
+            if (running && !localTest) listener.onEvent("TLS_ERROR", "Connection " + id + " receiver exception");
         } finally {
             activeSockets.remove(peer);
         }
