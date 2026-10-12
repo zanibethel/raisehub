@@ -145,6 +145,8 @@ public final class CastProtocolProbe {
                         // self-test on the TV before advertising this listener.
                         SSLSocket peer = (SSLSocket) context.getSocketFactory()
                                 .createSocket(raw, "localhost", raw.getPort(), true);
+                        // The SSL socket now owns the underlying TCP socket.
+                        activePlainSockets.remove(raw);
                         activeSockets.add(peer);
                         try {
                             connections.execute(() -> examine(peer, number));
