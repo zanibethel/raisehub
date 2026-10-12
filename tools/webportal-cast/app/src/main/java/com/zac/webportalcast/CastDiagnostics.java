@@ -145,7 +145,10 @@ public final class CastDiagnostics {
         final CastProtocolProbe[] probeHolder = new CastProtocolProbe[1];
         CastProtocolProbe probe = new CastProtocolProbe(activity, new CastProtocolProbe.Listener() {
             @Override public void onReady(int port) {
-                if (running && protocolProbe == probeHolder[0]) registerTestReceiver(port);
+                if (running && protocolProbe == probeHolder[0]) {
+                    record("CAST_TEST_PORT", "Experimental Cast V2 TLS listener TCP port: " + port);
+                    registerTestReceiver(port);
+                }
             }
 
             @Override public void onContact() {
@@ -316,6 +319,8 @@ public final class CastDiagnostics {
                 || safeCategory.equals("V2_AUTH_SIGN_FAIL")
                 || safeCategory.equals("V2_POST_AUTH_TRAFFIC")
                 || safeCategory.equals("TLS_AUTH_TEST_IDENTITY")
+                || safeCategory.equals("TLS_TEST_SHA256")
+                || safeCategory.equals("CAST_TEST_PORT")
                 || safeCategory.equals("V2_LAUNCH_UNSUPPORTED")
                 || safeCategory.equals("V2_OFFER_UNSUPPORTED")) {
             milestones.put(safeCategory, entry);
