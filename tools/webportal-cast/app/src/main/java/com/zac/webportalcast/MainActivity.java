@@ -19,6 +19,8 @@ import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -79,6 +81,10 @@ public final class MainActivity extends Activity {
     private Button reportStartButton;
     private Button reportStopButton;
     private boolean showingReport;
+    private boolean showingQuest;
+    private QuestVideoReceiver questVideoReceiver;
+    private TextView questPairLabel;
+    private TextView questStatusLabel;
     private String queuedUri;
     private boolean watchingVideo;
     private volatile long cachedPositionMs;
@@ -269,6 +275,16 @@ public final class MainActivity extends Activity {
         Button connectionReport = action("Open Cast Diagnostics");
         connectionReport.setOnClickListener(v -> showReport());
         dashboard.addView(connectionReport, new LinearLayout.LayoutParams(dp(350), dp(58)));
+        addSpace(dashboard, 12);
+        dashboard.addView(label("QUEST DIRECT CAST • VIDEO PREVIEW", 18, CYAN, true));
+        Button questCast = action("Receive Quest direct video (no Chromecast)");
+        questCast.setOnClickListener(v -> showQuestReceiver());
+        dashboard.addView(questCast, new LinearLayout.LayoutParams(-1, dp(62)));
+        dashboard.addView(label(
+                "On Quest, install WebPortal Quest Cast companion app. Enter this TV's address "
+                + "and one-time code, then approve screen capture. 720p/30 fps video only.",
+                16, MUTED, false));
+        addSpace(dashboard, 12);
         dashboard.addView(label(
                 "Find nearby Cast receivers, test Quest discovery and export a timestamped "
                 + "connection report to your phone. Does not capture game audio/video.", 16, MUTED, false));
@@ -326,6 +342,76 @@ public final class MainActivity extends Activity {
                 + "For discovery, keep this screen open and use the same home Wi-Fi.",
                 15, MUTED, false));
         dashboardScroll.addView(dashboard, new ScrollView.LayoutParams(-1, -2));
+    }
+
+    private void showQuestReceiver() {
+        if (watchingVideo) stopPlayback("Switching to Quest Direct Cast");
+        stopQuestReceiver();
+        hideScreenFit();
+        showingQuest = true;
+        showingReport = false;
+        FrameLayout scene = new FrameLayout(this);
+        scene.setBackgroundColor(Color.BLACK);
+        SurfaceView surface = new SurfaceView(this);
+        scene.addView(surface, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout overlay = new LinearLayout(this);
+        overlay.setOrientation(LinearLayout.VERTICAL);
+        overlay.setPadding(dp(28), dp(20), dp(28), dp(20));
+        overlay.setBackgroundColor(Color.argb(235, 6, 20, 33));
+        questPairLabel = label("Preparing local Quest receiver...", 24, FOCUS_YELLOW, true);
+        overlay.addView(questPairLabel);
+        questStatusLabel = label("Opening port " +
+                com.zac.castprotocol.LanCastProtocol.PORT + "...", 18, Color.WHITE, false);
+        overlay.addView(questStatusLabel);
+        Button back = action("Stop Quest receiver / Return home");
+        back.setOnClickListener(v -> showDashboard());
+        overlay.addView(back, new LinearLayout.LayoutParams(-1, dp(58)));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
+        lp.setMargins(dp(20), dp(14), dp(20), 0);
+        scene.addView(overlay, lp);
+        questVideoReceiver = new QuestVideoReceiver(new QuestVideoReceiver.Listener() {
+            @Override public void onStatus(String message) {
+                runOnUiThread(() -> {
+                    if (showingQuest && questStatusLabel != null) questStatusLabel.setText(message);
+                });
+            }
+            @Override public void onConnected() {
+                runOnUiThread(() -> {
+                    if (showingQuest && questPairLabel != null)
+                        questPairLabel.setText("QUEST CONNECTED • VIDEO");
+                });
+            }
+            @Override public void onStopped() {
+                runOnUiThread(() -> {
+                    if (showingQuest && questStatusLabel != null)
+                        questStatusLabel.setText("Receiver stopped. Select Return home to reopen.");
+                });
+            }
+        });
+        QuestVideoReceiver quest = questVideoReceiver;
+        questPairLabel.setText("WebPortal Quest Cast\nTV address: " + quest.getAddress() +
+                "\nPair code: " + quest.getCode());
+        surface.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override public void surfaceCreated(SurfaceHolder holder) {
+                if (showingQuest && questVideoReceiver == quest) quest.start(holder.getSurface());
+            }
+            @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {}
+            @Override public void surfaceDestroyed(SurfaceHolder holder) {
+                quest.stop();
+            }
+        });
+        root.removeAllViews();
+        root.addView(scene, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    private void stopQuestReceiver() {
+        showingQuest = false;
+        QuestVideoReceiver live = questVideoReceiver;
+        questVideoReceiver = null;
+        if (live != null) live.stop();
+        questPairLabel = null;
+        questStatusLabel = null;
     }
 
     private void showReport() {
@@ -699,6 +785,7 @@ public final class MainActivity extends Activity {
     }
 
     private void showDashboard() {
+        stopQuestReceiver();
         watchingVideo = false;
         showingReport = false;
         if (root != null && dashboardScroll != null) showFittedPage(dashboardScroll);
@@ -748,7 +835,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (watchingVideo) stopPlayback("Returned to receiver home");
+        if (showingQuest) showDashboard();
+        else if (watchingVideo) stopPlayback("Returned to receiver home");
         else if (fitOverlay != null) {
             if (fitMoveMode) {
                 fitMoveMode = false;
@@ -807,11 +895,13 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onStop() {
+        stopQuestReceiver();
         if (diagnostics != null) diagnostics.stopProbe();
         super.onStop();
     }
 
     @Override protected void onDestroy() {
+        stopQuestReceiver();
         if (diagnostics != null) diagnostics.close();
         if (appUpdater != null) appUpdater.close();
         main.removeCallbacks(cachePlaybackPosition);

@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.9 receiver capability
+## Version 0.2.0 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -11,7 +11,7 @@ Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webport
 - Settings-free home screen with connection log and direct URL playback for testing.
 - LAN-only service; no WAN port forwarding. Only start the app on a trusted home network.
 
-**NOT YET IMPLEMENTED:** Google Cast/Chromecast receiver, Meta Quest direct casting, AirPlay, Miracast or DRM playback. Merely advertising a Chromecast service is not functional casting. Do not call this an AirScreen-equivalent APK yet.
+**Now experimental:** Meta Quest **direct casting through a separately sideloaded Quest companion APK**, using user-approved MediaProjection, hardware H.264 video, and AES-GCM authenticated/encrypted local transport. This is a first hardware-test preview, not a verified replacement for AirScreen. **Not yet implemented:** native Quest Chromecast destination casting, Google Cast certified receiver, AirPlay, Miracast, captured game audio, DRM video.
 
 ### Build and install
 
@@ -23,6 +23,37 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Quest Direct Cast video MVP (v0.2.0 TV + v0.1.0 Quest companion)
+
+The previous v0.1.9 Fire TV local TLS check and the three incoming Quest connections succeeded, all negotiating TLS 1.2 and reaching the Cast `deviceauth` namespace. This still does **not** make WebPortal Cast an authenticated or certified Chromecast receiver. We instead added our own direct sender and receiver path, **separate from Cast Diagnostics**.
+
+**Two apps:**
+- **Fire TV:** `com.zac.webportalcast`, version 0.2.0, the in-place update to the existing WebPortal Cast signed release. Home → **Receive Quest direct video (no Chromecast)** shows a LAN IPv4 address, one-time 12-character code, and live H.264 video surface. Back or Return Home closes the session. The TCP receiver listens only while this screen is displayed. One sender at a time; maximum five failed pairing attempts per session.
+- **Meta Quest:** `com.zac.webportalquest`, version 0.1.0, a new separate Android APK `WebPortalQuestCast.apk` published alongside the TV app. Sideload using ADB, SideQuest, or your trusted device installer. Open it from Quest apps (possibly under Unknown Sources), enter the TV's IPv4 address and 12-character code, then select **Approve capture & Start Casting** and explicitly approve the headset's system MediaProjection prompt. The companion foreground service keeps capturing after leaving the app; **STOP CASTING** in the companion or its persistent system notification ends the session.
+
+**Pipeline and privacy:**
+- Meta Horizon OS officially supports `MediaProjection` for user-consented casting, live streaming, or screen sharing: https://developers.meta.com/vr/documentation/native/native-media-projection/
+- Hardware `video/avc` encoder feeds a 1280×720/30 fps target (2.5 Mbps CBR, I-frame at least once per second), then video samples are sent via TCP port **8765**. Fire OS MediaCodec decodes to a `SurfaceView`.
+- A fresh **12-character hexadecimal pairing code** (48 bits) is displayed by the TV for each receiver session and never sent over the wire. Both endpoints derive a session key via PBKDF2 (40k iterations) and a fresh 16-byte server random challenge; HMAC-SHA256 authenticates possession of the code. Every H.264 payload is encrypted and authenticated via **AES-128-GCM** with per-session nonce and strictly increasing frame counter. Key material stays in memory only. No cloud relay, account, analytics, media storage, raw packet log, or credentials collection.
+- Both endpoints restrict connections to private RFC1918 IPv4 addresses. **Only use a trusted home LAN.** The pairing flow is a prototype, not a formally audited secure protocol. Avoid untrusted public/shared Wi-Fi; future versions should move to an established WebRTC/DTLS-SRTP implementation or independently audited transport.
+- Video only at this stage; no audio capture or codec negotiation. Allow for hardware decoder and Meta compositor differences. An initial pairing success does **not** guarantee correct imagery on all Quest/Fire OS versions.
+
+**Build / install:**
+
+```sh
+cd tools/webportal-cast
+gradle :protocol:test :app:assembleDebug :quest:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk       # Fire TV
+adb install -r quest/build/outputs/apk/debug/quest-debug.apk   # Meta Quest
+```
+
+Production Fire TV APK download: https://raisehub.app/cast
+Production Quest companion APK: https://github.com/zanibethel/raisehub/releases/download/webportal-cast/WebPortalQuestCast.apk
+
+The TV production workflow signs *both* APKs (different package IDs) with the existing persistent release key; the Fire TV in-app updater still validates the regular `WebPortalCast.apk` and its SHA256. The companion is a fresh installation and **does not inherit the TV update screen**.
+
+**Testing / troubleshooting:** Update Fire TV app first, select Quest Direct Cast and leave it showing the address/code. Install and launch companion on Quest, enter those values and approve screen capture. Look for TV `Quest connected` and a live picture; video and audio may be disabled/protected in certain apps. If it fails, share the status/error shown on each device; do **not** share the one-time pairing code. From the TV, Back immediately stops the receiver. Quest Stop Casting or notification action stops the sender.
 
 ### TLS key-usage compatibility correction (v0.1.9)
 

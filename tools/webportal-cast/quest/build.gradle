@@ -1,0 +1,41 @@
+plugins { id 'com.android.application' }
+
+def signingPath = System.getenv('WEBPORTAL_KEYSTORE_PATH')
+def signingStorePassword = System.getenv('WEBPORTAL_KEYSTORE_PASSWORD')
+def signingAlias = System.getenv('WEBPORTAL_KEY_ALIAS')
+def signingKeyPassword = System.getenv('WEBPORTAL_KEY_PASSWORD')
+def canSign = signingPath && signingStorePassword && signingAlias && signingKeyPassword
+android {
+    namespace 'com.zac.webportalquest'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.zac.webportalquest'
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+    signingConfigs {
+        companionRelease {
+            if (canSign) {
+                storeFile file(signingPath)
+                storePassword signingStorePassword
+                keyAlias signingAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        debug { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (canSign) signingConfig signingConfigs.companionRelease
+        }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+dependencies { implementation project(':protocol') }
