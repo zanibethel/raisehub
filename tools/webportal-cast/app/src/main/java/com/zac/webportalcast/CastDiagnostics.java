@@ -145,7 +145,10 @@ public final class CastDiagnostics {
         final CastProtocolProbe[] probeHolder = new CastProtocolProbe[1];
         CastProtocolProbe probe = new CastProtocolProbe(activity, new CastProtocolProbe.Listener() {
             @Override public void onReady(int port) {
-                if (running && protocolProbe == probeHolder[0]) registerTestReceiver(port);
+                if (running && protocolProbe == probeHolder[0]) {
+                    record("CAST_TEST_PORT", "Experimental Cast V2 TLS listener TCP port: " + port);
+                    registerTestReceiver(port);
+                }
             }
 
             @Override public void onContact() {
@@ -316,6 +319,11 @@ public final class CastDiagnostics {
                 || safeCategory.equals("V2_AUTH_SIGN_FAIL")
                 || safeCategory.equals("V2_POST_AUTH_TRAFFIC")
                 || safeCategory.equals("TLS_AUTH_TEST_IDENTITY")
+                || safeCategory.equals("TLS_TEST_SHA256")
+                || safeCategory.equals("CAST_TEST_PORT")
+                || safeCategory.equals("V2_SELFTEST_START")
+                || safeCategory.equals("V2_SELFTEST_OK")
+                || safeCategory.equals("V2_SELFTEST_FAIL")
                 || safeCategory.equals("V2_LAUNCH_UNSUPPORTED")
                 || safeCategory.equals("V2_OFFER_UNSUPPORTED")) {
             milestones.put(safeCategory, entry);
@@ -403,6 +411,8 @@ public final class CastDiagnostics {
                 + "  |  TLS failed: " + count("TLS_FAILED")
                 + "  |  Local TLS: " + (count("TLS_SELFTEST_OK") > 0 ? "PASS" :
                         count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
+                + "  |  Real TV V2 test: " + (count("V2_SELFTEST_OK") > 0 ? "PASS" :
+                        count("V2_SELFTEST_FAIL") > 0 ? "FAIL" : "PENDING")
                 + "  |  Auth challenges: " + count("V2_AUTH_CHALLENGE")
                 + "  |  Local auth replies: " + count("V2_AUTH_RESPONSE_LOCAL")
                 + "  |  Post-auth controls: " + count("V2_POST_AUTH_TRAFFIC")
@@ -433,6 +443,10 @@ public final class CastDiagnostics {
                 .append("Loopback local TLS self-test: ")
                 .append(count("TLS_SELFTEST_OK") > 0 ? "PASS" :
                         count("TLS_SELFTEST_FAIL") > 0 ? "FAIL" : "NOT RUN").append("\n")
+                .append("Real Fire TV Cast V2 loopback self-test: ")
+                .append(count("V2_SELFTEST_OK") > 0 ? "PASS" :
+                        count("V2_SELFTEST_FAIL") > 0 ? "FAIL" : "NOT RUN").append("\n")
+                .append("Loopback test traffic excluded from Quest/TLS session counters.\n")
                 .append("Nearby receiver capability lookups: ").append(count("CAST_CAPS")).append("\n")
                 .append("TLS attempts: ").append(count("TLS_STARTED")).append("\n")
                 .append("TLS handshakes completed: ").append(count("TLS_OK")).append("\n")
@@ -453,7 +467,7 @@ public final class CastDiagnostics {
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
                 .append("- v0.1.5 previously confirmed that the Quest sends a TLS handshake record.\n")
                 .append("- TLS Cast control now supports PING/PONG, CONNECT and truthful idle GET_STATUS.\n")
-                .append("- A self-owned, locally signed test AuthResponse is returned; it is NOT trusted by Google Cast CAs.\n")
+                .append("- A self-owned, locally signed test AuthResponse is returned; it is NOT trusted by Google Cast CAs.\n")                .append("- Real TV loopback test verifies Cast controls under explicit local cert trust, not Quest trust.\n")
                 .append("- Observed post-auth traffic is not proof that sender validated the test certificate.\n")
                 .append("- LAUNCH and stream OFFER cannot succeed until genuine authenticated receiver/media support exists.\n")
                 .append("- Every new connection is accepted by a dedicated server-mode TLS socket.\n")

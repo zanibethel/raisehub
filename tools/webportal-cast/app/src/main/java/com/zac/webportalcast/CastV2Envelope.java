@@ -45,7 +45,9 @@ final class CastV2Envelope {
         if (raw == null || raw.length == 0 || raw.length > MAX_FRAME)
             throw new IOException("Cast envelope size rejected");
         String source = null, destination = null, namespace = null;
-        int version = -1, type = -1;
+        int version = -1, type = -1, payloadField = -1;
+        boolean continued = false;
+        long remainingLength = 0;
         byte[] payload = null;
         int pos = 0, fields = 0;
         while (pos < raw.length && fields++ < 48) {
@@ -61,6 +63,8 @@ final class CastV2Envelope {
                 pos = value.next;
                 if (number == 1) version = (int) value.value;
                 if (number == 5) type = (int) value.value;
+                if (number == 8) continued = value.value != 0;
+                if (number == 9) remainingLength = value.value;
             } else if (wire == 2) {
                 Varint size = readVarint(raw, pos);
                 if (size == null || size.value > raw.length) throw new IOException("Malformed protobuf length");
@@ -79,9 +83,10 @@ final class CastV2Envelope {
                     if (len > MAX_FRAME - 128) throw new IOException("Cast payload too large");
                     if (payload != null) throw new IOException("Multiple Cast payload fields");
                     payload = new byte[len];
+                    payloadField = number;
                     System.arraycopy(raw, pos, payload, 0, len);
-                    if (number == 6 && type != STRING) throw new IOException("String type mismatch");
-                    if (number == 7 && type != BINARY) throw new IOException("Binary type mismatch");
+                    // Protobuf fields may arrive in any order: only compare
+                    // against payload_type after decoding the full message.
                 }
                 pos += len;
             } else if (wire == 1 || wire == 5) {
@@ -90,9 +95,16 @@ final class CastV2Envelope {
                 pos += skip;
             } else throw new IOException("Unsupported protobuf wire type");
         }
-        if (pos != raw.length || version != 0 || source == null || destination == null ||
-                namespace == null || (type != STRING && type != BINARY) || payload == null)
-            throw new IOException("Incomplete Cast envelope");
+        // CASTV2_1_0 through CASTV2_1_3 are defined by Chromium's proto.
+        // We can parse complete unchunked messages from these versions, but
+        // deliberately reject chunked frames until reassembly is implemented.
+        if (pos != raw.length || version < 0 || version > 3 ||
+                continued || remainingLength != 0 || source == null ||
+                destination == null || namespace == null ||
+                (type != STRING && type != BINARY) || payload == null ||
+                (type == STRING && payloadField != 6) ||
+                (type == BINARY && payloadField != 7))
+            throw new IOException("Unsupported or incomplete Cast envelope");
         if (type == STRING && payload.length > MAX_TEXT)
             throw new IOException("Cast JSON payload too large");
         return new CastV2Envelope(source, destination, namespace, type, payload);

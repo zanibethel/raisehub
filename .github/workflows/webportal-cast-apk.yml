@@ -27,6 +27,22 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Validate controlled Cast V2 sender and strict TLS certificate pinning
+        if: github.event_name == 'pull_request'
+        working-directory: tools/webportal-cast
+        run: |
+          set -euo pipefail
+          FIXTURE="$(mktemp -d)"
+          trap 'rm -rf "$FIXTURE"' EXIT
+          keytool -genkeypair -alias cast-test -keyalg RSA -keysize 2048 \
+            -validity 2 -dname "CN=WebPortal Cast LOCAL TEST" \
+            -keystore "$FIXTURE/cast-test.p12" -storetype PKCS12 \
+            -storepass LocalFixturePass123 -keypass LocalFixturePass123 -noprompt
+          mkdir -p "$FIXTURE/classes"
+          javac --release 17 -d "$FIXTURE/classes" devtools/CastControlledSender.java
+          java -cp "$FIXTURE/classes" com.zac.webportalcast.devtools.CastControlledSender \
+            --self-test "$FIXTURE/cast-test.p12" LocalFixturePass123
+
       - name: Build PR test APK (no production signing secrets)
         if: github.event_name == 'pull_request'
         working-directory: tools/webportal-cast

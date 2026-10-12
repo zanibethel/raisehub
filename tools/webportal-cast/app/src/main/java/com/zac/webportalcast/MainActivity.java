@@ -292,10 +292,9 @@ public final class MainActivity extends Activity {
         builtInCast.setOnClickListener(v -> showReport());
         dashboard.addView(builtInCast, new LinearLayout.LayoutParams(-1, dp(62)));
         dashboard.addView(label(
-                "Use Cast Diagnostics to advertise WebPortal Cast TEST. "
-                + "This version sends a correctly signed, SELF-OWNED test certificate "
-                + "in reply to deviceauth to measure Quest compatibility. "
-                + "It is NOT Google-certified and cannot mirror gameplay yet.",
+                "Start a Cast test to run the Fire TV's real TLS and Cast V2 control " +
+                "loopback self-test automatically, without a Quest or computer. " +
+                "A PASS verifies local controls only; this is NOT Google-certified mirroring.",
                 16, MUTED, false));
         addSpace(dashboard, 12);
         dashboard.addView(label("QUEST DIRECT CAST • VIDEO PREVIEW", 18, CYAN, true));
@@ -461,9 +460,9 @@ public final class MainActivity extends Activity {
                 + "from Quest's built-in Chromecast casting screen. 3. After the Quest's "
                 + "result, stop test and scan the report QR. This version handles "
                 + "heartbeat/status and reports certified-authentication challenges; "
-                + "The signed test identity is NOT a Google-certified Cast receiver. "
-                + "Report whether the Quest continues after authentication; "
-                + "native game video is not implemented.",
+                + "First check the automatic Real TV V2 test verdict: PASS or FAIL. " +
+                "This tests our actual Fire TV Cast listener and locally signed auth response. " +
+                "It does NOT certify Chromecast or enable Quest gameplay.",
                 16, Color.WHITE, false));
 
         LinearLayout buttons = new LinearLayout(this);

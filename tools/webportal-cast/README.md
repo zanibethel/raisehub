@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.2.3 receiver capability
+## Version 0.2.4 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,22 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Physical Fire TV on-device Cast control self-test (v0.2.4)
+
+**Reason:** The independent Java 17 controlled sender passed in GitHub CI with a simulated TLS Cast receiver, but until v0.2.4 we had not run the equivalent full protocol roundtrip through Fire TV's actual AndroidKeyStore + TLS Cast listener. A locally controlled sender uses a self-owned certificate pin; this DOES NOT mean the stock Quest will trust WebPortal Cast.
+
+**One-device hardware test — no Mac/PC and no Quest required:**
+1. Upgrade the Fire TV app to 0.2.4 via its normal in-app updater (persistent APK signing identity preserved). Open **Test Quest's built-in Chromecast connection** → **Start new test**.
+2. The TV automatically opens a **loopback-only** SSL client to its actual Cast TLS listener. This independently pins the exact on-device self-owned TLS certificate and then requests virtual CONNECT, GET_APP_AVAILABILITY (honest APP_UNAVAILABLE), GET_STATUS (no applications), signed nonce + TLS certificate deviceauth response, and heartbeat PING/PONG, then closes.
+3. On the report screen, look for **Real TV V2 test: PASS** or **FAIL** and the event **V2_SELFTEST_OK** or **V2_SELFTEST_FAIL**. Send the QR report if failed; it includes the failing stage and exception class, **not** any credentials, keys or media. The loopback test's artificially generated contact/TLS/Cast events are excluded from Quest session counters.
+4. End the test. There is **no need** to run the Quest native Cast menu for this test, because that would just repeat the observed six authentication disconnects with an uncertified local identity.
+
+A PASS validates the Fire TV's real Cast transport and control-message implementation **under the explicit local trust policy**. It does not demonstrate acceptance by the Quest or gameplay mirroring. A FAIL provides an actionable receiver implementation stage to fix. No outside server, Meta login, or Quest companion app is used; no video is captured.
+
+The existing desktop Java controlled sender in `devtools/CastControlledSender.java` remains an optional independent client for manual later LAN tests, using the TLS public SHA-256 fingerprint and ephemeral listener port in diagnostic reports. No hardware certificate export or universal trust change.
+
+Upstream compatibility note: Open Screen's [streaming schema](https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/protocol/streaming_session_protocol.md) uses `responseType` for `RECEIVER_STATUS`, while a [current receiver unit test](https://chromium.googlesource.com/openscreen/+/refs/heads/main/cast/receiver/application_agent_unittest.cc) expects `type`. WebPortal Cast v0.2.4 sends both names to maximize compatibility without claiming native Cast certification.
 
 ### Quest's built-in Web casting through Silk (v0.2.3)
 
