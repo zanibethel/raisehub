@@ -245,7 +245,7 @@ final class CastV2ControlSession {
             status.put("isActiveInput", true);
             status.put("standby", false);
             status.put("volume", new JSONObject().put("level", 0.5).put("muted", false));
-            message.put("type", "RECEIVER_STATUS");
+            message.put("responseType", "RECEIVER_STATUS");
             message.put("requestId", Math.max(0, incoming.optInt("requestId", 0)));
             message.put("status", status);
         } catch (JSONException impossible) {
