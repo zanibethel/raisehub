@@ -236,21 +236,18 @@ final class CastV2ControlSession {
                 CastV2Envelope.STRING, message.toString().getBytes(StandardCharsets.UTF_8));
     }
 
+    static String idleStatusJson(long requestId) {
+        return "{\"responseType\":\"RECEIVER_STATUS\",\"requestId\":" +
+                Math.max(0L, requestId) +
+                ",\"status\":{\"applications\":[],\"isActiveInput\":true," +
+                "\"standby\":false,\"volume\":{\"level\":0.5,\"muted\":false}}}";
+    }
+
     private static void sendEmptyStatus(DataOutputStream output, CastV2Envelope request,
                                         JSONObject incoming) throws IOException {
-        JSONObject status = new JSONObject();
-        JSONObject message = new JSONObject();
-        try {
-            status.put("applications", new org.json.JSONArray());
-            status.put("isActiveInput", true);
-            status.put("standby", false);
-            status.put("volume", new JSONObject().put("level", 0.5).put("muted", false));
-            message.put("responseType", "RECEIVER_STATUS");
-            message.put("requestId", Math.max(0, incoming.optInt("requestId", 0)));
-            message.put("status", status);
-        } catch (JSONException impossible) {
-            throw new IOException("Could not build receiver status");
-        }
-        CastV2Envelope.write(output, textResponse(request, RECEIVER, message));
+        byte[] reply = idleStatusJson(incoming.optLong("requestId", 0L))
+                .getBytes(StandardCharsets.UTF_8);
+        CastV2Envelope.write(output, new CastV2Envelope("receiver-0",
+                request.source, RECEIVER, CastV2Envelope.STRING, reply));
     }
 }
