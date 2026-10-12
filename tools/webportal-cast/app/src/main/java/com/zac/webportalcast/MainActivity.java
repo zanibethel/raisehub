@@ -1,6 +1,12 @@
 package com.zac.webportalcast;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,6 +16,7 @@ import android.os.Looper;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -39,15 +46,25 @@ public final class MainActivity extends Activity {
     private static final int NAVY = Color.rgb(7, 20, 35);
     private static final int CYAN = Color.rgb(56, 219, 244);
     private static final int MUTED = Color.rgb(175, 193, 208);
+    private static final int FOCUS_YELLOW = Color.rgb(255, 216, 77);
+    private static final String PREFS_SCREEN = "cast_tv_screen_fit";
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final StringBuilder recent = new StringBuilder();
     private FrameLayout root;
+    private FrameLayout uiStage;
+    private ScrollView dashboardScroll;
+    private ScrollView reportScroll;
     private LinearLayout dashboard;
+    private ScreenFitState screenFit;
+    private FrameLayout fitOverlay;
+    private TextView fitStatus;
+    private boolean fitMoveMode;
+    private String manualMediaUrl = "";
+    private TextView mediaUrlPreview;
     private PlayerView videoView;
     private TextView statusLabel;
     private TextView logLabel;
-    private EditText manualUrl;
     private ExoPlayer player;
     private AppUpdater appUpdater;
     private TextView updateLabel;
@@ -109,6 +126,10 @@ public final class MainActivity extends Activity {
         videoView.setKeepScreenOn(true);
         root = new FrameLayout(this);
         root.setBackgroundColor(NAVY);
+        root.setClipChildren(false);
+        uiStage = new FrameLayout(this);
+        screenFit = loadScreenFit();
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         setContentView(root);
         makeDashboard();
         showDashboard();
@@ -201,6 +222,10 @@ public final class MainActivity extends Activity {
     }
 
     private void makeDashboard() {
+        dashboardScroll = new ScrollView(this);
+        dashboardScroll.setFillViewport(true);
+        dashboardScroll.setSmoothScrollingEnabled(true);
+        dashboardScroll.setFocusable(false);
         dashboard = new LinearLayout(this);
         dashboard.setOrientation(LinearLayout.VERTICAL);
         dashboard.setPadding(dp(38), dp(26), dp(38), dp(22));
@@ -222,7 +247,14 @@ public final class MainActivity extends Activity {
         brandText.addView(label("Your Fire TV's local media receiver — free, no session timer", 18, Color.WHITE, false));
         brandedHeader.addView(brandText, new LinearLayout.LayoutParams(0, -2, 1f));
         dashboard.addView(brandedHeader);
-        addSpace(dashboard, 16);
+        addSpace(dashboard, 8);
+        Button adjustFit = action("Screen Fit — resize / reposition TV view");
+        adjustFit.setOnClickListener(v -> showScreenFit());
+        dashboard.addView(adjustFit, new LinearLayout.LayoutParams(-1, dp(58)));
+        dashboard.addView(label(
+                "If any edge is cut off, select Screen Fit. Fire TV MENU also opens it.",
+                15, MUTED, false));
+        addSpace(dashboard, 12);
 
         statusLabel = label("Starting receiver...", 22, CYAN, true);
         dashboard.addView(statusLabel);
@@ -265,21 +297,21 @@ public final class MainActivity extends Activity {
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
 
-        manualUrl = new EditText(this);
-        manualUrl.setSingleLine(true);
-        manualUrl.setTextColor(Color.WHITE);
-        manualUrl.setHintTextColor(MUTED);
-        manualUrl.setTextSize(17);
-        manualUrl.setHint("https://example.com/video.mp4");
-        manualUrl.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        controls.addView(manualUrl, new LinearLayout.LayoutParams(0, dp(58), 1f));
-
+        Button editUrl = action("Enter media URL");
+        editUrl.setOnClickListener(v -> showMediaEntryDialog());
+        controls.addView(editUrl, new LinearLayout.LayoutParams(0, dp(60), 1f));
         Button play = action("Play URL");
-        play.setOnClickListener(v -> playUrl(manualUrl.getText().toString().trim()));
-        LinearLayout.LayoutParams playSize = new LinearLayout.LayoutParams(dp(140), dp(58));
+        play.setOnClickListener(v -> playUrl(manualMediaUrl.trim()));
+        LinearLayout.LayoutParams playSize = new LinearLayout.LayoutParams(dp(170), dp(60));
         playSize.leftMargin = dp(12);
         controls.addView(play, playSize);
         dashboard.addView(controls);
+        mediaUrlPreview = label("No URL entered. Choose Enter media URL to open a centered text dialog.", 16, MUTED, false);
+        dashboard.addView(mediaUrlPreview);
+        dashboard.addView(label(
+                "Text entry uses your Fire TV system keyboard. Press Back to dismiss it. "
+                + "Screen Fit adjusts this app, not the system keyboard.",
+                14, MUTED, false));
         addSpace(dashboard, 14);
 
         dashboard.addView(label("RECEIVER ACTIVITY", 18, CYAN, true));
@@ -287,28 +319,35 @@ public final class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(logLabel);
         dashboard.addView(scroll,
-                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+                new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(140)));
         addSpace(dashboard, 8);
         dashboard.addView(label(
                 "Use the TV remote's Back button to exit playback. "
                 + "For discovery, keep this screen open and use the same home Wi-Fi.",
                 15, MUTED, false));
+        dashboardScroll.addView(dashboard, new ScrollView.LayoutParams(-1, -2));
     }
 
     private void showReport() {
         if (reportView == null) createReportView();
         showingReport = true;
-        root.removeAllViews();
-        root.addView(reportView, new FrameLayout.LayoutParams(-1, -1));
+        showFittedPage(reportScroll);
         refreshReport();
     }
 
     private void createReportView() {
+        reportScroll = new ScrollView(this);
+        reportScroll.setFillViewport(true);
+        reportScroll.setSmoothScrollingEnabled(true);
+        reportScroll.setFocusable(false);
         reportView = new LinearLayout(this);
         reportView.setOrientation(LinearLayout.VERTICAL);
         reportView.setBackgroundColor(NAVY);
         reportView.setPadding(dp(38), dp(15), dp(38), dp(18));
         reportView.addView(label("CAST DIAGNOSTICS / QUEST TEST", 25, CYAN, true));
+        Button fitInReports = action("Screen Fit");
+        fitInReports.setOnClickListener(v -> showScreenFit());
+        reportView.addView(fitInReports, new LinearLayout.LayoutParams(dp(210), dp(56)));
         reportView.addView(label(
                 "1. Start new test.  2. On Quest, select WebPortal Cast TEST in Chromecast.  "
                 + "3. After Quest reports an error, stop the test and scan the QR code. "
@@ -359,7 +398,7 @@ public final class MainActivity extends Activity {
         reportEvents = label("", 14, Color.WHITE, false);
         reportEvents.setTextIsSelectable(true);
         logScroll.addView(reportEvents);
-        reportView.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        reportView.addView(logScroll, new LinearLayout.LayoutParams(-1, dp(200)));
         reportView.addView(label(
                 "This test checks the dedicated server-mode TLS socket locally and reports "
                 + "separate client/server failures. The TLS identity is self-signed, "
@@ -368,6 +407,7 @@ public final class MainActivity extends Activity {
                 + "Only TLS results and Cast message namespaces are logged, not payloads, passwords, IP addresses or game footage. "
                 + "Reports remain on your local network while the app stays open.",
                 14, MUTED, false));
+        reportScroll.addView(reportView, new ScrollView.LayoutParams(-1, -2));
     }
 
     private void refreshReport() {
@@ -416,12 +456,52 @@ public final class MainActivity extends Activity {
         return result;
     }
 
+    private GradientDrawable buttonShape(int fill, int stroke, int strokeWidthDp) {
+        GradientDrawable result = new GradientDrawable();
+        result.setColor(fill);
+        result.setCornerRadius(dp(12));
+        result.setStroke(dp(strokeWidthDp), stroke);
+        return result;
+    }
+
     private Button action(String caption) {
         Button result = new Button(this);
         result.setText(caption);
         result.setAllCaps(false);
-        result.setTextSize(17);
+        result.setTextSize(18);
+        result.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        result.setSingleLine(false);
+        result.setGravity(Gravity.CENTER);
+        result.setPadding(dp(14), dp(7), dp(14), dp(7));
         result.setFocusable(true);
+        result.setFocusableInTouchMode(true);
+        result.setMinHeight(dp(52));
+
+        // A bright, high-contrast focus outline that remains visible on navy
+        // screens, rather than the device theme's subtle gray highlight.
+        StateListDrawable backgrounds = new StateListDrawable();
+        backgrounds.addState(new int[]{-android.R.attr.state_enabled},
+                buttonShape(Color.rgb(30, 43, 55), Color.rgb(75, 90, 104), 1));
+        backgrounds.addState(new int[]{android.R.attr.state_pressed},
+                buttonShape(Color.rgb(255, 184, 44), Color.WHITE, 3));
+        backgrounds.addState(new int[]{android.R.attr.state_focused},
+                buttonShape(FOCUS_YELLOW, Color.WHITE, 4));
+        backgrounds.addState(new int[]{},
+                buttonShape(Color.rgb(20, 52, 70), CYAN, 2));
+        result.setBackground(backgrounds);
+        result.setTextColor(new ColorStateList(
+                new int[][] {
+                    new int[]{-android.R.attr.state_enabled},
+                    new int[]{android.R.attr.state_focused},
+                    new int[]{android.R.attr.state_pressed},
+                    new int[]{}
+                },
+                new int[] {Color.rgb(145, 154, 164), NAVY, NAVY, Color.WHITE}));
+        result.setOnFocusChangeListener((view, focused) -> {
+            // No large zoom which could crop buttons near TV edges.
+            view.animate().scaleX(focused ? 1.02f : 1f)
+                    .scaleY(focused ? 1.02f : 1f).setDuration(110).start();
+        });
         return result;
     }
 
@@ -431,6 +511,180 @@ public final class MainActivity extends Activity {
 
     private int dp(int pixels) {
         return (int) (pixels * getResources().getDisplayMetrics().density + .5f);
+    }
+
+    private ScreenFitState loadScreenFit() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_SCREEN, Context.MODE_PRIVATE);
+        return new ScreenFitState(prefs.getInt("scale", 100),
+                prefs.getInt("offsetX", 0), prefs.getInt("offsetY", 0));
+    }
+
+    private void persistScreenFit() {
+        getSharedPreferences(PREFS_SCREEN, Context.MODE_PRIVATE).edit()
+                .putInt("scale", screenFit.scalePercent)
+                .putInt("offsetX", screenFit.offsetXDp)
+                .putInt("offsetY", screenFit.offsetYDp)
+                .apply();
+    }
+
+    private void applyScreenFit() {
+        if (uiStage == null || screenFit == null) return;
+        uiStage.post(() -> {
+            if (uiStage == null || screenFit == null) return;
+            uiStage.setPivotX(uiStage.getWidth() / 2f);
+            uiStage.setPivotY(uiStage.getHeight() / 2f);
+            uiStage.setScaleX(screenFit.scalePercent / 100f);
+            uiStage.setScaleY(screenFit.scalePercent / 100f);
+            uiStage.setTranslationX(dp(screenFit.offsetXDp));
+            uiStage.setTranslationY(dp(screenFit.offsetYDp));
+        });
+    }
+
+    private void adjustScreenFit(int scaleDelta, int dx, int dy) {
+        if (screenFit == null) return;
+        screenFit.zoom(scaleDelta);
+        screenFit.move(dx, dy);
+        persistScreenFit();
+        applyScreenFit();
+        refreshScreenFitStatus();
+    }
+
+    private void refreshScreenFitStatus() {
+        if (fitStatus == null || screenFit == null) return;
+        String status = "App view: " + screenFit.scalePercent + "%"
+                + " | Horizontal: " + screenFit.offsetXDp + "dp"
+                + " | Vertical: " + screenFit.offsetYDp + "dp";
+        if (fitMoveMode) status += "\nMOVE MODE: use remote arrows; press OK or Back when done.";
+        else status += "\nUse Smaller / Larger, or enter Move Mode to reposition.";
+        fitStatus.setText(status);
+    }
+
+    private void showScreenFit() {
+        if (watchingVideo || root == null || fitOverlay != null) return;
+        fitMoveMode = false;
+        fitOverlay = new FrameLayout(this);
+        fitOverlay.setBackgroundColor(Color.argb(244, 5, 14, 28));
+        fitOverlay.setFocusable(true);
+        fitOverlay.setFocusableInTouchMode(true);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(false);
+        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(-1, -1);
+        scrollParams.setMargins(dp(45), dp(24), dp(45), dp(24));
+        fitOverlay.addView(scroll, scrollParams);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setGravity(Gravity.CENTER_HORIZONTAL);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(15), dp(20), dp(15));
+        panel.setBackground(buttonShape(Color.rgb(8, 30, 46), CYAN, 2));
+        scroll.addView(panel, new ScrollView.LayoutParams(-1, -2));
+
+        TextView heading = label("SCREEN FIT  /  FIRE TV", 25, FOCUS_YELLOW, true);
+        heading.setGravity(Gravity.CENTER);
+        panel.addView(heading);
+        panel.addView(label("If the TV crops the app, make it smaller first. "
+                        + "Adjustments are saved and apply to Home and Cast Diagnostics.",
+                17, Color.WHITE, false));
+        fitStatus = label("", 19, CYAN, true);
+        fitStatus.setGravity(Gravity.CENTER);
+        panel.addView(fitStatus);
+
+        LinearLayout zoom = new LinearLayout(this);
+        zoom.setOrientation(LinearLayout.HORIZONTAL);
+        Button smaller = action("−  Smaller");
+        smaller.setOnClickListener(v -> adjustScreenFit(-ScreenFitState.SCALE_STEP, 0, 0));
+        zoom.addView(smaller, new LinearLayout.LayoutParams(0, dp(62), 1f));
+        Button larger = action("+  Larger");
+        larger.setOnClickListener(v -> adjustScreenFit(ScreenFitState.SCALE_STEP, 0, 0));
+        LinearLayout.LayoutParams largerParams = new LinearLayout.LayoutParams(0, dp(62), 1f);
+        largerParams.leftMargin = dp(12);
+        zoom.addView(larger, largerParams);
+        panel.addView(zoom, new LinearLayout.LayoutParams(-1, dp(62)));
+
+        addSpace(panel, 10);
+        Button move = action("Move with remote arrows  (press OK)");
+        move.setOnClickListener(v -> {
+            fitMoveMode = true;
+            refreshScreenFitStatus();
+        });
+        panel.addView(move, new LinearLayout.LayoutParams(-1, dp(62)));
+
+        addSpace(panel, 10);
+        LinearLayout bottom = new LinearLayout(this);
+        bottom.setOrientation(LinearLayout.HORIZONTAL);
+        Button center = action("Center position");
+        center.setOnClickListener(v -> adjustScreenFit(0, -screenFit.offsetXDp, -screenFit.offsetYDp));
+        bottom.addView(center, new LinearLayout.LayoutParams(0, dp(62), 1f));
+        Button reset = action("Reset 100%");
+        reset.setOnClickListener(v -> {
+            screenFit.reset();
+            persistScreenFit();
+            applyScreenFit();
+            refreshScreenFitStatus();
+        });
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(0, dp(62), 1f);
+        resetParams.leftMargin = dp(12);
+        bottom.addView(reset, resetParams);
+        panel.addView(bottom, new LinearLayout.LayoutParams(-1, dp(62)));
+
+        addSpace(panel, 10);
+        Button done = action("Save & return");
+        done.setOnClickListener(v -> hideScreenFit());
+        panel.addView(done, new LinearLayout.LayoutParams(-1, dp(62)));
+        panel.addView(label("Tip: Press MENU on the Fire TV remote to reopen Screen Fit. "
+                + "Back closes this panel. This cannot resize Fire TV system keyboards.",
+                15, MUTED, false));
+
+        root.addView(fitOverlay, new FrameLayout.LayoutParams(-1, -1));
+        refreshScreenFitStatus();
+        move.requestFocus();
+    }
+
+    private void hideScreenFit() {
+        fitMoveMode = false;
+        if (fitOverlay != null && root != null) root.removeView(fitOverlay);
+        fitOverlay = null;
+        fitStatus = null;
+    }
+
+    private void showMediaEntryDialog() {
+        EditText edit = new EditText(this);
+        edit.setSingleLine(true);
+        edit.setTextColor(Color.WHITE);
+        edit.setHintTextColor(MUTED);
+        edit.setTextSize(20);
+        edit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        edit.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        edit.setHint("https://example.com/video.mp4");
+        edit.setText(manualMediaUrl);
+        edit.setSelectAllOnFocus(true);
+        int gap = dp(18);
+        LinearLayout container = new LinearLayout(this);
+        container.setPadding(gap, dp(8), gap, dp(8));
+        container.addView(edit, new LinearLayout.LayoutParams(-1, dp(64)));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Enter a direct media URL")
+                .setMessage("This is a centered text-entry window. "
+                        + "The Fire TV may open its own on-screen keyboard.")
+                .setView(container)
+                .setPositiveButton("Save URL", (d, which) -> {
+                    manualMediaUrl = edit.getText().toString().trim();
+                    if (mediaUrlPreview != null) mediaUrlPreview.setText(
+                            manualMediaUrl.isEmpty() ? "No URL entered." : "Saved URL: " + manualMediaUrl);
+                })
+                .setNegativeButton("Cancel", (d, which) -> {})
+                .create();
+        dialog.getWindow();
+        dialog.setOnShowListener(ignored -> {
+            if (dialog.getWindow() != null)
+                dialog.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                        | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            edit.requestFocus();
+        });
+        dialog.show();
     }
 
     private void log(String message) {
@@ -444,10 +698,17 @@ public final class MainActivity extends Activity {
     private void showDashboard() {
         watchingVideo = false;
         showingReport = false;
-        if (root != null && dashboard != null) {
-            root.removeAllViews();
-            root.addView(dashboard, new FrameLayout.LayoutParams(-1, -1));
-        }
+        if (root != null && dashboardScroll != null) showFittedPage(dashboardScroll);
+    }
+
+    private void showFittedPage(View page) {
+        hideScreenFit();
+        uiStage.removeAllViews();
+        if (page.getParent() instanceof ViewGroup) ((ViewGroup) page.getParent()).removeView(page);
+        uiStage.addView(page, new FrameLayout.LayoutParams(-1, -1));
+        root.removeAllViews();
+        root.addView(uiStage, new FrameLayout.LayoutParams(-1, -1));
+        applyScreenFit();
     }
 
     private void playUrl(String url) {
@@ -461,6 +722,7 @@ public final class MainActivity extends Activity {
             player.setMediaItem(MediaItem.fromUri(url));
             player.prepare();
             player.play();
+            hideScreenFit();
             root.removeAllViews();
             root.addView(videoView, new FrameLayout.LayoutParams(-1, -1));
             watchingVideo = true;
@@ -484,11 +746,36 @@ public final class MainActivity extends Activity {
 
     @Override public void onBackPressed() {
         if (watchingVideo) stopPlayback("Returned to receiver home");
+        else if (fitOverlay != null) {
+            if (fitMoveMode) {
+                fitMoveMode = false;
+                refreshScreenFitStatus();
+            } else hideScreenFit();
+        }
         else if (showingReport) showDashboard();
         else super.onBackPressed();
     }
 
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (!watchingVideo && keyCode == KeyEvent.KEYCODE_MENU && event.getRepeatCount() == 0) {
+            if (fitOverlay != null) hideScreenFit();
+            else showScreenFit();
+            return true;
+        }
+        if (fitOverlay != null && fitMoveMode) {
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT: adjustScreenFit(0, -ScreenFitState.MOVE_STEP_DP, 0); return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT: adjustScreenFit(0, ScreenFitState.MOVE_STEP_DP, 0); return true;
+                case KeyEvent.KEYCODE_DPAD_UP: adjustScreenFit(0, 0, -ScreenFitState.MOVE_STEP_DP); return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN: adjustScreenFit(0, 0, ScreenFitState.MOVE_STEP_DP); return true;
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                    fitMoveMode = false;
+                    refreshScreenFitStatus();
+                    return true;
+                default: break;
+            }
+        }
         if (watchingVideo) {
             if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
                     || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY
