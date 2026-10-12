@@ -237,7 +237,9 @@ final class CastV2ControlSession {
     }
 
     static String idleStatusJson(long requestId) {
-        return "{\"responseType\":\"RECEIVER_STATUS\",\"requestId\":" +
+        // Open Screen streaming schema documents responseType, while its Cast
+        // V2 receiver unit test expects type. Emit both for compatibility.
+        return "{\"type\":\"RECEIVER_STATUS\",\"responseType\":\"RECEIVER_STATUS\",\"requestId\":" +
                 Math.max(0L, requestId) +
                 ",\"status\":{\"applications\":[],\"isActiveInput\":true," +
                 "\"standby\":false,\"volume\":{\"level\":0.5,\"muted\":false}}}";
