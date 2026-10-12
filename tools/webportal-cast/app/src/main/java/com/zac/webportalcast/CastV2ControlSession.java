@@ -8,7 +8,6 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 
 import javax.net.ssl.SSLSocket;
 
@@ -100,8 +99,10 @@ final class CastV2ControlSession {
             }
             String type = message.optString("type", "");
             if (HEARTBEAT.equals(frame.namespace) && "PING".equals(type)) {
-                CastV2Envelope.write(out, textResponse(frame, HEARTBEAT,
-                        new JSONObject().put("type", "PONG")));
+                JSONObject pong = new JSONObject();
+                try { pong.put("type", "PONG"); }
+                catch (JSONException error) { throw new IOException("Could not create heartbeat"); }
+                CastV2Envelope.write(out, textResponse(frame, HEARTBEAT, pong));
                 events.record("V2_HEARTBEAT", "Session " + id + " heartbeat PING/PONG answered");
             } else if (CONNECTION.equals(frame.namespace) && "CONNECT".equals(type)) {
                 events.record("V2_CONNECT", "Session " + id + " virtual connection request received");
