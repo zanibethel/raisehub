@@ -125,6 +125,16 @@ public final class CastV2EnvelopeTest {
         expectRejected(remaining.toByteArray());
     }
 
+    @Test public void idleReceiverStatusUsesDocumentedResponseType() throws Exception {
+        assertEquals(
+                "{\"responseType\":\"RECEIVER_STATUS\",\"requestId\":549," +
+                "\"status\":{\"applications\":[],\"isActiveInput\":true," +
+                "\"standby\":false,\"volume\":{\"level\":0.5,\"muted\":false}}}",
+                CastV2ControlSession.idleStatusJson(549L));
+        assertTrue(CastV2ControlSession.idleStatusJson(-1L)
+                .contains("\"requestId\":0"));
+    }
+
     @Test public void availabilityRepliesFollowOpenScreenSchema() throws Exception {
         String response = CastV2ControlSession.unavailableAppsJson(
                 548L, new String[] {"1A2B3C4D", "CC1AD845"});
