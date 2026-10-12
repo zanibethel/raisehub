@@ -107,12 +107,12 @@ public final class CastLocalAuthResponseTest {
             CastLocalAuthResponse.parseChallenge(new byte[]{10,3,18,2,1});
             fail("truncated nonce accepted");
         } catch(IOException expected) {}
-        byte[] tooLong = new byte[67];
+        byte[] tooLong = new byte[69];
         tooLong[0]=10;
-        tooLong[1]=65;
+        tooLong[1]=67;
         tooLong[2]=18;
-        tooLong[3]=63;
-        // Metadata length mismatch is also a rejection.
+        tooLong[3]=65;
+        // A 65-byte nonce exceeds the 64-byte safe bound.
         try {
             CastLocalAuthResponse.parseChallenge(tooLong);
             fail("oversized / malformed auth challenge accepted");
