@@ -17,7 +17,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -311,8 +310,9 @@ public final class MainActivity extends Activity {
         reportView.setPadding(dp(38), dp(15), dp(38), dp(18));
         reportView.addView(label("CAST DIAGNOSTICS / QUEST TEST", 25, CYAN, true));
         reportView.addView(label(
-                "1. Select Start.  2. Open Quest casting destinations and try WebPortal Cast TEST.  "
-                + "3. Scan the QR with your phone on the same Wi-Fi to copy the connection report.",
+                "1. Start new test.  2. On Quest, select WebPortal Cast TEST in Chromecast.  "
+                + "3. After Quest reports an error, stop the test and scan the QR code. "
+                + "This probe tests TLS/Cast V2 stages; it does not mirror video.",
                 16, Color.WHITE, false));
 
         LinearLayout buttons = new LinearLayout(this);
@@ -360,9 +360,10 @@ public final class MainActivity extends Activity {
         logScroll.addView(reportEvents);
         reportView.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         reportView.addView(label(
-                "The experimental Cast contact listener does not implement Cast TLS or game streaming. "
-                + "No packets, headset IP addresses, passwords or media are recorded. "
-                + "The report is available locally only while this app stays open.",
+                "Experimental TLS uses a local self-signed identity, not a certified Chromecast certificate. "
+                + "A failed device-authentication check is expected. "
+                + "Only TLS results and Cast message namespaces are logged, not payloads, passwords, IP addresses or game footage. "
+                + "Reports remain on your local network while the app stays open.",
                 14, MUTED, false));
     }
 
