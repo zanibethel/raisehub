@@ -297,7 +297,9 @@ public final class CastDiagnostics {
                 Math.min(28, category.replaceAll("[^A-Z_]", "").length()));
         // All call sites supply whitelisted, human-readable events (never raw media URLs).
         String safeDetail = detail.replace('\n', ' ').replace('\r', ' ');
-        if (safeDetail.length() > 130) safeDetail = safeDetail.substring(0, 130);
+        // Keep both client and server local TLS causes in a single report line.
+        // Values come only from our own whitelisted static error categories.
+        if (safeDetail.length() > 260) safeDetail = safeDetail.substring(0, 260);
         int count = counts.containsKey(safeCategory) ? counts.get(safeCategory) + 1 : 1;
         counts.put(safeCategory, count);
         String entry = utc(System.currentTimeMillis()) + "  " + safeCategory + "  " + safeDetail;
@@ -306,7 +308,8 @@ public final class CastDiagnostics {
         // rolling 160-event activity log.
         if (safeCategory.equals("TLS_SELFTEST_OK") || safeCategory.equals("TLS_SELFTEST_FAIL")
                 || safeCategory.equals("TLS_SETUP_ERROR") || safeCategory.equals("TLS_IDENTITY")
-                || safeCategory.equals("TLS_READY") || safeCategory.equals("TLS_WRAP_ERROR")) {
+                || safeCategory.equals("TLS_READY") || safeCategory.equals("TLS_WRAP_ERROR")
+                || safeCategory.equals("TLS_KEY_SIGN")) {
             milestones.put(safeCategory, entry);
         }
         if (safeCategory.equals("TLS_FAILED")) {
@@ -430,6 +433,7 @@ public final class CastDiagnostics {
                 .append("- Cast discovery and a TCP contact do not establish Cast V2 authentication or video playback.\n")
                 .append("- v0.1.5 previously confirmed that the Quest sends a TLS handshake record.\n")
                 .append("- Every new connection is now accepted by a dedicated server-mode TLS socket.\n")
+                .append("- The local TLS key has been regenerated with TLS-required RSA digest/padding permissions.\n")
                 .append("- The loopback TLS self-test independently reports client and server failures.\n")
                 .append("- Nearby Cast TXT comparison logs only allowlisted numeric flags and field presence.\n")
                 .append("- The local TLS server uses a self-signed test identity, NOT a Google-trusted device certificate.\n")

@@ -351,7 +351,7 @@ public final class MainActivity extends Activity {
         reportView.addView(label(
                 "1. Start new test.  2. On Quest, select WebPortal Cast TEST in Chromecast.  "
                 + "3. After Quest reports an error, stop the test and scan the QR code. "
-                + "Check the local TLS self-test first; QR reports now retain its result. "
+                + "First verify the new Fire TV TLS key/signing test and local handshake. "
                 + "If local TLS fails, send the report without retrying Quest. "
                 + "This is diagnostics only, not a gameplay mirror.",
                 16, Color.WHITE, false));

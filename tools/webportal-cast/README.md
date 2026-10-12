@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.8 receiver capability
+## Version 0.1.9 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,20 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### TLS key-usage compatibility correction (v0.1.9)
+
+Actual Amazon AFTMM (API 25) v0.1.8 local test: `TLS_IDENTITY` confirmed key and certificate presence and a selectable RSA alias, but `TLS_SELFTEST_FAIL` still showed a handshake failure on **both loopback client and server**. The 16 inbound connections also failed; this cannot establish whether Quest rejects a certificate.
+
+**Root-cause candidate:** The original AndroidKeyStore RSA key was generated with **only SHA-256 digest** and **only PKCS#1 encryption padding**. [Android KeyGenParameterSpec.Builder reference](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder) states TLS signing often needs `DIGEST_NONE` and RSA TLS may need no-padding and/or PKCS#1 decryption. The old key's authorized uses cannot be expanded after generation.
+
+- Create a fresh **test-only** AndroidKeyStore identity under a new private alias, without deleting the previous experimental identity. Allow no-digest plus modern SHA-2 digests, PKCS#1/PSS signature operations, and both no-padding and PKCS#1 RSA decryption authorizations for older Android TLS implementations.
+- Install a dedicated fixed-alias `X509ExtendedKeyManager`: do not let the standard key manager accidentally choose the older key while the local loopback client is pinned to the new certificate.
+- Before running TLS, perform an in-memory ephemeral `NONEwithRSA` sign/verify capability check, report only its success or class of failure as `TLS_KEY_SIGN`. Never save or export key bytes, signatures, sample data, or certificates.
+- Retain the full safe client and server local TLS failure categories (previous 130-character report truncation removed the server's last words). Continue condensed and bounded network activity reporting.
+- **One-step hardware test:** update to v0.1.9, open **Cast Diagnostics → Start new test**, leave Quest alone, allow the local self-test to finish, choose Stop test and share the QR report. Look for `TLS_KEY_SIGN` and `TLS_SELFTEST_OK`. **Only retry Quest if local TLS is confirmed working.**
+
+This is a **hypothesis-driven compatibility change**, not a guarantee. It does not fabricate Google Cast device identity or enable Quest screen streaming. Preserve the existing local-only diagnostic/privacy restrictions, DLNA, Screen Fit and signed update continuity.
 
 ### TLS diagnostic retention / AndroidKeyStore alias audit (v0.1.8)
 
