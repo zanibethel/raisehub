@@ -308,6 +308,14 @@ public final class CastProtocolProbe {
 
         PrivateKey privateKey = (PrivateKey) privateKeyCandidate;
         X509Certificate x509 = (X509Certificate) certificate;
+        // Public SHA-256 certificate fingerprint is safe to export. Enables
+        // an external, developer-controlled sender to pin this exact test
+        // identity rather than implicitly trust arbitrary TLS certificates.
+        byte[] publicFingerprint = MessageDigest.getInstance("SHA-256").digest(x509.getEncoded());
+        StringBuilder pin = new StringBuilder(64);
+        for (byte octet : publicFingerprint)
+            pin.append(String.format(java.util.Locale.US, "%02x", octet & 255));
+        listener.onEvent("TLS_TEST_SHA256", "Public local TLS certificate SHA256: " + pin);
         localAuthKey = privateKey;
         localAuthCertificate = x509;
         long remainingHours = Math.max(0,
