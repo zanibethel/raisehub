@@ -266,8 +266,9 @@ public final class MainActivity extends Activity {
         dashboard.addView(statusLabel);
         addSpace(dashboard, 12);
         dashboard.addView(label(
-                "Supported now: DLNA / UPnP local video and audio streaming. "
-                + "Not yet supported: Quest built-in casting, Chromecast, AirPlay or Miracast.",
+                "Supported now: DLNA media, experimental Quest direct-video companion, "
+                + "and Cast V2 TLS/control tests using the Quest's built-in Cast menu. "
+                + "Certified Chromecast receiver authentication and native mirroring are not supported.",
                 17, MUTED, false));
         addSpace(dashboard, 16);
 
@@ -275,6 +276,15 @@ public final class MainActivity extends Activity {
         Button connectionReport = action("Open Cast Diagnostics");
         connectionReport.setOnClickListener(v -> showReport());
         dashboard.addView(connectionReport, new LinearLayout.LayoutParams(dp(350), dp(58)));
+        dashboard.addView(label("BUILT-IN QUEST CAST TEST — NO HEADSET APP", 18, FOCUS_YELLOW, true));
+        Button builtInCast = action("Test Quest's built-in Chromecast connection");
+        builtInCast.setOnClickListener(v -> showReport());
+        dashboard.addView(builtInCast, new LinearLayout.LayoutParams(-1, dp(62)));
+        dashboard.addView(label(
+                "Use Cast Diagnostics to advertise WebPortal Cast TEST. "
+                + "This version answers Cast heartbeats/status and identifies the "
+                + "certified device-authentication barrier. Screen mirroring is not enabled yet.",
+                16, MUTED, false));
         addSpace(dashboard, 12);
         dashboard.addView(label("QUEST DIRECT CAST • VIDEO PREVIEW", 18, CYAN, true));
         Button questCast = action("Receive Quest direct video (no Chromecast)");
@@ -435,11 +445,11 @@ public final class MainActivity extends Activity {
         fitInReports.setOnClickListener(v -> showScreenFit());
         reportView.addView(fitInReports, new LinearLayout.LayoutParams(dp(210), dp(56)));
         reportView.addView(label(
-                "1. Start new test.  2. On Quest, select WebPortal Cast TEST in Chromecast.  "
-                + "3. After Quest reports an error, stop the test and scan the QR code. "
-                + "First verify the new Fire TV TLS key/signing test and local handshake. "
-                + "If local TLS fails, send the report without retrying Quest. "
-                + "This is diagnostics only, not a gameplay mirror.",
+                "No headset APK needed. 1. Start new test. 2. Select WebPortal Cast TEST "
+                + "from Quest's built-in Chromecast casting screen. 3. After the Quest's "
+                + "result, stop test and scan the report QR. This version handles "
+                + "heartbeat/status and reports certified-authentication challenges; "
+                + "it cannot yet receive video from the native Cast sender.",
                 16, Color.WHITE, false));
 
         LinearLayout buttons = new LinearLayout(this);
