@@ -2,7 +2,7 @@
 
 Independent, sideloadable receiver app, distinct from WebPortal (com.zac.webportal).
 
-## Version 0.1.7 receiver capability
+## Version 0.1.8 receiver capability
 
 - **DLNA/UPnP AV MediaRenderer**, advertised using SSDP with a local HTTP device/service descriptor.
 - Handles AVTransport `SetAVTransportURI`, `Play`, `Pause`, `Stop`, `Seek`, status inquiries, and basic volume control.
@@ -23,6 +23,18 @@ gradle :app:assembleDebug
 adb connect FIRE_TV_IP:5555
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### TLS diagnostic retention / AndroidKeyStore alias audit (v0.1.8)
+
+On the Amazon AFTMM (Android API 25), v0.1.7 reported **153 Cast TCP contacts and 153 TLS handshake failures**. Its local loopback handshake also failed. This does not establish that the Quest rejects the certificate; our server cannot yet reliably handshake with its own local test client.
+
+The previous report had a **diagnostic retention bug**: its 160-event rolling window was overwhelmed by Quest retries and omitted the single, most important `TLS_SELFTEST_FAIL` event.
+
+- Keep first/last significant `TLS_SELFTEST_OK`, `TLS_SELFTEST_FAIL`, `TLS_IDENTITY`, `TLS_SETUP_ERROR`, `TLS_READY` and `TLS_WRAP_ERROR` messages in a separate **Critical TLS Diagnostics** section that is never displaced by repeated connections. Still cap metadata-only report size.
+- Count **all** TCP/TLS/SSDP activity, but print only the first three events and every twenty-fifth event from flood-prone categories. Aggregate TLS failure labels across all attempts in the report.
+- Inspect test-only AndroidKeyStore at TLS listener startup to show **only booleans** for presence of a private-key entry, certificate, and whether the Android TLS key manager can choose an RSA server alias with a private key and certificate chain. No aliases, keys, certificates, fingerprints, sender IPs, or media are exported.
+- The TLS transport remains experimental and uses the same local self-signed test identity. No Google Cast credential or authentication implementation is claimed.
+- **Next user test**: Update to v0.1.8; choose **Cast Diagnostics → Start new test**, do not use the Quest yet; wait for the on-screen status to settle, press **Stop test**, and send the QR report. The retained `TLS_SELFTEST_FAIL` and `TLS_IDENTITY` results will identify whether the Fire TV's local test key selection or TLS handshake is failing. Once local TLS passes, retry the Quest. There is no need for another ten-minute repeated connection attempt.
 
 ### Fire TV D-pad visibility, UI screen fit, and text entry (v0.1.7)
 
