@@ -7,11 +7,7 @@ import android.security.keystore.KeyProperties;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.MessageDigest;
 import java.security.cert.CertificateException;
@@ -67,7 +63,6 @@ public final class CastProtocolProbe {
     private static final int SELF_TEST_TIMEOUT_MS = 3000;
     private static final int FRAME_READ_TIMEOUT_MS = 2200;
 
-    private final Activity activity;
     private final Listener listener;
     private final Set<SSLSocket> activeSockets =
             Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<SSLSocket, Boolean>());
@@ -85,7 +80,6 @@ public final class CastProtocolProbe {
     private int connectionSequence;
 
     public CastProtocolProbe(Activity activity, Listener listener) {
-        this.activity = activity;
         this.listener = listener;
     }
 
@@ -345,8 +339,6 @@ public final class CastProtocolProbe {
             if (running) listener.onEvent("TLS_ERROR", "Connection " + id + " receiver exception");
         } finally {
             activeSockets.remove(peer);
-            // The underlying TCP socket closes with its TLS wrapper; raw set
-            // is session-local and never exported or reused.
         }
     }
 
