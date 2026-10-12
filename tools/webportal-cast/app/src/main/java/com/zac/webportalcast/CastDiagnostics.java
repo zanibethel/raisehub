@@ -48,6 +48,10 @@ public final class CastDiagnostics {
     private final SecureRandom random = new SecureRandom();
     private final ArrayDeque<String> events = new ArrayDeque<>();
     private final Map<String, Integer> counts = new LinkedHashMap<>();
+    // Keep important startup and local self-test findings even after hours
+    // of retry activity evict the rolling timeline.
+    private final Map<String, String> milestones = new LinkedHashMap<>();
+    private final Map<String, Integer> tlsFailureTypes = new LinkedHashMap<>();
     private NsdManager nsd;
     private NsdManager.RegistrationListener registration;
     private NsdManager.DiscoveryListener discovery;
@@ -106,6 +110,8 @@ public final class CastDiagnostics {
             key = value.toString();
             events.clear();
             counts.clear();
+            milestones.clear();
+            tlsFailureTypes.clear();
             startedAt = System.currentTimeMillis();
             stoppedAt = 0;
             tcpContacts = 0;
@@ -292,9 +298,40 @@ public final class CastDiagnostics {
         // All call sites supply whitelisted, human-readable events (never raw media URLs).
         String safeDetail = detail.replace('\n', ' ').replace('\r', ' ');
         if (safeDetail.length() > 130) safeDetail = safeDetail.substring(0, 130);
-        counts.put(safeCategory, counts.containsKey(safeCategory) ? counts.get(safeCategory) + 1 : 1);
-        events.addLast(utc(System.currentTimeMillis()) + "  " + safeCategory + "  " + safeDetail);
-        while (events.size() > MAX_EVENTS) events.removeFirst();
+        int count = counts.containsKey(safeCategory) ? counts.get(safeCategory) + 1 : 1;
+        counts.put(safeCategory, count);
+        String entry = utc(System.currentTimeMillis()) + "  " + safeCategory + "  " + safeDetail;
+
+        // Persist critical, non-sensitive milestones independently of the
+        // rolling 160-event activity log.
+        if (safeCategory.equals("TLS_SELFTEST_OK") || safeCategory.equals("TLS_SELFTEST_FAIL")
+                || safeCategory.equals("TLS_SETUP_ERROR") || safeCategory.equals("TLS_IDENTITY")
+                || safeCategory.equals("TLS_READY") || safeCategory.equals("TLS_WRAP_ERROR")) {
+            milestones.put(safeCategory, entry);
+        }
+        if (safeCategory.equals("TLS_FAILED")) {
+            String failure = "other";
+            int from = safeDetail.lastIndexOf('(');
+            if (from >= 0 && safeDetail.endsWith(")") && from < safeDetail.length() - 2) {
+                String value = safeDetail.substring(from + 1, safeDetail.length() - 1);
+                if (value.matches("[a-zA-Z0-9 /_-]{1,70}")) failure = value;
+            }
+            tlsFailureTypes.put(failure, tlsFailureTypes.containsKey(failure)
+                    ? tlsFailureTypes.get(failure) + 1 : 1);
+        }
+
+        // A Quest can retry for minutes. Count every event, but print only the
+        // first few and periodic summaries so startup diagnostics remain visible.
+        boolean frequent = safeCategory.equals("CAST_TCP") || safeCategory.equals("TLS_STARTED")
+                || safeCategory.equals("TLS_FAILED") || safeCategory.equals("SSDP_SEARCH");
+        if (!frequent || count <= 3 || count % 25 == 0) {
+            if (frequent && count > 3) {
+                entry = utc(System.currentTimeMillis()) + "  " + safeCategory
+                        + "  repeated " + count + " times (details summarized)";
+            }
+            events.addLast(entry);
+            while (events.size() > MAX_EVENTS) events.removeFirst();
+        }
         changed();
     }
 
@@ -405,14 +442,22 @@ public final class CastDiagnostics {
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
             s.append(e.getKey()).append(": ").append(e.getValue()).append("\n");
         }
-        s.append("\nEVENT TIMELINE (most recent ").append(MAX_EVENTS).append(")\n");
+        s.append("\nCRITICAL TLS DIAGNOSTICS (retained even if activity history overflows)\n");
+        if (milestones.isEmpty()) s.append("No TLS milestones captured.\n");
+        for (String value : milestones.values()) s.append(value).append("\n");
+        s.append("\nTLS FAILURE CATEGORIES (all attempts)\n");
+        if (tlsFailureTypes.isEmpty()) s.append("None\n");
+        for (Map.Entry<String, Integer> value : tlsFailureTypes.entrySet()) {
+            s.append(value.getKey()).append(": ").append(value.getValue()).append("\n");
+        }
+        s.append("\nEVENT TIMELINE (up to ").append(MAX_EVENTS).append(" entries)\n");
         for (String entry : events) s.append(entry).append("\n");
         return s.toString();
     }
 
     public void close() {
         stopProbe();
-        synchronized (this) { key = null; events.clear(); counts.clear(); }
+        synchronized (this) { key = null; events.clear(); counts.clear(); milestones.clear(); tlsFailureTypes.clear(); }
         handler.removeCallbacks(notifyListener);
     }
 }
