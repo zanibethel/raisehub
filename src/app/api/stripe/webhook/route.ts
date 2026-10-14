@@ -448,12 +448,16 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : 'Unknown webhook error'
 
     console.error('Stripe webhook processing failed', error)
-    await markWebhookEvent(
-      admin,
-      event.id,
-      'failed',
-      message.slice(0, 1000)
-    )
+    try {
+      await markWebhookEvent(
+        admin,
+        event.id,
+        'failed',
+        message.slice(0, 1000)
+      )
+    } catch (completionError) {
+      console.error('Stripe webhook failure could not be recorded', completionError)
+    }
 
     return NextResponse.json(
       { error: 'Webhook processing failed' },
