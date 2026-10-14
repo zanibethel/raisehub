@@ -12,3 +12,10 @@ export function isPendingAsyncCheckoutCompletion(
     event.paymentStatus !== 'no_payment_required'
   )
 }
+
+/** Reject checkout events that cannot be tied to an existing attempt. */
+export function requireCheckoutAttemptId(metadata: Record<string, string> | null | undefined) {
+  const attemptId = metadata?.checkout_attempt_id?.trim()
+  if (!attemptId) throw new Error('Checkout attempt metadata is missing')
+  return attemptId
+}
