@@ -42,7 +42,7 @@ test('async success is never treated as a pending completion event', () => {
 })
 
 test('rejects missing, null, and whitespace-only checkout attempt metadata', () => {
-  for (const metadata of [null, undefined, {}, { checkout_attempt_id: '  ' }]) {
+  for (const metadata of [null, undefined, {} as Record<string, string>, { checkout_attempt_id: '  ' }]) {
     assert.throws(() => requireCheckoutAttemptId(metadata), /Checkout attempt metadata is missing/)
   }
 })
