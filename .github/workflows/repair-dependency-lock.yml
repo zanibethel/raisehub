@@ -19,6 +19,12 @@ jobs:
           cache: npm
       - name: Regenerate lockfile in runner workspace
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Upload npm-generated lockfile for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-package-lock
+          path: package-lock.json
+          retention-days: 7
       - name: Check whether committed lockfile is stale
         run: |
           if ! git diff --exit-code -- package-lock.json; then
