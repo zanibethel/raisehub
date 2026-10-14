@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
 import { handleBusinessBillingEvent } from '@/lib/stripe/business-billing'
-import { isPendingAsyncCheckoutCompletion } from '@/lib/stripe/checkout-event-state'
+import { isPendingAsyncCheckoutCompletion, requireCheckoutAttemptId } from '@/lib/stripe/checkout-event-state'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyStripeWebhook } from '@/lib/stripe/server'
 import { handleWebPortalStripeEvent } from '@/lib/webportal/stripe-events'
@@ -245,9 +245,7 @@ async function synchronizeTerminalCheckoutAttempt(
   event: Stripe.Event
 ) {
   const session = event.data.object as Stripe.Checkout.Session
-  const attemptId = session.metadata?.checkout_attempt_id?.trim()
-
-  if (!attemptId) throw new Error('Checkout attempt metadata is missing')
+  const attemptId = requireCheckoutAttemptId(session.metadata)
   if (!session.id) throw new Error('Checkout Session ID is missing')
 
   const { data: attempt, error: lookupError } = await admin
@@ -427,9 +425,7 @@ export async function POST(request: Request) {
     }
 
     const session = event.data.object as Stripe.Checkout.Session
-    const attemptId = session.metadata?.checkout_attempt_id?.trim()
-
-    if (!attemptId) throw new Error('Checkout attempt metadata is missing')
+    const attemptId = requireCheckoutAttemptId(session.metadata)
     if (!session.id) throw new Error('Checkout Session ID is missing')
 
     await validateProductionCheckoutAttempt(admin, attemptId, session.id)
