@@ -181,22 +181,6 @@ async function validateProductionCheckoutAttempt(
   return attempt
 }
 
-async function markWebhookEvent(
-  admin: any,
-  eventId: string,
-  processingStatus: 'processed' | 'ignored' | 'failed',
-  lastError: string | null = null
-) {
-  await admin
-    .from('stripe_webhook_events')
-    .update({
-      processing_status: processingStatus,
-      processed_at: processingStatus === 'failed' ? null : new Date().toISOString(),
-      last_error: lastError,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('stripe_event_id', eventId)
-}
 
 async function synchronizeConnectedAccount(
   admin: any,
@@ -352,42 +336,46 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient() as any
-  const { data: existingEvent } = await admin
-    .from('stripe_webhook_events')
-    .select('processing_status, attempt_count')
-    .eq('stripe_event_id', event.id)
-    .maybeSingle()
-
-  if (
-    existingEvent?.processing_status === 'processed' ||
-    existingEvent?.processing_status === 'ignored'
-  ) {
+  const claimToken = crypto.randomUUID()
+  const { data: claimResult, error: claimError } = await admin.rpc(
+    'claim_stripe_webhook_event',
+    {
+      p_event_id: event.id,
+      p_event_type: event.type,
+      p_livemode: event.livemode,
+      p_payload: event,
+      p_token: claimToken,
+      p_lease_seconds: 300,
+    }
+  )
+  if (claimError) {
+    console.error('Could not claim Stripe webhook event', claimError)
+    return NextResponse.json({ error: 'Webhook claim failed' }, { status: 500 })
+  }
+  if (claimResult === 'duplicate') {
     return NextResponse.json({ received: true, duplicate: true })
   }
+  if (claimResult === 'busy') {
+    // A concurrent delivery must retry; acknowledging would lose the event if its worker crashes.
+    return NextResponse.json({ error: 'Webhook processing in progress' }, { status: 503, headers: { 'Retry-After': '10' } })
+  }
+  if (claimResult !== 'claimed') {
+    return NextResponse.json({ error: 'Unexpected webhook claim state' }, { status: 500 })
+  }
 
-  const attemptCount = Number(existingEvent?.attempt_count ?? 0) + 1
-  const { error: eventInsertError } = await admin
-    .from('stripe_webhook_events')
-    .upsert(
-      {
-        stripe_event_id: event.id,
-        event_type: event.type,
-        livemode: event.livemode,
-        payload: event,
-        processing_status: 'processing',
-        attempt_count: attemptCount,
-        last_error: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'stripe_event_id' }
-    )
-
-  if (eventInsertError) {
-    console.error('Could not record Stripe webhook event', eventInsertError)
-    return NextResponse.json(
-      { error: 'Webhook event could not be recorded' },
-      { status: 500 }
-    )
+  async function markWebhookEvent(
+    _admin: any,
+    eventId: string,
+    processingStatus: 'processed' | 'ignored' | 'failed',
+    lastError: string | null = null
+  ) {
+    const { data: finished, error } = await admin.rpc('finish_stripe_webhook_event', {
+      p_event_id: eventId,
+      p_token: claimToken,
+      p_status: processingStatus,
+      p_error: lastError,
+    })
+    if (error || finished !== true) throw new Error('Webhook claim completion failed')
   }
 
   try {
