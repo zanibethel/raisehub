@@ -10,7 +10,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,6 +27,17 @@ jobs:
           name: regenerated-package-lock
           path: package-lock.json
           retention-days: 7
+      - name: Publish repaired lockfile to review branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c ci/repair-generated-lockfile
+            git add package-lock.json
+            git commit -m "fix: regenerate dependency lockfile from npm registry"
+            git push --force-with-lease origin HEAD:refs/heads/ci/repair-generated-lockfile
+          fi
       - name: Check whether committed lockfile is stale
         run: |
           if ! git diff --exit-code -- package-lock.json; then
