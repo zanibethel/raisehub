@@ -1,0 +1,35 @@
+name: Verify dependency lock repair
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/repair-dependency-lock.yml
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Regenerate lockfile in runner workspace
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Check whether committed lockfile is stale
+        run: |
+          if ! git diff --exit-code -- package-lock.json; then
+            echo "::error::Committed lockfile differs from npm-generated lockfile."
+            exit 1
+          fi
+      - name: Verify deterministic installation
+        run: npm ci --no-fund
+      - name: Verify Next version
+        run: node -e "const p=require('next/package.json'); if(p.version!=='16.3.8') process.exit(1); console.log(p.version)"
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Test
+        run: npm test
