@@ -41,10 +41,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.webkit.UserAgentMetadata;
-import androidx.webkit.WebSettingsCompat;
-import androidx.webkit.WebViewFeature;
-
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -52,11 +48,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "tv_web_player";
@@ -66,7 +59,6 @@ public class MainActivity extends Activity {
     private static final String PREF_SITE_MOBILE_PREFIX = "site_mobile_";
     private static final String PREF_CURSOR_MODE = "cursor_mode";
     private static final String PREF_CURSOR_PRIMARY_MIGRATED = "cursor_primary_migrated_1_9_7";
-    private static final String PREF_META_DESKTOP_MIGRATED = "meta_desktop_migrated_1_9_8";
     private static final String PREF_PENDING_UPDATE_DOWNLOAD = "pending_update_download_id";
     private static final String PREF_UPDATE_PERMISSION_PENDING = "update_permission_pending";
     private static final String WEBPORTAL_APK_URL =
@@ -81,14 +73,7 @@ public class MainActivity extends Activity {
     private View customView;
     private WebChromeClient.CustomViewCallback customViewCallback;
     private String defaultUserAgent;
-    private String desktopUserAgent;
-    private UserAgentMetadata originalUserAgentMetadata;
-    private boolean userAgentMetadataAvailable;
-    private boolean desktopClientHintsApplied;
-    private String clientHintsState = "Not configured";
     private String currentPageUrl;
-    private String lastMetaPermissionRequest = "None";
-    private boolean earlyCastingProbeInstalled;
     private long pendingUpdateDownloadId = -1L;
     private boolean updateReceiverRegistered;
     private volatile boolean webPlayerMode;
@@ -188,22 +173,6 @@ public class MainActivity extends Activity {
                     .apply();
         }
         cursorPreferenceEnabled = preferences.getBoolean(PREF_CURSOR_MODE, true);
-        // Earlier releases stored "mobile" for every newly saved site.
-        // Migrate Meta bookmarks once so existing Quest casting users
-        // receive the desktop mode automatically after updating.
-        if (!preferences.getBoolean(PREF_META_DESKTOP_MIGRATED, false)) {
-            SharedPreferences.Editor editor = preferences.edit();
-            String savedHome = normalizeUrl(preferences.getString(PREF_HOME, ""));
-            if (isMetaSite(savedHome)) {
-                editor.remove(PREF_SITE_MOBILE_PREFIX + savedHome);
-            }
-            for (String savedSite : getSavedSites()) {
-                if (isMetaSite(savedSite)) {
-                    editor.remove(PREF_SITE_MOBILE_PREFIX + normalizeUrl(savedSite));
-                }
-            }
-            editor.putBoolean(PREF_META_DESKTOP_MIGRATED, true).apply();
-        }
         registerUpdateReceiver();
 
         root = new FrameLayout(this);
@@ -234,9 +203,6 @@ public class MainActivity extends Activity {
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         webView.addJavascriptInterface(new WebPortalBridge(), "WebPortalBridge");
-        // Install before the first URL load so we can see ICE/peer failures
-        // that occur before a page's onPageFinished callback.
-        earlyCastingProbeInstalled = CastingProbe.installEarly(webView);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -253,18 +219,6 @@ public class MainActivity extends Activity {
         settings.setSupportMultipleWindows(false);
 
         defaultUserAgent = settings.getUserAgentString();
-        desktopUserAgent = makeDesktopUserAgent(defaultUserAgent);
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
-            try {
-                originalUserAgentMetadata = WebSettingsCompat.getUserAgentMetadata(settings);
-                userAgentMetadataAvailable = true;
-                clientHintsState = "Original Android hints";
-            } catch (RuntimeException unsupported) {
-                clientHintsState = "Not supported by Fire TV WebView";
-            }
-        } else {
-            clientHintsState = "Not supported by Fire TV WebView";
-        }
         applyUserAgent();
 
         CookieManager cookies = CookieManager.getInstance();
@@ -276,13 +230,12 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return handleNavigation(
-                        request.getUrl().toString(), request.isForMainFrame());
+                return handleNavigation(request.getUrl().toString());
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return handleNavigation(url, true);
+                return handleNavigation(url);
             }
 
             @Override
@@ -290,13 +243,6 @@ public class MainActivity extends Activity {
                     WebView view,
                     String url,
                     android.graphics.Bitmap favicon) {
-                // A redirect can cross from a normal site into Meta (or back).
-                // Re-start with the correct UA before presenting the destination.
-                if (applyUserAgentForUrl(url)) {
-                    view.stopLoading();
-                    view.loadUrl(url);
-                    return;
-                }
                 webPlayerMode = false;
                 embeddedPlayerMode = false;
                 cursorMode = false;
@@ -316,23 +262,12 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 currentPageUrl = url;
                 super.onPageFinished(view, url);
-                boolean casting = isMetaCastingPage(url);
-                if (casting && !earlyCastingProbeInstalled) {
-                    CastingProbe.installLate(view);
-                }
-                // Meta's WebRTC receiver owns its video and fullscreen lifecycle.
-                // Our player auto-fullscreen, DOM popup guard and focus observer
-                // can interrupt the cast negotiation or incoming video track.
-                // Other sites keep all existing WebPortal player controls.
-                if (!casting) {
-                    installPopupGuard();
-                    installFullscreenIntentGuard();
-                    installPlayerModeMonitor();
-                }
-                setAdBannerVisible(!casting);
+                installPopupGuard();
+                installFullscreenIntentGuard();
+                installPlayerModeMonitor();
                 if (cursorPreferenceEnabled) {
                     applyCursorMode(true, false);
-                } else if (!casting) {
+                } else {
                     installPageCardNavigation();
                 }
             }
@@ -343,11 +278,6 @@ public class MainActivity extends Activity {
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 if (customView != null) {
                     callback.onCustomViewHidden();
-                    return;
-                }
-                if (isMetaCastingPage(webView.getUrl())) {
-                    // Let the casting website control its own explicit fullscreen.
-                    showCustomView(view, callback);
                     return;
                 }
 
@@ -389,15 +319,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPermissionRequest(PermissionRequest request) {
-                // Receiving an incoming WebRTC track does not require TV camera
-                // or microphone access. Never silently grant capture privileges.
-                runOnUiThread(() -> {
-                    if (isMetaCastingPage(webView.getUrl())) {
-                        lastMetaPermissionRequest = android.text.TextUtils.join(
-                                ", ", request.getResources()) + " (denied)";
-                    }
-                    request.deny();
-                });
+                runOnUiThread(request::deny);
             }
 
             @Override
@@ -847,125 +769,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String makeDesktopUserAgent(String engineUserAgent) {
-        // Match the installed WebView's Chromium major instead of claiming a
-        // newer rendering engine. Remove Android and WebView identifiers.
-        String chromeMajor = "120";
-        if (engineUserAgent != null) {
-            Matcher matcher = Pattern.compile("Chrome/(\\d+)").matcher(engineUserAgent);
-            if (matcher.find()) chromeMajor = matcher.group(1);
-        }
-        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
-                + chromeMajor + ".0.0.0 Safari/537.36";
-    }
-
-    private boolean isMetaCastingPage(String url) {
-        if (!isMetaSite(url)) return false;
-        try {
-            String path = Uri.parse(url).getPath();
-            return path != null
-                    && (path.equalsIgnoreCase("/casting")
-                    || path.toLowerCase(Locale.US).startsWith("/casting/"));
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private boolean isMetaSite(String url) {
-        try {
-            String host = Uri.parse(url).getHost();
-            if (host == null) return false;
-            host = host.toLowerCase(Locale.US);
-            return host.equals("meta.com") || host.endsWith(".meta.com")
-                    || host.equals("oculus.com") || host.endsWith(".oculus.com");
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private boolean mobileModeForNavigation(String url) {
-        String home = getSavedHomeUrl();
-        if (!home.isEmpty()) {
-            try {
-                Uri homeUri = Uri.parse(home);
-                Uri pageUri = Uri.parse(url);
-                String homeHost = normalizedHost(homeUri);
-                if (!homeHost.isEmpty() && homeHost.equals(normalizedHost(pageUri))) {
-                    return mobileModeForSite(home);
-                }
-            } catch (Exception ignored) {
-                // Fall back to the requested site's own compatibility setting.
-            }
-        }
-        return mobileModeForSite(url);
-    }
-
-    private void applyMetaClientHints(boolean desktop) {
-        if (!userAgentMetadataAvailable || webView == null) return;
-        if (desktopClientHintsApplied == desktop) return;
-        WebSettings settings = webView.getSettings();
-        try {
-            if (desktop) {
-                // A custom Windows desktop UA otherwise has incomplete UA-CH hints.
-                // Use the *installed* Chromium major for internally consistent hints.
-                Matcher matcher = Pattern.compile("Chrome/(\\d+)").matcher(desktopUserAgent);
-                String major = matcher.find() ? matcher.group(1) : "120";
-                String fullVersion = major + ".0.0.0";
-                UserAgentMetadata.BrandVersion chromium =
-                        new UserAgentMetadata.BrandVersion.Builder()
-                                .setBrand("Chromium").setMajorVersion(major)
-                                .setFullVersion(fullVersion).build();
-                UserAgentMetadata.BrandVersion chrome =
-                        new UserAgentMetadata.BrandVersion.Builder()
-                                .setBrand("Google Chrome").setMajorVersion(major)
-                                .setFullVersion(fullVersion).build();
-                UserAgentMetadata desktopMetadata =
-                        new UserAgentMetadata.Builder(originalUserAgentMetadata)
-                                .setBrandVersionList(Arrays.asList(chromium, chrome))
-                                .setPlatform("Windows")
-                                .setPlatformVersion("10.0.0")
-                                .setArchitecture("x86")
-                                .setBitness(64)
-                                .setMobile(false)
-                                .setModel("")
-                                .build();
-                WebSettingsCompat.setUserAgentMetadata(settings, desktopMetadata);
-                clientHintsState = "Desktop Windows/Chrome (" + major + ")";
-            } else {
-                WebSettingsCompat.setUserAgentMetadata(settings, originalUserAgentMetadata);
-                clientHintsState = "Original Android hints";
-            }
-            desktopClientHintsApplied = desktop;
-        } catch (RuntimeException unsupported) {
-            clientHintsState = "Metadata override rejected";
-        }
-    }
-
-    private boolean applyUserAgentForUrl(String url) {
-        if (webView == null) return false;
-        boolean mobile = mobileModeForNavigation(url);
-        // Only the Meta receiver gets matching desktop UA Client Hints.
-        // All other saved websites retain their existing browser identity.
-        applyMetaClientHints(!mobile && isMetaSite(url));
-        String userAgent = mobile ? defaultUserAgent : desktopUserAgent;
-        if (mobile && userAgent != null
-                && !userAgent.toLowerCase(Locale.US).contains(" mobile")) {
-            userAgent += " Mobile";
-        }
-        if (userAgent == null
-                || userAgent.equals(webView.getSettings().getUserAgentString())) {
-            return false;
+    private void applyUserAgent() {
+        boolean mobile = prefs().getBoolean(PREF_MOBILE, true);
+        String userAgent = defaultUserAgent;
+        if (mobile && userAgent != null &&
+                !userAgent.toLowerCase(Locale.US).contains(" mobile")) {
+            userAgent = userAgent + " Mobile";
         }
         webView.getSettings().setUserAgentString(userAgent);
-        return true;
     }
 
-    private void applyUserAgent() {
-        applyUserAgentForUrl(getSavedHomeUrl());
-    }
-
-    private boolean handleNavigation(String url, boolean mainFrame) {
+    private boolean handleNavigation(String url) {
         if (url == null) return false;
 
         if (isDirectMediaUrl(url)) {
@@ -976,10 +790,6 @@ public class MainActivity extends Activity {
         Uri uri = Uri.parse(url);
         String scheme = uri.getScheme();
         if (scheme == null || scheme.equals("http") || scheme.equals("https")) {
-            if (mainFrame && applyUserAgentForUrl(url)) {
-                webView.loadUrl(url);
-                return true;
-            }
             return false;
         }
 
@@ -1017,7 +827,6 @@ public class MainActivity extends Activity {
     private void loadUrl(String url) {
         if (url == null || url.isEmpty()) return;
         currentPageUrl = url;
-        applyUserAgentForUrl(url);
         webView.loadUrl(url);
         webView.requestFocus();
     }
@@ -1112,10 +921,7 @@ public class MainActivity extends Activity {
 
     private boolean mobileModeForSite(String url) {
         String normalized = normalizeUrl(url);
-        // Meta/Quest casting advertises a desktop-only browser experience.
-        // Keep other websites in their previous default compatibility mode.
-        boolean fallback = isMetaSite(normalized)
-                ? false : prefs().getBoolean(PREF_MOBILE, true);
+        boolean fallback = prefs().getBoolean(PREF_MOBILE, true);
         if (normalized.isEmpty()) return fallback;
         return prefs().getBoolean(PREF_SITE_MOBILE_PREFIX + normalized, fallback);
     }
@@ -1309,22 +1115,6 @@ public class MainActivity extends Activity {
         mobile.setTextSize(17);
         mobile.setPadding(0, dp(8), 0, dp(8));
         mobile.setChecked(mobileModeForSite(currentHome));
-        // When a new Meta/Quest address is typed, select desktop mode by
-        // default. The user can still explicitly opt into mobile mode.
-        manualInput.addTextChangedListener(new android.text.TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (isMetaSite(normalizeUrl(s.toString()))) {
-                    mobile.setChecked(mobileModeForSite(normalizeUrl(s.toString())));
-                }
-            }
-
-            @Override
-            public void afterTextChanged(android.text.Editable editable) {}
-        });
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             mobile.setButtonTintList(new android.content.res.ColorStateList(
                     new int[][] {
@@ -1658,39 +1448,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void showCastingDiagnostics() {
-        if (webView == null) return;
-        webView.evaluateJavascript(CastingProbe.DIAGNOSTICS, value -> {
-            String details = "Diagnostics unavailable.";
-            try {
-                Object parsed = new org.json.JSONTokener(value).nextValue();
-                details = String.valueOf(parsed);
-            } catch (Exception ignored) {
-                // An unloading webpage may not return a JavaScript value.
-            }
-            String webViewVersion = "unknown";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                android.content.pm.PackageInfo pkg = WebView.getCurrentWebViewPackage();
-                if (pkg != null) webViewVersion = pkg.versionName;
-            }
-            String report = details + "\nWebView: " + webViewVersion
-                    + "\nTrace type: " + (earlyCastingProbeInstalled ? "early" : "page-loaded")
-                    + "\nWeb permissions: " + lastMetaPermissionRequest
-                    + "\nUA client hints: " + clientHintsState;
-            new AlertDialog.Builder(this)
-                    .setTitle("Casting diagnostics")
-                    .setMessage(report)
-                    .setNeutralButton("Copy report", (dialog, which) -> {
-                        ((android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE))
-                                .setPrimaryClip(android.content.ClipData.newPlainText(
-                                        "WebPortal casting diagnostics", report));
-                        Toast.makeText(this, "Casting report copied.", Toast.LENGTH_SHORT).show();
-                    })
-                    .setPositiveButton("Close", null)
-                    .show();
-        });
-    }
-
     private void showMenu() {
         String[] actions = {
                 "Home",
@@ -1699,9 +1456,7 @@ public class MainActivity extends Activity {
                 "Play page video in native player",
                 "Change website",
                 "Clear website cookies/cache",
-                "Update WebPortal",
-                "Casting diagnostics",
-                "Cast Lab (experimental)"
+                "Update WebPortal"
         };
 
         TextView versionStatus = new TextView(this);
@@ -1756,12 +1511,6 @@ public class MainActivity extends Activity {
                     break;
                 case 6:
                     openUpdateDownload();
-                    break;
-                case 7:
-                    showCastingDiagnostics();
-                    break;
-                case 8:
-                    startActivity(new Intent(this, CastLabActivity.class));
                     break;
                 default:
                     break;
