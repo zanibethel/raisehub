@@ -22,6 +22,8 @@ Reference: https://nodejs.org/en/blog/vulnerability/october-2026-security-releas
 
 **2026-10-31 evidence:** Epoch AI's Oct 29 Firefox patch-gap research demonstrates that public security fixes can become exploitable before users receive patched releases. This does not establish a RaiseHub vulnerability. Next.js's Nov 3 seven-issue advisory still has no published affected ranges in the reviewed evidence; continue read-only CI/production Node and browser/runtime inventory, then seek approval for isolated checkout/webhook regression testing and any deployment. Source: https://epoch.ai/publications/open-weight-models-patch-gap .
 
+**2026-10-31 runtime verification:** Vercel `raisehub` project is configured for Node **24.x**, and `package.json` has no `engines.node`; Next.js is 16.3.8. This differs from the older CI Node 20 reference, so do not conflate CI and production runtimes. Vercel announced Node 26 LTS GA Oct 29 (default for new projects; existing upgrades depend on engine constraints). Verify actual build/function versions and test checkout/webhooks before any approved change. Source: https://vercel.com/changelog/node-js-26-lts-is-now-generally-available-on-vercel .
+
 ## 2. Stripe webhook processing acceptance
 
 **Status:** Monitor / acceptance evidence pending  
