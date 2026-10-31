@@ -2,7 +2,7 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-10-29
+Last reviewed: 2026-10-31
 
 ## 1. Verify supported Node.js versions across CI and production
 
