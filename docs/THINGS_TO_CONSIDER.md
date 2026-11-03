@@ -2,13 +2,13 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-03
 
 ## 1. Verify supported Node.js versions across CI and production
 
 **Status:** Recommend read-only inventory / Evaluate patch  
 **Added:** 2026-10-23  
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-03
 
 **Evidence:** Prior repository review found a CI workflow selecting Node 20 (end-of-life); the actual production Node patch version has not been established. Node.js shipped security updates Oct 21: 22.23.4, 24.22.1, 26.12.1.
 
@@ -25,6 +25,8 @@ Reference: https://nodejs.org/en/blog/vulnerability/october-2026-security-releas
 **2026-10-31 runtime verification:** Vercel `raisehub` project is configured for Node **24.x**, and `package.json` has no `engines.node`; Next.js is 16.3.8. This differs from the older CI Node 20 reference, so do not conflate CI and production runtimes. Vercel announced Node 26 LTS GA Oct 29 (default for new projects; existing upgrades depend on engine constraints). Verify actual build/function versions and test checkout/webhooks before any approved change. Source: https://vercel.com/changelog/node-js-26-lts-is-now-generally-available-on-vercel .
 
 **2026-11-01 security evidence:** Wiz documented at least nine October AI developer-platform incidents involving stolen environment variables and provider keys; no RaiseHub exposure is established. Read-only inventory should cover Vercel/CI secret scopes and Stripe webhook credentials alongside the planned Nov 3 Next.js patch review. Current Stripe webhook counts remain **37 processed / 4 historical failed** with no new incident verified. **Recommendation:** review exposure, verify actual runtime and patch advisory, then seek separate approval for credential rotation, CI changes or deployment. Source: https://www.wiz.io/blog/black-october-for-ai-developer-platforms .
+
+**2026-11-03 evidence:** Vercel's Nov 2 blocked-npm-package controls now automatically check supported lockfiles before and during **new** builds (including cache paths). This improves future-build protection but does not verify existing deployed dependencies, CI Node patch versions or the scheduled Next.js security release. No official Nov 3 affected-version advisory was verified at this morning's review. **Possible solution:** read-only CI/lockfile/deployed-runtime inventory; check official advisories and test webhook/checkout regressions in isolation before seeking deployment approval. **Recommendation unchanged:** no runtime, webhook, security or deployment changes from this review. Source: https://vercel.com/changelog/blocking-malicious-npm-packages-before-and-during-installation .
 
 ## 2. Stripe webhook processing acceptance
 
