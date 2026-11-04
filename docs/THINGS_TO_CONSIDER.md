@@ -2,7 +2,7 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-04
 
 ## 1. Verify supported Node.js versions across CI and production
 
@@ -39,3 +39,6 @@ Reference: https://nodejs.org/en/blog/vulnerability/october-2026-security-releas
 **Possible solution:** Read-only reconciliation and isolated duplicate/retry/lease-expiry tests before claiming end-to-end resilience.
 
 **Recommendation:** No payment-policy or pricing change from this review.
+
+
+**2026-11-04 runtime/security recheck (existing item 1):** Latest TLDR Dev (Nov 3) discusses Next.js 16.4 bundle analysis and AI-assisted import-chain optimization, but this is a vendor-reported opportunity, not a verified RaiseHub improvement. No independently confirmed Nov 3 Next.js affected-version matrix was obtained in this review. Connected Stripe event counts remain **37 processed / 4 historical failed**; no new payment incident established. **Status:** Evaluate read-only patch/runtime inventory; webhook consideration unchanged. **Possible solution:** verify deployed lockfile/Next.js version and official security advisory, then isolate bundle/checkout/webhook regressions before any proposed patch. **Recommendation:** no automatic dependency, runtime or production changes. Source: https://signup.tldr.tech/dev/2026-11-03 .
