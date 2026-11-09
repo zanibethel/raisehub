@@ -2,7 +2,17 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-09
+
+## November 9, 2026 — Security patch verification (existing runtime/security consideration)
+
+**Status:** Evaluate / verify deployment evidence  
+**Last reviewed:** 2026-11-09
+
+**Evidence:** Repository PR #222 is titled `security: patch Next.js P0 advisories and update audit runtime` (https://github.com/zanibethel/raisehub/pull/222); merge/deployment state and effective production dependency versions not independently established in this review. Connected Stripe webhook ledger has 37 processed and 4 unprocessed historical records, unchanged from Nov 8.
+
+**Possible solution / recommendation:** Read PR #222's tests and advisories and compare actual deployed Next.js/Node versions before claiming remediation; verify webhook processing idempotency separately. Do not change deployment or security policy from newsletter evidence.
+
 
 ## 1. Verify supported Node.js versions across CI and production
 
