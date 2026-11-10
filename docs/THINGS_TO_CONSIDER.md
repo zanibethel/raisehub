@@ -2,7 +2,17 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-10
+
+## November 10, 2026 — Security patch and webhook verification
+
+**Status:** Evaluate / deployment evidence pending  
+**Last reviewed:** 2026-11-10
+
+**Evidence:** Connected Stripe ledger still **37 processed / 4 failed** historical webhook events. Existing security PR #222 is relevant, but this review has not independently verified its effective production patch level. Uber's Nov 6 agent-security guidance reinforces intent-bound authorization for future administrative AI actions; it does not establish a RaiseHub compromise (https://www.uber.com/gb/en/blog/securing-ai-agents/).
+
+**Possible solution / recommendation:** Keep the existing runtime-security and webhook considerations open. Read deployed framework/Node versions and test webhook idempotency and form permissions before marking fixes resolved. No new policy or deployment without approval.
+
 
 ## November 9, 2026 — Security patch verification (existing runtime/security consideration)
 
