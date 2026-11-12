@@ -82,7 +82,7 @@ References:
 | --- | --- | --- | --- |
 | U1 | Change `next` and `eslint-config-next` to exact **16.4.6** | `package.json` aligned | **DONE** |
 | U2 | Regenerate root `package-lock.json` using agreed Node/npm on a clean checkout | `npm ci` succeeds with consistent `@next/*` and associated deps | **DONE** |
-| U3 | Align `.github/workflows/ci.yml`, audit workflow, and Vercel runtime to supported Node (recommended 24 after verification) | No Supabase engine warning; CI/runtime agreement documented | **PARTIAL** — CI/audit workflows use Node 24; Vercel runtime setting not independently inspected |
+| U3 | Align `.github/workflows/ci.yml`, audit workflow, and Vercel runtime to supported Node (recommended 24 after verification) | No Supabase engine warning; CI/runtime agreement documented | **DONE** — CI/audit workflows use Node 24; both Vercel projects report `nodeVersion: 24.x` |
 | U4 | Run `npm audit --omit=dev --audit-level=high`, `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build` | All green; no severity exception or security-gate bypass | **DONE** — CI run 1736, dependency audit run 802 |
 | U5 | Run P0 Preview smoke tests for customer, business, org/seller, owner and auth | Capture evidence/screenshots without production writes | NOT DONE |
 | U6 | Run Stripe test-mode webhooks, idempotency, refunds/failures and business billing regression | No incorrect paid state or duplicated customer entitlement | NOT DONE |
@@ -124,6 +124,8 @@ References:
 - RaiseHub Secret History Scan run [785](https://github.com/zanibethel/raisehub/actions/runs/43254554624) **SUCCESS**.
 - Vercel `raisehub` Preview `dpl_Cpj4HftMbV9dcssz1nieV61LnQYm`: **READY** for the verified commit; `raisehub-demo` Preview `dpl_D9dZBtwtJhnZrpcDUhM7cP4TW8bc`: **READY** for the same commit.
 
-**Unverified release gates:** Authenticated browser walkthroughs, real multi-role permissions, Stripe test-mode checkout and independently signed webhook replay, redemption idempotency, logo uploads, business microsite/booking, demo-vs-production behavior, Vercel runtime configuration, and mobile PR #223 integration. Automated CI passing does *not* substitute for these checks.
+**Vercel runtime inspection:** Connected Vercel project settings verify both `raisehub` (`prj_dgC022Tu2ua8xNgoBKRrenRmYAnd`) and `raisehub-demo` (`prj_jW5s9BRT8TEfl13P8SJLlDsGllYu`) use Node.js `24.x`.
+
+**Unverified release gates:** Authenticated browser walkthroughs, real multi-role permissions, Stripe test-mode checkout and independently signed webhook replay, redemption idempotency, logo uploads, business microsite/booking, demo-vs-production behavior, and mobile PR #223 integration. Automated CI passing does *not* substitute for these checks.
 
 **Release decision:** Keep PR #222 draft; do not merge or deploy production until the remaining P0/P1 behavioral smoke tests are evidenced and release approval is obtained. Production site remains on the previous main branch.
