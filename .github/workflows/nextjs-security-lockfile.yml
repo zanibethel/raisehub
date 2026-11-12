@@ -1,0 +1,47 @@
+name: Generate review-branch lockfile for Next.js security patch
+
+on:
+  push:
+    branches:
+      - security/nextjs-p0-nov2
+    paths:
+      - package.json
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate-lockfile:
+    # This is an intentionally narrow, non-deploying, temporary review-branch job.
+    if: github.repository == 'zanibethel/raisehub' && github.ref == 'refs/heads/security/nextjs-p0-nov2'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact patch branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          ref: security/nextjs-p0-nov2
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Regenerate lockfile without executing package scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Confirm requested exact versions
+        run: |
+          node -e "const p=require('./package.json');const l=require('./package-lock.json');for(const name of ['next','eslint-config-next']){if(p.dependencies[name] && p.dependencies[name]!=='16.4.6')process.exit(1);if(p.devDependencies[name] && p.devDependencies[name]!=='16.4.6')process.exit(1);if(l.packages['node_modules/'+name]?.version!=='16.4.6')process.exit(1)}"
+      - name: Commit only the regenerated lockfile to security branch
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package-lock.json
+          git commit -m "fix(security): regenerate npm lockfile for Next.js 16.4.6"
+          git push origin HEAD:refs/heads/security/nextjs-p0-nov2
