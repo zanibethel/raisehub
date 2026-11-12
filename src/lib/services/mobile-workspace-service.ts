@@ -7,6 +7,7 @@ import {
   getActiveDataEnvironment,
   recordMatchesEnvironment,
   recordsShareEnvironment,
+  type EnvironmentOwnedRecord,
 } from '@/lib/data-environment'
 import { isLegacyProfileRole } from '@/lib/rules/identity-access-rules'
 import { buildSelectableWorkspaces } from '@/lib/services/authenticated-workspace-service'
@@ -136,12 +137,12 @@ export async function getMobileWorkspaceBootstrap(accessToken: string) {
 
   const businessesById = new Map(
     businesses
-      .filter((business) => recordMatchesEnvironment(business, environment))
+      .filter((business) => recordMatchesEnvironment(business as BusinessRow & EnvironmentOwnedRecord, environment))
       .map((business) => [business.id, business])
   )
   const organizationsById = new Map(
     organizations
-      .filter((organization) => recordMatchesEnvironment(organization, environment))
+      .filter((organization) => recordMatchesEnvironment(organization as OrganizationRow & EnvironmentOwnedRecord, environment))
       .map((organization) => [organization.id, organization])
   )
 
