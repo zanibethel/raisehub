@@ -2,7 +2,7 @@
 
 This is a review-only backlog. Entries are not approved code, deployment, schema, or pricing changes.
 
-Last reviewed: 2026-11-10
+Last reviewed: 2026-11-12
 
 ## November 10, 2026 — Security patch and webhook verification
 
@@ -71,3 +71,6 @@ Reference: https://nodejs.org/en/blog/vulnerability/october-2026-security-releas
 
 
 **2026-11-07 existing runtime/webhook consideration review:** Connected Stripe webhook events remain **37 processed / 4 failed**, unchanged; no new incident established. TLDR Dev Nov 6 mentions React rendering latency and cheaper AI; neither demonstrates a RaiseHub-specific defect. **Status:** Runtime/Next.js advisory verification Evaluate; webhook acceptance Monitor (unchanged). **Possible solution:** verify deployed Node/Next patch versions and official advisories, then isolated webhook/checkout regressions if needed. **Recommendation:** no new integration, security-policy, payment or deployment change. Sources: https://tldr.tech/dev/archives ; connected RaiseHub database.
+
+
+**2026-11-12 runtime/security and webhook verification (existing items):** Connected Stripe webhook ledger remains **37 processed / 4 historical failed**; no new incident established. PR #222 remains **open and unmerged**; its description says Next.js 16.4.3 patch needs regenerated Node 24 lockfile, npm audit/tests/lint/types/build and isolated Preview acceptance before merge. **Status:** Security patch Evaluate / verification pending (not implemented); webhook Monitor / unchanged. **Possible solution:** read-only inspect effective deployed Next.js/Node versions and PR CI artifacts; seek approval for isolated lockfile/test remediation. **Recommendation:** no security-policy or production deployment change. Source: https://github.com/zanibethel/raisehub/pull/222 ; connected Stripe webhook ledger.
