@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "RaiseHub",
+    "slug": "raisehub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "raisehub",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "releaseChannel": "development"
+    }
+  }
+}
