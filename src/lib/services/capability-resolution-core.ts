@@ -199,6 +199,8 @@ export async function resolveActorSummaryForActor(
 export function createCapabilityResolver(
   dependencies: CapabilityResolverDependencies
 ) {
+  const getNow = () => dependencies.now?.() ?? new Date()
+
   async function resolveActorCapabilitySummaryForActor(
     actor: AuthenticatedActor
   ): Promise<ActorCapabilitySummary> {
