@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -57,31 +58,18 @@ function SignIn({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-
-  async function submit(mode: 'signin' | 'signup') {
+  async function submit() {
     if (!supabase || busy) return
     setBusy(true)
     setError(null)
-    setNotice(null)
 
     try {
-      if (mode === 'signin') {
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        })
-        if (authError) throw authError
-        onSuccess()
-      } else {
-        const { data, error: authError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        })
-        if (authError) throw authError
-        if (data.session) onSuccess()
-        else setNotice('Check your email to finish creating your RaiseHub account.')
-      }
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      if (authError) throw authError
+      onSuccess()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not sign in.')
     } finally {
@@ -115,24 +103,28 @@ function SignIn({ onSuccess }: { onSuccess: () => void }) {
           onChangeText={setPassword}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         <Pressable
           style={[styles.button, busy && styles.disabled]}
           disabled={busy}
-          onPress={() => submit('signin')}
+          onPress={submit}
         >
           <Text style={styles.buttonText}>{busy ? 'Working…' : 'Sign in'}</Text>
         </Pressable>
         <Pressable
           style={styles.secondaryButton}
           disabled={busy}
-          onPress={() => submit('signup')}
+          onPress={() => {
+            if (apiBaseUrl?.startsWith('https://')) {
+              void Linking.openURL(apiBaseUrl.replace(/\/$/, '') + '/signup')
+            }
+          }}
         >
-          <Text style={styles.secondaryText}>Create an account</Text>
+          <Text style={styles.secondaryText}>Create an account on RaiseHub</Text>
         </Pressable>
         <Text style={styles.footnote}>
-          Your login is shared with RaiseHub on the web. Mobile feature screens
-          are being connected in stages.
+          New account registration uses RaiseHub's existing secure onboarding
+          on the website. Your login then works in this app. Mobile feature
+          screens are being connected in stages.
         </Text>
       </ScrollView>
     </SafeAreaView>
