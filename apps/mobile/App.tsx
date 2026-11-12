@@ -267,7 +267,7 @@ export default function App() {
             <Text style={styles.brand}>RaiseHub</Text>
             <Text style={styles.muted}>One account · Multiple experiences</Text>
           </View>
-          <Pressable onPress={() => supabase.auth.signOut()}>
+          <Pressable onPress={() => { void supabase?.auth.signOut() }}>
             <Text style={styles.signOut}>Sign out</Text>
           </Pressable>
         </View>
