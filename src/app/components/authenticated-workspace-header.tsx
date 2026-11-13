@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -83,15 +83,39 @@ export default function AuthenticatedWorkspaceHeader({
   profileHref,
 }: AuthenticatedWorkspaceHeaderProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [switchingWorkspaceKey, setSwitchingWorkspaceKey] = useState<string | null>(null)
   const [isSwitching, startWorkspaceTransition] = useTransition()
 
-  const selectedWorkspace = workspaces.find(
+  // The dashboard uses ?workspace= before the saved cookie. Its header must
+  // use the same authorized selection so a business dashboard cannot say My Pass.
+  const requestedWorkspaceKey = pathname === '/dashboard'
+    ? searchParams.get('workspace')
+    : null
+  const requestedWorkspace = requestedWorkspaceKey
+    ? workspaces.find((workspace) => workspace.key === requestedWorkspaceKey)
+    : null
+  const selectedWorkspace = requestedWorkspace ?? workspaces.find(
     (workspace) => workspace.key === selectedWorkspaceKey
   )
+  const activeWorkspaceKey = selectedWorkspace?.key ?? selectedWorkspaceKey
+  const displayedWorkspaceName = selectedWorkspace?.name ?? workspaceName
+  const displayedWorkspaceLabel = selectedWorkspace?.kind === 'business'
+    ? 'Business'
+    : selectedWorkspace?.kind === 'organization'
+      ? 'Organization'
+      : selectedWorkspace?.kind === 'fundraising'
+        ? 'Fundraising'
+        : selectedWorkspace?.kind === 'owner'
+          ? 'Owner'
+          : selectedWorkspace?.kind === 'customer'
+            ? 'Supporter'
+            : workspaceLabel
+  const displayedLogoUrl = selectedWorkspace?.logoUrl ?? logoUrl
   const selectedWorkspaceIsBusiness = selectedWorkspace?.kind === 'business'
   const websiteBuilderHref =
     selectedWorkspaceIsBusiness && selectedWorkspace.workspaceId
@@ -109,6 +133,10 @@ export default function AuthenticatedWorkspaceHeader({
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (requestedWorkspace) rememberWorkspace(requestedWorkspace.key)
+  }, [requestedWorkspace?.key])
 
   useEffect(() => {
     function openDrawer() {
@@ -145,7 +173,7 @@ export default function AuthenticatedWorkspaceHeader({
   }, [drawerOpen])
 
   function handleWorkspaceSelection(workspace: SelectableWorkspace) {
-    if (isSwitching || workspace.key === selectedWorkspaceKey) return
+    if (isSwitching || workspace.key === activeWorkspaceKey) return
 
     rememberWorkspace(workspace.key)
     setSwitchingWorkspaceKey(workspace.key)
@@ -232,7 +260,7 @@ export default function AuthenticatedWorkspaceHeader({
                 <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">Switch experience</p>
                 <div className="mt-2 min-w-0 space-y-1">
                   {workspaces.map((workspace) => {
-                    const current = workspace.key === selectedWorkspaceKey
+                    const current = workspace.key === activeWorkspaceKey
                     const opening = isSwitching && workspace.key === switchingWorkspaceKey
 
                     return (
@@ -290,14 +318,14 @@ export default function AuthenticatedWorkspaceHeader({
     <>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
-          <WorkspaceLogo logoUrl={logoUrl} workspaceName={workspaceName} />
+          <WorkspaceLogo logoUrl={displayedLogoUrl} workspaceName={displayedWorkspaceName} />
 
           <span className="min-w-0">
             <span className="block truncate text-base font-black text-slate-950 sm:text-lg">
-              {workspaceName}
+              {displayedWorkspaceName}
             </span>
             <span className="block truncate text-xs font-semibold text-slate-500">
-              {workspaceLabel} · {environmentLabel}
+              {displayedWorkspaceLabel} · {environmentLabel}
             </span>
           </span>
         </Link>
