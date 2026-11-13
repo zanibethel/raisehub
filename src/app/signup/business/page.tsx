@@ -14,57 +14,6 @@ import { createClient } from '@/lib/supabase/client'
 
 const BUSINESS_DEMO_URL = 'https://raisehub-demo.vercel.app/demo?role=business'
 
-const partnershipFlow = [
-  {
-    number: '01',
-    icon: '🏪',
-    badge: 'FREE',
-    title: 'Join RaiseHub free',
-    description: 'Create your local business profile and publish up to three active offers.',
-    accent: 'green',
-  },
-  {
-    number: '02',
-    icon: '🏷️',
-    badge: 'YOUR OFFER',
-    title: 'Create an offer customers want',
-    description: 'Choose the value, redemption rules, and how customers use it at your business.',
-    accent: 'blue',
-  },
-  {
-    number: '03',
-    icon: '🎟️',
-    badge: 'LOCAL FUNDRAISING',
-    title: 'Fundraisers sell RaiseHub passes',
-    description: 'Schools, teams, nonprofits, and community groups sell passes filled with local offers like yours.',
-    accent: 'amber',
-  },
-  {
-    number: '04',
-    icon: '📍',
-    badge: 'NEW VISITS',
-    title: 'Supporters discover your business',
-    description: 'Pass holders find your offer, visit your business, and redeem through RaiseHub.',
-    accent: 'violet',
-  },
-  {
-    number: '05',
-    icon: '↗',
-    badge: 'PARTNER REWARDS',
-    title: 'Grow your business & earn rewards',
-    description: 'Track real activity and earn Partner Points for qualifying participation as your local reach grows.',
-    accent: 'emerald',
-  },
-] as const
-
-const rewardWays = [
-  'Complete your profile',
-  'Get verified',
-  'Keep quality offers active',
-  'Drive real redemptions',
-  'Refer local businesses',
-]
-
 export default function BusinessSignupPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -151,172 +100,105 @@ export default function BusinessSignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-14">
+    <main className="min-h-screen bg-[#F7FAFC] px-4 py-8 text-slate-950 sm:px-8 sm:py-12">
       <div className="mx-auto max-w-6xl">
         <Link href="/" className="text-sm font-medium text-blue-700 hover:underline">← Back to RaiseHub</Link>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="px-1 pb-8 pt-2 lg:pr-8">
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-green-700">RaiseHub Community Partner</p>
-            <h1 className="mt-4 text-4xl font-bold leading-tight text-gray-900">Support your community while growing your business</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
-              Offer a valuable local deal, reach supporters who want to shop local, and help schools, teams, nonprofits, and community groups build a fundraiser people actually want to buy.
+        <header className="mt-7 max-w-4xl">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">RaiseHub for local businesses</p>
+          <h1 className="mt-3 text-4xl font-black leading-tight tracking-tight sm:text-5xl">
+            You provide the offer. We help customers discover you.
+          </h1>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-700 sm:text-lg">
+            Join RaiseHub for free, create an offer you&apos;re comfortable with, and let local fundraisers introduce customers to your business.
+          </p>
+          <p className="mt-3 text-sm font-bold leading-6 text-green-800">
+            No selling fundraising passes, recruiting participants, or organizing fundraisers required.
+          </p>
+        </header>
+
+        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <aside className="order-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 lg:order-2 lg:sticky lg:top-6">
+            <p className="text-sm font-bold text-green-700">Free to join · Up to 3 active offers</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">Create your business profile</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              No required subscription. You can upgrade later if you want more offers or advanced features.
             </p>
-
-            <div className="mt-6 rounded-3xl border-2 border-amber-300 bg-gradient-to-r from-amber-100 via-yellow-50 to-green-50 p-5 shadow-sm">
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Founding 100 Bonus</span>
-                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">2× Partner Points for 1 Year</span>
-                <span className="rounded-full bg-green-700 px-3 py-1 text-xs font-black text-white">First 100 Verified Businesses</span>
-              </div>
-              <h2 className="mt-3 text-xl font-black text-slate-950">Join early. Earn double.</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                The first 100 production businesses to become verified on RaiseHub automatically receive Founding Business status and earn 2× positive Partner Points for one year from verification.
-              </p>
-            </div>
-
             {referralToken ? (
-              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">
-                You were invited by a RaiseHub business partner. We&apos;ll remember this referral while you explore RaiseHub or the Business Demo and link it automatically when your business account is created.
-              </div>
-            ) : null}
-
-            <div className="mt-9 border-y border-slate-200 py-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-green-700">How it works</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">From local offer to new customer</h2>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                    Your offer helps make the fundraiser valuable. RaiseHub connects that value to local supporters and gives them a reason to walk through your door.
-                  </p>
-                </div>
-                <a
-                  href={businessDemoUrl}
-                  className="shrink-0 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                >
-                  Explore Business Demo →
-                </a>
-              </div>
-
-              <div className="mt-7 divide-y divide-slate-200">
-                {partnershipFlow.map((step, index) => (
-                  <article key={step.number} className="grid grid-cols-[3rem_1fr] gap-4 py-5 first:pt-0 last:pb-0">
-                    <div className="flex flex-col items-center">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-xl shadow-sm ring-1 ring-slate-200" aria-hidden="true">
-                        {step.icon}
-                      </span>
-                      {index < partnershipFlow.length - 1 ? <span className="mt-2 h-full w-px bg-slate-200" aria-hidden="true" /> : null}
-                    </div>
-                    <div className="min-w-0 pb-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-black text-slate-400">{step.number}</span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
-                          {step.badge}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-lg font-black leading-snug text-slate-950">{step.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{step.description}</p>
-                      {index === partnershipFlow.length - 1 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-800">Track results</span>
-                          <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-800">Earn Partner Points</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-8 border-l-4 border-amber-400 pl-4 sm:pl-5">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Partner Rewards</p>
-              <h2 className="mt-2 text-2xl font-bold text-gray-900">Earn rewards as you help RaiseHub grow</h2>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                RaiseHub Partners can earn Partner Points for qualifying activity that strengthens the community: building a complete profile, becoming verified, maintaining valuable offers, generating real customer activity, and referring other local businesses.
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                You were invited by a RaiseHub business partner. We&apos;ll remember your referral when you join.
               </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {rewardWays.map((way) => (
-                  <span key={way} className="rounded-full border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm">
-                    {way}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-5 text-sm leading-6 text-slate-600">
-                <strong className="text-gray-900">How Partner Points work:</strong>{' '}
-                eligible Partner Points carry forward across quarters and can be used for available RaiseHub benefits. Quarterly activity may also qualify your business for a share of the Partner Rewards Pool. Partner Points do not have a fixed cash value, and reward eligibility depends on the applicable program rules.
-              </div>
+            ) : null}
+            <div className="mt-5">
+              <GoogleOAuthButton destination={googleDestination} disabled={loading} />
             </div>
-
-            <div className="mt-8 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-5 text-center">
-              <div className="px-2"><p className="text-lg font-black text-green-700 sm:text-xl">3 Offers</p><p className="mt-1 text-xs leading-5 text-slate-500">Free active offer allowance</p></div>
-              <div className="px-2"><p className="text-lg font-black text-blue-700 sm:text-xl">Local Reach</p><p className="mt-1 text-xs leading-5 text-slate-500">Visibility with community supporters</p></div>
-              <div className="px-2"><p className="text-lg font-black text-amber-700 sm:text-xl">Shared Impact</p><p className="mt-1 text-xs leading-5 text-slate-500">Better fundraising through better value</p></div>
+            <div className="my-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-semibold uppercase text-slate-500">Or sign up with email</span>
+              <div className="h-px flex-1 bg-slate-200" />
             </div>
-
-            <div className="mt-8 border-l-4 border-green-500 pl-4 text-sm leading-6 text-slate-600">
-              <strong className="text-gray-900">You are not being asked to donate money.</strong>{' '}
-              Your contribution is the offer you choose to provide. RaiseHub handles the fundraising experience while your business gets visibility, customer traffic, redemption tracking, and access to Partner Rewards opportunities.
-            </div>
-          </section>
-
-          <aside className="h-fit border-t border-slate-200 pt-7 lg:sticky lg:top-6 lg:rounded-3xl lg:border lg:bg-white lg:p-8 lg:shadow-sm">
-            <div className="flex flex-wrap gap-2"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">FOUNDING 100</span><span className="rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-800">2× POINTS · 1 YEAR</span></div>
-            <p className="mt-3 text-sm font-semibold text-green-700">Start free. Stay free.</p>
-            <h2 className="mt-2 text-2xl font-bold text-blue-700">Become a RaiseHub Partner</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-600">
-              Create and manage up to 3 active offers with no required subscription. Upgrade only when you want additional offers or advanced features. After email confirmation, we will guide you through the complete business setup process.
-            </p>
-
-            <div className="mt-6">
-              <GoogleOAuthButton
-                destination={googleDestination}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="my-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Or sign up with email
-              </span>
-              <div className="h-px flex-1 bg-gray-200" />
-            </div>
-
             <form onSubmit={handleSignup} className="space-y-4">
               <div>
-                <label htmlFor="business-signup-email" className="mb-2 block text-sm font-medium text-gray-700">Business email</label>
+                <label htmlFor="business-signup-email" className="mb-2 block text-sm font-medium text-slate-700">Business email</label>
                 <input id="business-signup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100" required />
               </div>
               <div>
-                <label htmlFor="business-signup-password" className="mb-2 block text-sm font-medium text-gray-700">Password</label>
+                <label htmlFor="business-signup-password" className="mb-2 block text-sm font-medium text-slate-700">Password</label>
                 <input id="business-signup-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100" required />
               </div>
-              <button disabled={loading} className="min-h-12 w-full rounded-xl bg-green-600 px-5 py-3 font-black text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
-                {loading ? 'Creating account...' : 'Become a RaiseHub Partner'}
+              <button disabled={loading} className="min-h-12 w-full rounded-xl bg-green-600 px-5 py-3 font-black text-white transition hover:bg-green-700 disabled:opacity-50">
+                {loading ? 'Creating account...' : 'Create My Free Business Profile'}
               </button>
             </form>
-
-            {message ? <p className={`mt-4 text-sm ${message.startsWith('Account created') ? 'text-green-700' : 'text-red-600'}`}>{message}</p> : null}
-
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-center">
-              <p className="text-sm font-bold text-gray-900">Want to look around first?</p>
-              <p className="mt-1 text-xs leading-5 text-gray-600">Open a sample business workspace with demo data. If you arrived through a business referral, RaiseHub keeps that attribution while you explore.</p>
-              <a
-                href={businessDemoUrl}
-                className="mt-3 block w-full rounded-xl bg-blue-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              >
+            {message ? <p role="status" className={message.startsWith('Account created') ? 'mt-4 text-sm text-green-700' : 'mt-4 text-sm text-red-600'}>{message}</p> : null}
+            <div className="mt-6 border-t border-slate-200 pt-5">
+              <p className="text-sm font-bold text-slate-950">Want to look around first?</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">Explore the business demo before creating an account.</p>
+              <a href={businessDemoUrl} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700 hover:bg-blue-100">
                 Explore Business Demo
               </a>
             </div>
-
-            <div className="mt-6 border-t border-gray-200 pt-5 text-sm text-gray-600">
-              <p>Already have an account? <Link href="/login?next=/workspace/new/business" className="font-semibold text-blue-700 hover:underline">Log in here</Link></p>
-              <p className="mt-3">Looking for local deals? <Link href="/signup" className="font-semibold text-yellow-700 hover:underline">Customer signup →</Link></p>
-              <p className="mt-3">Need to raise funds? <Link href="/signup/organization" className="font-semibold text-blue-700 hover:underline">Organization signup →</Link></p>
-            </div>
+            <p className="mt-5 text-sm text-slate-600">Already have an account? <Link href="/login?next=/workspace/new/business" className="font-semibold text-blue-700 hover:underline">Log in</Link></p>
           </aside>
+
+          <section className="order-2 lg:order-1">
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">Three simple steps</h2>
+            <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+              <article className="flex gap-4 py-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100 font-black text-green-800">1</span>
+                <div>
+                  <h3 className="text-lg font-black">Sign up free</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Create your business profile so local customers can find you.</p>
+                </div>
+              </article>
+              <article className="flex gap-4 py-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 font-black text-blue-800">2</span>
+                <div>
+                  <h3 className="text-lg font-black">Add your offers</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Choose the discounts, perks, and redemption rules that work for your business.</p>
+                </div>
+              </article>
+              <article className="flex gap-4 py-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 font-black text-amber-800">3</span>
+                <div>
+                  <h3 className="text-lg font-black">Welcome customers</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">Local organizations sell fundraising passes. Supporters discover your offers and can visit your business to redeem them.</p>
+                </div>
+              </article>
+            </div>
+            <p className="mt-5 text-sm leading-6 text-slate-700">
+              <strong>What&apos;s your commitment?</strong> There&apos;s no obligation to donate money or run a fundraiser. Simply keep your offers accurate and honor valid redemptions under the terms you choose.
+            </p>
+
+            <details className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
+              <summary className="cursor-pointer text-base font-black text-slate-950">Optional partner rewards and benefits</summary>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                <p><strong>Founding 100:</strong> The first 100 verified production businesses receive 2× positive Partner Points for one year after verification.</p>
+                <p><strong>Partner Rewards:</strong> Eligible activity, including profile completion, verification, active offers, redemptions, and business referrals, can earn Partner Points. Points have no fixed cash value; eligibility for rewards and the quarterly pool follows program rules.</p>
+                <p><strong>Growth options:</strong> Start with up to three active offers for free. Optional upgrades add offer capacity and advanced features.</p>
+              </div>
+            </details>
+          </section>
         </div>
       </div>
     </main>
