@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import GoogleOAuthButton from '@/components/auth/google-oauth-button'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   clearBusinessReferralInBrowser,
@@ -15,7 +15,6 @@ import { createClient } from '@/lib/supabase/client'
 const BUSINESS_DEMO_URL = 'https://raisehub-demo.vercel.app/demo?role=business'
 
 export default function BusinessSignupPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const searchReferralToken = normalizeBusinessReferralToken(searchParams.get('ref')) ?? ''
@@ -25,6 +24,7 @@ export default function BusinessSignupPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [existingUser, setExistingUser] = useState<boolean | null>(null)
 
   useEffect(() => {
     const rememberedToken = readBusinessReferralCookie(document.cookie)
@@ -37,20 +37,16 @@ export default function BusinessSignupPage() {
   useEffect(() => {
     let cancelled = false
 
-    async function routeExistingAccount() {
+    async function checkExistingAccount() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (cancelled || !user) return
-
-      const destination = referralToken
-        ? `/workspace/new/business?ref=${encodeURIComponent(referralToken)}`
-        : '/workspace/new/business'
-
-      router.replace(destination)
+      if (!cancelled) setExistingUser(Boolean(user))
     }
 
-    void routeExistingAccount()
+    void checkExistingAccount().catch(() => {
+      if (!cancelled) setExistingUser(false)
+    })
     return () => { cancelled = true }
-  }, [referralToken, router, supabase])
+  }, [supabase])
 
   const businessDemoUrl = referralToken
     ? `${BUSINESS_DEMO_URL}&ref=${encodeURIComponent(referralToken)}`
@@ -129,9 +125,18 @@ export default function BusinessSignupPage() {
                 You were invited by a RaiseHub business partner. We&apos;ll remember your referral when you join.
               </p>
             ) : null}
-            <div className="mt-5">
-              <GoogleOAuthButton destination={googleDestination} disabled={loading} />
-            </div>
+            {existingUser === true ? (
+              <div className="mt-5 rounded-xl bg-green-50 p-4">
+                <p className="text-sm leading-6 text-green-900">You&apos;re already signed in. You can review this page, then open your business workspace without creating another account.</p>
+                <Link href={googleDestination} className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-green-700 px-4 text-center text-sm font-black text-white hover:bg-green-800">
+                  Continue to My Business Workspace
+                </Link>
+              </div>
+            ) : existingUser === false ? (
+              <>
+                <div className="mt-5">
+                  <GoogleOAuthButton destination={googleDestination} disabled={loading} />
+                </div>
             <div className="my-5 flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
               <span className="text-xs font-semibold uppercase text-slate-500">Or sign up with email</span>
@@ -151,6 +156,10 @@ export default function BusinessSignupPage() {
               </button>
             </form>
             {message ? <p role="status" className={message.startsWith('Account created') ? 'mt-4 text-sm text-green-700' : 'mt-4 text-sm text-red-600'}>{message}</p> : null}
+              </>
+            ) : (
+              <p className="mt-5 text-sm text-slate-600" role="status">Checking your account…</p>
+            )}
             <div className="mt-6 border-t border-slate-200 pt-5">
               <p className="text-sm font-bold text-slate-950">Want to look around first?</p>
               <p className="mt-1 text-sm leading-6 text-slate-600">Explore the business demo before creating an account.</p>
@@ -158,7 +167,9 @@ export default function BusinessSignupPage() {
                 Explore Business Demo
               </a>
             </div>
-            <p className="mt-5 text-sm text-slate-600">Already have an account? <Link href="/login?next=/workspace/new/business" className="font-semibold text-blue-700 hover:underline">Log in</Link></p>
+            {existingUser !== true ? (
+              <p className="mt-5 text-sm text-slate-600">Already have an account? <Link href="/login?next=/workspace/new/business" className="font-semibold text-blue-700 hover:underline">Log in</Link></p>
+            ) : null}
           </aside>
 
           <section className="order-2 lg:order-1">
