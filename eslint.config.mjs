@@ -22,6 +22,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "apps/mobile/**", // Separate Expo toolchain and lint pass.
   ]),
 ]);
 

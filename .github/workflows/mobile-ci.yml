@@ -1,0 +1,36 @@
+name: RaiseHub Mobile Foundation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "src/lib/mobile/**"
+      - "src/lib/services/mobile-workspace-service.ts"
+      - "src/lib/services/capability-resolution-core.ts"
+      - ".github/workflows/mobile-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-typecheck:
+    name: Expo dependency check and TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Check Expo dependencies
+        working-directory: apps/mobile
+        run: npx expo install --check
+      - name: Check mobile TypeScript
+        working-directory: apps/mobile
+        run: npm run typecheck

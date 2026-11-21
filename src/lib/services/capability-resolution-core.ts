@@ -146,6 +146,56 @@ function buildMembershipDeniedReason<T extends { membership: { membership_role: 
     : 'insufficient-role'
 }
 
+/**
+ * Shared read-only actor summary for web and mobile adapters.
+ * All access queries must be performed under the verified actor identity.
+ * This remains the only implementation of capability/entitlement filtering.
+ */
+export async function resolveActorSummaryForActor(
+  actor: AuthenticatedActor,
+  dependencies: Pick<
+    CapabilityResolverDependencies,
+    | 'now'
+    | 'loadBusinessAccess'
+    | 'loadOrganizationAccess'
+    | 'loadCampaignAccess'
+    | 'loadCustomerEntitlements'
+    | 'hasLegacyCustomerPassAccess'
+  >
+): Promise<ActorCapabilitySummary> {
+  const [
+    businessAccess,
+    organizationAccess,
+    campaignAccess,
+    customerEntitlements,
+    hasLegacyCustomerPass,
+  ] = await Promise.all([
+    dependencies.loadBusinessAccess(actor.id),
+    dependencies.loadOrganizationAccess(actor.id),
+    dependencies.loadCampaignAccess(actor.id),
+    dependencies.loadCustomerEntitlements(actor.id),
+    dependencies.hasLegacyCustomerPassAccess(actor.id),
+  ])
+
+  const now = dependencies.now?.() ?? new Date()
+  const activeCustomerEntitlement =
+    customerEntitlements.find((entitlement) =>
+      isCustomerEntitlementActive(entitlement, now)
+    ) ?? null
+
+  return {
+    actor,
+    legacyWorkspaceRole: getLegacyWorkspaceRole(actor.legacyRole),
+    businessAccess: filterOperationalBusinessAccess(businessAccess),
+    organizationAccess: filterOperationalOrganizationAccess(organizationAccess),
+    campaignAccess,
+    customerEntitlements,
+    activeCustomerEntitlement,
+    hasLegacyCustomerPass,
+    canAccessOwnerPlatform: actor.legacyRole === 'owner',
+  }
+}
+
 export function createCapabilityResolver(
   dependencies: CapabilityResolverDependencies
 ) {
@@ -154,37 +204,7 @@ export function createCapabilityResolver(
   async function resolveActorCapabilitySummaryForActor(
     actor: AuthenticatedActor
   ): Promise<ActorCapabilitySummary> {
-    const [
-      businessAccess,
-      organizationAccess,
-      campaignAccess,
-      customerEntitlements,
-      hasLegacyCustomerPass,
-    ] = await Promise.all([
-      dependencies.loadBusinessAccess(actor.id),
-      dependencies.loadOrganizationAccess(actor.id),
-      dependencies.loadCampaignAccess(actor.id),
-      dependencies.loadCustomerEntitlements(actor.id),
-      dependencies.hasLegacyCustomerPassAccess(actor.id),
-    ])
-
-    const activeCustomerEntitlement =
-      customerEntitlements.find((entitlement) =>
-        isCustomerEntitlementActive(entitlement, getNow())
-      ) ?? null
-
-    return {
-      actor,
-      legacyWorkspaceRole: getLegacyWorkspaceRole(actor.legacyRole),
-      businessAccess: filterOperationalBusinessAccess(businessAccess),
-      organizationAccess:
-        filterOperationalOrganizationAccess(organizationAccess),
-      campaignAccess,
-      customerEntitlements,
-      activeCustomerEntitlement,
-      hasLegacyCustomerPass,
-      canAccessOwnerPlatform: actor.legacyRole === 'owner',
-    }
+    return resolveActorSummaryForActor(actor, dependencies)
   }
 
   async function canAccessCustomerBenefitsForActor(
